@@ -154,7 +154,7 @@ namespace GoNoGo.Core.Tests
             var shelf = SessionRules.ShelfParts(_data, cadet).Select(p => p.Id).ToList();
             Assert.That(shelf, Does.Not.Contain("inst_thermal"), "學員難度沒有長波熱紅外線，也就不會遇到假火點");
             foreach (var cat in new[] { PartCategory.Instrument, PartCategory.Solar, PartCategory.Battery, PartCategory.Antenna })
-                Assert.That(_data.ShelfFor(_data.Scenario("wildfire"), _data.Difficulty("cadet")).Count(p => p.Category == cat), Is.EqualTo(2), cat);
+                Assert.That(_data.ShelfFor(_data.Scenario("wildfire"), _data.Difficulty("cadet")).Count(p => p.Category == cat && !p.Decoy), Is.EqualTo(2), cat);
 
             var eng = SessionRules.NewSession(_data, "wildfire", "engineer", false, false);
             Assert.That(eng.Bench.Instruments, Is.EqualTo(new[] { "inst_thermal" }));

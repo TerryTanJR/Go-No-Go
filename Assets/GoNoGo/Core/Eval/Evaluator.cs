@@ -95,7 +95,7 @@ namespace GoNoGo.Core
             pw.RequiredArrayW = td > 0
                 ? (pe * te / c.PathEfficiencyEclipse + pd * td / c.PathEfficiencyDaylight) / td
                 : pd / c.PathEfficiencyDaylight;
-            pw.ArrayBolW = (solar?.AreaM2 ?? 0) * c.SolarArrayWPerM2;
+            pw.ArrayBolW = (solar?.AreaM2 ?? 0) * c.SolarArrayWPerM2 * (solar?.CellFactor ?? 1);
             pw.ArrayEolW = pw.ArrayBolW * Math.Pow(1 - c.SolarDegradationPerYear, years);
             pw.EclipseEnergyWh = pe * te / 60.0;
             pw.AllowedDod = orbit?.BatteryDod ?? 0.3;
@@ -134,7 +134,8 @@ namespace GoNoGo.Core
                 dt.GeneratedGbPerDay += i.DataGbPerDay;
                 dataContrib.Add(new Contribution(i.Id, i.DataGbPerDay));
             }
-            double rate = (antenna?.DownlinkMbps ?? 0) * (orbit?.DownlinkRateFactor ?? 1);
+            // 平均速率：雷射通訊之類的連線只有部分過站時間連得上
+            double rate = (antenna?.DownlinkMbps ?? 0) * (antenna?.LinkAvailability ?? 1) * (orbit?.DownlinkRateFactor ?? 1);
             dt.DownlinkGbPerDay = rate * oi.ContactMinPerDay * 60.0 / 8.0 / 1000.0 * c.LinkEfficiency;
             double gapHours;
             if (orbit != null && orbit.ContactFraction > 0) gapHours = 24.0 * (1 - orbit.ContactFraction);

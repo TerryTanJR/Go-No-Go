@@ -35,6 +35,57 @@ namespace GoNoGo.Core.Tests
             Assert.That(data.PartsIn(PartCategory.Instrument).Count(p => p.Tier <= 2), Is.GreaterThanOrEqualTo(2), "學員難度至少要有兩台儀器");
         }
 
+        /// <summary>誘餌零件：學員只有儀器，工程師多幾類，任務主管全部；新手訓練沒有；修正建議不推薦。</summary>
+        [Test]
+        public void DecoysFollowDifficulty()
+        {
+            var data = TestData.Load();
+            var decoyCats = data.Parts.Where(p => p.Decoy).Select(p => p.Category).Distinct().ToList();
+            Assert.That(decoyCats, Is.EquivalentTo(PartCategory.All.Where(c => c != PartCategory.GroundStation)), "每一類都要有誘餌");
+
+            List<string> Cats(string scenario, string diff) =>
+                data.ShelfFor(data.Scenario(scenario), data.Difficulty(diff)).Where(p => p.Decoy).Select(p => p.Category).Distinct().ToList();
+            foreach (var sc in new[] { "earth_observation", "wildfire" })
+            {
+                Assert.That(Cats(sc, "tutorial"), Is.Empty, sc);
+                Assert.That(Cats(sc, "cadet"), Is.EquivalentTo(new[] { PartCategory.Instrument }), sc);
+                var eng = Cats(sc, "engineer");
+                var dir = Cats(sc, "director");
+                Assert.That(eng, Does.Contain(PartCategory.Instrument).And.Not.Contain(PartCategory.Solar), sc);
+                Assert.That(dir, Is.SupersetOf(eng), sc);
+                Assert.That(dir, Does.Contain(PartCategory.Solar), sc);
+            }
+
+            var d = data.Scenario("earth_observation").DefaultDesign;
+            foreach (var f in FixFinder.Candidates(d, data, "director").Where(f => f.Kind == FixKind.SwapPart))
+                Assert.That(data.Part(f.ToId).Decoy, Is.False, f.ToId);
+        }
+
+        /// <summary>誘餌真的比較差：在同樣的設計裡換上去，模擬算得出缺點。</summary>
+        [Test]
+        public void DecoysHaveRealDrawbacks()
+        {
+            var data = TestData.Load();
+            var baseD = data.Scenario("earth_observation").DefaultDesign;
+            Evaluation With(string cat, string id)
+            {
+                var d = baseD.Clone();
+                d.Parts[cat] = id;
+                return Evaluator.EvaluateDesign(d, data, "engineer", false);
+            }
+            // 矽晶翼面積比 S-2 大，發電卻比較少
+            Assert.That(With(PartCategory.Solar, "solar_silicon").Power.ArrayBolW, Is.LessThan(With(PartCategory.Solar, "solar_deployable").Power.ArrayBolW));
+            // 雷射通訊峰值十倍，平均下傳卻比 X-3 少
+            Assert.That(With(PartCategory.Antenna, "ant_optical").Data.DownlinkGbPerDay, Is.LessThan(With(PartCategory.Antenna, "ant_xband_hr").Data.DownlinkGbPerDay));
+            // 鉛比 R-2 重，擋得比較少
+            Assert.That(data.Part("shield_lead").MassKg, Is.GreaterThan(data.Part("shield_vault").MassKg));
+            Assert.That(data.Part("shield_lead").DoseFactor, Is.GreaterThan(data.Part("shield_vault").DoseFactor));
+            // 消費級 AI 板：輻射壽命比 C-2 短
+            Assert.That(With(PartCategory.Computer, "obc_ai_edge").Lifetime.RadiationYears, Is.LessThan(With(PartCategory.Computer, "obc_mass_memory").Lifetime.RadiationYears));
+            // 超級電容撐不過日食
+            Assert.That(With(PartCategory.Battery, "batt_supercap").Power.BatteryMargin, Is.LessThan(0));
+        }
+
         [Test]
         public void EveryValueHasASourceUrl()
         {

@@ -247,7 +247,8 @@ namespace GoNoGo.UI
                     if (p.ResolutionM > 0) yield return new Stat("resolution", p.ResolutionM, Fmt.N(p.ResolutionM) + " m", false, false);
                     break;
                 case PartCategory.Solar:
-                    yield return new Stat("array", p.AreaM2 * k.SolarArrayWPerM2, Fmt.N(p.AreaM2 * k.SolarArrayWPerM2) + " W", true);
+                    double arrayW = p.AreaM2 * k.SolarArrayWPerM2 * p.CellFactor;
+                    yield return new Stat("array", arrayW, Fmt.N(arrayW) + " W", true);
                     yield return new Stat("area", p.AreaM2, Fmt.N(p.AreaM2, 1) + " m²", true, false);
                     break;
                 case PartCategory.Battery:
@@ -256,6 +257,8 @@ namespace GoNoGo.UI
                 case PartCategory.Antenna:
                     yield return new Stat("downlink", p.DownlinkMbps, Fmt.N(p.DownlinkMbps) + " Mbps", true);
                     if (p.TxPowerW > 0) yield return new Stat("txpower", p.TxPowerW, Fmt.N(p.TxPowerW, 1) + " W", true, false);
+                    // 每張天線卡都列出可用比例（只有誘餌才列的話，一看就知道哪個有問題）
+                    yield return new Stat("link", p.LinkAvailability, Fmt.Pct(p.LinkAvailability), true, false);
                     break;
                 case PartCategory.Computer:
                     yield return new Stat("storage", p.StorageGb, Fmt.N(p.StorageGb) + " GB", true);

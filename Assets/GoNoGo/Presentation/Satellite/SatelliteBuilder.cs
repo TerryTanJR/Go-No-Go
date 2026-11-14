@@ -113,7 +113,7 @@ namespace GoNoGo.Presentation
             Cyl(g, new Vector3(0, h / 2 + 0.06f * s, 0), 0.32f * s, 0.08f * s, Vector3.up, m.metal);
             Cyl(g, new Vector3(0, h / 2 + 0.11f * s, 0), 0.36f * s, 0.025f * s, Vector3.up, m.frameDark);
 
-            if (shield == "shield_vault" || heavy)
+            if (shield == "shield_vault" || shield == "shield_lead" || heavy)
             {
                 var v = Group(root, PartCategory.Shielding, shield);
                 // 電子設備「保險箱」：比較厚的鋁屏蔽盒，裝在上甲板
@@ -198,15 +198,32 @@ namespace GoNoGo.Presentation
 
         static readonly Vector2[] Slots = { new Vector2(-0.2f, 0.1f), new Vector2(0.2f, 0.12f), new Vector2(0f, -0.22f) };
 
+        /// <summary>朝天儀器在頂面的位置（角落，避開中間的火箭轉接環、電子艙屏蔽盒與星象儀）。</summary>
+        static readonly Vector2[] TopSlots = { new Vector2(0.34f, 0.34f), new Vector2(-0.34f, -0.34f), new Vector2(0.36f, 0f) };
+
         static void BuildInstruments(Transform root, SatMaterials m, float s, float h, Design d, GameData data)
         {
-            int slot = 0;
+            int slot = 0, top = 0;
             foreach (var id in d.Instruments)
             {
                 var p = data.Part(id);
                 var g = Group(root, PartCategory.Instrument, id);
                 Color accent = Color.white;
                 if (p != null) ColorUtility.TryParseHtmlString(p.Color, out accent);
+
+                // Blender 做的模型（tools/parts/build_instruments.py）：有就用，沒有就用下面的程式外形
+                var model = p != null ? PartModel(p.Id) : null;
+                if (model != null)
+                {
+                    bool up = p.Mount == "zenith" || p.Mount == "boom";
+                    var tp = TopSlots[Mathf.Min(top, TopSlots.Length - 1)];
+                    var sp = Slots[Mathf.Min(slot, Slots.Length - 1)];
+                    var pos = up ? new Vector3(tp.x * s, h / 2 + 0.015f * s, tp.y * s) : new Vector3(sp.x * s, -h / 2, sp.y * s);
+                    if (up) top++; else slot++;
+                    PlaceModel(g, model, m, pos, s, accent);
+                    continue;
+                }
+
                 var at = Slots[Mathf.Min(slot, Slots.Length - 1)];
                 var basePos = new Vector3(at.x * s, -h / 2, at.y * s);
                 slot++;
@@ -283,6 +300,69 @@ namespace GoNoGo.Presentation
             }
         }
 
+        // ---------------- Blender 模型 ----------------
+
+        static readonly Dictionary<string, GameObject> _partModels = new Dictionary<string, GameObject>();
+
+        /// <summary>Resources/Presentation/Parts/&lt;零件 id&gt;（GLB）；沒有就回傳 null。</summary>
+        static GameObject PartModel(string partId)
+        {
+            if (!_partModels.TryGetValue(partId, out var go))
+            {
+                go = Resources.Load<GameObject>("Presentation/Parts/" + partId);
+                _partModels[partId] = go;
+            }
+            return go;
+        }
+
+        /// <summary>
+        /// 放一個 Blender 模型：單位是本體邊長（乘上 s），原點是安裝面。
+        /// glTFast 匯入時 Blender +Y 變成 Unity -Z、X 翻面，轉 180° 讓 Blender 的 +Y 對到 Unity 的 +Z（和控制室模型一樣）。
+        /// 材質依名稱換成 SatMaterials 的同名材質；accent 染成零件顏色。
+        /// </summary>
+        static void PlaceModel(Transform g, GameObject prefab, SatMaterials m, Vector3 pos, float s, Color accent)
+        {
+            var go = UnityEngine.Object.Instantiate(prefab, g, false);
+            go.name = "model";
+            go.transform.localPosition = pos;
+            go.transform.localRotation = Quaternion.Euler(0, 180, 0);
+            go.transform.localScale = Vector3.one * s;
+            foreach (var r in go.GetComponentsInChildren<Renderer>(true))
+            {
+                var mats = r.sharedMaterials;
+                bool isAccent = false;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    string n = mats[i] != null ? mats[i].name : "";
+                    var sat = SatMaterial(m, n);
+                    if (sat != null) mats[i] = sat;
+                    if (n.StartsWith("accent")) isAccent = true;
+                }
+                r.sharedMaterials = mats;
+                if (isAccent)
+                {
+                    var mpb = new MaterialPropertyBlock();
+                    mpb.SetColor("_BaseColor", accent);
+                    r.SetPropertyBlock(mpb);
+                }
+            }
+        }
+
+        static Material SatMaterial(SatMaterials m, string name)
+        {
+            // Blender 重複名稱會加 .001，比對開頭就好
+            if (name.StartsWith("mliGold")) return m.mliGold;
+            if (name.StartsWith("mliSilver")) return m.mliSilver;
+            if (name.StartsWith("paintWhite")) return m.paintWhite;
+            if (name.StartsWith("frameDark")) return m.frameDark;
+            if (name.StartsWith("solarCell")) return m.solarCell;
+            if (name.StartsWith("dish")) return m.dish;
+            if (name.StartsWith("lens")) return m.lens;
+            if (name.StartsWith("metal")) return m.metal;
+            if (name.StartsWith("accent")) return m.accent;
+            return null;
+        }
+
         static void Lens(Transform g, SatMaterials m, Vector3 pos, float r, Color accent)
         {
             Cyl(g, pos, r, 0.02f, Vector3.up, m.lens);
@@ -304,7 +384,7 @@ namespace GoNoGo.Presentation
             var g = Group(root, PartCategory.Adcs, id ?? "");
             // 太陽感測器（每種都有）
             Box(g, new Vector3(s / 2 + 0.01f * s, h * 0.42f, s * 0.38f), new Vector3(0.02f * s, 0.05f * s, 0.05f * s), m.lens);
-            if (id == "adcs_wheels" || id == "adcs_precision")
+            if (id == "adcs_wheels" || id == "adcs_precision" || id == "adcs_cmg")
             {
                 foreach (var z in new[] { -0.2f, 0.2f })
                     Cyl(g, new Vector3(0, h * 0.25f, -s / 2 - 0.03f * s) + new Vector3(z * s, 0, 0), 0.08f * s, 0.06f * s, Vector3.forward, m.metal);

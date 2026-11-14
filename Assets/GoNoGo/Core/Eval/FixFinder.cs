@@ -74,7 +74,8 @@ namespace GoNoGo.Core
         {
             var scenario = data.Scenario(design.ScenarioId);
             var diff = data.Difficulty(difficultyId) ?? data.Difficulties.FirstOrDefault() ?? new DifficultyDef();
-            var shelf = new HashSet<string>(data.ShelfFor(scenario, diff).Select(p => p.Id));
+            // 修正建議不推薦誘餌零件（就算剛好解決這一項，也會在別處出問題）
+            var shelf = new HashSet<string>(data.ShelfFor(scenario, diff).Where(p => !p.Decoy).Select(p => p.Id));
 
             foreach (var cat in PartCategory.Single)
             {

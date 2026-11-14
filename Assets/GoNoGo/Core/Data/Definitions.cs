@@ -99,8 +99,16 @@ namespace GoNoGo.Core
         /// <summary>只在這些情境的零件架上出現；空白 = 所有情境。</summary>
         public List<string> Scenarios { get; set; } = new List<string>();
 
+        /// <summary>
+        /// 誘餌零件：聽起來有用、其實不適合（或只在特定關卡有用）。不受難度等級限制，
+        /// 只在難度的 <see cref="DifficultyDef.DecoyCategories"/> 有這個類別時上架；修正建議不會推薦它。
+        /// </summary>
+        public bool Decoy { get; set; }
+
         // 太陽能板
         public double AreaM2 { get; set; }
+        /// <summary>每平方公尺發電量相對於太空用三接面電池的倍率（地面用矽晶電池較低）。</summary>
+        public double CellFactor { get; set; } = 1.0;
 
         // 電池
         public double CapacityWh { get; set; }
@@ -108,6 +116,8 @@ namespace GoNoGo.Core
         // 天線
         public double DownlinkMbps { get; set; }
         public double TxPowerW { get; set; }
+        /// <summary>過站時間裡真的連得上的比例（雷射通訊會被雲擋、要專用光學地面站）。</summary>
+        public double LinkAvailability { get; set; } = 1.0;
 
         // 地面站
         public int Stations { get; set; }
@@ -302,6 +312,8 @@ namespace GoNoGo.Core
         /// <summary>工程部要求的設計餘裕（質量與電力）。</summary>
         public double RequiredMargin { get; set; } = 0.15;
         public int TiersPerCategory { get; set; } = 3;
+        /// <summary>哪些類別的誘餌零件會上架（學員只有儀器，越難類別越多）。</summary>
+        public List<string> DecoyCategories { get; set; } = new List<string>();
         /// <summary>儀表板加上紅黃綠（學員）。</summary>
         public bool DashboardColors { get; set; }
         /// <summary>筆記板：checklist（整理成發射條件清單）、transcript（記下對話原文）、none（不自動記錄）。</summary>

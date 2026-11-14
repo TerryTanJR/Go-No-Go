@@ -51,8 +51,8 @@ namespace GoNoGo.UI
 
             var wrap = Ui.Row("proc-wrap").AddTo(body);
 
-            // 左：這一類的零件
-            var list = Ui.El("proc-list").AddTo(wrap);
+            // 左：這一類的零件（誘餌加進來後一類可能有十幾個，要能捲動，不然會超出去蓋到下面的購物車列）
+            var list = Scroll(wrap, "proc-list");
             var installed = new HashSet<string>(s.Bench.AllPartIds());
             foreach (var p in parts)
             {
@@ -71,19 +71,20 @@ namespace GoNoGo.UI
             if (tex != null) _preview.style.backgroundImage = new StyleBackground(Background.FromRenderTexture((RenderTexture)tex));
             else Ui.Text(Loc.T("ui.proc.no_preview"), "small", "faint").AddTo(_preview);
 
-            // 右：科普說明與加入購物車
+            // 右：科普說明（可捲動）與加入購物車（固定在下面）。
+            // 說明很長時以前會把按鈕擠出這一欄，掉到購物車列底下，點擊全被購物車列吃掉。
             var info = Ui.El("proc-info").AddTo(wrap);
             var sel = D.Part(_sel);
             if (sel != null)
             {
-                var top = Ui.Row("proc-info-top").AddTo(info);
+                var text = Scroll(info, "proc-info-text");
+                var top = Ui.Row("proc-info-top").AddTo(text);
                 Ui.Text(sel.Code, "man-code", "mono").AddTo(top);
                 Ui.Text(Loc.T(sel.Name), "h2", "proc-info-name").AddTo(top);
-                Ui.Text(Loc.T("ui.cat." + sel.Category), "eyebrow", "proc-info-cat").AddTo(info);
-                Ui.Text(Loc.T(sel.Function), "body", "proc-func").AddTo(info);
-                Ui.Text(Loc.T(sel.Explainer), "body", "proc-explainer").AddTo(info);
-                if (sel.SunlitOnly) Ui.Text(Loc.T("ui.manual.sunlit"), "man-badge", "man-badge--warn").AddTo(info);
-                Ui.Spacer().AddTo(info);
+                Ui.Text(Loc.T("ui.cat." + sel.Category), "eyebrow", "proc-info-cat").AddTo(text);
+                Ui.Text(Loc.T(sel.Function), "body", "proc-func").AddTo(text);
+                Ui.Text(Loc.T(sel.Explainer), "body", "proc-explainer").AddTo(text);
+                if (sel.SunlitOnly) Ui.Text(Loc.T("ui.manual.sunlit"), "man-badge", "man-badge--warn").AddTo(text);
 
                 var act = Ui.Row("proc-info-actions").AddTo(info);
                 bool owned = s.Owned.Contains(sel.Id), inCart = s.Cart.Contains(sel.Id);

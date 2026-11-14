@@ -86,14 +86,20 @@ namespace GoNoGo.Core
         public static List<string> EventTypes(ScenarioDef s, DifficultyDef d) =>
             ByDifficulty(s?.EventTypes, d?.Id) ?? d?.EventTypes ?? new List<string>();
 
-        /// <summary>零件架上的零件（不含地面站）：關卡有指定就照指定，否則依難度開放的等級。</summary>
+        /// <summary>
+        /// 零件架上的零件（不含地面站）：關卡有指定就照指定，否則依難度開放的等級；
+        /// 再加上這個難度開放類別的誘餌零件。
+        /// </summary>
         public IEnumerable<PartDef> ShelfFor(ScenarioDef s, DifficultyDef d)
         {
+            bool InScenario(PartDef p) => p.Scenarios.Count == 0 || (s != null && p.Scenarios.Contains(s.Id));
             var list = ByDifficulty(s?.Shelf, d?.Id);
-            if (list != null) return list.Select(Part).Where(p => p != null && p.Category != PartCategory.GroundStation);
             int tiers = d?.TiersPerCategory ?? 3;
-            return Parts.Where(p => p.Category != PartCategory.GroundStation && p.Tier <= tiers
-                                    && (p.Scenarios.Count == 0 || (s != null && p.Scenarios.Contains(s.Id))));
+            var regular = list != null
+                ? list.Select(Part).Where(p => p != null && p.Category != PartCategory.GroundStation)
+                : Parts.Where(p => !p.Decoy && p.Category != PartCategory.GroundStation && p.Tier <= tiers && InScenario(p));
+            var decoys = Parts.Where(p => p.Decoy && d != null && d.DecoyCategories.Contains(p.Category) && InScenario(p));
+            return regular.Concat(decoys).Distinct();
         }
 
         /// <summary>這個處室在這個關卡的對話（關卡沒寫就用通用對話）。包含所有難度的題目，用 <see cref="LineOpen"/> 判斷問不問得到。</summary>
@@ -181,9 +187,15 @@ namespace GoNoGo.Core
                         Check(p.MassKg > 0 && p.PowerW > 0 && p.DataGbPerDay > 0 && p.ScienceValue > 0, $"{w}：儀器缺質量/耗電/資料量/科學值");
                         Check(p.ObjectiveMatch.Count > 0, $"{w}：缺任務目標吻合度");
                         break;
-                    case PartCategory.Solar: Check(p.AreaM2 > 0 && p.MassKg > 0, $"{w}：太陽能板缺面積或質量"); break;
+                    case PartCategory.Solar:
+                        Check(p.AreaM2 > 0 && p.MassKg > 0, $"{w}：太陽能板缺面積或質量");
+                        Check(p.CellFactor > 0 && p.CellFactor <= 1, $"{w}：電池效率倍率必須在 (0,1]");
+                        break;
                     case PartCategory.Battery: Check(p.CapacityWh > 0 && p.MassKg > 0, $"{w}：電池缺容量或質量"); break;
-                    case PartCategory.Antenna: Check(p.DownlinkMbps > 0 && p.TxPowerW > 0, $"{w}：天線缺速率或發射功率"); break;
+                    case PartCategory.Antenna:
+                        Check(p.DownlinkMbps > 0 && p.TxPowerW > 0, $"{w}：天線缺速率或發射功率");
+                        Check(p.LinkAvailability > 0 && p.LinkAvailability <= 1, $"{w}：連線可用比例必須在 (0,1]");
+                        break;
                     case PartCategory.GroundStation: Check(p.Stations > 0, $"{w}：地面站數量必須 > 0"); break;
                     case PartCategory.Computer: Check(p.StorageGb > 0 && p.RadToleranceKrad > 0, $"{w}：電腦缺儲存或耐輻射"); break;
                     case PartCategory.Propulsion: Check(p.PropellantKg == 0 || p.IspS > 0, $"{w}：有推進劑就必須有比衝"); break;
@@ -224,7 +236,11 @@ namespace GoNoGo.Core
                 errors.AddRange(ValidateDesign(d, s.DefaultDesign, $"{w} 預設設計"));
                 foreach (var kv in s.DefaultDesigns) errors.AddRange(ValidateDesign(d, kv.Value, $"{w} {kv.Key} 開局設計"));
                 foreach (var kv in s.Shelf)
-                    foreach (var id in kv.Value) Check(d.Part(id) != null && d.Part(id).Category != PartCategory.GroundStation, $"{w}：零件架有未知零件 {id}");
+                    foreach (var id in kv.Value)
+                    {
+                        Check(d.Part(id) != null && d.Part(id).Category != PartCategory.GroundStation, $"{w}：零件架有未知零件 {id}");
+                        Check(d.Part(id) == null || !d.Part(id).Decoy, $"{w}：零件架不要直接列誘餌零件 {id}（由難度的 decoy_categories 決定）");
+                    }
                 foreach (var kv in s.EventTypes)
                     foreach (var k in kv.Value) Check(OpsEvents.Parse(k) != null, $"{w}：{kv.Key} 未知事件 {k}");
                 foreach (var kv in s.Dialogue)
@@ -260,6 +276,8 @@ namespace GoNoGo.Core
                 Check(df.Turns >= 1, $"難度 {df.Id}：回合數至少 1");
                 Check(df.EventTypes.Count > 0, $"難度 {df.Id}：缺事件種類");
                 foreach (var k in df.EventTypes) Check(OpsEvents.Parse(k) != null, $"難度 {df.Id}：未知事件 {k}");
+                foreach (var k in df.DecoyCategories)
+                    Check(k != PartCategory.GroundStation && PartCategory.All.Contains(k), $"難度 {df.Id}：誘餌類別 {k} 無效");
                 Check(new[] { "checklist", "transcript", "none" }.Contains(df.NotesMode), $"難度 {df.Id}：未知筆記板模式 {df.NotesMode}");
                 Check(new[] { "advice", "chain", "category" }.Contains(df.FailureDetail), $"難度 {df.Id}：未知失敗說明 {df.FailureDetail}");
                 foreach (var kv in df.StartParts)

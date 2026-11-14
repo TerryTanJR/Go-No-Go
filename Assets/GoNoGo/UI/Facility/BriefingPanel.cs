@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using GoNoGo.Core;
 using GoNoGo.Game;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace GoNoGo.UI
@@ -45,13 +46,22 @@ namespace GoNoGo.UI
 
             var screen = Ui.El("brief-screen").AddTo(feed);
             for (int i = 0; i < 14; i++) Ui.El("brief-scan").AddTo(screen);
-            // 主任的剪影（UI 元素組成，不用外部圖片）
-            var who = Ui.El("brief-figure").AddTo(screen);
-            Ui.El("brief-head").AddTo(who);
-            var body2 = Ui.El("brief-body").AddTo(who);
-            Ui.El("brief-collar").AddTo(body2);
-            Ui.El("brief-badge").AddTo(body2);
-            Ui.El("brief-headset").AddTo(who);
+            // 主任的肖像（Resources/UI/Portraits/director.png，去背）；找不到圖時用 UI 元素組成的剪影
+            var portrait = Resources.Load<Texture2D>("UI/Portraits/director");
+            if (portrait != null)
+            {
+                var pic = Ui.El("brief-portrait").AddTo(screen);
+                pic.style.backgroundImage = new StyleBackground(portrait);
+            }
+            else
+            {
+                var who = Ui.El("brief-figure").AddTo(screen);
+                Ui.El("brief-head").AddTo(who);
+                var body2 = Ui.El("brief-body").AddTo(who);
+                Ui.El("brief-collar").AddTo(body2);
+                Ui.El("brief-badge").AddTo(body2);
+                Ui.El("brief-headset").AddTo(who);
+            }
             Ui.Text("◉ REC", "brief-rec", "mono").AddTo(screen);
 
             var id = Ui.El("brief-id").AddTo(feed);
