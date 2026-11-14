@@ -45,8 +45,7 @@ namespace GoNoGo.Core
             var sc = s.Scenario(data);
             var diff = s.Difficulty(data);
             if (sc == null) return text;
-            double budget = sc.BudgetMusd * GameData.BudgetMultiplier(sc, diff);
-            if (sc.Historical != null) budget = sc.BudgetMusd * sc.Historical.BudgetCap;
+            double budget = GameData.Budget(sc);
             var reserve = Departments.Active(sc, diff).Select(a => a.Requirement).FirstOrDefault(r => r.Type == "budget_reserve");
             var map = new Dictionary<string, string>
             {

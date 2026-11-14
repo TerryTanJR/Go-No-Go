@@ -21,7 +21,6 @@ namespace GoNoGo.UI
             var r = M.Result;
             if (r == null)
             {
-                GameSession.Send(CommandType.RunTest);
                 GameSession.Send(CommandType.Launch);
                 r = M.Result;
             }
@@ -69,7 +68,7 @@ namespace GoNoGo.UI
                 Ui.Text(Loc.T(rr.Met ? "ui.report.met" : "ui.report.unmet"), "small", rr.Met ? "go" : "tight").AddTo(head);
                 Ui.Text(Loc.T(rr.Requirement.Text), "small").AddTo(card);
             }
-            int fails = M.S.FailedLaunches;
+            int fails = SessionRules.FailedBeforeForScore(M.S, D);   // 歷史關卡的重演不算玩家的失敗
             Ui.Text(r.Score.FirstLaunchBonus ? Loc.T("ui.report.first_launch") : Loc.T("ui.report.redesigns", ("n", fails)), "small", r.Score.FirstLaunchBonus ? "go" : "dim", "first-call").AddTo(reqPanel);
 
             // ---- 中欄：為什麼、營運、發射紀錄 ----

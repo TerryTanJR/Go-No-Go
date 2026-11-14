@@ -818,9 +818,7 @@ namespace GoNoGo.EditorTools
             // 採購終端：組裝區下單買零件（沒有價格，價格在中控室的型錄）
             var proc = Console(art, fm, bay, "ProcureConsole", new Vector3(6.2f, 0, -4.6f), -52f, "procure", "ui.fac.procure", "ui.fac.procure_body", "design,briefing", art.consoleScreens[0], 2.4f);
             proc.actionKey = "ui.hint.procure";
-            // 環境測試台（振動／熱真空）：和採購終端左右對稱，夾著進門的走道，兩台都面向整合台
-            var test = Console(art, fm, bay, "TestConsole", new Vector3(6.2f, 0, 5.6f), -128f, "test", "ui.fac.test", "ui.fac.test_body", "design", art.consoleScreens[2], 2.4f);
-            test.actionKey = "ui.hint.test";
+            // （環境測試台在採購機制 v2 拿掉了：發射前不再檢查）
 
             // 東牆（門的南邊）：失敗原因看板
             var fb = WallScreen(art, fm, bay, "FailureBoard", "failures", new Vector3(BayX1 - 0.08f, 3.4f, -6.2f), 90f, new Vector2(6.6f, 4.1f), new Vector2Int(1024, 640));
@@ -1578,7 +1576,7 @@ namespace GoNoGo.EditorTools
             }
             Box("Lintel", g, new Vector3(side * ArchX, 5.9f, zc), new Vector3(0.5f, 0.5f, ZB - ZA + 0.5f), art.trim, shadows: false);
             
-            Label(g, nameKey, new Vector3(side * (ArchX - 0.4f), 5.1f, zc), "sign", 22f);
+            Label(g, nameKey, new Vector3(side * (ArchX - 0.4f), 5.1f, zc), "team", 22f);
             BuildUtil.Light("Glow_" + tag, LightType.Point, col, 3f, new Vector3(side * 9.5f, 4.2f, zc), Quaternion.identity, 11f, LightShadows.None, g);
             // 名單牆：面向房間內側（西牆朝 +x = yaw -90、東牆朝 -x = yaw 90）
             WallScreen(art, fm, g, "TeamBoard_" + tag, screenId, new Vector3(side * (LX - 0.08f), 3.3f, zc), side * 90f, new Vector2(6.4f, 3.2f), new Vector2Int(1280, 640));
@@ -1645,7 +1643,7 @@ namespace GoNoGo.EditorTools
             jb.team = Station.Assembly;
             jb.teamColor = AsmColor;
             jb.cap = cap.GetComponent<Renderer>();
-            Label(bp, "ui.lobby.join.assembly", new Vector3(0, 1.7f, 0), "sign", 9f);
+            Label(bp, "ui.lobby.join.assembly", new Vector3(0, 1.7f, 0), "team", 9f);
         }
 
         /// <summary>控制室（東）：深色風格 —— 暗地板、琥珀色光、監控桌與椅子、機櫃、天線、圓形按鈕。</summary>
@@ -1707,7 +1705,7 @@ namespace GoNoGo.EditorTools
             jb.team = Station.Control;
             jb.teamColor = CtlColor;
             jb.cap = cap.GetComponent<Renderer>();
-            Label(bp, "ui.lobby.join.control", new Vector3(0, 1.7f, 0), "sign", 9f);
+            Label(bp, "ui.lobby.join.control", new Vector3(0, 1.7f, 0), "team", 9f);
         }
 
         /// <summary>零件架：兩根立柱、三層板、幾個零件盒。</summary>

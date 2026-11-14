@@ -126,6 +126,13 @@ namespace GoNoGo.Core
                             new CauseStep("cause.battery_worn", ("part", Part(d.Get(PartCategory.Battery)))),
                             end));
                         break;
+                    case EndReason.Funding:
+                        chains.Add(Chain("lifetime_funding", impact,
+                            new CauseStep("cause.funding_left", ("left", N(Math.Max(0, ev.Cost.BudgetMusd - ev.Cost.DevelopmentMusd - ev.Cost.LaunchMusd), 1)),
+                                ("per", N(ev.Cost.OpsPerYearMusd, 2))),
+                            new CauseStep("cause.funding_out", ("years", N(r.FundedYears, 1))),
+                            end));
+                        break;
                     case EndReason.Radiation:
                         chains.Add(Chain("lifetime_radiation", impact,
                             new CauseStep("cause.radiation_dose", ("orbit", O), ("dose", N(orbit?.DoseKradPerYear ?? 0, 1))),

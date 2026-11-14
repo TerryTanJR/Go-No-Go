@@ -56,16 +56,26 @@ namespace GoNoGo.Core
         public bool Reached { get; set; }
     }
 
-    /// <summary>一次採購（組裝區下單）：買了哪些零件、這次的價格倍率（補單有急件費）。</summary>
+    /// <summary>一次採購（下單成功）：買了哪些零件。原價，沒有倍率；買了就不能退。</summary>
     public sealed class OrderRecord
     {
         public int N { get; set; }
+        /// <summary>送單的人（組裝區）。</summary>
+        public int By { get; set; }
+        /// <summary>多人時批准的人（中控室）；個人模式是 0。</summary>
+        public int ApprovedBy { get; set; }
+        public List<string> Parts { get; set; } = new List<string>();
+    }
+
+    /// <summary>多人的採購單：組裝區送審，等中控室批准（下單）或退回。</summary>
+    public sealed class OrderRequest
+    {
+        /// <summary>批准後會是第幾單（跟採購紀錄的編號一致；退回再送還是同一個號碼）。</summary>
+        public int N { get; set; }
+        /// <summary>第幾次送審（每送一次加一），畫面用來分辨是不是新的一張單。</summary>
+        public int Seq { get; set; }
         public int By { get; set; }
         public List<string> Parts { get; set; } = new List<string>();
-        /// <summary>這次採購的價格倍率：第 1 次 1.0，補單 1 + 急件費。</summary>
-        public double PriceFactor { get; set; } = 1.0;
-        /// <summary>發射失敗後給的重建採購。</summary>
-        public bool Rebuild { get; set; }
     }
 
     /// <summary>打過的電話：哪個處室、問了哪一題。</summary>
@@ -112,13 +122,20 @@ namespace GoNoGo.Core
         public Design Reported { get; set; } = new Design();
         public int Reports { get; set; }
         /// <summary>
-        /// 手上有的零件（不含地面站）：開局設計上的零件（倉庫現成的，裝上才算錢）加上買過的。
+        /// 擁有的零件（不含地面站）：開局零件加上買過的。開發費 = 基本開發費 + 這些零件，裝不裝都一樣（採購機制 v2）。
         /// 組裝區的零件架上只放得到這些；其他零件要先下單採購。
         /// </summary>
         public List<string> Owned { get; set; } = new List<string>();
         /// <summary>組裝區採購終端的購物車（還沒下單）。</summary>
         public List<string> Cart { get; set; } = new List<string>();
         public List<OrderRecord> Orders { get; set; } = new List<OrderRecord>();
+        /// <summary>多人：等中控室審查的採購單（null = 沒有）。一次只能有一張。</summary>
+        public OrderRequest Request { get; set; }
+        /// <summary>多人：最近一張被退回的採購單（組裝區顯示「中控室退回了」；下一次送審時清掉）。</summary>
+        public OrderRequest Rejected { get; set; }
+        public int Requests { get; set; }
+        /// <summary>發射失敗後整局重來的次數（畫面用來跳出「任務重來」的提示）。</summary>
+        public int Restarts { get; set; }
         /// <summary>誰手上拿著哪個零件（玩家 id → 零件 id）。</summary>
         public Dictionary<int, string> Held { get; set; } = new Dictionary<int, string>();
 
@@ -127,8 +144,6 @@ namespace GoNoGo.Core
 
         /// <summary>嚴格分工（房主在大廳開）：組裝區的人不能操作中控室，反過來也一樣；設計階段兩區之間的門鎖住。</summary>
         public bool StrictRoles { get; set; }
-        /// <summary>環境測試（振動、熱真空）的紀錄，最新的在最後。發射前，整合台上的設計一定要測過。</summary>
-        public List<TestRecord> Tests { get; set; } = new List<TestRecord>();
         /// <summary>進行中的 Go/No-Go 點名（null = 沒有）。</summary>
         public GoPoll Poll { get; set; }
         /// <summary>上一次點名的結果（HUD 顯示 HOLD 的原因）。</summary>
@@ -142,7 +157,6 @@ namespace GoNoGo.Core
 
         [JsonIgnore] public LaunchRecord LastLaunch => Launches.Count > 0 ? Launches[Launches.Count - 1] : null;
         [JsonIgnore] public int FailedLaunches => Launches.Count(l => !l.Reached);
-        [JsonIgnore] public TestRecord LastTest => Tests.Count > 0 ? Tests[Tests.Count - 1] : null;
 
         public PlayerInfo Player(int id) => Players.FirstOrDefault(p => p.Id == id);
         public string HeldBy(int player) => Held.TryGetValue(player, out var id) ? id : null;

@@ -43,6 +43,27 @@ namespace GoNoGo.Core.Tests
             Assert.That(b.Events.Select(e => e.Event.Id + "@" + e.Event.Day), Is.EqualTo(a.Events.Select(e => e.Event.Id + "@" + e.Event.Day)));
         }
 
+        /// <summary>歷史關卡的太陽風暴只用任務期間真的發生過的事件（2009 年的 OCO 不會抽到 2024 年的風暴）；一般關卡用整個目錄。</summary>
+        [Test]
+        public void HistoricalStormsComeFromTheMissionYears()
+        {
+            var oco = _data.Scenario("hist_oco");
+            var d = oco.Historical.PresetDesign.Clone();
+            d.ScenarioId = oco.Id;
+            var seen = new HashSet<string>();
+            foreach (var seed in Enumerable.Range(1, 60))
+                foreach (var e in Simulator.PlanMission(d, _data, seed, "engineer").Events.Where(e => e.Kind == EventKind.SolarStorm))
+                {
+                    var sw = _data.SpaceWeather.Single(x => x.Id == e.RefId);
+                    int year = int.Parse(sw.Date.Substring(0, 4));
+                    Assert.That(year, Is.InRange(oco.Historical.Year, oco.Historical.Year + d.MissionYears), sw.Id);
+                    seen.Add(sw.Id);
+                }
+            Assert.That(seen, Is.EquivalentTo(new[] { "2010-04-05-GST", "2011-02-15-FLR-X2" }));
+            Assert.That(_data.StormsKnownBy(oco, d.MissionYears).Max(x => x.Date), Is.LessThan("2012"), "手冊不列任務結束之後的事件");
+            Assert.That(_data.StormsDuring(_data.Scenario("earth_observation"), 3), Is.SameAs(_data.SpaceWeather), "一般關卡用整個目錄");
+        }
+
         [Test]
         public void OneEventPerTurnFromTheDifficultyPool()
         {

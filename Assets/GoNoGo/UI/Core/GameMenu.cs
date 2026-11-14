@@ -125,7 +125,7 @@ namespace GoNoGo.UI
             if (GameSession.HasMission)
             {
                 var m = GameSession.Mission;
-                Ui.Text(Loc.T(m.Scenario.Name) + " · " + Loc.T(m.Difficulty.Name), "h3", "gm-mission").AddTo(body);
+                Ui.Text(Loc.T(m.Scenario.Name) + (m.IsHistorical ? "" : " · " + Loc.T(m.Difficulty.Name)), "h3", "gm-mission").AddTo(body);
             }
             if (Multiplayer) Ui.Text(Loc.T("ui.gmenu.hint_mp"), "small", "dim").AddTo(body);
             Ui.Btn(Loc.T("ui.gmenu.resume"), () => Close(), "btn-primary", "gm-btn").AddTo(body);

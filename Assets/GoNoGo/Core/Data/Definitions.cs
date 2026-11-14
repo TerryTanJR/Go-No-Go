@@ -280,11 +280,11 @@ namespace GoNoGo.Core
         public Design DefaultDesign { get; set; } = new Design();
         public List<string> ComparisonMissions { get; set; } = new List<string>();
         public HistoricalDef Historical { get; set; }
+        /// <summary>這一關固定的難度 id（一關一個難度，玩家不另外選）。空白 = 基準難度（工程師）。</summary>
+        public string Difficulty { get; set; } = "";
 
         // ---- 關卡專屬的設定（沒寫就照難度的通用規則）----
 
-        /// <summary>大於 0 時取代難度的預算倍率（野火關卡的任務主管難度不砍預算，難度改由衝突需求提供）。</summary>
-        public Dictionary<string, double> BudgetMultiplierOverride { get; set; } = new Dictionary<string, double>();
         /// <summary>難度 id（或 "*"）→ 零件架上的零件 id。沒寫 = 依難度等級的通用零件架。</summary>
         public Dictionary<string, List<string>> Shelf { get; set; } = new Dictionary<string, List<string>>();
         /// <summary>難度 id → 開局設計（取代 default_design）。</summary>
@@ -308,7 +308,6 @@ namespace GoNoGo.Core
         public LocalizedText Description { get; set; } = new LocalizedText();
         /// <summary>不出現在選單（新手訓練用的難度）。</summary>
         public bool Hidden { get; set; }
-        public double BudgetMultiplier { get; set; } = 1.0;
         /// <summary>工程部要求的設計餘裕（質量與電力）。</summary>
         public double RequiredMargin { get; set; } = 0.15;
         public int TiersPerCategory { get; set; } = 3;
@@ -336,10 +335,6 @@ namespace GoNoGo.Core
         public bool GuaranteedLaunch { get; set; }
         /// <summary>開局時換掉情境預設設計的零件（類別 → 零件 id）。歷史關卡不套用（當年的設計不能改）。</summary>
         public Dictionary<string, string> StartParts { get; set; } = new Dictionary<string, string>();
-        /// <summary>採購次數（組裝區下單）。個人模式多 1 次；每次發射失敗另給 1 次重建採購。</summary>
-        public int Orders { get; set; } = 2;
-        /// <summary>第 2 次以後的採購（補單）加收的急件費比例。</summary>
-        public double RushFee { get; set; } = 0.3;
         /// <summary>營運時每個多餘操作從那一回合的營運分扣掉的分數（每回合下限 0）。讓「全部按下去」不再是最佳解。</summary>
         public double ExtraActionPenalty { get; set; } = 10;
     }
@@ -435,8 +430,6 @@ namespace GoNoGo.Core
         /// <summary>過境分布不均：最長空檔 = 平均空檔 × 這個倍數。</summary>
         public double ContactGapFactor { get; set; } = 2.0;
         public double StorageSafetyFactor { get; set; } = 1.5;
-        /// <summary>每次補單（第 2 次以後的採購）讓時程延後的月數。</summary>
-        public double RushOrderMonths { get; set; } = 3;
         /// <summary>火點資料落地後，地面處理、確認、通知消防單位的時間（分鐘）。</summary>
         public double GroundProcessingMin { get; set; } = 5;
         /// <summary>軌道上的科學分數換算：每年每點科學值。</summary>

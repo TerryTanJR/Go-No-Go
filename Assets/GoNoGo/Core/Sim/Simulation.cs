@@ -140,7 +140,8 @@ namespace GoNoGo.Core
         public bool MiniPassed { get; set; }
     }
 
-    public enum EndReason { MissionComplete, Propellant, Battery, Radiation, LaunchFailure }
+    /// <summary>任務結束的原因。Funding = 營運經費用完（採購機制 v2），加在最後，舊的編號不變。</summary>
+    public enum EndReason { MissionComplete, Propellant, Battery, Radiation, LaunchFailure, Funding }
 
     public sealed class MissionResult
     {
@@ -149,6 +150,8 @@ namespace GoNoGo.Core
         public bool ReachedOrbit => Launch.Success;
         public double TargetYears { get; set; }
         public double ActualYears { get; set; }
+        /// <summary>營運經費撐得了幾年（預算 − 開發費 − 火箭，再除以每年營運費）。沒有預算的設計是無限大。</summary>
+        public double FundedYears { get; set; } = double.PositiveInfinity;
         public EndReason EndReason { get; set; }
         public double ScienceTotal { get; set; }
         public double DataGeneratedGb { get; set; }

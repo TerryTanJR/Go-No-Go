@@ -278,7 +278,7 @@ namespace GoNoGo.Launch
         {
             GameSession.EnsureMission();
             var m = GameSession.Mission;
-            if (m.S.LastLaunch == null) { GameSession.Send(CommandType.RunTest); GameSession.Send(CommandType.Launch); } // 直接開這個場景測試時
+            if (m.S.LastLaunch == null) GameSession.Send(CommandType.Launch); // 直接開這個場景測試時
             var launch = m.S.LastLaunch;
             _design = launch.Design;
             _outcome = launch.Outcome;

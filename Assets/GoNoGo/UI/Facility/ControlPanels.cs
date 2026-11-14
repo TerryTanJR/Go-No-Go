@@ -34,7 +34,8 @@ namespace GoNoGo.UI
 
             var head = Ui.Row("dash-head").AddTo(body);
             Ui.Text(Loc.T("ui.dash.design_data"), "eyebrow", "dash-sec").AddTo(head);
-            Ui.Text(Loc.T("ui.proc.left", ("n", SessionRules.OrdersLeft(m.S, data))), "small", "dim").AddTo(head);
+            // 多人：採購單送出去了，還在等中控室審查
+            if (m.S.Request != null) Ui.Text(Loc.T("ui.proc.pending", ("n", m.S.Request.N)), "small", "tight").AddTo(head);
             Ui.Spacer().AddTo(head);
             if (!compact) Ui.Text(Loc.Orbit(d.OrbitId) + " · " + Loc.Launcher(d.LauncherId) + " · " + Fmt.Years(d.MissionYears), "small", "dim").AddTo(head);
 
@@ -67,8 +68,6 @@ namespace GoNoGo.UI
                 Row(grid, Loc.T("ui.dash.detection"), Fmt.Pct(f.Detection),
                     Loc.T("ui.dash.detection_x", ("inst", Fmt.Pct(f.InstrumentDetection)), ("orbit", "×" + Fmt.N(f.OrbitFactor, 1))), null);
             }
-            // 環境測試（組裝區做的，測的是整合台上的設計）
-            TestView.Build(grid, true);
 
             if (!compact)
             {
@@ -337,27 +336,22 @@ namespace GoNoGo.UI
             Ui.Text(Loc.T("ui.launchp.question"), "h2").AddTo(body);
             Ui.Text(Loc.T("ui.launchp.body"), "body").AddTo(body);
 
-            // 發射前檢查：環境測試、回報、點名
+            // 發射前：系統不判斷設計好不好（採購機制 v2），只提醒營運經費和失敗的代價
             var gate = Ui.El("launch-gate").AddTo(body);
-            var t = s.LastTest;
-            bool current = EnvTests.IsCurrent(s);
-            if (t == null) Gate(gate, "over", Loc.T("ui.launchp.test_none"));
-            else if (!current) Gate(gate, "tight", Loc.T("ui.launchp.test_stale", ("n", t.N)));
-            else
-            {
-                var worst = new[] { t.Worst(EnvTests.Vibration), t.Worst(EnvTests.Thermal) }.Max();
-                Gate(gate, TestView.LevelClass(worst), Loc.T("ui.launchp.test_ok", ("n", t.N),
-                    ("vib", TestView.LevelText(t.Worst(EnvTests.Vibration))), ("tv", TestView.LevelText(t.Worst(EnvTests.Thermal)))));
-                if (worst != TestLevel.Pass) Ui.Text(Loc.T("ui.launchp.test_warn"), "small", "tight").AddTo(gate);
-            }
+            double funded = SessionRules.FundedYears(s, D);
+            int years = s.Bench.MissionYears;
+            Gate(gate, funded >= years ? "dim" : funded <= 0 ? "over" : "tight", funded >= years
+                ? Loc.T("ui.launchp.funds_ok", ("years", years))
+                : Loc.T("ui.launchp.funds_short", ("funded", Fmt.N(funded, 1)), ("years", years)));
+            // 歷史任務失敗不重來（保留原設計），其他關卡失敗就整個任務重來
+            if (s.Scenario(D)?.Historical == null) Gate(gate, "dim", Loc.T("ui.launchp.restart_note"));
             if (poll) Gate(gate, "dim", Loc.T("ui.launchp.poll_note", ("n", s.Players.Count)));
 
             var why = SessionRules.CanLaunch(s);
             var row = Ui.Row("modal-actions").AddTo(body);
             Ui.Btn(Loc.T("ui.launchp.cancel"), () => Close(), "btn-big").AddTo(row);
             Ui.Spacer().AddTo(row);
-            // 測試的問題上面的檢查列已經寫了，這裡只補其他原因（點名進行中…）
-            if (why != SessionRules.Ok && why != "err.untested" && why != "err.retest")
+            if (why != SessionRules.Ok)
                 Ui.Text(Loc.T(why), "small", "tight", "launch-why").AddTo(row);
             var go = Ui.Btn(Loc.T(poll ? "ui.launchp.poll" : "ui.launchp.go"), () =>
             {
@@ -453,7 +447,7 @@ namespace GoNoGo.UI
 
         protected override void Build(VisualElement body)
         {
-            Tabs(body, new[] { "ui.tablet.dashboard", "ui.goals.title", "ui.manual.tab.parts", "ui.manual.tab.rules", "ui.notes.title", "ui.fail.title", "ui.test.short" }, _tab, i => { _tab = i; Refresh(); });
+            Tabs(body, new[] { "ui.tablet.dashboard", "ui.goals.title", "ui.manual.tab.parts", "ui.manual.tab.rules", "ui.notes.title", "ui.fail.title" }, _tab, i => { _tab = i; Refresh(); });
             var sv = Scroll(body);
             switch (_tab)
             {
@@ -462,8 +456,7 @@ namespace GoNoGo.UI
                 case 2: ManualView.BuildAllParts(sv); break;
                 case 3: ManualView.Build(sv, "rules"); break;
                 case 4: NotesView.Build(sv, true); break;
-                case 5: FailureBoardView.Build(sv); break;
-                default: TestView.Build(sv, false); break;
+                default: FailureBoardView.Build(sv); break;
             }
             Ui.Text(Loc.T("ui.tablet.readonly"), "small", "faint").AddTo(body);
         }

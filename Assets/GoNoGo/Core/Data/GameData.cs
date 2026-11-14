@@ -80,11 +80,50 @@ namespace GoNoGo.Core
             : difficultyId != null && map.TryGetValue(difficultyId, out var v) ? v
             : map.TryGetValue("*", out var all) ? all : null;
 
-        /// <summary>這個關卡、這個難度的預算倍率。</summary>
-        public static double BudgetMultiplier(ScenarioDef s, DifficultyDef d)
+        /// <summary>這一關固定的難度（一關一個難度）。關卡沒寫就用基準難度。</summary>
+        public DifficultyDef DifficultyFor(ScenarioDef s) => Difficulty(s?.Difficulty) ?? DefaultDifficulty;
+
+        /// <summary>這一關的預算（M$）。難度倍率已經併進 budget_musd；歷史關卡再乘上當年的預算上限比例。</summary>
+        public static double Budget(ScenarioDef s) => (s?.BudgetMusd ?? 0) * (s?.Historical?.BudgetCap ?? 1.0);
+
+        /// <summary>
+        /// 營運時會抽到的太陽風暴。一般關卡用整個目錄（過去的真實事件當例子）；
+        /// 歷史關卡只用任務期間（當年起算、任務年數內）真的發生過的事件，不會在 2009 年的任務裡出現 2024 年的風暴。
+        /// 任務期間一個都沒有時才退回整個目錄。
+        /// </summary>
+        public List<SpaceWeatherEvent> StormsDuring(ScenarioDef s, int years)
         {
-            if (s != null && d != null && s.BudgetMultiplierOverride.TryGetValue(d.Id, out var m) && m > 0) return m;
-            return d?.BudgetMultiplier ?? 1.0;
+            if (s?.Historical == null || s.Historical.Year <= 0) return SpaceWeather;
+            int from = s.Historical.Year, to = s.Historical.Year + Math.Max(1, years);
+            var list = SpaceWeather.Where(e => StormYear(e) >= from && StormYear(e) <= to).ToList();
+            return list.Count > 0 ? list : SpaceWeather;
+        }
+
+        /// <summary>手冊列得出來的事件：歷史關卡只列到任務結束那一年為止（不列「未來」的事件）。</summary>
+        public List<SpaceWeatherEvent> StormsKnownBy(ScenarioDef s, int years)
+        {
+            if (s?.Historical == null || s.Historical.Year <= 0) return SpaceWeather;
+            int to = s.Historical.Year + Math.Max(1, years);
+            var list = SpaceWeather.Where(e => StormYear(e) <= to).ToList();
+            return list.Count > 0 ? list : SpaceWeather;
+        }
+
+        static int StormYear(SpaceWeatherEvent e) =>
+            e?.Date != null && e.Date.Length >= 4 && int.TryParse(e.Date.Substring(0, 4), out var y) ? y : 0;
+
+        /// <summary>這支火箭飛不飛得到這個軌道（運力表上有這個軌道、而且大於 0）。評估和採購上限用同一個判斷。</summary>
+        public static bool Reaches(LauncherDef l, string orbitId) =>
+            l != null && orbitId != null && l.CapacityKg.TryGetValue(orbitId, out var cap) && cap > 0;
+
+        /// <summary>
+        /// 採購上限預留的火箭：這一關允許的火箭裡，飛得到這個軌道的最便宜的一支（不看質量）。
+        /// 找不到就用允許的火箭裡最便宜的。
+        /// </summary>
+        public LauncherDef ReserveLauncher(ScenarioDef s, string orbitId)
+        {
+            var all = LaunchersFor(s).ToList();
+            return all.Where(l => Reaches(l, orbitId)).OrderBy(l => l.CostMusd).ThenBy(l => l.Id, StringComparer.Ordinal).FirstOrDefault()
+                ?? all.OrderBy(l => l.CostMusd).ThenBy(l => l.Id, StringComparer.Ordinal).FirstOrDefault();
         }
 
         /// <summary>這個關卡、這個難度會出現的營運事件。</summary>
@@ -236,6 +275,7 @@ namespace GoNoGo.Core
             {
                 string w = $"情境 {s.Id}";
                 Check(s.BudgetMusd > 0 && s.TargetYears > 0 && s.DeadlineMonths > 0, $"{w}：預算/年數/期限必須 > 0");
+                Check(string.IsNullOrEmpty(s.Difficulty) || (d.Difficulty(s.Difficulty) != null && !d.Difficulty(s.Difficulty).Hidden), $"{w}：未知難度 {s.Difficulty}");
                 foreach (var o in s.AllowedOrbits) Check(d.Orbit(o) != null, $"{w}：未知軌道 {o}");
                 foreach (var l in s.AllowedLaunchers) Check(d.Launcher(l) != null, $"{w}：未知火箭 {l}");
                 errors.AddRange(ValidateDesign(d, s.DefaultDesign, $"{w} 預設設計"));
