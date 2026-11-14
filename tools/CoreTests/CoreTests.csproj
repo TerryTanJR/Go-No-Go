@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    在 Unity 外跑 GoNoGo.Core 的 EditMode 測試。
+    Core 和 Core.Tests 都是純 C#（No Engine References），直接編譯 Assets 裡的原始碼。
+    LangVersion 鎖在 9.0，和 Unity 6 的 C# 版本一致，避免寫出 Unity 編不過的語法。
+    執行：tools/run-core-tests.sh
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <RootNamespace>GoNoGo.Core.Tests</RootNamespace>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/GoNoGo/Core/**/*.cs" />
+    <Compile Include="../../Assets/GoNoGo/Core.Tests/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <!-- 執行用 3.14（3.5 在 .NET 8 載不起來）；Unity 的 NUnit 3.5 API 檢查交給 UnityApiCheck/UnityApiCheck.csproj -->
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+</Project>

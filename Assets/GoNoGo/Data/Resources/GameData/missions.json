@@ -1,0 +1,66 @@
+[
+  {
+    "id": "landsat9",
+    "name": { "en": "Landsat 9 (NASA/USGS)", "zh-TW": "Landsat 9（NASA/USGS）" },
+    "launch_year": 2021,
+    "mass_kg": 2710,
+    "power_w": 4300,
+    "cost_musd": 904,
+    "orbit": "705 km SSO",
+    "instruments": { "en": "OLI-2 (15/30 m, 9 bands) + TIRS-2 thermal (100 m)", "zh-TW": "OLI-2（15/30 公尺，9 波段）+ TIRS-2 熱紅外（100 公尺）" },
+    "lesson": {
+      "en": "Continuity over cleverness: a near-copy of Landsat 8 so 50 years of records line up. It returns ~730 GB a day (about 750 scenes).",
+      "zh-TW": "延續比創新重要：幾乎照抄 Landsat 8，讓 50 年的紀錄能接得起來。每天傳回約 730 GB（約 750 景）。"
+    },
+    "lifetime_years": 5,
+    "url": "https://www.nasa.gov/wp-content/uploads/2015/04/landsat_9_fast_facts.pdf"
+  },
+  {
+    "id": "prisma",
+    "name": { "en": "PRISMA (Italian Space Agency)", "zh-TW": "PRISMA（義大利太空總署）" },
+    "launch_year": 2019,
+    "mass_kg": 550,
+    "power_w": 350,
+    "cost_musd": 150,
+    "orbit": "615 km SSO",
+    "instruments": { "en": "Hyperspectral imager, 239 bands at 30 m, + 5 m panchromatic camera", "zh-TW": "高光譜成像儀（239 波段、30 公尺）+ 5 公尺全色相機" },
+    "lesson": {
+      "en": "A hyperspectral mission is a data mission: up to 600 Mbit/s into a 256 Gbit recorder, emptied at 155 Mbit/s.",
+      "zh-TW": "高光譜任務其實是資料任務：每秒最多 600 Mbit 寫進 256 Gbit 的記錄器，再用 155 Mbit/s 傳回地面。"
+    },
+    "lifetime_years": 5,
+    "url": "https://www.eoportal.org/satellite-missions/prisma-hyperspectral"
+  },
+  {
+    "id": "planet_dove",
+    "name": { "en": "Planet Dove (one of ~200)", "zh-TW": "Planet Dove（約 200 顆之一）" },
+    "launch_year": 2014,
+    "mass_kg": 5,
+    "power_w": 20,
+    "cost_musd": 1,
+    "orbit": "~525 km SSO",
+    "instruments": { "en": "3-5 m colour camera in a 3U CubeSat", "zh-TW": "3U 立方衛星裡的 3–5 公尺彩色相機" },
+    "lesson": {
+      "en": "Cheap and many instead of big and perfect: each Dove lives 2-3 years, but a constellation of 200 images the whole planet daily (~125 GB per satellite).",
+      "zh-TW": "用便宜和數量取代大而完美：每顆只活 2–3 年，但 200 顆的星系每天能拍遍全球（每顆約 125 GB）。"
+    },
+    "lifetime_years": 2.5,
+    "url": "https://www.eoportal.org/satellite-missions/planet"
+  },
+  {
+    "id": "oco2",
+    "name": { "en": "OCO-2 (NASA)", "zh-TW": "OCO-2（NASA）" },
+    "launch_year": 2014,
+    "mass_kg": 454,
+    "power_w": 815,
+    "cost_musd": 467.7,
+    "orbit": "705 km SSO (A-Train)",
+    "instruments": { "en": "Three grating spectrometers for CO2 and O2", "zh-TW": "三台量測二氧化碳與氧氣的光柵光譜儀" },
+    "lesson": {
+      "en": "The re-flight of OCO, rebuilt almost unchanged and moved to a Delta II after Taurus XL failed again with Glory in 2011.",
+      "zh-TW": "OCO 的重飛版，設計幾乎沒改；金牛座 XL 在 2011 年又因同樣問題失去 Glory 衛星後，改用德爾塔 II 發射。"
+    },
+    "lifetime_years": 2,
+    "url": "https://www.jpl.nasa.gov/news/press_kits/oco2-launch-press-kit.pdf"
+  }
+]

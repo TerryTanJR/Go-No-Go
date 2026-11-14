@@ -1,0 +1,117 @@
+[
+  {
+    "id": "2003-10-28-FLR-X17",
+    "type": "FLR",
+    "date": "2003-10-28",
+    "class_type": "X17.2",
+    "severity": 3,
+    "link": "https://www.swpc.noaa.gov/phenomena/solar-flares-radio-blackouts",
+    "summary": { "en": "The 'Halloween storms': one of the largest flares ever measured, followed by days of radiation alerts.", "zh-TW": "「萬聖節太陽風暴」：史上測到最大的閃焰之一，之後連續好幾天發布輻射警報。" }
+  },
+  {
+    "id": "2003-10-29-GST",
+    "type": "GST",
+    "date": "2003-10-29",
+    "class_type": "G5",
+    "kp_index": 9,
+    "severity": 3,
+    "link": "https://www.swpc.noaa.gov/noaa-scales-explanation",
+    "summary": { "en": "Extreme (G5) geomagnetic storm of the Halloween 2003 sequence; many satellites reported anomalies.", "zh-TW": "2003 年萬聖節風暴中的極端（G5）地磁暴；許多衛星回報異常。" }
+  },
+  {
+    "id": "2015-03-17-GST",
+    "type": "GST",
+    "date": "2015-03-17",
+    "class_type": "G4",
+    "kp_index": 8,
+    "severity": 2,
+    "link": "https://kauai.ccmc.gsfc.nasa.gov/DONKI/search/",
+    "summary": { "en": "The 'St. Patrick's Day storm', the strongest of solar cycle 24.", "zh-TW": "「聖派翠克節風暴」，第 24 太陽週期最強的地磁暴。" }
+  },
+  {
+    "id": "2017-09-06-FLR-X9",
+    "type": "FLR",
+    "date": "2017-09-06",
+    "class_type": "X9.3",
+    "severity": 3,
+    "link": "https://kauai.ccmc.gsfc.nasa.gov/DONKI/search/",
+    "summary": { "en": "The largest flare of solar cycle 24.", "zh-TW": "第 24 太陽週期最大的閃焰。" }
+  },
+  {
+    "id": "2017-09-08-GST",
+    "type": "GST",
+    "date": "2017-09-08",
+    "class_type": "G4",
+    "kp_index": 8,
+    "severity": 2,
+    "link": "https://kauai.ccmc.gsfc.nasa.gov/DONKI/search/",
+    "summary": { "en": "Severe storm from the CMEs that followed the September 2017 flares.", "zh-TW": "2017 年 9 月閃焰後日冕巨量噴發引發的強烈地磁暴。" }
+  },
+  {
+    "id": "2022-02-03-GST",
+    "type": "GST",
+    "date": "2022-02-03",
+    "class_type": "G1",
+    "kp_index": 5,
+    "severity": 1,
+    "link": "https://kauai.ccmc.gsfc.nasa.gov/DONKI/search/",
+    "summary": { "en": "Only a minor storm, but it heated and thickened the upper atmosphere enough that most of a fresh batch of 49 Starlink satellites re-entered.", "zh-TW": "只是小型地磁暴，但上層大氣受熱膨脹，讓剛發射的 49 顆星鏈衛星大部分墜回大氣層。" }
+  },
+  {
+    "id": "2023-02-27-GST",
+    "type": "GST",
+    "date": "2023-02-27",
+    "class_type": "G3",
+    "kp_index": 7,
+    "severity": 1,
+    "link": "https://kauai.ccmc.gsfc.nasa.gov/DONKI/search/",
+    "summary": { "en": "Strong storm; aurora seen unusually far from the poles.", "zh-TW": "強烈地磁暴；極光出現在比平常低很多的緯度。" }
+  },
+  {
+    "id": "2024-02-22-FLR-X6",
+    "type": "FLR",
+    "date": "2024-02-22",
+    "class_type": "X6.3",
+    "severity": 2,
+    "link": "https://kauai.ccmc.gsfc.nasa.gov/DONKI/search/",
+    "summary": { "en": "At the time, the largest flare of solar cycle 25.", "zh-TW": "當時第 25 太陽週期最大的閃焰。" }
+  },
+  {
+    "id": "2024-05-10-GST",
+    "type": "GST",
+    "date": "2024-05-10",
+    "class_type": "G5",
+    "kp_index": 9,
+    "severity": 3,
+    "link": "https://science.nasa.gov/science-research/heliophysics/how-nasa-tracked-the-most-intense-solar-storm-in-decades/",
+    "summary": { "en": "The 'Gannon storm', the most intense in two decades. Satellites in low orbit had to burn propellant to fight the extra drag.", "zh-TW": "「Gannon 風暴」，二十年來最強。低軌道衛星必須額外消耗推進劑對抗增加的阻力。" }
+  },
+  {
+    "id": "2024-05-14-FLR-X8",
+    "type": "FLR",
+    "date": "2024-05-14",
+    "class_type": "X8.7",
+    "severity": 2,
+    "link": "https://kauai.ccmc.gsfc.nasa.gov/DONKI/search/",
+    "summary": { "en": "A huge flare from the same active region that drove the Gannon storm.", "zh-TW": "引發 Gannon 風暴的同一個活躍區又爆發的巨大閃焰。" }
+  },
+  {
+    "id": "2024-10-03-FLR-X9",
+    "type": "FLR",
+    "date": "2024-10-03",
+    "class_type": "X9.0",
+    "severity": 3,
+    "link": "https://kauai.ccmc.gsfc.nasa.gov/DONKI/search/",
+    "summary": { "en": "The largest flare of solar cycle 25 so far at the time.", "zh-TW": "當時第 25 太陽週期最大的閃焰。" }
+  },
+  {
+    "id": "2024-10-10-GST",
+    "type": "GST",
+    "date": "2024-10-10",
+    "class_type": "G4",
+    "kp_index": 8,
+    "severity": 2,
+    "link": "https://kauai.ccmc.gsfc.nasa.gov/DONKI/search/",
+    "summary": { "en": "Severe storm after a fast CME; aurora across much of the northern hemisphere.", "zh-TW": "快速日冕巨量噴發後的強烈地磁暴；北半球大部分地區都看得到極光。" }
+  }
+]

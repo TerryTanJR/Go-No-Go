@@ -1,0 +1,202 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+
+namespace GoNoGo.Core
+{
+    /// <summary>因果鏈的一步。Key 是多語字串鍵，Args 會代入 {name}。值以 "part:" 開頭時，畫面要換成零件名稱。</summary>
+    public sealed class CauseStep
+    {
+        public string Key { get; set; } = "";
+        public Dictionary<string, string> Args { get; set; } = new Dictionary<string, string>();
+
+        public CauseStep() { }
+        public CauseStep(string key, params (string k, string v)[] args)
+        {
+            Key = key;
+            foreach (var (k, v) in args) Args[k] = v;
+        }
+    }
+
+    public sealed class CausalChain
+    {
+        public string Code { get; set; } = "";
+        public List<CauseStep> Steps { get; set; } = new List<CauseStep>();
+        /// <summary>影響大小（約等於扣掉的分數），用來排序。</summary>
+        public double Impact { get; set; }
+        public bool Positive { get; set; }
+    }
+
+    /// <summary>任務報告「為什麼會這樣」：最多 3 條因果鏈 + 一個下一輪建議。</summary>
+    public static class Causality
+    {
+        static string N(double v, int digits = 0) => Math.Round(v, digits).ToString("0." + new string('#', Math.Max(0, digits)), CultureInfo.InvariantCulture);
+        static string Pct(double f) => N(f * 100.0);
+        static string Part(string id) => "part:" + id;
+
+        public static List<CausalChain> Build(Design d, GameData data, Evaluation ev, MissionResult r)
+        {
+            var chains = new List<CausalChain>();
+            var launcher = data.Launcher(d.LauncherId);
+            var orbit = data.Orbit(d.OrbitId);
+            string L = "launcher:" + d.LauncherId, O = "orbit:" + d.OrbitId;
+            var lost = new CauseStep("cause.mission_lost");
+
+            switch (r.Launch.Outcome)
+            {
+                case LaunchOutcome.Failure when r.Launch.ReasonCode == "launch.unreachable":
+                    chains.Add(Chain("launch_unreachable", 100,
+                        new CauseStep("cause.launch_unreachable", ("launcher", L), ("orbit", O)), lost));
+                    break;
+                case LaunchOutcome.Failure when r.Launch.ReasonCode == "launch.overweight":
+                    chains.Add(Chain("launch_overweight", 100,
+                        new CauseStep("cause.mass_total", ("wet", N(ev.Mass.WetKg)), ("cap", N(ev.Mass.LauncherCapacityKg)), ("launcher", L)),
+                        new CauseStep("cause.launch_overweight"), lost));
+                    break;
+                case LaunchOutcome.Failure:
+                    chains.Add(Chain("launch_anomaly", 100,
+                        new CauseStep("cause.launch_reliability", ("launcher", L), ("rel", Pct(r.Launch.Reliability))),
+                        new CauseStep("cause.launch_anomaly"), lost));
+                    break;
+                case LaunchOutcome.FairingFailure:
+                    chains.Add(Chain("fairing", 100,
+                        new CauseStep("cause.fairing", ("launcher", L)),
+                        new CauseStep("cause.fairing_mass"), lost));
+                    break;
+                case LaunchOutcome.LowerOrbit:
+                    chains.Add(Chain("lower_orbit", 25,
+                        new CauseStep("cause.mass_margin", ("margin", Pct(r.Launch.MassMargin)), ("launcher", L)),
+                        new CauseStep("cause.lower_orbit"),
+                        new CauseStep("cause.drag_doubled", ("years", N(r.ActualYears, 1)))));
+                    break;
+            }
+            if (!r.ReachedOrbit) return chains;
+
+            // 資料遺失
+            double lostFrac = r.DataGeneratedGb > 0 ? r.DataLostGb / r.DataGeneratedGb : 0;
+            if (lostFrac >= 0.08)
+            {
+                var top = d.Instruments.Select(data.Part).Where(p => p != null).OrderByDescending(p => p.DataGbPerDay).FirstOrDefault();
+                bool storageBound = ev.Data.StorageGb < ev.Data.StorageNeededGb / data.Constants.StorageSafetyFactor
+                                    && ev.Data.DownlinkGbPerDay >= ev.Data.GeneratedGbPerDay;
+                var gs = data.Part(d.Get(PartCategory.GroundStation));
+                chains.Add(Chain(storageBound ? "storage_full" : "data_loss", lostFrac * 60,
+                    new CauseStep("cause.data_generated", ("gb", N(ev.Data.GeneratedGbPerDay, 1)), ("part", Part(top?.Id ?? ""))),
+                    storageBound
+                        ? new CauseStep("cause.storage_capacity", ("gb", N(ev.Data.StorageGb)), ("part", Part(d.Get(PartCategory.Computer))))
+                        : new CauseStep("cause.downlink_capacity", ("gb", N(ev.Data.DownlinkGbPerDay, 1)),
+                            ("part", Part(d.Get(PartCategory.Antenna))), ("stations", (gs?.Stations ?? 0).ToString(CultureInfo.InvariantCulture))),
+                    new CauseStep("cause.data_lost", ("pct", Pct(lostFrac)))));
+            }
+
+            // 電力不足 → 儀器降載
+            bool powerShort = ev.Power.ArrayEolW < ev.Power.RequiredArrayW || ev.Power.ActualDod > 1;
+            if (powerShort && r.AverageDuty < 0.97)
+            {
+                chains.Add(Chain("power_limited", (1 - r.AverageDuty) * 50,
+                    new CauseStep("cause.power_load", ("w", N(ev.Power.RequiredArrayW))),
+                    new CauseStep("cause.array_eol", ("w", N(ev.Power.ArrayEolW)), ("years", N(d.MissionYears))),
+                    new CauseStep("cause.duty", ("pct", Pct(r.AverageDuty)))));
+            }
+
+            // 提早結束
+            if (r.ActualYears < r.TargetYears - 0.01)
+            {
+                double impact = (1 - r.ActualYears / r.TargetYears) * 60;
+                var end = new CauseStep("cause.ended_early", ("years", N(r.ActualYears, 1)), ("target", N(r.TargetYears)));
+                switch (r.EndReason)
+                {
+                    case EndReason.Propellant:
+                        chains.Add(Chain("lifetime_propellant", impact,
+                            new CauseStep("cause.orbit_drag", ("orbit", O), ("dv", N(orbit?.DeltaVPerYearMs ?? 0))),
+                            new CauseStep("cause.propellant_out", ("kg", N(ev.Mass.PropellantKg, 1)), ("part", Part(d.Get(PartCategory.Propulsion)))),
+                            end));
+                        break;
+                    case EndReason.Battery:
+                        chains.Add(Chain("lifetime_battery", impact,
+                            new CauseStep("cause.eclipses", ("n", N(ev.Orbit.EclipsesPerYear)), ("dod", Pct(Math.Min(1, ev.Power.ActualDod)))),
+                            new CauseStep("cause.battery_worn", ("part", Part(d.Get(PartCategory.Battery)))),
+                            end));
+                        break;
+                    case EndReason.Radiation:
+                        chains.Add(Chain("lifetime_radiation", impact,
+                            new CauseStep("cause.radiation_dose", ("orbit", O), ("dose", N(orbit?.DoseKradPerYear ?? 0, 1))),
+                            new CauseStep("cause.radiation_limit", ("part", Part(d.Get(PartCategory.Computer))), ("shield", Part(d.Get(PartCategory.Shielding)))),
+                            end));
+                        break;
+                }
+            }
+
+            // 事件
+            foreach (var o in r.Events)
+            {
+                if (o.ResultCode == "event.storm.damaged")
+                {
+                    chains.Add(Chain("storm_damage", 12,
+                        new CauseStep("cause.storm", ("event", "sw:" + o.Event.RefId)),
+                        new CauseStep("cause.kept_running"),
+                        new CauseStep("cause.instrument_damaged", ("part", Part(o.AffectedPartId)))));
+                }
+                else if (o.ResultCode.StartsWith("event.failure.") && o.ResultCode != "event.failure.redundant")
+                {
+                    chains.Add(Chain("part_failure", 12,
+                        new CauseStep("cause.part_failed", ("part", Part(o.AffectedPartId))),
+                        new CauseStep("cause.no_redundancy"),
+                        new CauseStep("cause.degraded")));
+                }
+                else if (o.ResultCode == "event.storm.safe")
+                {
+                    chains.Add(Chain("storm_safe", 2,
+                        new CauseStep("cause.storm", ("event", "sw:" + o.Event.RefId)),
+                        new CauseStep("cause.safe_mode", ("days", o.LostDays.ToString(CultureInfo.InvariantCulture))),
+                        new CauseStep("cause.protected")));
+                }
+            }
+
+            // 沒有問題時，說明成功的原因
+            if (!chains.Any(c => c.Impact >= 5))
+            {
+                var best = d.Instruments.Select(data.Part).Where(p => p != null)
+                    .OrderByDescending(p => p.ScienceValue).FirstOrDefault();
+                var good = Chain("success", 0,
+                    new CauseStep("cause.success_instrument", ("part", Part(best?.Id ?? ""))),
+                    new CauseStep("cause.success_return", ("pct", Pct(r.ReturnFraction))),
+                    new CauseStep("cause.success_science", ("score", N(r.Score?.Science ?? 0))));
+                good.Positive = true;
+                chains.Insert(0, good);
+            }
+
+            return chains.OrderByDescending(c => c.Impact).ThenBy(c => c.Code, StringComparer.Ordinal).Take(3).ToList();
+        }
+
+        public static string Suggest(List<CausalChain> chains, Evaluation ev)
+        {
+            var top = chains.FirstOrDefault(c => !c.Positive && c.Impact >= 2);
+            if (top != null)
+            {
+                switch (top.Code)
+                {
+                    case "launch_unreachable": return "suggest.launcher_reach";
+                    case "launch_overweight": return "suggest.mass";
+                    case "launch_anomaly": return "suggest.launcher";
+                    case "fairing": return "suggest.history_launcher";
+                    case "lower_orbit": return "suggest.mass_margin";
+                    case "data_loss": return "suggest.downlink";
+                    case "storage_full": return "suggest.storage";
+                    case "power_limited": return "suggest.power";
+                    case "lifetime_propellant": return "suggest.propellant";
+                    case "lifetime_battery": return "suggest.battery";
+                    case "lifetime_radiation": return "suggest.shielding";
+                    case "storm_damage": return "suggest.safe_mode";
+                    case "part_failure": return "suggest.redundancy";
+                    case "storm_safe": return "suggest.shielding";
+                }
+            }
+            return ev[ResourceId.Budget].Margin > 0.25 ? "suggest.more_science" : "suggest.try_orbit";
+        }
+
+        static CausalChain Chain(string code, double impact, params CauseStep[] steps) =>
+            new CausalChain { Code = code, Impact = impact, Steps = steps.ToList() };
+    }
+}

@@ -1,0 +1,109 @@
+[
+  {
+    "id": "electron",
+    "name": { "en": "Small launcher (Electron class)", "zh-TW": "小型火箭（Electron 級）" },
+    "description": {
+      "en": "A dedicated ride for small satellites. Cheap and quick to book, but it only lifts a few hundred kilograms.",
+      "zh-TW": "小衛星專用的火箭。便宜、排程快，但只載得動幾百公斤。"
+    },
+    "tier": 1,
+    "capacity_kg": { "leo_400": 300, "sso_700": 150, "llo_100": 25 },
+    "cost_musd": 7.5,
+    "reliability": 0.96,
+    "fairing_diameter_m": 1.2,
+    "lead_months": 9,
+    "flight_record": "95 / 99",
+    "model": "rocket_small",
+    "source": {
+      "title": "Wikipedia: Rocket Lab Electron; NASA SST-SoA Table 10-1; Spaceflight Now (CAPSTONE, 2020)",
+      "url": "https://en.wikipedia.org/wiki/Rocket_Lab_Electron",
+      "note": "sourced: LEO 300 kg (vendor; NASA SoA lists 200), 500 km SSO 200 kg, about US$7.5M, 95 of 99 launches successful, fairing 1.2 m. CAPSTONE 25 kg to the Moon (with Photon kick stage). estimate: 150 kg to 700 km SSO, 9-month lead time"
+    }
+  },
+  {
+    "id": "falcon9",
+    "name": { "en": "Medium launcher (Falcon 9 class)", "zh-TW": "中型火箭（Falcon 9 級）" },
+    "description": {
+      "en": "The workhorse. Enormous capacity for a satellite this size and an excellent record, but a dedicated flight costs about $70M.",
+      "zh-TW": "主力火箭。對這種大小的衛星來說運力綽綽有餘、紀錄極佳，但包一整枚要價約 7 千萬美元。"
+    },
+    "tier": 2,
+    "capacity_kg": { "leo_400": 17400, "sso_700": 11000, "geo": 4600, "llo_100": 3800 },
+    "cost_musd": 69.85,
+    "reliability": 0.995,
+    "fairing_diameter_m": 5.2,
+    "lead_months": 18,
+    "flight_record": "698 / 701",
+    "model": "rocket_medium",
+    "source": {
+      "title": "SpaceX Capabilities & Services (2025 snapshot); Wikipedia: Falcon 9",
+      "url": "http://web.archive.org/web/20250629020031/https://www.spacex.com/media/Capabilities&Services.pdf",
+      "note": "sourced: standard price $69.85M, GTO 8,300 kg, reusable LEO 17,400 kg, 698 of 701 successful, 5.2 m fairing. derived: GEO 4,600 kg = GTO x exp(-1.8 km/s / (320 s x g0)) with the satellite's own kick motor. estimate: SSO 11,000 kg, TLI ~5,000 kg -> lunar orbit 3,800 kg, 18-month lead time"
+    }
+  },
+  {
+    "id": "falcon_heavy",
+    "name": { "en": "Heavy launcher (Falcon Heavy class)", "zh-TW": "重型火箭（Falcon Heavy 級）" },
+    "description": {
+      "en": "Three cores strapped together. Only worth it for very heavy payloads or far destinations, and it has flown far fewer times.",
+      "zh-TW": "三支核心級綁在一起。只有很重的酬載或很遠的目的地才划算，飛行次數也少得多。"
+    },
+    "tier": 3,
+    "capacity_kg": { "leo_400": 63800, "sso_700": 40000, "geo": 15000, "llo_100": 12200 },
+    "cost_musd": 97,
+    "reliability": 0.94,
+    "fairing_diameter_m": 5.2,
+    "lead_months": 30,
+    "flight_record": "14 / 14",
+    "model": "rocket_heavy",
+    "source": {
+      "title": "SpaceX Capabilities & Services (2021 snapshot); Wikipedia: Falcon Heavy",
+      "url": "https://en.wikipedia.org/wiki/Falcon_Heavy",
+      "note": "sourced: LEO 63,800 kg, GTO 26,700 kg, $97M (2022), 14 of 14 successful. derived: reliability 0.94 = (14+1)/(14+2) (Laplace rule: few flights = more uncertainty); GEO 15,000 kg from GTO with own kick; lunar orbit 12,200 kg from ~16 t TLI. estimate: SSO 40,000 kg, 30-month lead time"
+    }
+  },
+  {
+    "id": "taurus_xl",
+    "name": { "en": "Taurus XL (2009)", "zh-TW": "金牛座 XL（2009 年）" },
+    "description": {
+      "en": "A solid-fuel launcher used for small NASA science missions. Before 2009 it had six successes in seven flights.",
+      "zh-TW": "NASA 小型科學任務用的固體燃料火箭。2009 年以前七次飛行成功六次。"
+    },
+    "tier": 2,
+    "capacity_kg": { "leo_400": 1350, "sso_700": 800 },
+    "cost_musd": 70,
+    "reliability": 0.86,
+    "fairing_diameter_m": 1.6,
+    "lead_months": 24,
+    "historical": true,
+    "flight_record": "6 / 7 (before OCO)",
+    "model": "rocket_medium",
+    "source": {
+      "title": "OCO launch press kit (NASA/JPL 2009); Spaceflight Now (2010, 2012); OCO Mishap Investigation summary",
+      "url": "https://www.jpl.nasa.gov/news/press_kits/oco-launch.pdf",
+      "note": "sourced: up to 1,350 kg to LEO; 'six successful missions... 86-percent success rate'; launch contract ~$70M; 63-inch (1.6 m) fairing. estimate: ~800 kg to 705 km SSO, 24-month lead time"
+    }
+  },
+  {
+    "id": "delta_ii",
+    "name": { "en": "Delta II 7320 (2014)", "zh-TW": "德爾塔 II 7320（2014 年）" },
+    "description": {
+      "en": "The long-serving launcher that finally carried OCO-2 to orbit: 149 successful flights, but about twice the price.",
+      "zh-TW": "服役多年的火箭，最後把 OCO-2 送上軌道：149 次成功，但價格約為兩倍。"
+    },
+    "tier": 3,
+    "capacity_kg": { "leo_400": 2800, "sso_700": 1500 },
+    "cost_musd": 137,
+    "reliability": 0.98,
+    "fairing_diameter_m": 3.0,
+    "lead_months": 24,
+    "historical": true,
+    "flight_record": "149 successes (98%)",
+    "model": "rocket_medium",
+    "source": {
+      "title": "OCO-2 launch press kit (NASA/JPL 2014); NASA contract release C12-028 (2012)",
+      "url": "https://www.jpl.nasa.gov/news/press_kits/oco2-launch-press-kit.pdf",
+      "note": "sourced: 149 successful launches, 98% success rate; 10-ft (3 m) fairing. derived: ~$137M = $412M / 3 missions (SMAP, OCO-2, JPSS-1). estimate: ~1,500 kg to 705 km SSO for the 7320 (the 6,100 kg quoted in the press kit is the family maximum), 2,800 kg to 400 km"
+    }
+  }
+]

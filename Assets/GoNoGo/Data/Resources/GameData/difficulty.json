@@ -1,0 +1,35 @@
+[
+  {
+    "id": "engineer",
+    "name": { "en": "Engineer", "zh-TW": "工程師" },
+    "budget_multiplier": 1.0,
+    "required_margin": 0.15,
+    "events_min": 3,
+    "events_max": 4,
+    "hint_level": "fixes",
+    "visible_resources": ["mass", "power", "budget", "data", "comms", "time"],
+    "tiers_per_category": 3
+  },
+  {
+    "id": "cadet",
+    "name": { "en": "Cadet", "zh-TW": "學員" },
+    "budget_multiplier": 1.5,
+    "required_margin": 0.0,
+    "events_min": 1,
+    "events_max": 2,
+    "hint_level": "fixes",
+    "visible_resources": ["mass", "power", "data", "comms"],
+    "tiers_per_category": 2
+  },
+  {
+    "id": "director",
+    "name": { "en": "Mission Director", "zh-TW": "任務主管" },
+    "budget_multiplier": 0.8,
+    "required_margin": 0.25,
+    "events_min": 4,
+    "events_max": 5,
+    "hint_level": "lights",
+    "visible_resources": ["mass", "power", "budget", "data", "comms", "time"],
+    "tiers_per_category": 3
+  }
+]

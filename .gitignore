@@ -147,5 +147,14 @@ crashlytics-build.properties
 /tools/vfx/frames/
 *.blend1
 
+# Unity 外的 Core 測試專案輸出
+/tools/CoreTests/bin/
+/tools/CoreTests/obj/
+/tools/UnityApiCheck/bin/
+/tools/UnityApiCheck/obj/
+# 這個專案檔是 Unity 外的核心測試器，要進版控（上面的 *.csproj 規則是給 Unity 自動產生的專案檔）
+!/tools/CoreTests/CoreTests.csproj
+!/tools/UnityApiCheck/UnityApiCheck.csproj
+
 # GoNoGo blueprint docs stay out of the repo
 docs/unity-blueprint/

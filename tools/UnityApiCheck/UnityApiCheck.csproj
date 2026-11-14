@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    只編譯、不執行：用 Unity 實際附的 nunit.framework.dll（com.unity.ext.nunit，基於 NUnit 3.5）
+    和 .NET Framework 4.7.2 參考組件編譯 Core 與 Core.Tests。
+    CoreTests 用 NuGet 的 NUnit 3.14 執行，但 3.14 有些 API（例如 Has.All.AnyOf）Unity 沒有，
+    這個專案能在 Unity 外先抓到那類編譯錯誤。需要先用 Unity 開過專案（Library/PackageCache 才會有 dll）。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <OutputType>Library</OutputType>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Assets/GoNoGo/Core/**/*.cs" />
+    <Compile Include="../../Assets/GoNoGo/Core.Tests/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="nunit.framework">
+      <HintPath>$([System.IO.Directory]::GetFiles('$(MSBuildThisFileDirectory)../../Library/PackageCache', 'nunit.framework.dll', System.IO.SearchOption.AllDirectories)[0])</HintPath>
+    </Reference>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

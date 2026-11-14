@@ -1,0 +1,99 @@
+[
+  {
+    "id": "leo_400",
+    "name": { "en": "Low Earth Orbit (400 km)", "zh-TW": "低地球軌道（400 公里）" },
+    "description": {
+      "en": "ISS altitude. Closest view of the ground and easy to reach, but thin air drags you down: you need propellant to stay up.",
+      "zh-TW": "國際太空站的高度。離地面最近、最容易抵達，但稀薄大氣會把衛星往下拖，要帶推進劑才能維持軌道。"
+    },
+    "body": "earth",
+    "altitude_km": 400,
+    "beta_deg": 0,
+    "delta_v_per_year_ms": 50,
+    "natural_service_years": 1.5,
+    "dose_krad_per_year": 0.2,
+    "battery_dod": 0.3,
+    "passes_per_day_per_station": 4,
+    "pass_minutes": 6,
+    "objective_match": { "earth_observation": 0.85, "carbon_monitoring": 0.6, "lunar_mapping": 0 },
+    "color": "#4FC3F7",
+    "source": {
+      "title": "U.S. Standard Atmosphere 1976 (NASA NTRS); Adell (NASA-JPL) total dose table; Knap et al. 2020 Table 6",
+      "url": "https://ntrs.nasa.gov/citations/19770009539",
+      "note": "estimate: drag dv ~57 m/s/yr at moderate solar activity (a = 0.5 rho v^2 Cd A/m, A/m = 0.01), game value 50; ~1-2 yr natural decay without reboost; dose 0.2 krad/yr (below the 1 krad/yr generic LEO value because 400 km sits under most of the inner belt); DoD 10-40% LEO (sourced); 4 passes/day of ~6 min for a 51.6 deg orbit (estimate)"
+    }
+  },
+  {
+    "id": "sso_700",
+    "name": { "en": "Sun-Synchronous Orbit (700 km)", "zh-TW": "太陽同步軌道（700 公里）" },
+    "description": {
+      "en": "The Landsat / OCO orbit. Passes over every place at the same local time, so lighting is consistent. Almost no drag.",
+      "zh-TW": "Landsat 與 OCO 用的軌道。每天同一個地方時經過同一地點，光照條件一致，幾乎沒有大氣阻力。"
+    },
+    "body": "earth",
+    "altitude_km": 700,
+    "beta_deg": 25,
+    "delta_v_per_year_ms": 2,
+    "natural_service_years": 25,
+    "dose_krad_per_year": 1.0,
+    "battery_dod": 0.3,
+    "passes_per_day_per_station": 9,
+    "pass_minutes": 8,
+    "objective_match": { "earth_observation": 1.0, "carbon_monitoring": 1.0, "lunar_mapping": 0 },
+    "color": "#81C784",
+    "source": {
+      "title": "OCO launch press kit (NASA/JPL 2009); Adell (NASA-JPL) total dose table",
+      "url": "https://www.jpl.nasa.gov/news/press_kits/oco-launch.pdf",
+      "note": "sourced: 705 km, 98.2 deg, 99 min period, passes 5-12 min (game 8); dose 'Earth (LEO-1 year) 1 krad' behind 100 mil Al. estimate: dv ~2 m/s/yr (drag ~0.6 + inclination upkeep), beta 25 deg typical for a 10:30 node, 9 passes/day for a ~65 deg N station, decades of natural lifetime"
+    }
+  },
+  {
+    "id": "geo",
+    "name": { "en": "Geostationary Orbit (35,786 km)", "zh-TW": "地球同步軌道（35,786 公里）" },
+    "description": {
+      "en": "Hovers over one spot and sees a whole hemisphere all day, but from 90x farther away, through harsh radiation, and needs a big rocket.",
+      "zh-TW": "停在同一點上空，整天看著半個地球；但距離遠 90 倍、輻射很強，還需要大火箭。"
+    },
+    "body": "earth",
+    "altitude_km": 35786,
+    "beta_deg": 0,
+    "delta_v_per_year_ms": 55,
+    "natural_service_years": 1,
+    "dose_krad_per_year": 30,
+    "battery_dod": 0.75,
+    "contact_fraction": 0.95,
+    "downlink_rate_factor": 0.1,
+    "eclipses_per_year_override": 90,
+    "objective_match": { "earth_observation": 0.55, "carbon_monitoring": 0.3, "lunar_mapping": 0 },
+    "color": "#FFB74D",
+    "source": {
+      "title": "Kim et al., Station-Keeping for COMS Satellite, J. Astron. Space Sci. 23(3) 2006; Adell (NASA-JPL); Knap et al. 2020 Table 6",
+      "url": "https://koreascience.kr/article/JAKO200634718425936.pub",
+      "note": "sourced: N-S 52.71 + E-W 3.50 m/s/yr (game 55); 'Earth (GEO-1 year) 30 krad'; GEO 90 cycles/yr, DoD 60-80% (game 75%). estimate: 10x lower downlink rate from 36,000 km after bigger ground antennas, 95% contact time, ~1 yr of usable drift without station keeping"
+    }
+  },
+  {
+    "id": "llo_100",
+    "name": { "en": "Low Lunar Orbit (100 km)", "zh-TW": "低月球軌道（100 公里）" },
+    "description": {
+      "en": "Lunar Reconnaissance Orbiter territory. Lumpy lunar gravity pulls the orbit down fast, and every byte has to cross 384,000 km to the Deep Space Network.",
+      "zh-TW": "月球勘測軌道衛星（LRO）的高度。月球重力不均勻，軌道很快就會往下掉；每筆資料都要飛 38 萬公里回到深空網路。"
+    },
+    "body": "moon",
+    "altitude_km": 100,
+    "beta_deg": 0,
+    "delta_v_per_year_ms": 50,
+    "natural_service_years": 0.1,
+    "dose_krad_per_year": 2,
+    "battery_dod": 0.3,
+    "contact_fraction": 0.167,
+    "downlink_rate_factor": 0.05,
+    "objective_match": { "earth_observation": 0, "carbon_monitoring": 0, "lunar_mapping": 1.0 },
+    "color": "#B0BEC5",
+    "source": {
+      "title": "Lauinger, Cotten & Zee, Optimization of Orbit-Maintenance Strategies for Small Satellites in Cislunar Space (SmallSat 2026); NASA MOCS D-22674",
+      "url": "https://digitalcommons.usu.edu/smallsat/2026/all2026/224",
+      "note": "sourced: 50 km polar needs 10.5 m/s per lunation, consistent with LRO. estimate: ~50 m/s/yr at 100 km, months of natural lifetime, 2 krad/yr (no trapped belts), one 4 h DSN track per day, 20x lower rate than near-Earth"
+    }
+  }
+]

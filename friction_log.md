@@ -110,3 +110,43 @@
 24. **`main.randomSeed` 編譯錯誤**
     - 原因：`randomSeed` 是 `ParticleSystem` 本身的屬性，不在 `MainModule`。而且只能在粒子停止時設定。
     - 解法：`ps.Stop(true, StopEmittingAndClear); ps.useAutoRandomSeed = false; ps.randomSeed = 1234; ps.Play();`
+
+---
+
+## 建置：單人版
+
+### 核心（Core）與測試
+
+25. **`unity command test run` 跑到 600 秒逾時，之後整個 Editor 主執行緒卡死（`script eval` 150 秒都沒回應）**
+    - 原因：Editor 不在前景時，測試執行器會停住；`unity test` 也拒絕在已開啟的專案上執行。
+    - 解法：核心是純 C#（No Engine References），改在 Unity 外用 Unity 內建的 .NET SDK 跑：`bash tools/run-core-tests.sh`。Editor 卡死時用 `unity close <專案> --force` 再 `unity open <專案>`（場景要先存檔）。
+
+26. **dotnet 測試全過，Unity 卻進 Safe Mode：`'ConstraintExpression' does not contain a definition for 'AnyOf'`**
+    - 原因：Unity 的 `com.unity.ext.nunit` 是以 NUnit 3.5 為基礎，測試器用的 NuGet NUnit 3.14 多了 `Has.All.AnyOf` 等 API。直接把 NuGet 降到 3.5 也不行，它在 .NET 8 載不起來（`System.Runtime.Remoting` 型別載入失敗）。
+    - 解法：多一個只編譯不執行的 `tools/UnityApiCheck/UnityApiCheck.csproj`（net472 + `Library/PackageCache` 裡 Unity 實際的 `nunit.framework.dll`），`run-core-tests.sh` 先跑它。測試裡改用 `Assert.That(list.All(...))`、`Has.No.Member(...)`。
+
+27. **`*.csproj` 被 Unity 的 .gitignore 規則忽略，測試器專案沒進版控**
+    - 解法：在 `.gitignore` 加 `!/tools/CoreTests/CoreTests.csproj` 和 `!/tools/UnityApiCheck/UnityApiCheck.csproj`。用 `git check-ignore -v <file>` 檢查。
+
+28. **同一個模擬結果，Unity 和 .NET 8 序列化後的 SHA 不同（長度 929,544 vs 919,855）**
+    - 原因：數值本身一樣，但 double 轉字串的規則不同（Mono 輸出 17 位數，.NET Core 3.0+ 輸出最短往返字串）。
+    - 解法：比對確定性時，用固定小數位（`ToString("F6", InvariantCulture)`）組指紋。`SimulatorTests.Fingerprint()` 兩邊都是 `9370C5F071BA88B4`，證明 `System.Random(seed)` 在 Mono 和 .NET 8 結果一致。
+
+29. **`unity command package search --name` 不是有效參數**
+    - 解法：用 `--query`。改完 `Packages/manifest.json` 後跑 `unity command package resolve`。
+
+30. **`unity status` 偶爾回報 `STATUS_ALL_UNREACHABLE`，但 Unity.exe 還在**
+    - 原因：Editor 正在匯入或編譯，或主執行緒被卡住。
+    - 解法：先 `unity status --until-ready`；如果 `script eval --timeout 150` 也沒回應，就當作卡死，照第 25 條重開。
+
+### 資料
+
+31. **DONKI API（api.nasa.gov 和 kauai.ccmc.gsfc.nasa.gov）回 503 / 連線逾時**
+    - 原因：NASA 上游服務當時故障，`DEMO_KEY` 或直連 CCMC 都一樣。
+    - 解法：先用 NASA/NOAA 公開報告整理 12 個著名事件，寫進 `donki_events.json` 當備援快照，連結指到 DONKI 查詢頁或 NASA 文章。服務恢復後跑 `python tools/data/fetch_donki.py` 重抓（會依 Kp 和閃焰等級自動換算嚴重度 1–3）。
+
+32. **藍圖裡的歷史關卡 JSON 範例用 camelCase（`presetDesign`），資料契約範例用 snake_case（`mass_kg`）**
+    - 解法：統一用 snake_case（`SnakeCaseNamingStrategy`），搭配 `MissingMemberHandling.Error`，欄位拼錯就直接丟例外，不會悄悄變成 0。
+
+33. **科學分數線性計算時，便宜小衛星只拿到 13 分，幾乎等於失敗；高科學型又遠超 100**
+    - 解法：改成 `100 · √(科學點數 / 參考值)`，上限 100。預算剩越多效率分越高（25% 封頂），質量與電力餘裕 10–50% 最好。調完的中位數：便宜型 71（B）、均衡型 91、高科學型 97，三組都在不同分項領先（`BalanceTests`）。
