@@ -82,6 +82,8 @@ namespace GoNoGo.Launch
         Vector3 _sideOffset0;
         float _shake;
         float _camK;                  // 太空鏡頭距離倍率（小火箭鏡頭靠近一點）
+        float _deployK;               // 展開鏡頭距離倍率：看衛星展開後多寬，不是看火箭多大
+        float _payloadSpan;           // 衛星展開後的寬度（公尺，已含縮放）
         readonly List<Cue> _cues = new List<Cue>();
         int _nextCue;
         LaunchOutcome _outcome;
@@ -235,7 +237,11 @@ namespace GoNoGo.Launch
             ScaleCamFollow(camSpace, Mathf.Max(0.35f, k) * 1.7f);
             ScaleCamFollow(camSide, Mathf.Max(0.35f, k) * 1.7f);
             _camK = Mathf.Max(0.35f, k);
-            ScaleCamFollow(camDeploy, _camK);
+            // 鏡頭原本的距離約 6.9 m。衛星分離後會慢慢自轉，太陽能翼轉成直的也要整個留在畫面裡（垂直視角 38°），距離取展開寬度的 1.7 倍
+            var deployFollow = camDeploy != null ? camDeploy.GetComponent<CinemachineFollow>() : null;
+            float deployDist = deployFollow != null ? deployFollow.FollowOffset.magnitude : 6.9f;
+            _deployK = Mathf.Max(_camK, _payloadSpan * 1.7f / Mathf.Max(0.1f, deployDist));
+            ScaleCamFollow(camDeploy, _deployK);
 
             SetupFlightAzimuth();
             SetupLongCam();
@@ -359,20 +365,32 @@ namespace GoNoGo.Launch
         void BuildPayload(GameData data)
         {
             _payload = SatelliteBuilder.Build(_design, data, Evaluator.EvaluateDesign(_design, data), _rocket.payloadMount);
-            // 縮到整流罩裝得下（Taurus 的整流罩比第一節細）
+            // 展開式太陽能翼發射時收起來，分離後才展開；機身貼片本來就貼在機身上，不動
+            var solarDef = data.Part(_design.Get(PartCategory.Solar));
+            bool wings = solarDef != null && solarDef.Mount == "wing";
+            _solar = wings ? _payload.GetComponentsInChildren<SatPart>().Where(p => p.category == PartCategory.Solar).ToArray() : Array.Empty<SatPart>();
+            float openW = Width(_payload);
+            foreach (var p in _solar) p.transform.localScale = new Vector3(0.12f, 1f, 1f);
+            // 縮到整流罩裝得下（Taurus 的整流罩比第一節細）。要用收起來的大小量：
+            // 太陽能翼張開有 4.7–7.4 m，拿張開的寬度去塞整流罩，整顆衛星會被縮到只剩 1/3–1/8
             var rs = _payload.GetComponentsInChildren<Renderer>();
             if (rs.Length == 0) return;
             var b = rs[0].bounds;
             foreach (var r in rs) b.Encapsulate(r.bounds);
             float inner = Mathf.Min(_rocket.diameter, _rocket.fairingRadius * 2f);
-            float fit = inner * 0.75f / Mathf.Max(0.01f, Mathf.Max(b.size.x, b.size.z));
-            _payload.transform.localScale = Vector3.one * Mathf.Min(1f, fit);
-            _payload.transform.localPosition = new Vector3(0, b.size.y * 0.5f * Mathf.Min(1f, fit), 0);
-            // 展開式太陽能翼發射時收起來，分離後才展開；機身貼片本來就貼在機身上，不動
-            var solarDef = data.Part(_design.Get(PartCategory.Solar));
-            bool wings = solarDef != null && solarDef.Mount == "wing";
-            _solar = wings ? _payload.GetComponentsInChildren<SatPart>().Where(p => p.category == PartCategory.Solar).ToArray() : Array.Empty<SatPart>();
-            foreach (var p in _solar) p.transform.localScale = new Vector3(0.12f, 1f, 1f);
+            float fit = Mathf.Min(1f, inner * 0.75f / Mathf.Max(0.01f, Mathf.Max(b.size.x, b.size.z)));
+            _payload.transform.localScale = Vector3.one * fit;
+            _payload.transform.localPosition = new Vector3(0, b.size.y * 0.5f * fit, 0);
+            _payloadSpan = openW * fit;
+        }
+
+        static float Width(GameObject g)
+        {
+            var rs = g.GetComponentsInChildren<Renderer>();
+            if (rs.Length == 0) return 0f;
+            var b = rs[0].bounds;
+            foreach (var r in rs) b.Encapsulate(r.bounds);
+            return Mathf.Max(b.size.x, b.size.z);
         }
 
         static void ScaleCamOffset(CinemachineCamera cam, float k)
@@ -749,7 +767,7 @@ namespace GoNoGo.Launch
             foreach (var d in _drift) if (d.t != null) d.t.gameObject.SetActive(false);
             _drift.Clear();
             // 上節同時退到展開鏡頭後方：硬切看不出瞬移，畫面就像分離已經完成
-            var back = _rocket.root.up * (6f + 8f * _camK);
+            var back = _rocket.root.up * (6f + 8f * _deployK);
             _upperPos -= back;
             _rocket.root.position -= back;
             Cut(camDeploy);
