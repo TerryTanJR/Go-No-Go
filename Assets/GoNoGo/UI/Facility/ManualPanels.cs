@@ -313,11 +313,19 @@ namespace GoNoGo.UI
             ("comms", "res.comms"), ("budget", "res.budget"), ("lifetime", "ui.dash.lifetime"), ("instruments", "ui.dash.science"),
         };
 
+        /// <summary>野火關卡多三張：火點偵測原理、通報延遲怎麼算、排除假火點。</summary>
+        static readonly (string rule, string dash)[] FireRuleList =
+        {
+            ("fire", "ui.dash.detection"), ("latency", "ui.dash.latency"), ("falsefire", "ops.console.payload"),
+        };
+
+        static bool FireMission => GameSession.Mission?.Scenario?.FireAlert ?? false;
+
         static void Rules(VisualElement parent)
         {
             var grid = Ui.El("man-rules").AddTo(parent);
             int i = 0;
-            foreach (var (k, dash) in RuleList)
+            foreach (var (k, dash) in FireMission ? RuleList.Concat(FireRuleList) : RuleList)
             {
                 var c = Ui.El("man-rule").AddTo(grid);
                 var head = Ui.Row("man-rule-head").AddTo(c);
@@ -333,14 +341,26 @@ namespace GoNoGo.UI
         // ---------------------------------------------------------------- 異常判讀
 
         // 症狀對照表：每個事件在各項遙測上的樣子（和 event.diag.* 的文字一致）
-        static readonly string[] Signals = { "radiation", "battery", "solar", "parts", "alert" };
+        // 最後兩欄（火點儀、長波熱紅外線）只在野火關卡顯示
+        static readonly string[] Signals = { "radiation", "battery", "solar", "parts", "alert", "mwir", "lwir" };
+        const int BaseSignals = 5;
         static readonly Dictionary<EventKind, string[]> Matrix = new Dictionary<EventKind, string[]>
         {
-            { EventKind.SolarStorm, new[] { "up2", "", "down", "", "" } },
-            { EventKind.PartFailure, new[] { "", "", "", "fault", "" } },
-            { EventKind.ScienceOpportunity, new[] { "", "", "", "", "alert" } },
-            { EventKind.PowerAnomaly, new[] { "", "down2", "half", "", "" } },
+            { EventKind.SolarStorm, new[] { "up2", "", "down", "", "", "", "" } },
+            { EventKind.PartFailure, new[] { "", "", "", "fault", "", "", "" } },
+            { EventKind.ScienceOpportunity, new[] { "", "", "", "", "alert", "", "" } },
+            { EventKind.PowerAnomaly, new[] { "", "down2", "half", "", "", "", "" } },
+            { EventKind.BigFire, new[] { "", "", "", "", "", "up2", "up" } },
+            { EventKind.FalseFire, new[] { "", "", "", "", "", "up2", "flat" } },
         };
+
+        /// <summary>手冊列的事件：野火關卡只列這一局會出現的；其他關卡照舊列四種通用事件。</summary>
+        static List<EventKind> Events()
+        {
+            var m = GameSession.Mission;
+            if (FireMission && m != null) return OpsEvents.For(m.Scenario, m.Difficulty);
+            return OpsEvents.All.Where(k => !OpsEvents.IsFire(k)).ToList();
+        }
 
         static void Diagnose(VisualElement parent)
         {
@@ -348,13 +368,15 @@ namespace GoNoGo.UI
             var table = Ui.El("man-matrix").AddTo(parent);
             var head = Ui.Row("man-mx-row", "man-mx-row--head").AddTo(table);
             Ui.Text("", "man-mx-event").AddTo(head);
-            foreach (var s in Signals) Ui.Text(Loc.T("ui.manual.sig." + s), "man-mx-cell").AddTo(head);
-            foreach (var k in OpsEvents.All)
+            int cols = FireMission ? Signals.Length : BaseSignals;
+            foreach (var s in Signals.Take(cols)) Ui.Text(Loc.T("ui.manual.sig." + s), "man-mx-cell").AddTo(head);
+            var events = Events();
+            foreach (var k in events)
             {
                 var row = Ui.Row("man-mx-row").AddTo(table);
                 Ui.Text(Loc.T("event.title." + OpsEvents.Key(k)), "man-mx-event").AddTo(row);
                 var vals = Matrix.TryGetValue(k, out var v) ? v : new string[Signals.Length];
-                foreach (var x in vals)
+                foreach (var x in vals.Take(cols))
                 {
                     var cell = Ui.El("man-mx-cell").AddTo(row);
                     if (string.IsNullOrEmpty(x)) { Ui.Text("—", "faint").AddTo(cell); continue; }
@@ -365,7 +387,7 @@ namespace GoNoGo.UI
 
             Ui.Text(Loc.T("ui.manual.signs"), "eyebrow", "man-sec").AddTo(parent);
             var grid = Ui.El("man-rules").AddTo(parent);
-            foreach (var k in OpsEvents.All)
+            foreach (var k in events)
             {
                 var c = Ui.El("man-rule").AddTo(grid);
                 Ui.Text(Loc.T("event.title." + OpsEvents.Key(k)), "h3").AddTo(c);
@@ -385,7 +407,7 @@ namespace GoNoGo.UI
             Ui.Text(Loc.T("ui.manual.consoles_at"), "small", "dim").AddTo(legend);
             foreach (var c in OpsConsoles.All) Ui.Text(Loc.T("ops.console." + c), "man-chip", "man-chip--" + c).AddTo(legend);
 
-            foreach (var k in OpsEvents.All)
+            foreach (var k in Events())
             {
                 var card = Ui.El("man-proc").AddTo(parent);
                 Ui.Text(Loc.T("event.title." + OpsEvents.Key(k)), "h3").AddTo(card);

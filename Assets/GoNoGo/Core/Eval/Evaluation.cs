@@ -92,6 +92,27 @@ namespace GoNoGo.Core
         public double BudgetMusd { get; set; }
     }
 
+    /// <summary>
+    /// 野火關卡的兩個指標。
+    /// 通報延遲 = 等衛星過站（平均）+ 下傳這一圈的資料 + 地面處理。
+    /// 偵測率 = 儀器偵測率加總（上限 1）× 軌道過境時段的係數（下午火勢旺 1.0、晨昏火勢小 0.6）。
+    /// </summary>
+    public sealed class FireInfo
+    {
+        public double Detection { get; set; }
+        public double InstrumentDetection { get; set; }
+        public double OrbitFactor { get; set; }
+        /// <summary>看到火點之後平均要等多久才過地面站（分鐘）。</summary>
+        public double WaitMin { get; set; }
+        /// <summary>每一圈的資料量（GB）與下傳要花的時間（分鐘）。</summary>
+        public double OrbitDataGb { get; set; }
+        public double DownlinkMin { get; set; }
+        public double ProcessingMin { get; set; }
+        public double LatencyMin { get; set; }
+        /// <summary>時限內通報的比例 = min(1, 時限 ÷ 延遲)。</summary>
+        public double TimelyFraction { get; set; }
+    }
+
     public enum LifetimeLimit { None, Propellant, Battery, Radiation }
 
     public sealed class LifetimeInfo
@@ -163,6 +184,7 @@ namespace GoNoGo.Core
         public DataInfo Data { get; set; } = new DataInfo();
         public CostInfo Cost { get; set; } = new CostInfo();
         public LifetimeInfo Lifetime { get; set; } = new LifetimeInfo();
+        public FireInfo Fire { get; set; } = new FireInfo();
         /// <summary>每年可得的科學點數（假設資料全部傳回）。</summary>
         public double SciencePerYear { get; set; }
         public double ScheduleMonths { get; set; }

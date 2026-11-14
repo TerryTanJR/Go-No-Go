@@ -184,6 +184,28 @@ namespace GoNoGo.UI
                     double v = ev.Data.ReturnFraction;
                     return new Gauge { Now = Fmt.Pct(v), Target = "≥ " + Fmt.Pct(req.Value), Fraction = req.Value > 0 ? v / req.Value : 1 };
                 }
+                case "instrument_any":
+                {
+                    var on = d.Instruments.FirstOrDefault(req.PartIds.Contains);
+                    string codes = string.Join(" / ", req.PartIds.Select(id => data.Part(id)?.Code ?? id));
+                    return new Gauge { Now = on != null ? (data.Part(on)?.Code ?? on) : Loc.T("ui.prog.missing"), Target = codes, Fraction = on != null ? 1 : 0 };
+                }
+                case "orbit_required":
+                {
+                    bool on = d.OrbitId == req.OrbitId;
+                    return new Gauge { Now = Loc.Orbit(d.OrbitId), Target = Loc.Orbit(req.OrbitId), Fraction = on ? 1 : 0 };
+                }
+                case "battery_eclipse":
+                {
+                    // 一次地影用掉電池的比例（≤ 100% 才撐得過）
+                    double v = ev.Power.ActualDod;
+                    return new Gauge { Now = Fmt.Pct(v), Target = "≤ 100%", Fraction = v <= 1 ? 1 : 1 / v };
+                }
+                case "latency":
+                {
+                    double v = ev.Fire.LatencyMin;
+                    return new Gauge { Now = Fmt.N(v, 1) + " min", Target = "≤ " + Fmt.N(req.Value) + " min", Fraction = v <= req.Value ? 1 : req.Value / Math.Max(1e-6, v) };
+                }
                 default:
                     return new Gauge { Now = "—", Target = "—", Fraction = 0 };
             }

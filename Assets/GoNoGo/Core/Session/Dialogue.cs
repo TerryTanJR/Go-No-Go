@@ -45,7 +45,7 @@ namespace GoNoGo.Core
             var sc = s.Scenario(data);
             var diff = s.Difficulty(data);
             if (sc == null) return text;
-            double budget = sc.BudgetMusd * diff.BudgetMultiplier;
+            double budget = sc.BudgetMusd * GameData.BudgetMultiplier(sc, diff);
             if (sc.Historical != null) budget = sc.BudgetMusd * sc.Historical.BudgetCap;
             var reserve = Departments.Active(sc, diff).Select(a => a.Requirement).FirstOrDefault(r => r.Type == "budget_reserve");
             var map = new Dictionary<string, string>
@@ -59,6 +59,7 @@ namespace GoNoGo.Core
                 { "max_instruments", sc.MaxInstruments.ToString(CultureInfo.InvariantCulture) },
                 { "margin_pct", N(diff.RequiredMargin * 100) },
                 { "eclipse_min", N(reported?.Orbit?.EclipseMin ?? 0) },
+                { "latency_limit", N(sc.LatencyLimitMin) },
             };
             foreach (var kv in map) text = text.Replace("{" + kv.Key + "}", kv.Value);
             return text;
@@ -72,7 +73,7 @@ namespace GoNoGo.Core
             foreach (var c in s.Calls)
             {
                 var dep = data.Department(c.Department);
-                var line = dep?.Lines.FirstOrDefault(l => l.Id == c.LineId);
+                var line = data.Lines(s.Scenario(data), dep).FirstOrDefault(l => l.Id == c.LineId);
                 if (line == null) continue;
                 list.Add(new NoteItem
                 {

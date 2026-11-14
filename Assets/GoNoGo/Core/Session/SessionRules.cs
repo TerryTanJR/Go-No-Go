@@ -47,7 +47,7 @@ namespace GoNoGo.Core
         {
             var scenario = data.Scenario(scenarioId) ?? data.Scenarios[0];
             var diff = data.Difficulty(difficultyId) ?? data.SelectableDifficulties.First();
-            var start = (scenario.Historical != null ? scenario.Historical.PresetDesign : scenario.DefaultDesign).Clone();
+            var start = (scenario.Historical != null ? scenario.Historical.PresetDesign : GameData.DefaultDesign(scenario, diff.Id)).Clone();
             start.ScenarioId = scenario.Id;
             if (scenario.Historical == null)
                 foreach (var kv in diff.StartParts) start.Parts[kv.Key] = kv.Value;
@@ -74,9 +74,20 @@ namespace GoNoGo.Core
         /// <summary>這個難度架上有的零件（加上目前船上裝的，拆下來才有地方放）。</summary>
         public static List<PartDef> ShelfParts(GameData data, SessionState s)
         {
-            int tiers = s.Difficulty(data).TiersPerCategory;
+            var shelf = new HashSet<string>(data.ShelfFor(s.Scenario(data), s.Difficulty(data)).Select(p => p.Id));
             var onShip = new HashSet<string>(s.Bench.AllPartIds());
-            return data.Parts.Where(p => p.Category != PartCategory.GroundStation && (p.Tier <= tiers || onShip.Contains(p.Id))).ToList();
+            return data.Parts.Where(p => p.Category != PartCategory.GroundStation && (shelf.Contains(p.Id) || onShip.Contains(p.Id))).ToList();
+        }
+
+        /// <summary>
+        /// 共乘只能去主酬載的軌道：選了共乘就不能換到別的軌道，在別的軌道也不能選共乘。
+        /// 回傳 Ok 或 err.rideshare_orbit。
+        /// </summary>
+        public static string OrbitLauncherCheck(GameData data, string orbitId, string launcherId)
+        {
+            var l = data.Launcher(launcherId);
+            if (l != null && !string.IsNullOrEmpty(l.OrbitLock) && l.OrbitLock != orbitId) return "err.rideshare_orbit";
+            return Ok;
         }
 
         public static MissionContext Context(GameData data, SessionState s, int failedBefore) => new MissionContext
@@ -195,9 +206,17 @@ namespace GoNoGo.Core
                     return Ok;
 
                 case CommandType.SetOrbit:
+                {
+                    var lock_ = OrbitLauncherCheck(data, c.A, s.Bench.LauncherId);
+                    if (lock_ != Ok && s.Scenario(data).AllowedOrbits.Contains(c.A)) return lock_;
                     return Control(s, data, d => d.OrbitId = c.A, () => s.Scenario(data).AllowedOrbits.Contains(c.A));
+                }
                 case CommandType.SetLauncher:
+                {
+                    var lock_ = OrbitLauncherCheck(data, s.Bench.OrbitId, c.A);
+                    if (lock_ != Ok && data.LaunchersFor(s.Scenario(data)).Any(l => l.Id == c.A)) return lock_;
                     return Control(s, data, d => d.LauncherId = c.A, () => data.LaunchersFor(s.Scenario(data)).Any(l => l.Id == c.A));
+                }
                 case CommandType.SetGroundStation:
                     return Control(s, data, d => d.Parts[PartCategory.GroundStation] = c.A, () => data.Part(c.A)?.Category == PartCategory.GroundStation);
                 case CommandType.SetYears:
@@ -205,7 +224,8 @@ namespace GoNoGo.Core
                 case CommandType.Call:
                     var dep = data.Department(c.A);
                     if (dep == null) return "err.unknown";
-                    var lineId = c.N >= 0 && c.N < dep.Lines.Count ? dep.Lines[c.N].Id : null;
+                    var lines = data.Lines(s.Scenario(data), dep);
+                    var lineId = c.N >= 0 && c.N < lines.Count && GameData.LineOpen(lines[c.N], s.Difficulty(data)) ? lines[c.N].Id : null;
                     if (lineId == null) return "err.unknown";
                     if (!s.Calls.Any(x => x.Department == dep.Id && x.LineId == lineId))
                         s.Calls.Add(new CallRecord { Department = dep.Id, LineId = lineId });

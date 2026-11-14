@@ -20,7 +20,8 @@ namespace GoNoGo.Core
         public bool Deployed => Success || Outcome == LaunchOutcome.DeadOnOrbit;
     }
 
-    public enum EventKind { SolarStorm, PartFailure, ScienceOpportunity, PowerAnomaly }
+    /// <summary>BigFire、FalseFire 只出現在野火關卡（由關卡的 event_types 指定）。</summary>
+    public enum EventKind { SolarStorm, PartFailure, ScienceOpportunity, PowerAnomaly, BigFire, FalseFire }
 
     /// <summary>營運期間的事件（每回合一個）。亂數在規劃時就擲好，所以玩家的處置不會改變後面的事件。</summary>
     public sealed class MissionEvent
@@ -30,7 +31,7 @@ namespace GoNoGo.Core
         /// <summary>第幾回合（0 起算）。</summary>
         public int Turn { get; set; }
         public int Day { get; set; }
-        /// <summary>太陽風暴：DONKI 事件 id；零件故障：零件 id；科學機會：機會種類；電量異常：空白。</summary>
+        /// <summary>太陽風暴：DONKI 事件 id；零件故障：零件 id；科學機會：機會種類；電量異常：空白；大火／假火點：地點（forest、grassland、desert、glint）。</summary>
         public string RefId { get; set; } = "";
         public int Severity { get; set; } = 1;
         public double Roll { get; set; }
@@ -117,6 +118,10 @@ namespace GoNoGo.Core
         public string AffectedPartId { get; set; } = "";
         public int LostDays { get; set; }
         public double ScienceDelta { get; set; }
+        /// <summary>這回合的及時通報比例倍率（大火爆發沒處置 = 0.5）。只有野火關卡的科學成果用到。</summary>
+        public double AlertFactor { get; set; } = 1.0;
+        /// <summary>這回合營運處置分數直接歸零（把假火點通報給消防單位）。</summary>
+        public bool Voided { get; set; }
     }
 
     public enum EndReason { MissionComplete, Propellant, Battery, Radiation, LaunchFailure }

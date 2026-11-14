@@ -106,7 +106,7 @@ namespace GoNoGo.UI
                 {
                     Ui.Text(Loc.T("ui.ops.judge_hint"), "small", "dim").AddTo(body);
                     var row = Ui.Row("judge-row").AddTo(body);
-                    foreach (var t in diff.EventTypes)
+                    foreach (var t in GameData.EventTypes(M.Scenario, diff))
                     {
                         var key = t;
                         Ui.Btn(Loc.T("event.title." + key), () => { GameSession.Send(CommandType.Judge, key); Sfx.Click(); }, "chip")
@@ -180,7 +180,8 @@ namespace GoNoGo.UI
                 string name = r.Key.StartsWith("part:") ? (D.Part(r.Key.Substring(5))?.Code + " " + Loc.Part(r.Key.Substring(5))) : Loc.T(r.Key);
                 Ui.Text(name, "reading-k").AddTo(row);
                 Ui.Spacer().AddTo(row);
-                string val = r.Value.StartsWith("opp.") ? Loc.T(r.Value) : r.Value;
+                string val = r.Value.StartsWith("opp.") || r.Value.StartsWith("site.") ? Loc.T(r.Value)
+                    : r.Value == "NO DATA" ? Loc.T("ui.ops.no_data") : r.Value;
                 Ui.Text(val + (string.IsNullOrEmpty(r.Unit) ? "" : " " + r.Unit), "mono", "reading-v").AddTo(row);
             }
 
@@ -192,8 +193,10 @@ namespace GoNoGo.UI
             var resp = M.ResponseTo(e.Id);
             Ui.Text(Loc.T("ui.ops.actions"), "eyebrow", "ops-actions-title").AddTo(body);
             var acts = Ui.Row("ops-actions").AddTo(body);
+            bool fire = M.Scenario != null && M.Scenario.FireAlert;
             foreach (var a in OpsConsoles.Actions(_console))
             {
+                if (OpsActions.FireOnly(a) && !fire) continue; // 火點操作只在野火關卡出現
                 var act = a;
                 bool done = resp.Actions.Contains(a);
                 var b = Ui.Btn(Loc.T("ops.action." + a) + (done ? "  ✔" : ""), () =>

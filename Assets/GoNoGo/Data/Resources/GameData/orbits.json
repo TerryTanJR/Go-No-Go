@@ -95,5 +95,47 @@
       "url": "https://digitalcommons.usu.edu/smallsat/2026/all2026/224",
       "note": "sourced: 50 km polar needs 10.5 m/s per lunation, consistent with LRO. estimate: ~50 m/s/yr at 100 km, months of natural lifetime, 2 krad/yr (no trapped belts), one 4 h DSN track per day, 20x lower rate than near-Earth"
     }
+  },
+  {
+    "id": "sso_dawn_dusk",
+    "name": { "en": "Dawn-Dusk Sun-Synchronous Orbit (700 km)", "zh-TW": "晨昏太陽同步軌道（700 公里）" },
+    "description": { "en": "Rides the line between day and night, so the solar panels almost never see Earth's shadow. Power is easy, but it passes over at 6 am and 6 pm, when fires are small.", "zh-TW": "沿著日夜交界飛，太陽能板幾乎照不到地球的影子，電力最穩。但每天早上 6 點和傍晚 6 點經過，那時候火勢小。" },
+    "body": "earth",
+    "altitude_km": 700,
+    "beta_deg": 70,
+    "delta_v_per_year_ms": 2,
+    "natural_service_years": 25,
+    "dose_krad_per_year": 1.0,
+    "battery_dod": 0.3,
+    "passes_per_day_per_station": 11,
+    "pass_minutes": 8,
+    "objective_match": { "wildfire": 0.6, "earth_observation": 0.7, "carbon_monitoring": 0.5, "lunar_mapping": 0 },
+    "color": "#FFD54F",
+    "source": {
+      "title": "eoPortal: RADARSAT Constellation Mission (dawn-dusk SSO); Giglio et al., MODIS active fire diurnal cycle (Remote Sens. Environ. 2006)",
+      "url": "https://www.eoportal.org/satellite-missions/rcm",
+      "note": "sourced: dawn-dusk SSO keeps |beta| near or above the ~64 deg no-eclipse angle at 700 km, so radar missions use it for continuous power; fire activity peaks in the early afternoon and is lowest around dawn. estimate: beta 70 deg worst case, x0.6 fire detection at 06:00/18:00 local time, 11 of 14.6 daily passes seen by a high-latitude polar station (SvalSat sees nearly every revolution)"
+    }
+  },
+  {
+    "id": "sso_1330",
+    "name": { "en": "Afternoon Sun-Synchronous Orbit (700 km, 13:30)", "zh-TW": "午後太陽同步軌道（700 公里，13:30）" },
+    "description": { "en": "The Aqua / Suomi NPP orbit: crosses the equator at 1:30 pm local time, when fires burn hottest. Every orbit spends about 35 minutes in Earth's shadow.", "zh-TW": "Aqua 和 Suomi NPP 用的軌道：當地時間下午 1 點半經過赤道，正是火勢最旺的時候。每一圈都有大約 35 分鐘在地球的影子裡。" },
+    "body": "earth",
+    "altitude_km": 700,
+    "beta_deg": 15,
+    "delta_v_per_year_ms": 2,
+    "natural_service_years": 25,
+    "dose_krad_per_year": 1.0,
+    "battery_dod": 0.3,
+    "passes_per_day_per_station": 11,
+    "pass_minutes": 8,
+    "objective_match": { "wildfire": 1.0, "earth_observation": 1.0, "carbon_monitoring": 1.0, "lunar_mapping": 0 },
+    "color": "#FF8A65",
+    "source": {
+      "title": "NASA Earthdata: VIIRS I-Band 375 m Active Fire Data (Suomi NPP, 13:30 overpass); arXiv 2007.03675 App. B",
+      "url": "https://www.earthdata.nasa.gov/data/instruments/viirs/viirs-i-band-375-m-active-fire-data",
+      "note": "sourced: Suomi NPP / NOAA-20 cross at about 13:30 local time and their active-fire product is used by fire services. derived: beta 15 deg gives a 34.7 min eclipse per 98.8 min orbit at 700 km (cylindrical shadow). estimate: x1.0 fire detection at the afternoon peak, 11 of 14.6 daily passes seen by a high-latitude polar station"
+    }
   }
 ]

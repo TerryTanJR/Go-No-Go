@@ -21,6 +21,8 @@ namespace GoNoGo.Core
     public static class Simulator
     {
         static readonly string[] Opportunities = { "wildfire", "volcano", "flood", "hurricane" };
+        static readonly string[] FireSites = { "forest", "grassland" };
+        static readonly string[] FalseSites = { "desert", "glint" };
 
         public static MissionResult SimulateMission(Design design, GameData data, int seed, IDecisionSource decisions) =>
             SimulateMission(design, data, seed, decisions, new MissionContext());
@@ -48,7 +50,7 @@ namespace GoNoGo.Core
                 .Select(data.Part).Where(p => p != null).ToList();
 
             // 每回合一個事件：把可用的事件種類輪流排滿，再洗牌（同一種事件不會連出太多次）
-            var pool = diff.EventTypes.Select(OpsEvents.Parse).Where(k => k.HasValue).Select(k => k.Value).Distinct().ToList();
+            var pool = GameData.EventTypes(data.Scenario(design.ScenarioId), diff).Select(OpsEvents.Parse).Where(k => k.HasValue).Select(k => k.Value).Distinct().ToList();
             if (pool.Count == 0) pool = new List<EventKind> { EventKind.SolarStorm, EventKind.ScienceOpportunity };
             if (failable.Count == 0) pool.Remove(EventKind.PartFailure);
             if (pool.Count == 0) pool.Add(EventKind.SolarStorm);
@@ -90,6 +92,14 @@ namespace GoNoGo.Core
                         break;
                     case EventKind.PowerAnomaly:
                         e.Severity = 1 + rng.Next(3);
+                        break;
+                    case EventKind.BigFire:
+                        e.RefId = FireSites[rng.Next(FireSites.Length)];
+                        e.Severity = 1 + rng.Next(3);
+                        break;
+                    case EventKind.FalseFire:
+                        e.RefId = FalseSites[rng.Next(FalseSites.Length)];
+                        e.Severity = 1 + rng.Next(2);
                         break;
                     default:
                         e.RefId = Opportunities[rng.Next(Opportunities.Length)];
@@ -344,6 +354,22 @@ namespace GoNoGo.Core
                             break;
                     }
                     if (f >= 1) o.ResultCode += "_contained";
+                    break;
+
+                case EventKind.BigFire:
+                    // 火點優先下傳 + 增加下傳：火點及時送到地面；沒做完，火點積在船上
+                    o.AlertFactor = 0.5 + 0.5 * f;
+                    o.ResultCode = f >= 1 ? "event.fire.reported" : f > 0 ? "event.fire.partial" : "event.fire.stuck";
+                    break;
+
+                case EventKind.FalseFire:
+                    // 把假火點下傳出去 = 誤報給消防單位
+                    if (Did(OpsActions.FirePriority) || Did(OpsActions.PriorityDownlink))
+                    {
+                        o.Voided = true;
+                        o.ResultCode = "event.false_fire.reported";
+                    }
+                    else o.ResultCode = f >= 1 ? "event.false_fire.flagged" : "event.false_fire.ignored";
                     break;
 
                 default:

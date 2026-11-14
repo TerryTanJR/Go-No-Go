@@ -263,7 +263,7 @@ namespace GoNoGo.Core.Tests
             Assert.That(Fingerprint(_data), Is.EqualTo(ExpectedFingerprint), "核心模擬結果變了：如果是刻意調整數值，請更新 ExpectedFingerprint 並在 Unity 裡比對");
         }
 
-        public const string ExpectedFingerprint = "1BE879B4F22AB2D4"; // 3D 版（回合制營運、處室需求）：.NET 8 與 Unity 6000.6 Mono 相同
+        public const string ExpectedFingerprint = "6EDA0522793A0189"; // 加入野火偵測關卡；舊的三個情境不變。Unity 6000.6 Mono 尚未重新比對
 
         public static string Fingerprint(GameData data)
         {

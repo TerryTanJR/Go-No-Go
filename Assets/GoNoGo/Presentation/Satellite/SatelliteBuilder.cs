@@ -249,6 +249,20 @@ namespace GoNoGo.Presentation
                         Lens(g, m, pos + new Vector3(0, -0.12f * s, 0), 0.06f * s, accent);
                         break;
                     }
+                    case "inst_fire_mwir":
+                    case "inst_fire_mwir_hr":
+                    {
+                        // 火點儀：沿用熱像儀的造型（散熱片），換成橘色鏡頭；高解析版多一個製冷機圓筒
+                        bool hr = id == "inst_fire_mwir_hr";
+                        var pos = basePos + new Vector3(0, (hr ? -0.13f : -0.09f) * s, 0);
+                        float w = hr ? 0.28f : 0.2f;
+                        Box(g, pos, new Vector3(w * s, (hr ? 0.24f : 0.16f) * s, w * s), m.mliGold);
+                        for (int i = -1; i <= 1; i++)
+                            Box(g, pos + new Vector3((w / 2 + 0.02f) * s, 0, i * 0.06f * s), new Vector3(0.035f * s, (hr ? 0.22f : 0.14f) * s, 0.012f * s), m.paintWhite);
+                        if (hr) Cyl(g, pos + new Vector3(-(w / 2 + 0.04f) * s, 0, 0), 0.045f * s, 0.18f * s, Vector3.up, m.metal);
+                        Lens(g, m, pos + new Vector3(0, -(hr ? 0.13f : 0.09f) * s, 0), (hr ? 0.07f : 0.05f) * s, accent);
+                        break;
+                    }
                     case "inst_multispectral":
                     {
                         var pos = basePos + new Vector3(0, -0.1f * s, 0);
@@ -333,7 +347,7 @@ namespace GoNoGo.Presentation
         static void BuildBattery(Transform root, SatMaterials m, float s, float h, string id)
         {
             var g = Group(root, PartCategory.Battery, id ?? "");
-            float size = id == "batt_large" ? 0.34f : id == "batt_medium" ? 0.24f : 0.15f;
+            float size = id == "batt_large" ? 0.34f : id == "batt_medium" ? 0.24f : id == "batt_cubesat" ? 0.11f : 0.15f;
             Box(g, new Vector3(s / 2 + 0.012f * s, -0.22f * h, -0.18f * s), new Vector3(0.008f * s, size * h, size * s), m.paintWhite);
         }
 

@@ -69,6 +69,10 @@ namespace GoNoGo.Core
                     return s != null && Scoring.ScienceScore(expected, s) >= req.Value;
                 case "instrument_required": return d.Instruments.Contains(req.PartId);
                 case "data_return": return ev.Data.ReturnFraction >= req.Value;
+                case "instrument_any": return d.Instruments.Any(req.PartIds.Contains);
+                case "orbit_required": return d.OrbitId == req.OrbitId;
+                case "battery_eclipse": return ev.Power.ActualDod <= 1.0;
+                case "latency": return ev.Fire.LatencyMin <= req.Value;
                 default: return false;
             }
         }
@@ -84,6 +88,10 @@ namespace GoNoGo.Core
                 case "science_threshold": return r.ReachedOrbit && scienceScore >= req.Value;
                 case "instrument_required": return d.Instruments.Contains(req.PartId);
                 case "data_return": return r.ReachedOrbit && r.ReturnFraction >= req.Value;
+                case "instrument_any":
+                case "orbit_required": return IsMetPreLaunch(req, ev, d, data, diff);
+                case "battery_eclipse": return r.ReachedOrbit && ev.Power.ActualDod <= 1.0;
+                case "latency": return r.ReachedOrbit && ev.Fire.LatencyMin <= req.Value;
                 default: return false;
             }
         }

@@ -38,7 +38,7 @@ namespace GoNoGo.Core
             var diff = data.Difficulty(ctx.DifficultyId) ?? data.Difficulties.FirstOrDefault() ?? new DifficultyDef();
             var s = new Score();
 
-            s.Science = ScienceScore(r.ScienceTotal, scenario);
+            s.Science = scenario != null && scenario.FireAlert ? FireScience(ev, r, scenario) : ScienceScore(r.ScienceTotal, scenario);
             s.Efficiency = EfficiencyScore(ev);
             s.Lifetime = r.ReachedOrbit ? Clamp(100.0 * Math.Min(1.0, r.ActualYears / Math.Max(1e-6, r.TargetYears))) : 0;
 
@@ -79,8 +79,27 @@ namespace GoNoGo.Core
         {
             if (!r.ReachedOrbit) return 0;
             if (r.Events.Count == 0) return 100;
-            return Clamp(r.Events.Average(e => (e.JudgedCorrect ? 50.0 : 0.0) + 50.0 * e.StepsFraction));
+            return Clamp(r.Events.Average(e => e.Voided ? 0.0 : (e.JudgedCorrect ? 50.0 : 0.0) + 50.0 * e.StepsFraction));
         }
+
+        /// <summary>
+        /// 野火關卡的科學成果 = 100 × 偵測率 × 及時通報比例 × 工作比例。
+        /// 及時通報比例 = min(1, 時限 ÷ 通報延遲)，再乘上營運事件的影響（每個沒處置好的大火爆發，那一回合打折）。
+        /// 工作比例 = 儀器平均開機比例 × 實際運作年數 ÷ 目標年數。
+        /// </summary>
+        public static double FireScience(Evaluation ev, MissionResult r, ScenarioDef scenario)
+        {
+            if (!r.ReachedOrbit) return 0;
+            int turns = Math.Max(1, r.Events.Count);
+            double eventFactor = r.Events.Count == 0 ? 1.0 : r.Events.Sum(e => e.AlertFactor) / turns;
+            double timely = ev.Fire.TimelyFraction * eventFactor;
+            double work = r.AverageDuty * Math.Min(1.0, r.ActualYears / Math.Max(1e-6, r.TargetYears));
+            return Clamp(100.0 * ev.Fire.Detection * timely * work);
+        }
+
+        /// <summary>發射前的預估（儀表板、處室需求進度用）：假設營運事件都處置好、儀器全時開機。</summary>
+        public static double ExpectedFireScience(Evaluation ev, Design d) =>
+            Clamp(100.0 * ev.Fire.Detection * ev.Fire.TimelyFraction * Math.Min(1.0, ev.Lifetime.Years / Math.Max(1, d.MissionYears)));
 
         /// <summary>
         /// 科學分數 = 100 · √(科學點數 / 參考值)，上限 100。

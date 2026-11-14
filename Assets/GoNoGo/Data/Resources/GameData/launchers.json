@@ -7,7 +7,7 @@
       "zh-TW": "小衛星專用的火箭。便宜、排程快，但只載得動幾百公斤。"
     },
     "tier": 1,
-    "capacity_kg": { "leo_400": 300, "sso_700": 150, "llo_100": 25 },
+    "capacity_kg": { "leo_400": 300, "sso_700": 150, "llo_100": 25, "sso_dawn_dusk": 150, "sso_1330": 150 },
     "cost_musd": 7.5,
     "reliability": 0.96,
     "fairing_diameter_m": 1.2,
@@ -276,6 +276,78 @@
           "title": "ULA: Delta II OCO-2 mission booklet (Delta II 7320-10, 2014)",
           "url": "https://www.ulalaunch.com/docs/default-source/news-items/dii_oco2_mob.pdf",
           "note": "sourced: three 40 in. x 42 ft solid motors; Mach 1 T+35.7 s, Max-Q 49.7 s, SRM burnout 64.0 s, SRM jettison 99.0 s, MECO 264.2 s, first-stage separation 272.2 s, second-stage ignition 277.7 s, fairing jettison 301.0 s, SECO-1 620.5 s, restart 3050.0 s, SECO-2 3062.4 s, OCO-2 separation 3375.0 s (T+56:15)"
+        }
+      ]
+    }
+  },
+  {
+    "id": "falcon9_rideshare",
+    "name": { "en": "Rideshare (Falcon 9 Transporter)", "zh-TW": "共乘（Falcon 9 Transporter）" },
+    "description": { "en": "A seat on a rocket full of small satellites. Very cheap, but it only goes where the mission is headed: a dawn-dusk sun-synchronous orbit.", "zh-TW": "搭一枚載滿小衛星的火箭。非常便宜，但只能去這趟任務的目的地：晨昏太陽同步軌道。" },
+    "tier": 1,
+    "capacity_kg": { "sso_dawn_dusk": 200 },
+    "cost_musd": 1.4,
+    "reliability": 0.995,
+    "fairing_diameter_m": 5.2,
+    "lead_months": 12,
+    "flight_record": "Transporter-1 – 15",
+    "model": "rocket_medium",
+    "orbit_lock": "sso_dawn_dusk",
+    "source": { "title": "New Space Economy: SpaceX rideshare pricing as of February 2026", "url": "https://newspaceeconomy.ca/2026/02/27/spacex-rideshare-pricing-as-of-february-2026-what-it-costs-whats-included-and-how-buyers-budget-a-mission/", "note": "sourced (secondary): Transporter rideshare to SSO, $350,000 for the first 50 kg and $7,000/kg after (2026 list). derived: a 200 kg slot = $1.4M. estimate: the destination is fixed by the mission (dawn-dusk SSO in this game), Falcon 9 reliability and timeline" },
+    "flight": {
+      "stages": 2,
+      "ascent": [
+        {
+          "id": "maxq",
+          "t": 74
+        },
+        {
+          "id": "meco",
+          "t": 153
+        },
+        {
+          "id": "stage_sep",
+          "t": 156
+        },
+        {
+          "id": "ses",
+          "t": 163
+        },
+        {
+          "id": "fairing",
+          "t": 208
+        },
+        {
+          "id": "seco",
+          "t": 487
+        }
+      ],
+      "orbits": {
+        "default": [
+          {
+            "id": "restart",
+            "t": 3040
+          },
+          {
+            "id": "seco2",
+            "t": 3052
+          },
+          {
+            "id": "deploy",
+            "t": 3300
+          }
+        ]
+      },
+      "sources": [
+        {
+          "title": "Spaceflight Now: Timeline for Falcon 9 launch of Starlink satellites (2019)",
+          "url": "https://spaceflightnow.com/2019/11/11/launch-timeline-for-falcon-9-launch-of-starlink-satellites/",
+          "note": "sourced: Max-Q T+1:14, MECO T+2:33, stage separation T+2:36, second stage ignition T+2:43"
+        },
+        {
+          "title": "Spaceflight Now: Timeline for Falcon 9's launch of the GPS 3 SV03 spacecraft (2020)",
+          "url": "https://spaceflightnow.com/?p=46045",
+          "note": "sourced: fairing jettison T+3:28, SECO-1 T+8:07. estimate: post-SECO profiles per orbit (LEO direct ~T+12 min like Dragon cargo; SSO two-burn ~T+55 min; GTO ~T+32 min; lunar TLI ~T+48 min like IM-1, 2024)"
         }
       ]
     }

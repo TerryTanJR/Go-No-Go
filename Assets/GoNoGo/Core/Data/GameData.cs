@@ -57,6 +57,8 @@ namespace GoNoGo.Core
             var allowed = s?.AllowedLaunchers;
             return Launchers
                 .Where(l => allowed != null && allowed.Count > 0 ? allowed.Contains(l.Id) : !l.Historical)
+                // 到不了這個情境任何一條軌道的火箭（例如只去晨昏軌道的共乘）不列出
+                .Where(l => s == null || s.AllowedOrbits.Count == 0 || s.AllowedOrbits.Any(l.CapacityKg.ContainsKey))
                 .OrderBy(l => l.Tier).ThenBy(l => l.Id, StringComparer.Ordinal);
         }
 
@@ -65,6 +67,45 @@ namespace GoNoGo.Core
 
         public string Text(string key, string lang) =>
             Strings.TryGetValue(key, out var t) ? t.Get(lang) : key;
+
+        // ---------------------------------------------------------------- 關卡覆蓋難度的設定
+
+        static T ByDifficulty<T>(Dictionary<string, T> map, string difficultyId) where T : class =>
+            map == null ? null
+            : difficultyId != null && map.TryGetValue(difficultyId, out var v) ? v
+            : map.TryGetValue("*", out var all) ? all : null;
+
+        /// <summary>這個關卡、這個難度的預算倍率。</summary>
+        public static double BudgetMultiplier(ScenarioDef s, DifficultyDef d)
+        {
+            if (s != null && d != null && s.BudgetMultiplierOverride.TryGetValue(d.Id, out var m) && m > 0) return m;
+            return d?.BudgetMultiplier ?? 1.0;
+        }
+
+        /// <summary>這個關卡、這個難度會出現的營運事件。</summary>
+        public static List<string> EventTypes(ScenarioDef s, DifficultyDef d) =>
+            ByDifficulty(s?.EventTypes, d?.Id) ?? d?.EventTypes ?? new List<string>();
+
+        /// <summary>零件架上的零件（不含地面站）：關卡有指定就照指定，否則依難度開放的等級。</summary>
+        public IEnumerable<PartDef> ShelfFor(ScenarioDef s, DifficultyDef d)
+        {
+            var list = ByDifficulty(s?.Shelf, d?.Id);
+            if (list != null) return list.Select(Part).Where(p => p != null && p.Category != PartCategory.GroundStation);
+            int tiers = d?.TiersPerCategory ?? 3;
+            return Parts.Where(p => p.Category != PartCategory.GroundStation && p.Tier <= tiers
+                                    && (p.Scenarios.Count == 0 || (s != null && p.Scenarios.Contains(s.Id))));
+        }
+
+        /// <summary>這個處室在這個關卡的對話（關卡沒寫就用通用對話）。包含所有難度的題目，用 <see cref="LineOpen"/> 判斷問不問得到。</summary>
+        public List<DialogueLine> Lines(ScenarioDef s, DepartmentDef dep) =>
+            dep == null ? new List<DialogueLine>()
+            : s != null && s.Dialogue.TryGetValue(dep.Id, out var l) && l.Count > 0 ? l : dep.Lines;
+
+        public static bool LineOpen(DialogueLine line, DifficultyDef d) => line.MinConflicts <= (d?.RequirementConflicts ?? 0);
+
+        /// <summary>開局設計：關卡可以依難度指定。</summary>
+        public static Design DefaultDesign(ScenarioDef s, string difficultyId) =>
+            ByDifficulty(s?.DefaultDesigns, difficultyId) ?? s?.DefaultDesign ?? new Design();
     }
 
     public static class GameDataLoader
@@ -169,6 +210,8 @@ namespace GoNoGo.Core
                 Check(l.Reliability > 0 && l.Reliability <= 1, $"{w}：可靠度必須在 (0,1]");
                 Check(l.CapacityKg.Count > 0, $"{w}：沒有任何軌道運力");
                 foreach (var k in l.CapacityKg.Keys) Check(d.Orbit(k) != null, $"{w}：運力表有未知軌道 {k}");
+                if (!string.IsNullOrEmpty(l.OrbitLock))
+                    Check(l.CapacityKg.Keys.All(k => k == l.OrbitLock), $"{w}：共乘只能有鎖定軌道的運力");
                 Check(!string.IsNullOrEmpty(l.Source?.Title), $"{w}：缺來源");
             }
 
@@ -179,6 +222,23 @@ namespace GoNoGo.Core
                 foreach (var o in s.AllowedOrbits) Check(d.Orbit(o) != null, $"{w}：未知軌道 {o}");
                 foreach (var l in s.AllowedLaunchers) Check(d.Launcher(l) != null, $"{w}：未知火箭 {l}");
                 errors.AddRange(ValidateDesign(d, s.DefaultDesign, $"{w} 預設設計"));
+                foreach (var kv in s.DefaultDesigns) errors.AddRange(ValidateDesign(d, kv.Value, $"{w} {kv.Key} 開局設計"));
+                foreach (var kv in s.Shelf)
+                    foreach (var id in kv.Value) Check(d.Part(id) != null && d.Part(id).Category != PartCategory.GroundStation, $"{w}：零件架有未知零件 {id}");
+                foreach (var kv in s.EventTypes)
+                    foreach (var k in kv.Value) Check(OpsEvents.Parse(k) != null, $"{w}：{kv.Key} 未知事件 {k}");
+                foreach (var kv in s.Dialogue)
+                {
+                    Check(Departments.Parse(kv.Key) != null, $"{w}：對話有未知處室 {kv.Key}");
+                    foreach (var l in kv.Value)
+                        Check(l.Question.En.Length * l.Question.ZhTW.Length * l.Answer.En.Length * l.Answer.ZhTW.Length > 0, $"{w} 對話 {kv.Key}/{l.Id}：缺中英文");
+                }
+                Check(s.ScienceModel == "" || s.ScienceModel == "fire_alert", $"{w}：未知科學算法 {s.ScienceModel}");
+                foreach (var r in s.Requirements.Values.SelectMany(x => x))
+                {
+                    if (r.Type == "orbit_required") Check(s.AllowedOrbits.Contains(r.OrbitId), $"{w}：需求 {r.Id} 的軌道 {r.OrbitId} 不在允許清單");
+                    if (r.Type == "instrument_any") Check(r.PartIds.Count > 0 && r.PartIds.All(id => d.Part(id)?.Category == PartCategory.Instrument), $"{w}：需求 {r.Id} 的儀器清單無效");
+                }
                 if (s.Historical != null)
                 {
                     errors.AddRange(ValidateDesign(d, s.Historical.PresetDesign, $"{w} 歷史設計"));

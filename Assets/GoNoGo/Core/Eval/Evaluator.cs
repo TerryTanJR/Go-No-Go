@@ -167,7 +167,7 @@ namespace GoNoGo.Core
             co.OpsTotalMusd = co.OpsPerYearMusd * years;
             costContrib.Add(new Contribution("operations", co.OpsTotalMusd));
             co.TotalMusd = co.DevelopmentMusd + co.LaunchMusd + co.OpsTotalMusd;
-            co.BudgetMusd = (scenario?.BudgetMusd ?? 0) * diff.BudgetMultiplier * (scenario?.Historical?.BudgetCap ?? 1.0);
+            co.BudgetMusd = (scenario?.BudgetMusd ?? 0) * GameData.BudgetMultiplier(scenario, diff) * (scenario?.Historical?.BudgetCap ?? 1.0);
             AddResource(ev, ResourceId.Budget, co.TotalMusd, co.BudgetMusd, "M$",
                 co.BudgetMusd > 0 ? (co.BudgetMusd - co.TotalMusd) / co.BudgetMusd : -1, costContrib);
 
@@ -212,6 +212,21 @@ namespace GoNoGo.Core
             string objective = scenario?.Objective ?? "";
             double orbitMatch = orbit != null && orbit.ObjectiveMatch.TryGetValue(objective, out var om) ? om : 0;
             ev.SciencePerYear = instruments.Sum(i => i.ScienceValue * Match(i, objective)) * orbitMatch * c.ScienceYearScale;
+
+            // ---------- 火點偵測與通報延遲（野火關卡；其他關卡也算，只是不顯示） ----------
+            var fi = ev.Fire;
+            fi.InstrumentDetection = Math.Min(1.0, instruments.Sum(i => i.FireDetection));
+            fi.OrbitFactor = orbitMatch;
+            fi.Detection = fi.InstrumentDetection * fi.OrbitFactor;
+            if (orbit != null && orbit.ContactFraction > 0) fi.WaitMin = 1440.0 * (1 - orbit.ContactFraction) / 2;
+            else fi.WaitMin = oi.ContactsPerDay > 0 ? 1440.0 / oi.ContactsPerDay / 2 : 1440.0;
+            fi.OrbitDataGb = oi.OrbitsPerDay > 0 ? dt.GeneratedGbPerDay / oi.OrbitsPerDay : dt.GeneratedGbPerDay;
+            double mbps = rate * c.LinkEfficiency;
+            fi.DownlinkMin = fi.OrbitDataGb <= 0 ? 0 : mbps > 0 ? fi.OrbitDataGb * 8000.0 / mbps / 60.0 : 1440.0;
+            fi.ProcessingMin = c.GroundProcessingMin;
+            fi.LatencyMin = fi.WaitMin + fi.DownlinkMin + fi.ProcessingMin;
+            double limit = scenario?.LatencyLimitMin ?? 0;
+            fi.TimelyFraction = limit > 0 ? Math.Min(1.0, limit / Math.Max(1e-6, fi.LatencyMin)) : 1.0;
 
             BuildWarnings(ev, design, data, scenario, instruments, objective);
             if (withFixes) FixFinder.AttachFixes(ev, design, data, difficultyId);
@@ -315,6 +330,15 @@ namespace GoNoGo.Core
             }
             if (scenario != null && instruments.Count > scenario.MaxInstruments)
                 ev.Warnings.Add(new Warning { Code = "warn.too_many_instruments", Severity = ResourceStatus.Over });
+            if (scenario != null && scenario.LatencyLimitMin > 0 && ev.Fire.LatencyMin > scenario.LatencyLimitMin)
+            {
+                var w = new Warning { Code = "warn.latency", Severity = ResourceStatus.Over };
+                w.Values["latency"] = ev.Fire.LatencyMin;
+                w.Values["limit"] = scenario.LatencyLimitMin;
+                w.Values["wait"] = ev.Fire.WaitMin;
+                w.Values["downlink"] = ev.Fire.DownlinkMin;
+                ev.Warnings.Add(w);
+            }
         }
     }
 }

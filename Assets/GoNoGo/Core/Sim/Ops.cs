@@ -8,7 +8,8 @@ namespace GoNoGo.Core
     /// <summary>營運事件的字串 key（資料檔、處置手冊、判讀選項都用這個）。</summary>
     public static class OpsEvents
     {
-        public static readonly EventKind[] All = { EventKind.SolarStorm, EventKind.PartFailure, EventKind.ScienceOpportunity, EventKind.PowerAnomaly };
+        public static readonly EventKind[] All =
+            { EventKind.SolarStorm, EventKind.PartFailure, EventKind.ScienceOpportunity, EventKind.PowerAnomaly, EventKind.BigFire, EventKind.FalseFire };
 
         public static string Key(EventKind k) => k switch
         {
@@ -16,8 +17,19 @@ namespace GoNoGo.Core
             EventKind.PartFailure => "part_failure",
             EventKind.ScienceOpportunity => "science_opportunity",
             EventKind.PowerAnomaly => "power_anomaly",
+            EventKind.BigFire => "big_fire",
+            EventKind.FalseFire => "false_fire",
             _ => "solar_storm",
         };
+
+        public static bool IsFire(EventKind k) => k == EventKind.BigFire || k == EventKind.FalseFire;
+
+        /// <summary>這個關卡、這個難度會出現的事件（手冊、判讀選項用），依 All 的順序。</summary>
+        public static List<EventKind> For(ScenarioDef s, DifficultyDef d)
+        {
+            var keys = GameData.EventTypes(s, d);
+            return All.Where(k => keys.Contains(Key(k))).ToList();
+        }
 
         public static EventKind? Parse(string key)
         {
@@ -34,7 +46,7 @@ namespace GoNoGo.Core
 
         public static IReadOnlyList<string> Actions(string console) => console switch
         {
-            Payload => new[] { OpsActions.InstrumentsOff, OpsActions.HighResMode, OpsActions.Reschedule },
+            Payload => new[] { OpsActions.InstrumentsOff, OpsActions.HighResMode, OpsActions.Reschedule, OpsActions.FirePriority, OpsActions.MarkFalseAlarm },
             Power => new[] { OpsActions.IsolatePart, OpsActions.BatteryProtect },
             Attitude => new[] { OpsActions.SafeMode, OpsActions.SunPoint, OpsActions.PointTarget },
             Comms => new[] { OpsActions.PriorityDownlink, OpsActions.SwitchBackup },
@@ -57,11 +69,19 @@ namespace GoNoGo.Core
         public const string PointTarget = "point_target";
         public const string PriorityDownlink = "priority_downlink";
         public const string SwitchBackup = "switch_backup";
+        /// <summary>野火關卡：火點資料排到下傳佇列最前面。</summary>
+        public const string FirePriority = "fire_priority";
+        /// <summary>野火關卡：把這個火點標記為誤報，不通報。</summary>
+        public const string MarkFalseAlarm = "mark_false_alarm";
 
         public static readonly string[] All =
         {
             InstrumentsOff, HighResMode, Reschedule, IsolatePart, BatteryProtect, SafeMode, SunPoint, PointTarget, PriorityDownlink, SwitchBackup,
+            FirePriority, MarkFalseAlarm,
         };
+
+        /// <summary>只在野火關卡出現的操作（其他關卡的控制台不顯示）。</summary>
+        public static bool FireOnly(string a) => a == FirePriority || a == MarkFalseAlarm;
     }
 
     /// <summary>處置手冊：每種事件要做的操作（順序就是手冊上的步驟順序）。</summary>
@@ -73,6 +93,8 @@ namespace GoNoGo.Core
             EventKind.PowerAnomaly => new[] { OpsActions.InstrumentsOff, OpsActions.SunPoint, OpsActions.BatteryProtect },
             EventKind.PartFailure => new[] { OpsActions.IsolatePart, OpsActions.SwitchBackup, OpsActions.Reschedule },
             EventKind.ScienceOpportunity => new[] { OpsActions.PointTarget, OpsActions.HighResMode, OpsActions.PriorityDownlink },
+            EventKind.BigFire => new[] { OpsActions.FirePriority, OpsActions.PriorityDownlink },
+            EventKind.FalseFire => new[] { OpsActions.MarkFalseAlarm },
             _ => new string[0],
         };
 
@@ -101,7 +123,9 @@ namespace GoNoGo.Core
 
     /// <summary>
     /// 控制台讀數：事件發生時「看起來」的樣子。系統不說是什麼事件，玩家要從讀數判斷。
-    /// 太陽風暴和電量異常都會讓電量下降（症狀相似），差別在輻射劑量。純函式，多人時每台電腦算出一樣的數字。
+    /// 太陽風暴和電量異常都會讓電量下降（症狀相似），差別在輻射劑量。
+    /// 大火爆發和假火點都讓中波紅外線讀數暴增（症狀相似），差別在長波熱紅外線有沒有跟著升高、以及地點。
+    /// 純函式，多人時每台電腦算出一樣的數字。
     /// </summary>
     public static class OpsTelemetry
     {
@@ -123,6 +147,8 @@ namespace GoNoGo.Core
             double flux = 1;
             double temp = 18;
             string failedCat = kind == EventKind.PartFailure ? data.Part(e.RefId)?.Category ?? "" : "";
+            bool fireMission = data.Scenario(d.ScenarioId)?.FireAlert ?? false;
+            bool fireEvent = kind.HasValue && OpsEvents.IsFire(kind.Value);
             bool redundant = kind == EventKind.PartFailure && (data.Part(e.RefId)?.Redundant ?? false);
 
             switch (kind)
@@ -160,6 +186,18 @@ namespace GoNoGo.Core
                     if (kind == EventKind.ScienceOpportunity)
                         Add("ground_alert", "opp." + e.RefId, "", true);
                     else Add("ground_alert", "—", "");
+                    if (fireMission)
+                    {
+                        // 中波紅外線（火點儀）：熱點像素數
+                        bool mwir = d.Instruments.Any(id => (data.Part(id)?.FireDetection ?? 0) >= 0.5);
+                        int hot = fireEvent ? 30 + 25 * sev : 2;
+                        Add("mwir", mwir ? F(hot) : "NO DATA", mwir ? "px" : "", mwir && fireEvent);
+                        // 長波熱紅外線：真的火會一起升高；沙漠曬熱、太陽反光不會
+                        bool lwir = d.Instruments.Contains("inst_thermal");
+                        double bt = kind == EventKind.BigFire ? 335 + 12 * sev : kind == EventKind.FalseFire ? 309 : 296;
+                        Add("lwir", lwir ? F(bt) : "NO DATA", lwir ? "K" : "", lwir && kind == EventKind.BigFire);
+                        Add("fire_site", fireEvent ? "site." + e.RefId : "—", "", fireEvent);
+                    }
                     break;
                 case OpsConsoles.Attitude:
                     double point = data.Part(d.Get(PartCategory.Adcs))?.PointingArcsec ?? 30;
@@ -172,6 +210,7 @@ namespace GoNoGo.Core
                     break;
                 case OpsConsoles.Comms:
                     double fill = (s?.StorageFill ?? 0.3) * 100;
+                    if (fireEvent) fill = Math.Min(100, fill + 30 + 10 * sev);
                     bool memDown = failedCat == PartCategory.Computer && !redundant;
                     if (memDown) fill = Math.Min(100, fill * 2 + 30);
                     bool linkDown = failedCat == PartCategory.Antenna && !redundant;

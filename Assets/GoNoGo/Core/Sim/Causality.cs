@@ -168,6 +168,10 @@ namespace GoNoGo.Core
                 }
             }
 
+            // 野火關卡：通報延遲、過境時段、火點儀、火災事件
+            var scenario = data.Scenario(d.ScenarioId);
+            if (scenario != null && scenario.FireAlert) FireChains(chains, d, data, ev, r, scenario, O);
+
             // 沒有問題時，說明成功的原因
             if (!chains.Any(c => c.Impact >= 5))
             {
@@ -182,6 +186,47 @@ namespace GoNoGo.Core
             }
 
             return chains.OrderByDescending(c => c.Impact).ThenBy(c => c.Code, StringComparer.Ordinal).Take(3).ToList();
+        }
+
+        static void FireChains(List<CausalChain> chains, Design d, GameData data, Evaluation ev, MissionResult r, ScenarioDef scenario, string O)
+        {
+            var fi = ev.Fire;
+            var gs = data.Part(d.Get(PartCategory.GroundStation));
+            string I(int v) => v.ToString(CultureInfo.InvariantCulture);
+            if (fi.TimelyFraction < 0.999)
+            {
+                chains.Add(Chain("latency", (1 - fi.TimelyFraction) * 60,
+                    new CauseStep("cause.gs_wait", ("stations", I(gs?.Stations ?? 0)), ("wait", N(fi.WaitMin))),
+                    new CauseStep("cause.latency_total", ("min", N(fi.LatencyMin)), ("limit", N(scenario.LatencyLimitMin)),
+                        ("downlink", N(fi.DownlinkMin, 1)), ("part", Part(d.Get(PartCategory.Antenna)))),
+                    new CauseStep("cause.timely", ("pct", Pct(fi.TimelyFraction)))));
+            }
+            if (fi.InstrumentDetection < 0.5)
+            {
+                chains.Add(Chain("no_fire_detector", 45,
+                    new CauseStep("cause.no_fire_detector"),
+                    new CauseStep("cause.detection", ("pct", Pct(fi.Detection)))));
+            }
+            else if (fi.OrbitFactor < 0.999)
+            {
+                chains.Add(Chain("pass_time", (1 - fi.OrbitFactor) * 40,
+                    new CauseStep("cause.pass_time", ("orbit", O)),
+                    new CauseStep("cause.fire_weak", ("pct", Pct(fi.OrbitFactor))),
+                    new CauseStep("cause.detection", ("pct", Pct(fi.Detection)))));
+            }
+            foreach (var o in r.Events)
+            {
+                if (o.Event.Kind == EventKind.BigFire && o.AlertFactor < 0.999)
+                    chains.Add(Chain("big_fire", 9,
+                        new CauseStep("cause.big_fire", ("site", "site:" + o.Event.RefId)),
+                        new CauseStep("cause.not_handled", ("done", I(o.StepsDone)), ("total", I(o.StepsRequired))),
+                        new CauseStep("cause.fire_stuck")));
+                else if (o.Event.Kind == EventKind.FalseFire && o.Voided)
+                    chains.Add(Chain("false_fire", 9,
+                        new CauseStep("cause.false_fire", ("site", "site:" + o.Event.RefId)),
+                        new CauseStep(d.Instruments.Contains("inst_thermal") ? "cause.lwir_flat" : "cause.no_lwir"),
+                        new CauseStep("cause.false_reported")));
+            }
         }
 
         public static string Suggest(List<CausalChain> chains, Evaluation ev)
@@ -207,6 +252,11 @@ namespace GoNoGo.Core
                     case "storm_damage": return "suggest.storm_procedure";
                     case "part_failure": return "suggest.redundancy";
                     case "storm_safe": return "suggest.shielding";
+                    case "latency": return "suggest.latency";
+                    case "no_fire_detector": return "suggest.fire_detector";
+                    case "pass_time": return "suggest.pass_time";
+                    case "big_fire": return "suggest.fire_procedure";
+                    case "false_fire": return "suggest.false_fire";
                 }
             }
             return ev[ResourceId.Budget].Margin > 0.25 ? "suggest.more_science" : "suggest.try_orbit";

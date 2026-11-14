@@ -74,16 +74,17 @@ namespace GoNoGo.Core
         {
             var scenario = data.Scenario(design.ScenarioId);
             var diff = data.Difficulty(difficultyId) ?? data.Difficulties.FirstOrDefault() ?? new DifficultyDef();
-            int maxTier = diff.TiersPerCategory;
+            var shelf = new HashSet<string>(data.ShelfFor(scenario, diff).Select(p => p.Id));
 
             foreach (var cat in PartCategory.Single)
             {
                 var cur = design.Get(cat);
-                foreach (var p in data.PartsIn(cat).Where(p => p.Tier <= maxTier && p.Id != cur))
+                var options = cat == PartCategory.GroundStation ? data.PartsIn(cat).Where(p => p.Tier <= diff.TiersPerCategory) : data.PartsIn(cat).Where(p => shelf.Contains(p.Id));
+                foreach (var p in options.Where(p => p.Id != cur))
                     yield return new Fix { Kind = FixKind.SwapPart, Category = cat, FromId = cur, ToId = p.Id };
             }
 
-            var instruments = data.PartsIn(PartCategory.Instrument).Where(p => p.Tier <= maxTier).ToList();
+            var instruments = data.PartsIn(PartCategory.Instrument).Where(p => shelf.Contains(p.Id)).ToList();
             foreach (var cur in design.Instruments)
             {
                 if (design.Instruments.Count > 1)
@@ -92,10 +93,12 @@ namespace GoNoGo.Core
                     yield return new Fix { Kind = FixKind.SwapPart, Category = PartCategory.Instrument, FromId = cur, ToId = p.Id };
             }
 
-            foreach (var o in data.OrbitsFor(scenario).Where(o => o.Id != design.OrbitId))
+            foreach (var o in data.OrbitsFor(scenario).Where(o => o.Id != design.OrbitId
+                         && SessionRules.OrbitLauncherCheck(data, o.Id, design.LauncherId) == SessionRules.Ok))
                 yield return new Fix { Kind = FixKind.ChangeOrbit, Category = "orbit", FromId = design.OrbitId, ToId = o.Id };
 
-            foreach (var l in data.LaunchersFor(scenario).Where(l => l.Id != design.LauncherId))
+            foreach (var l in data.LaunchersFor(scenario).Where(l => l.Id != design.LauncherId
+                         && SessionRules.OrbitLauncherCheck(data, design.OrbitId, l.Id) == SessionRules.Ok))
                 yield return new Fix { Kind = FixKind.ChangeLauncher, Category = "launcher", FromId = design.LauncherId, ToId = l.Id };
 
             if (design.MissionYears > 1)

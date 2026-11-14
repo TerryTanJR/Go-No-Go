@@ -84,6 +84,7 @@ namespace GoNoGo.Game
             if (v.StartsWith("launcher:")) return Launcher(v.Substring(9));
             if (v.StartsWith("orbit:")) return Orbit(v.Substring(6));
             if (v.StartsWith("sw:")) return SpaceWeather(v.Substring(3));
+            if (v.StartsWith("site:")) return T("site." + v.Substring(5));
             return v;
         }
 

@@ -14,7 +14,7 @@ namespace GoNoGo.Core.Tests
             var errors = GameDataLoader.Validate(data);
             Assert.That(errors, Is.Empty, string.Join("\n", errors));
             Assert.That(data.Parts.Count, Is.GreaterThanOrEqualTo(25));
-            Assert.That(data.Orbits.Count, Is.EqualTo(4));
+            Assert.That(data.Orbits.Count, Is.EqualTo(6));
             Assert.That(data.Scenarios.Any(s => s.Historical != null), "至少要有一個歷史關卡");
         }
 
@@ -146,13 +146,20 @@ namespace GoNoGo.Core.Tests
             "cause.instrument_damaged", "cause.part_failed", "cause.no_redundancy", "cause.degraded", "cause.safe_mode",
             "cause.protected", "cause.success_instrument", "cause.success_return", "cause.success_science",
             "cause.battery_capacity", "cause.eclipse_need", "cause.dead_on_orbit", "cause.power_anomaly", "cause.not_handled",
+            "cause.gs_wait", "cause.latency_total", "cause.timely", "cause.no_fire_detector", "cause.detection", "cause.pass_time",
+            "cause.fire_weak", "cause.big_fire", "cause.fire_stuck", "cause.false_fire", "cause.lwir_flat", "cause.no_lwir", "cause.false_reported",
+            "warn.latency", "err.rideshare_orbit", "suggest.latency", "suggest.fire_detector", "suggest.pass_time", "suggest.fire_procedure", "suggest.false_fire",
+            "site.forest", "site.grassland", "site.desert", "site.glint",
+            "event.fire.reported", "event.fire.partial", "event.fire.stuck",
+            "event.false_fire.reported", "event.false_fire.flagged", "event.false_fire.ignored",
         };
 
         [Test]
         public void RequirementsReferToRealThings()
         {
             var data = TestData.Load();
-            var types = new[] { "budget_reserve", "lifetime_target", "mass_power_margin", "science_threshold", "instrument_required", "data_return" };
+            var types = new[] { "budget_reserve", "lifetime_target", "mass_power_margin", "science_threshold", "instrument_required", "data_return",
+                                "instrument_any", "orbit_required", "battery_eclipse", "latency" };
             foreach (var s in data.Scenarios)
             {
                 foreach (var kv in s.Requirements)
@@ -201,9 +208,14 @@ namespace GoNoGo.Core.Tests
                     foreach (var t in line.Reveals)
                         Assert.That(types, Does.Contain(t), dep.Id + " " + line.Id);
             }
-            // 每一種需求都有某個處室的某句話會說出來
-            foreach (var t in types)
-                Assert.That(data.Departments.SelectMany(d => d.Lines).Any(l => l.Reveals.Contains(t)), t);
+            // 每個情境的每一種需求，都有某個處室的某句話會說出來（關卡可以有自己的對話）
+            foreach (var s in data.Scenarios)
+                foreach (var kv in s.Requirements)
+                {
+                    var dep = data.Department(kv.Key);
+                    foreach (var r in kv.Value)
+                        Assert.That(data.Lines(s, dep).Any(l => l.Reveals.Contains(r.Type)), s.Id + " " + kv.Key + " " + r.Type);
+                }
         }
 
         [Test]

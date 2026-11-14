@@ -91,6 +91,11 @@ namespace GoNoGo.Core
         public bool SunlitOnly { get; set; }
         /// <summary>任務目標 → 吻合度（0–1）。</summary>
         public Dictionary<string, double> ObjectiveMatch { get; set; } = new Dictionary<string, double>();
+        /// <summary>野火偵測率（0–1）：同一艘船上的儀器相加，上限 1。只有野火關卡用到。</summary>
+        public double FireDetection { get; set; }
+
+        /// <summary>只在這些情境的零件架上出現；空白 = 所有情境。</summary>
+        public List<string> Scenarios { get; set; } = new List<string>();
 
         // 太陽能板
         public double AreaM2 { get; set; }
@@ -177,6 +182,8 @@ namespace GoNoGo.Core
         public bool Historical { get; set; }
         public string FlightRecord { get; set; } = "";
         public string Model { get; set; } = "";
+        /// <summary>共乘：只能去主酬載的這條軌道（空白 = 沒有限制）。中控室選不到別的軌道。</summary>
+        public string OrbitLock { get; set; } = "";
         public SourceRef Source { get; set; } = new SourceRef();
         /// <summary>真實的飛行時間表（發射演出用）。</summary>
         public FlightProfileDef Flight { get; set; } = new FlightProfileDef();
@@ -209,12 +216,19 @@ namespace GoNoGo.Core
     {
         /// <summary>情境內唯一的 id（電話問到後記在筆記板上）。</summary>
         public string Id { get; set; } = "";
-        /// <summary>budget_reserve、lifetime_target、mass_power_margin、science_threshold、instrument_required、data_return。</summary>
+        /// <summary>
+        /// budget_reserve、lifetime_target、mass_power_margin、science_threshold、instrument_required、data_return；
+        /// 野火關卡另有 instrument_any（part_ids 任一台）、orbit_required（orbit_id）、battery_eclipse（撐過地影）、latency（通報延遲 ≤ value 分鐘）。
+        /// </summary>
         public string Type { get; set; } = "";
         /// <summary>0 = 一定有；n = 和其他處室衝突的需求，難度的 requirement_conflicts ≥ n 才出現。</summary>
         public int ConflictGroup { get; set; }
         public double Value { get; set; }
         public string PartId { get; set; } = "";
+        /// <summary>instrument_any：這些儀器裝了任一台就算達成。</summary>
+        public List<string> PartIds { get; set; } = new List<string>();
+        /// <summary>orbit_required：要選這條軌道。</summary>
+        public string OrbitId { get; set; } = "";
         public LocalizedText Text { get; set; } = new LocalizedText();
     }
 
@@ -254,6 +268,25 @@ namespace GoNoGo.Core
         public Design DefaultDesign { get; set; } = new Design();
         public List<string> ComparisonMissions { get; set; } = new List<string>();
         public HistoricalDef Historical { get; set; }
+
+        // ---- 關卡專屬的設定（沒寫就照難度的通用規則）----
+
+        /// <summary>大於 0 時取代難度的預算倍率（野火關卡的任務主管難度不砍預算，難度改由衝突需求提供）。</summary>
+        public Dictionary<string, double> BudgetMultiplierOverride { get; set; } = new Dictionary<string, double>();
+        /// <summary>難度 id（或 "*"）→ 零件架上的零件 id。沒寫 = 依難度等級的通用零件架。</summary>
+        public Dictionary<string, List<string>> Shelf { get; set; } = new Dictionary<string, List<string>>();
+        /// <summary>難度 id → 開局設計（取代 default_design）。</summary>
+        public Dictionary<string, Design> DefaultDesigns { get; set; } = new Dictionary<string, Design>();
+        /// <summary>難度 id → 營運事件種類（取代難度的 event_types）。</summary>
+        public Dictionary<string, List<string>> EventTypes { get; set; } = new Dictionary<string, List<string>>();
+        /// <summary>處室 id → 這個關卡的對話（取代 departments.json 的通用對話）。</summary>
+        public Dictionary<string, List<DialogueLine>> Dialogue { get; set; } = new Dictionary<string, List<DialogueLine>>();
+        /// <summary>科學成果的算法：空白 = 通用（科學點數）；fire_alert = 偵測率 × 及時通報比例 × 工作比例。</summary>
+        public string ScienceModel { get; set; } = "";
+        /// <summary>火點通報時限（分鐘）。大於 0 時儀表板顯示「通報延遲」。</summary>
+        public double LatencyLimitMin { get; set; }
+
+        public bool FireAlert => ScienceModel == "fire_alert";
     }
 
     public sealed class DifficultyDef
@@ -348,6 +381,8 @@ namespace GoNoGo.Core
         /// <summary>這個處室在這個情境沒有 reveals 列的需求時，改用這段回答。</summary>
         public LocalizedText AnswerNone { get; set; } = new LocalizedText();
         public List<string> Reveals { get; set; } = new List<string>();
+        /// <summary>難度的 requirement_conflicts 至少這麼多才問得到（例如工程部推晨昏軌道只在工程師以上）。</summary>
+        public int MinConflicts { get; set; }
     }
 
     /// <summary>公式用到的常數，全部放在資料檔並附來源。</summary>
@@ -380,6 +415,8 @@ namespace GoNoGo.Core
         /// <summary>過境分布不均：最長空檔 = 平均空檔 × 這個倍數。</summary>
         public double ContactGapFactor { get; set; } = 2.0;
         public double StorageSafetyFactor { get; set; } = 1.5;
+        /// <summary>火點資料落地後，地面處理、確認、通知消防單位的時間（分鐘）。</summary>
+        public double GroundProcessingMin { get; set; } = 5;
         /// <summary>軌道上的科學分數換算：每年每點科學值。</summary>
         public double ScienceYearScale { get; set; } = 1.0;
 

@@ -244,6 +244,424 @@
     "comparison_missions": []
   },
   {
+    "id": "wildfire",
+    "objective": "wildfire",
+    "name": {
+      "en": "Wildfire Watch",
+      "zh-TW": "野火偵測"
+    },
+    "briefing": {
+      "en": "Fire season is about to start. Design a satellite that spots wildfires while they are still small and tells the fire service within 30 minutes.",
+      "zh-TW": "火災季即將開始。你們要設計一顆衛星，在野火剛燒起來時就發現它，並在 30 分鐘內通知消防單位。"
+    },
+    "budget_musd": 37,
+    "target_years": 3,
+    "deadline_months": 36,
+    "max_instruments": 2,
+    "allowed_orbits": [
+      "sso_dawn_dusk",
+      "sso_1330"
+    ],
+    "allowed_launchers": [
+      "electron",
+      "falcon9_rideshare"
+    ],
+    "science_reference": 100,
+    "science_model": "fire_alert",
+    "latency_limit_min": 30,
+    "budget_multiplier_override": {
+      "director": 1.0
+    },
+    "requirements": {
+      "mission_lead": [
+        {
+          "id": "wf_afternoon",
+          "type": "orbit_required",
+          "value": 0,
+          "orbit_id": "sso_1330",
+          "text": {
+            "en": "Pick the orbit that passes over at 13:30 local time.",
+            "zh-TW": "選下午 13:30 過境的軌道。"
+          }
+        },
+        {
+          "id": "wf_years",
+          "type": "lifetime_target",
+          "value": 0,
+          "text": {
+            "en": "Watch for the full 3 years and make it to the end.",
+            "zh-TW": "完整監測 3 年，而且要撐到最後。"
+          }
+        }
+      ],
+      "budget_office": [
+        {
+          "id": "wf_budget",
+          "type": "budget_reserve",
+          "value": 0.0,
+          "text": {
+            "en": "Stay within the budget.",
+            "zh-TW": "不能超出預算。"
+          }
+        },
+        {
+          "id": "wf_reserve",
+          "type": "budget_reserve",
+          "value": 0.1,
+          "conflict_group": 1,
+          "text": {
+            "en": "Keep 10% of it in reserve for surprises, so spend no more than 90%.",
+            "zh-TW": "其中 10% 要保留給意外，開銷壓在九成以內。"
+          }
+        }
+      ],
+      "science": [
+        {
+          "id": "wf_mwir",
+          "type": "instrument_any",
+          "value": 0,
+          "part_ids": [
+            "inst_fire_mwir",
+            "inst_fire_mwir_hr"
+          ],
+          "text": {
+            "en": "Fly a mid-wave infrared fire detector (P-7 or P-8).",
+            "zh-TW": "一定要裝中波紅外線火點儀（P-7 或 P-8）。"
+          }
+        },
+        {
+          "id": "wf_lwir",
+          "type": "instrument_required",
+          "value": 0,
+          "conflict_group": 2,
+          "part_id": "inst_thermal",
+          "text": {
+            "en": "The long-wave thermal imager (P-3) is a must.",
+            "zh-TW": "長波熱紅外線（P-3）一定要裝。"
+          }
+        }
+      ],
+      "engineering": [
+        {
+          "id": "wf_eclipse",
+          "type": "battery_eclipse",
+          "value": 0,
+          "text": {
+            "en": "The battery must carry the spacecraft through the longest shadow.",
+            "zh-TW": "電池要撐過最長的地影。"
+          }
+        },
+        {
+          "id": "wf_margin",
+          "type": "mass_power_margin",
+          "value": 0,
+          "text": {
+            "en": "Keep the required margin on both mass and power.",
+            "zh-TW": "質量和電力都要保留規定的餘裕。"
+          }
+        }
+      ],
+      "comms": [
+        {
+          "id": "wf_latency",
+          "type": "latency",
+          "value": 30,
+          "text": {
+            "en": "Report every fire to the fire service within 30 minutes of seeing it.",
+            "zh-TW": "看到火點後 30 分鐘內要通報消防單位。"
+          }
+        }
+      ]
+    },
+    "default_design": {
+      "scenario_id": "wildfire",
+      "instruments": [
+        "inst_thermal"
+      ],
+      "parts": {
+        "solar": "solar_body",
+        "battery": "batt_cubesat",
+        "antenna": "ant_sband",
+        "groundstation": "gs_1",
+        "computer": "obc_mass_memory",
+        "adcs": "adcs_compact",
+        "propulsion": "prop_none",
+        "shielding": "shield_std"
+      },
+      "orbit_id": "sso_dawn_dusk",
+      "launcher_id": "falcon9_rideshare",
+      "mission_years": 3
+    },
+    "default_designs": {
+      "cadet": {
+        "scenario_id": "wildfire",
+        "instruments": [
+          "inst_fire_mwir"
+        ],
+        "parts": {
+          "solar": "solar_deployable",
+          "battery": "batt_cubesat",
+          "antenna": "ant_sband",
+          "groundstation": "gs_1",
+          "computer": "obc_mass_memory",
+          "adcs": "adcs_compact",
+          "propulsion": "prop_none",
+          "shielding": "shield_std"
+        },
+        "orbit_id": "sso_dawn_dusk",
+        "launcher_id": "falcon9_rideshare",
+        "mission_years": 3
+      }
+    },
+    "shelf": {
+      "*": [
+        "inst_fire_mwir",
+        "inst_fire_mwir_hr",
+        "inst_thermal",
+        "solar_body",
+        "solar_deployable",
+        "solar_large",
+        "batt_cubesat",
+        "batt_small",
+        "batt_medium",
+        "ant_sband",
+        "ant_xband",
+        "ant_xband_hr",
+        "obc_mass_memory",
+        "adcs_compact",
+        "prop_none",
+        "shield_std"
+      ],
+      "cadet": [
+        "inst_fire_mwir",
+        "inst_fire_mwir_hr",
+        "solar_deployable",
+        "solar_large",
+        "batt_cubesat",
+        "batt_medium",
+        "ant_sband",
+        "ant_xband",
+        "obc_mass_memory",
+        "adcs_compact",
+        "prop_none",
+        "shield_std"
+      ]
+    },
+    "event_types": {
+      "cadet": [
+        "big_fire",
+        "power_anomaly"
+      ],
+      "engineer": [
+        "big_fire",
+        "power_anomaly",
+        "part_failure"
+      ],
+      "director": [
+        "big_fire",
+        "false_fire",
+        "power_anomaly",
+        "part_failure"
+      ]
+    },
+    "dialogue": {
+      "mission_lead": [
+        {
+          "id": "goal",
+          "question": {
+            "en": "What is this mission for?",
+            "zh-TW": "這次任務的目標是什麼？"
+          },
+          "answer": {
+            "en": "Spot wildfires the moment they start. The sooner a fire is put out, the less it destroys.",
+            "zh-TW": "在野火剛起來的時候就發現它。火越早撲滅，損失越小。"
+          }
+        },
+        {
+          "id": "pass_time",
+          "question": {
+            "en": "When is the best time to fly over?",
+            "zh-TW": "衛星什麼時候經過最好？"
+          },
+          "answer": {
+            "en": "Around 1:30 in the afternoon. It is hot and windy then, and that is when fires start and spread.",
+            "zh-TW": "下午一點半左右。那時候氣溫高、風大，最容易起火。"
+          },
+          "reveals": [
+            "orbit_required"
+          ]
+        },
+        {
+          "id": "lifetime",
+          "question": {
+            "en": "How long does it have to last?",
+            "zh-TW": "任務要撐多久？"
+          },
+          "answer": {
+            "en": "Three fire seasons, {years} years, all the way to the end.",
+            "zh-TW": "三個火災季，{years} 年，要撐到最後。"
+          },
+          "reveals": [
+            "lifetime_target"
+          ]
+        }
+      ],
+      "budget_office": [
+        {
+          "id": "budget",
+          "question": {
+            "en": "What is the budget?",
+            "zh-TW": "預算上限多少？"
+          },
+          "answer": {
+            "en": "{budget} in total: development, the rocket and every year of operations.",
+            "zh-TW": "總共 {budget}，包含開發、火箭和每一年的營運費。"
+          },
+          "reveals": [
+            "budget_reserve"
+          ]
+        },
+        {
+          "id": "launch",
+          "question": {
+            "en": "Can we save on the launch?",
+            "zh-TW": "發射可以省嗎？"
+          },
+          "answer": {
+            "en": "A rideshare costs a fraction of a dedicated rocket, but you go where the main payload goes: this one is headed for a dawn-dusk orbit. If you need the afternoon orbit, you have to book your own small rocket.",
+            "zh-TW": "共乘比包一枚火箭便宜很多，但只能去主酬載的軌道：這一趟去的是晨昏軌道。要去下午那條，就得自己包一枚小火箭。"
+          }
+        },
+        {
+          "id": "costs",
+          "question": {
+            "en": "What costs the most?",
+            "zh-TW": "哪裡最花錢？"
+          },
+          "answer": {
+            "en": "The rocket, then the ground stations: every station charges rent every year, so more stations cost more.",
+            "zh-TW": "火箭最貴，再來是地面站：每座站每年都要付租金，站越多越貴。"
+          }
+        }
+      ],
+      "science": [
+        {
+          "id": "instrument",
+          "question": {
+            "en": "Which instrument do we need?",
+            "zh-TW": "要裝什麼儀器？"
+          },
+          "answer": {
+            "en": "A flame is about 800 K, so its light peaks near 4 microns, where an ordinary camera sees nothing.",
+            "zh-TW": "火焰大約 800 K，能量集中在 4 微米附近，一般相機看不出來。"
+          },
+          "reveals": [
+            "instrument_any"
+          ]
+        },
+        {
+          "id": "more",
+          "question": {
+            "en": "Do we need anything else?",
+            "zh-TW": "還需要別的嗎？"
+          },
+          "answer": {
+            "en": "Last year there were too many false alarms, and the fire service has almost stopped trusting satellites.",
+            "zh-TW": "去年誤報太多次，消防單位已經不太相信衛星了。"
+          },
+          "answer_none": {
+            "en": "If the budget allows, add a long-wave thermal imager. Sun-baked desert and sun glint can fool the fire detector; looking in both bands tells them apart.",
+            "zh-TW": "有預算的話加一具長波熱紅外線。沙漠被曬熱、或太陽反光，也會讓火點儀誤判；兩個波段一起看就分得出來。"
+          },
+          "reveals": [
+            "instrument_required"
+          ]
+        }
+      ],
+      "engineering": [
+        {
+          "id": "power",
+          "question": {
+            "en": "What should we watch on power?",
+            "zh-TW": "電力有什麼要注意？"
+          },
+          "answer": {
+            "en": "The shadow depends on the orbit. In the orbit you reported, each shadow lasts about {eclipse_min} minutes.",
+            "zh-TW": "地影時間看軌道。以目前回報的軌道，每圈地影大約 {eclipse_min} 分鐘。"
+          },
+          "reveals": [
+            "battery_eclipse"
+          ]
+        },
+        {
+          "id": "orbit",
+          "question": {
+            "en": "Which orbit is better?",
+            "zh-TW": "哪條軌道比較好？"
+          },
+          "answer": {
+            "en": "The dawn-dusk orbit sees the Sun almost all the time. Power is rock steady and a small battery is enough.",
+            "zh-TW": "晨昏軌道幾乎一直照到太陽，電力最穩，小電池就夠。"
+          },
+          "min_conflicts": 1
+        },
+        {
+          "id": "margin",
+          "question": {
+            "en": "How much margin do we need?",
+            "zh-TW": "設計餘裕要留多少？"
+          },
+          "answer": {
+            "en": "Keep {margin_pct}% margin on both mass and power.",
+            "zh-TW": "質量和電力都要留 {margin_pct}% 的餘裕。"
+          },
+          "reveals": [
+            "mass_power_margin"
+          ]
+        }
+      ],
+      "comms": [
+        {
+          "id": "latency",
+          "question": {
+            "en": "How fast does the data have to come home?",
+            "zh-TW": "資料多久要傳回來？"
+          },
+          "answer": {
+            "en": "After that it is useless.",
+            "zh-TW": "超過就沒意義了。"
+          },
+          "reveals": [
+            "latency"
+          ]
+        },
+        {
+          "id": "how",
+          "question": {
+            "en": "How do we make it in time?",
+            "zh-TW": "要怎麼做到？"
+          },
+          "answer": {
+            "en": "More ground stations mean a shorter wait for the next pass, and a faster antenna sends each orbit's data down faster. Then the ground needs about 5 minutes to check it and call the fire service.",
+            "zh-TW": "地面站越多，等衛星過站的時間越短；天線越快，每一圈的資料傳得越快。落地後地面還要大約 5 分鐘確認、通知消防單位。"
+          }
+        },
+        {
+          "id": "storage",
+          "question": {
+            "en": "How much storage do we need?",
+            "zh-TW": "儲存空間要多大？"
+          },
+          "answer": {
+            "en": "Everything collected between two passes waits in the computer. The standard computer on this mission has plenty.",
+            "zh-TW": "兩次通聯之間收集的資料都要先存在電腦裡。這次任務用的標準電腦空間很夠。"
+          }
+        }
+      ]
+    },
+    "comparison_missions": []
+  },
+  {
     "id": "hist_oco",
     "objective": "carbon_monitoring",
     "name": {

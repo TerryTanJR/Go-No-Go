@@ -61,6 +61,18 @@ namespace GoNoGo.UI
                 Loc.T("ui.dash.limit." + ev.Lifetime.Limit.ToString().ToLowerInvariant()), colors ? (ev.Lifetime.Years + 1e-9 < d.MissionYears ? "over" : "go") : null);
             Row(grid, Loc.T("ui.dash.science"), Fmt.N(ev.SciencePerYear, 1) + " / yr", Loc.T("ui.dash.instruments", ("n", d.Instruments.Count)), null);
             Row(grid, Loc.T("ui.dash.return"), Fmt.Pct(ev.Data.ReturnFraction), "", colors ? (ev.Data.ReturnFraction < 0.9 ? "tight" : "go") : null);
+            // 野火關卡：通報延遲（學員：≤ 時限綠、≤ 1.5 倍黃、超過紅）與偵測率
+            var sc = m.Scenario;
+            if (sc != null && sc.LatencyLimitMin > 0)
+            {
+                var f = ev.Fire;
+                double lim = sc.LatencyLimitMin;
+                Row(grid, Loc.T("ui.dash.latency"), Fmt.N(f.LatencyMin, 1) + " / " + Fmt.N(lim) + " min",
+                    Loc.T("ui.dash.latency_x", ("wait", Fmt.N(f.WaitMin)), ("down", Fmt.N(f.DownlinkMin, 1)), ("ground", Fmt.N(f.ProcessingMin))),
+                    colors ? (f.LatencyMin <= lim ? "go" : f.LatencyMin <= lim * 1.5 ? "tight" : "over") : null);
+                Row(grid, Loc.T("ui.dash.detection"), Fmt.Pct(f.Detection),
+                    Loc.T("ui.dash.detection_x", ("inst", Fmt.Pct(f.InstrumentDetection)), ("orbit", "×" + Fmt.N(f.OrbitFactor, 1))), null);
+            }
             // 環境測試（組裝區做的，測的是整合台上的設計）
             TestView.Build(grid, true);
 
@@ -117,7 +129,8 @@ namespace GoNoGo.UI
                 Ui.Text(Loc.T(d.Name), "h3").AddTo(col);
                 Ui.Text(Loc.T(d.Contact), "small", "dim").AddTo(col);
                 int asked = M.S.Calls.Count(x => x.Department == d.Id);
-                if (asked > 0) Ui.Text(Loc.T("ui.phone.asked", ("n", asked), ("total", d.Lines.Count)), "small", "faint").AddTo(col);
+                int open = D.Lines(M.Scenario, d).Count(l => GameData.LineOpen(l, M.Difficulty));
+                if (asked > 0) Ui.Text(Loc.T("ui.phone.asked", ("n", asked), ("total", open)), "small", "faint").AddTo(col);
             }
 
             var right = Ui.El("phone-call").AddTo(wrap);
@@ -130,17 +143,20 @@ namespace GoNoGo.UI
             Ui.Text(Loc.T(dep2.Contact), "eyebrow").AddTo(right);
             Ui.Text("“" + Loc.T(dep2.Greeting) + "”", "phone-greet").AddTo(right);
             var qs = Ui.El("phone-qs").AddTo(right);
-            for (int i = 0; i < dep2.Lines.Count; i++)
+            // 關卡可以有自己的對話；有些題目要到某個難度才問得到（索引照完整清單，房主那邊才對得上）
+            var lines = D.Lines(M.Scenario, dep2);
+            for (int i = 0; i < lines.Count; i++)
             {
                 int k = i;
-                var line = dep2.Lines[i];
+                var line = lines[i];
+                if (!GameData.LineOpen(line, M.Difficulty)) continue;
                 bool asked = M.S.Calls.Any(x => x.Department == dep2.Id && x.LineId == line.Id);
                 Ui.Btn(Loc.T(line.Question), () => Ask(k), "phone-q").Cls("phone-q--on", k == _line).Cls("phone-q--asked", asked).AddTo(qs);
             }
             _answer = Ui.Text("", "phone-answer").AddTo(right);
-            if (_line >= 0)
+            if (_line >= 0 && _line < lines.Count)
             {
-                var line = dep2.Lines[_line];
+                var line = lines[_line];
                 _answerText = Dialogue.Answer(D, M.S, dep2.Id, line, M.Dashboard, Loc.Lang);
                 _answer.text = _answerText.Substring(0, (int)System.Math.Min(_answerText.Length, _typed));
             }
@@ -243,11 +259,20 @@ namespace GoNoGo.UI
 
             var orbitCol = Ui.El("mc-colx").AddTo(cols);
             Ui.Text(Loc.T("ui.cat.orbit"), "eyebrow").AddTo(orbitCol);
+            var fire = M.Scenario != null && M.Scenario.FireAlert;
             foreach (var o in D.OrbitsFor(M.Scenario))
             {
                 var id = o.Id;
-                Choice(orbitCol, Loc.T(o.Name), Fmt.N(o.AltitudeKm) + " km", id == d.OrbitId, locked, () => GameSession.Send(CommandType.SetOrbit, id));
+                // 野火關卡：軌道的差別在過境時段，所以標出每圈地影
+                string sub = Fmt.N(o.AltitudeKm) + " km";
+                if (fire) sub += " · " + Loc.T("ui.mc.eclipse", ("min", Fmt.N(OrbitMath.PeriodMinutes(o.AltitudeKm, D.Constants.EarthRadiusKm, D.Constants.EarthMuKm3S2)
+                    * OrbitMath.EclipseFraction(o.AltitudeKm, D.Constants.EarthRadiusKm, o.BetaDeg))));
+                var b = Choice(orbitCol, Loc.T(o.Name), sub, id == d.OrbitId, locked, () => GameSession.Send(CommandType.SetOrbit, id));
+                if (id != d.OrbitId && SessionRules.OrbitLauncherCheck(D, id, d.LauncherId) != SessionRules.Ok) b.SetEnabled(false);
             }
+            var lockL = D.Launcher(d.LauncherId);
+            if (lockL != null && !string.IsNullOrEmpty(lockL.OrbitLock))
+                Ui.Text(Loc.T("ui.mc.rideshare_lock", ("orbit", Loc.Orbit(lockL.OrbitLock))), "small", "tight").AddTo(orbitCol);
             Ui.Text(Loc.T("ui.cat.groundstation"), "eyebrow", "mc-sub").AddTo(orbitCol);
             foreach (var g in D.PartsIn(PartCategory.GroundStation))
             {
@@ -261,8 +286,11 @@ namespace GoNoGo.UI
             {
                 var id = l.Id;
                 l.CapacityKg.TryGetValue(d.OrbitId, out var cap);
-                string sub = (cap > 0 ? Fmt.N(cap) + " kg → " + Loc.Orbit(d.OrbitId) : Loc.T("ui.mc.cannot_reach")) + " · " + Fmt.Money(l.CostMusd) + " · " + Fmt.Pct(l.Reliability);
-                Choice(lCol, Loc.T(l.Name), sub, id == d.LauncherId, locked, () => GameSession.Send(CommandType.SetLauncher, id));
+                bool rideshareBlocked = SessionRules.OrbitLauncherCheck(D, d.OrbitId, id) != SessionRules.Ok;
+                string sub = (rideshareBlocked ? Loc.T("err.rideshare_orbit") : cap > 0 ? Fmt.N(cap) + " kg → " + Loc.Orbit(d.OrbitId) : Loc.T("ui.mc.cannot_reach"))
+                             + " · " + Fmt.Money(l.CostMusd) + " · " + Fmt.Pct(l.Reliability);
+                var lb = Choice(lCol, Loc.T(l.Name), sub, id == d.LauncherId, locked, () => GameSession.Send(CommandType.SetLauncher, id));
+                if (rideshareBlocked && id != d.LauncherId) lb.SetEnabled(false);
             }
             Ui.Text(Loc.T("ui.cat.years"), "eyebrow", "mc-sub").AddTo(lCol);
             var yr = Ui.Row("years-row").AddTo(lCol);
