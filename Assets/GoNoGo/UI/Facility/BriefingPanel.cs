@@ -77,7 +77,7 @@ namespace GoNoGo.UI
             Ui.Text(M.IsHistorical ? Loc.T("ui.brief.history", ("year", sc.Historical.Year)) : Loc.T("ui.brief.op"), "eyebrow").AddTo(ht);
             Ui.Text(Loc.T(sc.Name), "h2", "brief-mission").AddTo(ht);
             Ui.Spacer().AddTo(head);
-            Ui.Text(Loc.T("ui.brief.difficulty") + " · " + Loc.T(M.Difficulty.Name), "brief-tag").AddTo(head);
+            if (!M.IsHistorical) Ui.Text(Loc.T("ui.brief.difficulty") + " · " + Loc.T(M.Difficulty.Name), "brief-tag").AddTo(head);
 
             _log = Ui.El("brief-log").AddTo(talk);
             var box = Ui.El("brief-line").AddTo(talk);
@@ -94,10 +94,11 @@ namespace GoNoGo.UI
             // 講完才出現：接下來做什麼 + 開始
             _foot = Ui.El("brief-foot").AddTo(talk);
             var todo = Ui.Row("brief-todo").AddTo(_foot);
-            Ui.Text("☎", "brief-todo-icon").AddTo(todo);
+            // 歷史關卡：簡報完直接照當年的設計發射，第一步不是打電話
+            if (!M.IsHistorical) Ui.Text("☎", "brief-todo-icon").AddTo(todo);
             var tt = Ui.El("brief-todo-text").AddTo(todo);
             Ui.Text(Loc.T("ui.brief.todo_title"), "eyebrow").AddTo(tt);
-            Ui.Text(Loc.T(M.S.Multiplayer ? "ui.brief.todo_multi" : "ui.brief.todo_solo"), "body").AddTo(tt);
+            Ui.Text(Loc.T(M.IsHistorical ? "ui.brief.todo_history" : M.S.Multiplayer ? "ui.brief.todo_multi" : "ui.brief.todo_solo"), "body").AddTo(tt);
             if (M.IsHistorical)
             {
                 var dos = Ui.El("brief-dossier").AddTo(_foot);
@@ -106,7 +107,7 @@ namespace GoNoGo.UI
             }
             var row = Ui.Row("modal-actions").AddTo(_foot);
             Ui.Spacer().AddTo(row);
-            Ui.Btn(Loc.T("ui.brief.start"), () =>
+            Ui.Btn(Loc.T(M.IsHistorical ? "ui.brief.launch_history" : "ui.brief.start"), () =>
             {
                 Sfx.Confirm();
                 GameSession.Send(CommandType.BeginDesign);
@@ -124,7 +125,7 @@ namespace GoNoGo.UI
             var list = new List<string>();
             foreach (var l in Loc.T(key).Split('\n'))
                 if (!string.IsNullOrWhiteSpace(l)) list.Add(l.Trim());
-            list.Add(Loc.T(M.S.Multiplayer ? "ui.brief.close_multi" : "ui.brief.close_solo"));
+            list.Add(Loc.T(M.IsHistorical ? "ui.brief.close_history" : M.S.Multiplayer ? "ui.brief.close_multi" : "ui.brief.close_solo"));
             return list;
         }
 

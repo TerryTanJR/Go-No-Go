@@ -146,7 +146,14 @@ namespace GoNoGo.UI
                 Ui.Text(Fmt.Money(sc.BudgetMusd * (sc.Historical != null ? sc.Historical.BudgetCap : 1)), "mono", "small").AddTo(stats);
                 Ui.Text("·", "faint", "small", "scn-dot").AddTo(stats);
                 Ui.Text(Fmt.Years(sc.TargetYears), "mono", "small").AddTo(stats);
-                card.RegisterCallback<ClickEvent>(_ => { _scenario = sc.Id; Sfx.Click(); Go(Page.Difficulty); });
+                card.RegisterCallback<ClickEvent>(_ =>
+                {
+                    _scenario = sc.Id;
+                    // 歷史關卡不分難度（還原當年的條件）：跳過選難度，直接開始
+                    if (sc.Historical != null) { Start(sc.Historical.Difficulty); return; }
+                    Sfx.Click();
+                    Go(Page.Difficulty);
+                });
                 card.RegisterCallback<PointerEnterEvent>(_ => Sfx.Hover());
             }
         }

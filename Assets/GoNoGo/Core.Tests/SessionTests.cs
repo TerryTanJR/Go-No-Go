@@ -367,15 +367,38 @@ namespace GoNoGo.Core.Tests
                 Is.EqualTo(_data.Scenario("hist_oco").Historical.PresetDesign.Get(PartCategory.Solar)));
         }
 
+        /// <summary>歷史關卡：簡報一結束就照當年的設計發射（不用測試、不用按發射），重演完設計才解鎖。</summary>
         [Test]
-        public void HistoricalDesignIsLockedUntilTheReplay()
+        public void HistoricalMissionReplaysRightAfterTheBriefing()
         {
-            var s = Solo("hist_oco");
+            var s = SessionRules.NewSession(_data, "hist_oco", "engineer", false, false);
+            Ok(s, Command.Of(CommandType.Join, 1));
             Assert.That(SessionRules.Apply(s, _data, Command.Of(CommandType.SetLauncher, 1, "delta_ii")), Is.EqualTo("err.locked"));
-            Fly(s);
+            Ok(s, Command.Of(CommandType.BeginDesign, 1));
+            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch), "簡報完直接進發射演出");
+            Assert.That(s.Tests, Is.Empty, "重演不用環境測試");
+            Assert.That(s.LastLaunch.Design.LauncherId, Is.EqualTo("taurus_xl"));
             Assert.That(s.LastLaunch.Outcome, Is.EqualTo(LaunchOutcome.FairingFailure));
+
             Ok(s, Command.Of(CommandType.FinishLaunch, 1));
+            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design));
             Ok(s, Command.Of(CommandType.SetLauncher, 1, "delta_ii"));
+            Fly(s);
+            Assert.That(s.LastLaunch.Reached);
+            Assert.That(s.FailedLaunches, Is.EqualTo(1), "重建採購照給");
+            Assert.That(s.LastLaunch.FailedBefore, Is.EqualTo(0), "重演不算玩家的失敗");
+            Assert.That(SessionRules.Result(s, _data).Score.FirstLaunchBonus, "自己的第一次發射就成功：照樣加分");
+        }
+
+        /// <summary>歷史關卡不分難度：不管選哪個難度，規則都一樣，預算是當年的 110%。</summary>
+        [TestCase("cadet")]
+        [TestCase("engineer")]
+        [TestCase("director")]
+        public void HistoricalMissionIgnoresDifficulty(string diff)
+        {
+            var s = SessionRules.NewSession(_data, "hist_oco", diff, false, false);
+            Assert.That(s.DifficultyId, Is.EqualTo(_data.Scenario("hist_oco").Historical.Difficulty));
+            Assert.That(Evaluator.EvaluateDesign(s.Bench, _data, diff, false).Cost.BudgetMusd, Is.EqualTo(273.4 * 1.1).Within(1e-9));
         }
 
         [Test]

@@ -235,7 +235,7 @@ namespace GoNoGo.UI
             Ui.Text(Loc.T(ip ? "ui.lobby.ip" : "ui.lobby.code"), "small", "dim").AddTo(head);
             Ui.Text(link?.RoomCode ?? "", "h2", "mono", "lobby-code").AddTo(head);
             Ui.Spacer().AddTo(head);
-            Ui.Text(Loc.T(m.Scenario.Name) + " · " + Loc.T(m.Difficulty.Name), "h3").AddTo(head);
+            Ui.Text(Loc.T(m.Scenario.Name) + (m.IsHistorical ? "" : " · " + Loc.T(m.Difficulty.Name)), "h3").AddTo(head);   // 歷史關卡不分難度
 
             var list = Ui.El("lobby-list").AddTo(body);
             foreach (var p in m.S.Players)

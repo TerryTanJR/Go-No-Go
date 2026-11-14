@@ -253,6 +253,8 @@ namespace GoNoGo.Core
         /// <summary>只有用這支火箭時才會觸發歷史事件。</summary>
         public string ScriptedLauncherId { get; set; } = "";
         public double BudgetCap { get; set; } = 1.1;
+        /// <summary>歷史關卡不分難度（要還原當年的條件）：一律用這個難度的規則，預算不乘難度倍率。</summary>
+        public string Difficulty { get; set; } = "engineer";
         public string Cinematic { get; set; } = "";
         public LocalizedText Background { get; set; } = new LocalizedText();
         public LocalizedText Reveal { get; set; } = new LocalizedText();

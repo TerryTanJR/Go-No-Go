@@ -78,6 +78,7 @@ namespace GoNoGo.Core
         /// <summary>這個關卡、這個難度的預算倍率。</summary>
         public static double BudgetMultiplier(ScenarioDef s, DifficultyDef d)
         {
+            if (s?.Historical != null) return 1.0;   // 歷史關卡用當年的預算，不分難度
             if (s != null && d != null && s.BudgetMultiplierOverride.TryGetValue(d.Id, out var m) && m > 0) return m;
             return d?.BudgetMultiplier ?? 1.0;
         }
@@ -259,6 +260,7 @@ namespace GoNoGo.Core
                 {
                     errors.AddRange(ValidateDesign(d, s.Historical.PresetDesign, $"{w} 歷史設計"));
                     Check(s.Historical.Sources.Count > 0, $"{w}：歷史關卡缺來源");
+                    Check(d.Difficulty(s.Historical.Difficulty) != null, $"{w}：歷史關卡的難度 {s.Historical.Difficulty} 不存在");
                 }
                 foreach (var m in s.ComparisonMissions) Check(d.Missions.Any(x => x.Id == m), $"{w}：未知對照任務 {m}");
                 foreach (var kv in s.Requirements)

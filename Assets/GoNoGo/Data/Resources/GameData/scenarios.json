@@ -787,6 +787,7 @@
     ],
     "historical": {
       "year": 2009,
+      "difficulty": "engineer",
       "preset_design": {
         "scenario_id": "hist_oco",
         "instruments": [
