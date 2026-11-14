@@ -85,10 +85,10 @@ namespace GoNoGo.UI
 
         static void Row(VisualElement parent, string name, string value, string extra, string cls)
         {
+            // 每列都留燈號的位置、數值欄固定寬度：數字才會對齊成一欄
             var r = Ui.Row("dash-row").AddTo(parent);
-            if (cls != null) Ui.El("dash-lamp", "dash-lamp--" + cls).AddTo(r);
+            Ui.El("dash-lamp", "dash-lamp--" + (cls ?? "none")).AddTo(r);
             Ui.Text(name, "dash-k").AddTo(r);
-            Ui.Spacer().AddTo(r);
             Ui.Text(value, "mono", "dash-v", cls).AddTo(r);
             Ui.Text(extra, "small", "dim", "dash-x", "mono").AddTo(r);
         }
@@ -217,23 +217,35 @@ namespace GoNoGo.UI
             if (mode == "checklist")
             {
                 Ui.Text(Loc.T("ui.notes.checklist"), "eyebrow").AddTo(parent);
+                bool any = false;
                 foreach (var n in notes)
                     foreach (var r in n.Requirements)
                     {
+                        any = true;
                         bool met = Requirements.IsMetPreLaunch(r, m.Dashboard, m.S.Reported, GameSession.Data, m.Difficulty);
                         var row = Ui.Row("check-row").AddTo(parent);
                         Ui.Text(met ? "✔" : "☐", met ? "go" : "tight", "check-box").AddTo(row);
                         Ui.Text(Fmt.Dept(n.Department) + "：" + Loc.T(r.Text), "body").AddTo(row);
                     }
-                Ui.Text(Loc.T("ui.notes.checklist_hint"), "small", "faint").AddTo(parent);
+                if (any) Ui.Text(Loc.T("ui.notes.checklist_hint"), "small", "faint").AddTo(parent);
+                else Ui.Text(Loc.T("ui.notes.no_req"), "small", "dim").AddTo(parent);
+                // 沒有變成條件的回答（例如「電池要多大？」）也留著，不然打過的電話在筆記裡看不到
+                var plain = notes.Where(n => n.Requirements.Count == 0).ToList();
+                if (plain.Count > 0)
+                {
+                    Ui.Text(Loc.T("ui.notes.other"), "eyebrow", "notes-sub").AddTo(parent);
+                    foreach (var n in plain) Note(parent, n);
+                }
                 return;
             }
-            foreach (var n in notes)
-            {
-                var c = Ui.El("note").AddTo(parent);
-                Ui.Text(Fmt.Dept(n.Department) + " · " + n.Question, "small", "accent").AddTo(c);
-                Ui.Text(n.Answer, "body").AddTo(c);
-            }
+            foreach (var n in notes) Note(parent, n);
+        }
+
+        static void Note(VisualElement parent, NoteItem n)
+        {
+            var c = Ui.El("note").AddTo(parent);
+            Ui.Text(Fmt.Dept(n.Department) + " · " + n.Question, "small", "accent").AddTo(c);
+            Ui.Text(n.Answer, "body").AddTo(c);
         }
     }
 
@@ -337,9 +349,11 @@ namespace GoNoGo.UI
 
             var why = SessionRules.CanLaunch(s);
             var row = Ui.Row("modal-actions").AddTo(body);
-            Ui.Btn(Loc.T("ui.launchp.cancel"), () => Close(), "btn-ghost").AddTo(row);
+            Ui.Btn(Loc.T("ui.launchp.cancel"), () => Close(), "btn-big").AddTo(row);
             Ui.Spacer().AddTo(row);
-            if (why != SessionRules.Ok) Ui.Text(Loc.T(why), "small", "tight", "launch-why").AddTo(row);
+            // 測試的問題上面的檢查列已經寫了，這裡只補其他原因（點名進行中…）
+            if (why != SessionRules.Ok && why != "err.untested" && why != "err.retest")
+                Ui.Text(Loc.T(why), "small", "tight", "launch-why").AddTo(row);
             var go = Ui.Btn(Loc.T(poll ? "ui.launchp.poll" : "ui.launchp.go"), () =>
             {
                 if (poll) Sfx.Alert(); else Sfx.Go();

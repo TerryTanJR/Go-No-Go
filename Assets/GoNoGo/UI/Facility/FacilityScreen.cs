@@ -152,7 +152,7 @@ namespace GoNoGo.UI
             var head = Ui.Row("modal-head").AddTo(card);
             Ui.Text(_panel.Title, "eyebrow").AddTo(head);
             Ui.Spacer().AddTo(head);
-            if (_panel.Closable) Ui.Btn(Loc.T("ui.fac.close") + "  [Esc]", ClosePanel, "btn-small", "btn-ghost").AddTo(head);
+            if (_panel.Closable) Ui.Btn("Esc  ✕", ClosePanel, "modal-close").AddTo(head);
             var body = Ui.El("modal-body").AddTo(card);
             _panel.Attach(body, ClosePanel);
             _openedFrame = Time.frameCount;

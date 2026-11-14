@@ -21,8 +21,8 @@ namespace GoNoGo.UI
         {
             Ui.Text(Loc.T("ui.test.intro"), "body").AddTo(body);
             TestView.Build(Scroll(body), false);
+            // 關閉在標題列右上（Esc），這裡只放主要按鈕
             var row = Ui.Row("modal-actions").AddTo(body);
-            Ui.Btn(Loc.T("ui.fac.close"), () => Close(), "btn-ghost").AddTo(row);
             Ui.Spacer().AddTo(row);
             bool current = EnvTests.IsCurrent(M.S);
             var run = Ui.Btn(Loc.T(M.S.LastTest == null ? "ui.test.run" : current ? "ui.test.run_again" : "ui.test.rerun"), () =>
@@ -49,6 +49,7 @@ namespace GoNoGo.UI
             {
                 // 儀表板的一行：第幾次、兩項結果、是不是目前的設計
                 var row = Ui.Row("dash-row").AddTo(parent);
+                Ui.El("dash-lamp", "dash-lamp--none").AddTo(row); // 和儀表板其他列對齊
                 Ui.Text(Loc.T("ui.test.short"), "dash-k").AddTo(row);
                 Ui.Spacer().AddTo(row);
                 if (t == null) { Ui.Text(Loc.T("ui.test.none_short"), "small", "over").AddTo(row); return; }

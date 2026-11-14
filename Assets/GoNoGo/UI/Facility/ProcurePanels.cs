@@ -223,10 +223,10 @@ namespace GoNoGo.UI
 
         static void Row(VisualElement parent, string name, string value, string extra, string cls)
         {
+            // 每列都留燈號的位置、數值欄固定寬度：數字才會對齊成一欄
             var r = Ui.Row("dash-row").AddTo(parent);
-            if (cls != null) Ui.El("dash-lamp", "dash-lamp--" + cls).AddTo(r);
+            Ui.El("dash-lamp", "dash-lamp--" + (cls ?? "none")).AddTo(r);
             Ui.Text(name, "dash-k").AddTo(r);
-            Ui.Spacer().AddTo(r);
             Ui.Text(value, "mono", "dash-v", cls).AddTo(r);
             Ui.Text(extra, "small", "dim", "dash-x", "mono").AddTo(r);
         }

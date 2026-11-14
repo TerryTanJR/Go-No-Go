@@ -911,6 +911,16 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .modal--wide { width: 1100px; }
 .modal--narrow { width: 420px; }
 .modal-head { flex-direction: row; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom-width: 1px; border-color: var(--c-line); }
+.modal-head .eyebrow { font-size: var(--fs-15); }
+.notes-sub { margin-top: 16px; margin-bottom: 4px; }
+.modal-close {
+    padding: 4px 12px;
+    font-size: var(--fs-15);
+    color: var(--c-dim);
+    background-color: rgba(0, 0, 0, 0);
+    border-color: var(--c-line);
+}
+.modal-close:hover, .modal-close:hover:enabled { color: var(--c-text); border-color: var(--c-accent); }
 .modal-body { flex-grow: 1; flex-shrink: 1; }
 .modal-actions { flex-direction: row; align-items: center; margin-top: 16px; }
 /* 遊戲選單（Tab / Esc） */
@@ -1169,8 +1179,9 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .dash-lamp--go { background-color: var(--c-go); }
 .dash-lamp--tight { background-color: var(--c-tight); }
 .dash-lamp--over { background-color: var(--c-over); }
-.dash-k { width: 150px; color: var(--c-dim); font-size: var(--fs-14); }
-.dash-v { font-size: var(--fs-16); color: var(--c-text); min-width: 160px; }
+.dash-lamp--none { background-color: rgba(0, 0, 0, 0); }
+.dash-k { width: 180px; color: var(--c-dim); font-size: var(--fs-15); }
+.dash-v { font-size: var(--fs-16); color: var(--c-text); width: 300px; flex-shrink: 0; }
 .dash-x { flex-grow: 1; -unity-text-align: middle-right; }
 .dash-parts { margin-top: 10px; }
 .dash-part-row { flex-direction: row; flex-wrap: wrap; margin-top: 4px; }

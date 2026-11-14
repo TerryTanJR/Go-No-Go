@@ -593,6 +593,8 @@
   "ui.notes.empty": { "en": "Nothing yet. Call the departments.", "zh-TW": "還沒有內容。先打電話給各處室。" },
   "ui.notes.checklist": { "en": "CHECKLIST", "zh-TW": "檢查表" },
   "ui.notes.checklist_hint": { "en": "Ticks use the spacecraft on the stand right now.", "zh-TW": "打勾依據整合台上現在的設計。" },
+  "ui.notes.no_req": { "en": "No launch conditions yet. Ask the departments what the mission must achieve.", "zh-TW": "還沒有發射條件。問各處室這次任務要達成什麼。" },
+  "ui.notes.other": { "en": "OTHER ANSWERS", "zh-TW": "其他回答" },
   "ui.mc.title": { "en": "MISSION CONSOLE", "zh-TW": "任務控制台" },
   "ui.mc.cannot_reach": { "en": "cannot reach this orbit", "zh-TW": "收不到這個軌道" },
   "ui.mc.stations": { "en": "{n} stations", "zh-TW": "{n} 座天線" },
