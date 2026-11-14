@@ -7,7 +7,7 @@ using UnityEngine;
 namespace GoNoGo.Presentation
 {
     /// <summary>
-    /// Facility 場景（大廳、組裝區、中控室）的執行期總管：依狀態擺零件、更新整合台、
+    /// Facility 場景（大廳、組裝區、中控室）的執行期總管：依狀態把零件放上收貨輸送帶、更新整合台、
     /// 產生本機玩家與其他玩家的 avatar、處理階段切換時的傳送。
     /// </summary>
     public sealed class FacilityDirector : MonoBehaviour
@@ -23,7 +23,7 @@ namespace GoNoGo.Presentation
         [Header("場景物件")]
         public Camera playerCamera;
         public IntegrationStand stand;
-        public PartRack[] racks;
+        public DeliveryConveyor delivery;
         [Tooltip("組裝區與中控室的分界（世界座標 x）：x 小於它是組裝區")]
         public float areaSplitX = 11.5f;
         [Tooltip("大廳的 z 起點：z 大於它是大廳")]
@@ -33,6 +33,8 @@ namespace GoNoGo.Presentation
         Interactor _interactor;
         AvatarRig _localRig;
         readonly Dictionary<string, PartItem> _items = new Dictionary<string, PartItem>();
+        /// <summary>上一次看到的已採購零件：新出現的就是剛到貨，從收貨窗口送出來。</summary>
+        HashSet<string> _ownedBefore;
         readonly Dictionary<int, RemoteAvatar> _remotes = new Dictionary<int, RemoteAvatar>();
         Transform _localHeld;
         string _localHeldId;
@@ -58,7 +60,7 @@ namespace GoNoGo.Presentation
         {
             GameSession.EnsureMission();
             var m = GameSession.Mission;
-            BuildShelves(m);
+            BuildItems(m);
             PartPreviewStage.Create(transform);
             SpawnLocal(m);
             m.Changed += OnChanged;
@@ -70,22 +72,38 @@ namespace GoNoGo.Presentation
             Sfx.SetMusic(Sfx.Music.Facility);
         }
 
-        // ---------------- 零件架 ----------------
+        // ---------------- 收貨輸送帶 ----------------
 
-        void BuildShelves(MissionSession m)
+        /// <summary>這一局型錄上每個零件都先建好、藏起來；買到的才放上輸送帶。</summary>
+        void BuildItems(MissionSession m)
         {
-            var allowed = SessionRules.ShelfParts(m.Data, m.S);
-            foreach (var rack in racks)
+            foreach (var p in SessionRules.ShelfParts(m.Data, m.S).OrderBy(p => p.Category).ThenBy(p => p.Tier).ThenBy(p => p.Id))
             {
-                var cats = rack.Categories.ToList();
-                var parts = allowed.Where(p => cats.Contains(p.Category))
-                    .OrderBy(p => cats.IndexOf(p.Category)).ThenBy(p => p.Tier).ThenBy(p => p.Id).ToList();
-                for (int i = 0; i < parts.Count; i++)
-                {
-                    var item = PartItem.Create(parts[i], m.Data, rack.transform, rack.Slot(i, parts.Count), rack.itemSize);
-                    _items[parts[i].Id] = item;
-                }
+                var item = PartItem.Create(p, m.Data, delivery.items, delivery.start, delivery.itemSize);
+                item.SetVisible(false);
+                _items[p.Id] = item;
             }
+        }
+
+        /// <summary>
+        /// 輸送帶上 = 買過（或開局就有）、沒裝在船上、沒人拿著的零件。
+        /// 剛買到的從收貨窗口一件件送出來（照下單順序）；放下的零件直接回到隊伍最後面。
+        /// </summary>
+        void SyncDelivery(MissionSession m)
+        {
+            var installed = new HashSet<string>(m.S.Bench.AllPartIds());
+            var held = new HashSet<string>(m.S.Held.Values);
+            bool Loose(string id) => m.S.Owned.Contains(id) && !installed.Contains(id) && !held.Contains(id);
+            foreach (var kv in _items)
+                if (!Loose(kv.Key))
+                {
+                    delivery.Remove(kv.Value);
+                    kv.Value.SetVisible(false);
+                }
+            foreach (var id in m.S.Owned)
+                if (Loose(id) && _items.TryGetValue(id, out var item) && !delivery.Has(item))
+                    delivery.Add(item, _ownedBefore != null && !_ownedBefore.Contains(id));
+            _ownedBefore = new HashSet<string>(m.S.Owned);
         }
 
         // ---------------- 玩家 ----------------
@@ -162,11 +180,7 @@ namespace GoNoGo.Presentation
         {
             var m = GameSession.Mission;
             stand.Refresh(m, true);
-            var installed = new HashSet<string>(m.S.Bench.AllPartIds());
-            var held = new HashSet<string>(m.S.Held.Values);
-            // 架上只有買過（或開局就有）的零件；其他位置空著，等組裝區下單
-            var owned = new HashSet<string>(m.S.Owned);
-            foreach (var kv in _items) kv.Value.SetVisible(owned.Contains(kv.Key) && !installed.Contains(kv.Key) && !held.Contains(kv.Key));
+            SyncDelivery(m);
 
             // 本機手上的零件
             var mine = m.S.HeldBy(GameSession.LocalPlayer);
