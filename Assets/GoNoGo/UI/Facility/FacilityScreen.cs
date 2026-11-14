@@ -309,7 +309,13 @@ namespace GoNoGo.UI
 
         static void ToggleMic() => Multiplayer.SetMicMuted?.Invoke(!Multiplayer.MicMuted);
 
-        /// <summary>場景裡的文字標籤：投影到畫面上（太遠、在背後、被牆擋住的不畫）。</summary>
+        /// <summary>控制台名稱（tag）只在角色走到這麼近時才顯示；看板（sign）、零件編號照各自的 maxDistance。</summary>
+        const float TagNear = 3f;
+
+        /// <summary>
+        /// 場景裡的文字標籤：投影到畫面上（太遠、在背後、被牆擋住的不畫）。
+        /// 控制台名稱不常駐：走到旁邊才出現，正對著的那台已經有提示框，就不重複。
+        /// </summary>
         void DrawLabels()
         {
             var cam = Camera.main;
@@ -323,6 +329,12 @@ namespace GoNoGo.UI
                 var v = cam.WorldToViewportPoint(wp);
                 float dist = Vector3.Distance(cam.transform.position, wp);
                 bool visible = v.z > 0.1f && v.x > -0.05f && v.x < 1.05f && v.y > -0.05f && v.y < 1.05f && dist < wl.maxDistance;
+                if (visible && wl.style == "tag")
+                {
+                    var me = PoseFeed.Local.Position;
+                    float near = Vector2.Distance(new Vector2(me.x, me.z), new Vector2(wp.x, wp.z));
+                    visible = near < TagNear && (Hud.Target == null || Hud.Target.Title != wl.Resolve());
+                }
                 if (visible && Physics.Linecast(cam.transform.position, wp, out var hit, ~(1 << 2), QueryTriggerInteraction.Ignore)
                     && hit.distance < dist - 0.4f && hit.collider.GetComponentInParent<WorldLabel>() != wl)
                     visible = false;
