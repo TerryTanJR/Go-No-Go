@@ -910,6 +910,17 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     border-bottom-width: 2px;
     border-color: var(--c-accent);
 }
+/* 大廳的組別名稱（拱門、選組按鈕）：比一般看板大，從大廳另一頭也看得清楚 */
+.world-label--team {
+    font-size: var(--fs-26);
+    letter-spacing: 4px;
+    padding: 5px 16px;
+    -unity-font-style: bold;
+    color: var(--c-text);
+    background-color: rgba(6, 12, 22, 0.75);
+    border-bottom-width: 3px;
+    border-color: var(--c-accent);
+}
 .world-label--tag { font-size: var(--fs-11); letter-spacing: 2px; color: var(--c-accent); background-color: rgba(6, 12, 22, 0.6); }
 .world-label--code {
     font-size: var(--fs-11);

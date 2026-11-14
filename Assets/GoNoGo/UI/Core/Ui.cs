@@ -28,6 +28,39 @@ namespace GoNoGo.UI
             return l;
         }
 
+        /// <summary>
+        /// 會換行的長文字用：每一段的結尾不會只剩一個字（或一個英文單字）自己一行。
+        /// 中文把最後三個字用 U+2060（不換行的零寬字元）黏在一起；英文把最後一個空白換成不斷行空格。
+        /// </summary>
+        public static string NoOrphan(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text ?? "";
+            var paras = text.Split('\n');
+            for (int i = 0; i < paras.Length; i++) paras[i] = NoOrphanLine(paras[i]);
+            return string.Join("\n", paras);
+        }
+
+        static string NoOrphanLine(string s)
+        {
+            s = s.TrimEnd();
+            if (s.Length < 4) return s;
+            int sp = s.LastIndexOf(' ');
+            // 英文：最後一個單字和前一個連在一起（太長的不黏，免得整行被推下去）
+            if (sp > 0 && s.Length - sp <= 16 && !IsCjk(s[s.Length - 1]) && !IsCjk(s[s.Length - 2]))
+                return s.Substring(0, sp) + ' ' + s.Substring(sp + 1);
+            if (!IsCjk(s[s.Length - 1]) && !IsCjk(s[s.Length - 2])) return s;
+            var sb = new System.Text.StringBuilder(s.Length + 2);
+            sb.Append(s, 0, s.Length - 3);
+            for (int k = s.Length - 3; k < s.Length; k++)
+            {
+                if (k > s.Length - 3) sb.Append('⁠');
+                sb.Append(s[k]);
+            }
+            return sb.ToString();
+        }
+
+        static bool IsCjk(char c) => c >= 0x2E80 && c <= 0x9FFF || c >= 0xF900 && c <= 0xFAFF || c >= 0xFF00 && c <= 0xFFEF;
+
         public static Button Btn(string text, Action onClick, params string[] classes)
         {
             var b = new Button(onClick) { text = text ?? "" };

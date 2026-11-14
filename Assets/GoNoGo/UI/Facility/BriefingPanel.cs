@@ -115,14 +115,13 @@ namespace GoNoGo.UI
             string side = me != null && me.Station == Station.Assembly ? "assembly" : "control";
             if (multi) Ui.Text(Loc.T("ui.intro." + side + ".t"), "eyebrow").AddTo(tt);
             else Ui.Text(Loc.T("ui.brief.todo_title"), "eyebrow").AddTo(tt);
-            Ui.Text(Loc.T(M.IsHistorical ? "ui.brief.todo_history" : multi ? "ui.intro." + side : "ui.brief.todo_solo"), "body").AddTo(tt);
+            Ui.Text(Ui.NoOrphan(Loc.T(M.IsHistorical ? "ui.brief.todo_history" : multi ? "ui.intro." + side : "ui.brief.todo_solo")), "body").AddTo(tt);
             if (M.IsHistorical)
             {
                 var dos = Ui.El("brief-dossier").AddTo(_foot);
                 Ui.Text(Loc.T("ui.brief.dossier"), "eyebrow").AddTo(dos);
-                Ui.Text(Loc.T(sc.Historical.Background), "body").AddTo(dos);
+                Ui.Text(Ui.NoOrphan(Loc.T(sc.Historical.Background)), "body").AddTo(dos);
             }
-            if (M.S.Multiplayer) Ui.Text(Loc.T("ui.brief.review_note"), "small", "faint").AddTo(_foot);
             var row = Ui.Row("modal-actions").AddTo(_foot);
             Ui.Spacer().AddTo(row);
             if (M.S.Phase == SessionPhase.Briefing)
@@ -148,13 +147,13 @@ namespace GoNoGo.UI
             if (!strings.ContainsKey(key)) key = "ui.brief.speech.default";
             var list = new List<string>();
             foreach (var l in Loc.T(key).Split('\n'))
-                if (!string.IsNullOrWhiteSpace(l)) list.Add(l.Trim());
+                if (!string.IsNullOrWhiteSpace(l)) list.Add(Ui.NoOrphan(l.Trim()));
             // 多人：結尾那句依自己這一組不同（組裝組、中控組各自知道要做什麼）；歷史關卡是倒數開始
             var me = M.S.Player(GameSession.LocalPlayer);
             string close = "ui.brief.close_solo";
             if (M.IsHistorical) close = "ui.brief.close_history";
             else if (M.S.Multiplayer) close = me != null && me.Station == Station.Assembly ? "ui.brief.close_assembly" : "ui.brief.close_control";
-            list.Add(Loc.T(close));
+            list.Add(Ui.NoOrphan(Loc.T(close)));
             return list;
         }
 

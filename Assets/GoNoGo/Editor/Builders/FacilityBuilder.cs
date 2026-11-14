@@ -1576,7 +1576,7 @@ namespace GoNoGo.EditorTools
             }
             Box("Lintel", g, new Vector3(side * ArchX, 5.9f, zc), new Vector3(0.5f, 0.5f, ZB - ZA + 0.5f), art.trim, shadows: false);
             
-            Label(g, nameKey, new Vector3(side * (ArchX - 0.4f), 5.1f, zc), "sign", 22f);
+            Label(g, nameKey, new Vector3(side * (ArchX - 0.4f), 5.1f, zc), "team", 22f);
             BuildUtil.Light("Glow_" + tag, LightType.Point, col, 3f, new Vector3(side * 9.5f, 4.2f, zc), Quaternion.identity, 11f, LightShadows.None, g);
             // 名單牆：面向房間內側（西牆朝 +x = yaw -90、東牆朝 -x = yaw 90）
             WallScreen(art, fm, g, "TeamBoard_" + tag, screenId, new Vector3(side * (LX - 0.08f), 3.3f, zc), side * 90f, new Vector2(6.4f, 3.2f), new Vector2Int(1280, 640));
@@ -1643,7 +1643,7 @@ namespace GoNoGo.EditorTools
             jb.team = Station.Assembly;
             jb.teamColor = AsmColor;
             jb.cap = cap.GetComponent<Renderer>();
-            Label(bp, "ui.lobby.join.assembly", new Vector3(0, 1.7f, 0), "sign", 9f);
+            Label(bp, "ui.lobby.join.assembly", new Vector3(0, 1.7f, 0), "team", 9f);
         }
 
         /// <summary>控制室（東）：深色風格 —— 暗地板、琥珀色光、監控桌與椅子、機櫃、天線、圓形按鈕。</summary>
@@ -1705,7 +1705,7 @@ namespace GoNoGo.EditorTools
             jb.team = Station.Control;
             jb.teamColor = CtlColor;
             jb.cap = cap.GetComponent<Renderer>();
-            Label(bp, "ui.lobby.join.control", new Vector3(0, 1.7f, 0), "sign", 9f);
+            Label(bp, "ui.lobby.join.control", new Vector3(0, 1.7f, 0), "team", 9f);
         }
 
         /// <summary>零件架：兩根立柱、三層板、幾個零件盒。</summary>

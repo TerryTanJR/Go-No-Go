@@ -111,6 +111,18 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
+        public void HostAloneCannotStartAMultiplayerMission()
+        {
+            var s = SessionRules.NewSession(_data, "earth_observation", "engineer", false, true);
+            Ok(s, Command.Of(CommandType.Join, 1));
+            Ok(s, Command.Of(CommandType.SetReady, 1, "", 1));
+            Assert.That(Try(s, CommandType.StartMission, 1), Is.EqualTo("err.need_players"), "房主一個人要等人加入");
+            Ok(s, Command.Of(CommandType.Join, 2));
+            Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
+            Ok(s, Command.Of(CommandType.StartMission, 1));
+        }
+
+        [Test]
         public void ReadyLocksTheSideAndEveryoneMustBeReadyToStart()
         {
             var s = SessionRules.NewSession(_data, "earth_observation", "engineer", false, true);

@@ -201,6 +201,7 @@ namespace GoNoGo.UI
         {
             var s = M.S;
             var me = s.Player(GameSession.LocalPlayer);
+            if (LobbyView.Alone(s)) return Loc.T("ui.lobby.hint_alone");
             if (LobbyView.AllReady(s)) return Loc.T(GameSession.IsHost ? "ui.lobby.hint_host" : "ui.lobby.hint_wait");
             return Loc.T(me != null && me.Ready ? "ui.lobby.hint_ready" : "ui.lobby.hint");
         }

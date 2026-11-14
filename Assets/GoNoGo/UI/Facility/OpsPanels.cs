@@ -229,8 +229,11 @@ namespace GoNoGo.UI
     public static class LobbyView
     {
         /// <summary>可以開始了：每個人都按了準備（嚴格分工時兩邊都要有人）。</summary>
+        /// <summary>只有房主一個人時永遠不算就緒：要等其他人加入才能開始（和 SessionRules 的 err.need_players 一致）。</summary>
+        public static bool Alone(SessionState s) => s.Players.Count < 2;
+
         public static bool AllReady(SessionState s) =>
-            s.Players.Count > 0 && s.Players.All(p => p.Ready)
+            !Alone(s) && s.Players.All(p => p.Ready)
             && (!s.StrictRoles || (s.Players.Any(p => p.Station == Station.Assembly) && s.Players.Any(p => p.Station == Station.Control)));
 
         /// <summary>兩組並排：誰在哪一組、誰準備好了。</summary>
@@ -276,7 +279,8 @@ namespace GoNoGo.UI
 
             Teams(body);
             int ready = s.Players.Count(p => p.Ready);
-            Ui.Text(Loc.T("ui.lobby.ready_count", ("r", ready), ("n", s.Players.Count)), "lobby-count", LobbyView.AllReady(s) ? "go" : "dim").AddTo(body);
+            if (Alone(s)) Ui.Text(Loc.T("err.need_players"), "lobby-count", "tight").AddTo(body);
+            else Ui.Text(Loc.T("ui.lobby.ready_count", ("r", ready), ("n", s.Players.Count)), "lobby-count", LobbyView.AllReady(s) ? "go" : "dim").AddTo(body);
 
             // 嚴格分工：房主決定；開了之後組裝區不能用中控室的控制台，反過來也一樣，門也鎖上
             var strict = Ui.Row("lobby-strict").AddTo(body);
