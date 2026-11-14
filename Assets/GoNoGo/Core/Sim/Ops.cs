@@ -19,8 +19,12 @@ namespace GoNoGo.Core
             EventKind.PowerAnomaly => "power_anomaly",
             EventKind.BigFire => "big_fire",
             EventKind.FalseFire => "false_fire",
+            EventKind.Alien => "alien",
             _ => "solar_storm",
         };
+
+        /// <summary>彩蛋事件：不在 <see cref="All"/>（手冊和判讀選項都看不到），每局有小機率取代一個重複的事件。</summary>
+        public const double AlienChance = 0.08;
 
         public static bool IsFire(EventKind k) => k == EventKind.BigFire || k == EventKind.FalseFire;
 
@@ -34,6 +38,7 @@ namespace GoNoGo.Core
         public static EventKind? Parse(string key)
         {
             foreach (var k in All) if (Key(k) == key) return k;
+            if (key == "alien") return EventKind.Alien;
             return null;
         }
     }
@@ -73,11 +78,13 @@ namespace GoNoGo.Core
         public const string FirePriority = "fire_priority";
         /// <summary>野火關卡：把這個火點標記為誤報，不通報。</summary>
         public const string MarkFalseAlarm = "mark_false_alarm";
+        /// <summary>彩蛋事件（外星人）：擊退入侵者。</summary>
+        public const string RepelAlien = "repel_alien";
 
         public static readonly string[] All =
         {
             InstrumentsOff, HighResMode, Reschedule, IsolatePart, BatteryProtect, SafeMode, SunPoint, PointTarget, PriorityDownlink, SwitchBackup,
-            FirePriority, MarkFalseAlarm,
+            FirePriority, MarkFalseAlarm, RepelAlien,
         };
 
         /// <summary>只在野火關卡出現的操作（其他關卡的控制台不顯示）。</summary>
@@ -95,6 +102,7 @@ namespace GoNoGo.Core
             EventKind.ScienceOpportunity => new[] { OpsActions.PointTarget, OpsActions.HighResMode, OpsActions.PriorityDownlink },
             EventKind.BigFire => new[] { OpsActions.FirePriority, OpsActions.PriorityDownlink },
             EventKind.FalseFire => new[] { OpsActions.MarkFalseAlarm },
+            EventKind.Alien => new[] { OpsActions.RepelAlien },
             _ => new string[0],
         };
 
@@ -210,6 +218,7 @@ namespace GoNoGo.Core
                         list.Add(new Reading { Key = "part:" + id, Value = down ? "NO SIGNAL" : "OK", Unit = "", Alert = down });
                     }
                     Add("temp", F(temp, "0.0"), "°C", Math.Abs(temp - 18) > 2.5);
+                    if (kind == EventKind.Alien) Add("contact", "UNKNOWN", "", true);
                     if (kind == EventKind.ScienceOpportunity)
                         Add("ground_alert", "opp." + e.RefId, "", true);
                     else Add("ground_alert", "—", "");
@@ -227,6 +236,7 @@ namespace GoNoGo.Core
                     }
                     break;
                 case OpsConsoles.Attitude:
+                    if (kind == EventKind.Alien) Add("radar", "CONTACT ×" + (2 + sev), "", true);
                     double point = data.Part(d.Get(PartCategory.Adcs))?.PointingArcsec ?? 30;
                     bool adcsDown = failedCat == PartCategory.Adcs && !redundant;
                     if (adcsDown) point *= 40;

@@ -21,7 +21,7 @@ namespace GoNoGo.Core
     }
 
     /// <summary>BigFire、FalseFire 只出現在野火關卡（由關卡的 event_types 指定）。</summary>
-    public enum EventKind { SolarStorm, PartFailure, ScienceOpportunity, PowerAnomaly, BigFire, FalseFire }
+    public enum EventKind { SolarStorm, PartFailure, ScienceOpportunity, PowerAnomaly, BigFire, FalseFire, Alien }
 
     /// <summary>營運期間的事件（每回合一個）。亂數在規劃時就擲好，所以玩家的處置不會改變後面的事件。</summary>
     public sealed class MissionEvent
@@ -56,8 +56,18 @@ namespace GoNoGo.Core
         public string Judged { get; set; } = "";
         /// <summary>做過的操作（OpsActions 的 id），依時間順序。</summary>
         public List<string> Actions { get; set; } = new List<string>();
+        /// <summary>小遊戲成績：玩家編號 → 分數（0 ~ 1000）。只有交出成績的人才有。</summary>
+        public Dictionary<int, int> Mini { get; set; } = new Dictionary<int, int>();
+        /// <summary>全隊小遊戲有沒有過（結算時才有意義）。過了就等於做完手冊上的全部步驟。</summary>
+        public bool MiniPassed { get; set; }
 
-        public EventResponse Clone() => new EventResponse { Judged = Judged, Actions = new List<string>(Actions) };
+        public EventResponse Clone() => new EventResponse
+        {
+            Judged = Judged,
+            Actions = new List<string>(Actions),
+            Mini = new Dictionary<int, int>(Mini),
+            MiniPassed = MiniPassed,
+        };
     }
 
     public interface IDecisionSource
@@ -124,6 +134,10 @@ namespace GoNoGo.Core
         public double AlertFactor { get; set; } = 1.0;
         /// <summary>這回合營運處置分數直接歸零（把假火點通報給消防單位）。</summary>
         public bool Voided { get; set; }
+        /// <summary>這回合打的小遊戲（依判斷的事件而定，沒判斷就是空字串）、有沒有交成績、全隊有沒有過。</summary>
+        public string MiniGame { get; set; } = "";
+        public bool MiniPlayed { get; set; }
+        public bool MiniPassed { get; set; }
     }
 
     public enum EndReason { MissionComplete, Propellant, Battery, Radiation, LaunchFailure }

@@ -142,6 +142,7 @@ namespace GoNoGo.Core.Tests
                 "opp.wildfire", "opp.volcano", "opp.flood", "opp.hurricane",
                 "suggest.launcher_reach", "suggest.mass", "suggest.launcher", "suggest.history_launcher", "suggest.mass_margin",
                 "suggest.downlink", "suggest.storage", "suggest.power", "suggest.propellant", "suggest.battery", "suggest.shielding",
+                "event.alien.repelled", "event.alien.damaged", "event.alien.ok", "event.title.alien", "ops.action.repel_alien", "ops.read.contact", "ops.read.radar",
                 "suggest.storm_procedure", "suggest.battery_eclipse", "suggest.power_procedure", "suggest.redundancy", "suggest.more_science", "suggest.try_orbit",
             });
             foreach (var k in OpsEvents.All)
@@ -149,13 +150,14 @@ namespace GoNoGo.Core.Tests
                 keys.Add("event.title." + OpsEvents.Key(k));
                 keys.Add("event.diag." + OpsEvents.Key(k));
             }
-            Assert.That(OpsEvents.All.Length, Is.EqualTo(Enum.GetValues(typeof(EventKind)).Length));
+            // 外星人是彩蛋：不在 All（手冊和判讀選項看不到）
+            Assert.That(OpsEvents.All.Length, Is.EqualTo(Enum.GetValues(typeof(EventKind)).Length - 1));
             foreach (var c in OpsConsoles.All)
             {
                 keys.Add("ops.console." + c);
                 keys.AddRange(OpsConsoles.Actions(c).Select(a => "ops.action." + a));
             }
-            Assert.That(OpsActions.All.Select(OpsConsoles.ConsoleOf), Has.None.Empty, "每個操作都要有所屬的控制台");
+            Assert.That(OpsActions.All.Where(a => a != OpsActions.RepelAlien).Select(OpsConsoles.ConsoleOf), Has.None.Empty, "每個操作都要有所屬的控制台");
 
             // 因果鏈：實際跑一堆設計，收集出現過的鍵
             var designs = new List<Design> { TestData.CheapSmallsat(), TestData.Balanced(), TestData.HighScience() };

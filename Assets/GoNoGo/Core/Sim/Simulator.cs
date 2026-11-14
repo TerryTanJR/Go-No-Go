@@ -61,6 +61,18 @@ namespace GoNoGo.Core
                 (kinds[i], kinds[j]) = (kinds[j], kinds[i]);
             }
 
+            // 彩蛋：小機率讓外星人取代一個「重複出現」的事件（不取代第一回合，也不會讓某種事件完全消失）。
+            // 用另一組亂數，才不會改動上面已經擲好的事件。
+            if (n >= 4)
+            {
+                var ar = new Random(seed ^ 0x5A17E1);
+                if (ar.NextDouble() < OpsEvents.AlienChance)
+                {
+                    var dup = Enumerable.Range(1, n - 1).Where(i => kinds.Count(k => k == kinds[i]) > 1).ToList();
+                    if (dup.Count > 0) kinds[dup[ar.Next(dup.Count)]] = EventKind.Alien;
+                }
+            }
+
             for (int i = 0; i < n; i++)
             {
                 int a = plan.TurnStartDays[i], b = plan.TurnStartDays[i + 1];
@@ -100,6 +112,9 @@ namespace GoNoGo.Core
                     case EventKind.FalseFire:
                         e.RefId = FalseSites[rng.Next(FalseSites.Length)];
                         e.Severity = 1 + rng.Next(2);
+                        break;
+                    case EventKind.Alien:
+                        e.Severity = 1 + rng.Next(3);
                         break;
                     default:
                         e.RefId = Opportunities[rng.Next(Opportunities.Length)];
@@ -291,6 +306,9 @@ namespace GoNoGo.Core
                 StepsDone = Procedures.Done(e.Kind, actions),
                 WrongActions = Procedures.Wrong(e.Kind, actions),
                 ConflictedActions = Procedures.Conflicted(actions),
+                MiniGame = Minigames.For(resp.Judged ?? "")?.Id ?? "",
+                MiniPlayed = resp.Mini != null && resp.Mini.Count > 0,
+                MiniPassed = resp.MiniPassed,
             };
             double f = o.StepsFraction;
             // 互相衝突的操作沒有效果（也不算步驟）；多餘操作的停機懲罰照算（按了就是按了）
@@ -374,6 +392,25 @@ namespace GoNoGo.Core
                         o.ResultCode = "event.false_fire.reported";
                     }
                     else o.ResultCode = f >= 1 ? "event.false_fire.flagged" : "event.false_fire.ignored";
+                    break;
+
+                case EventKind.Alien:
+                    if (f >= 1)
+                    {
+                        // 擊退入侵者：第一次接觸的紀錄本身就是科學成果
+                        o.ScienceDelta = ev.SciencePerYear * 0.05 * e.Severity;
+                        o.ResultCode = "event.alien.repelled";
+                        break;
+                    }
+                    safeDays += 2; o.LostDays += 2;
+                    if (inst.Count > 0)
+                    {
+                        int hit = Math.Min(inst.Count - 1, (int)(e.Roll2 * inst.Count));
+                        health[hit] *= 0.5;
+                        o.AffectedPartId = inst[hit].Id;
+                        o.ResultCode = "event.alien.damaged";
+                    }
+                    else o.ResultCode = "event.alien.ok";
                     break;
 
                 default:

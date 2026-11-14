@@ -1,0 +1,18 @@
+{
+  "mini.fire_verify.name": {"en": "Two-Channel Cross-Check", "zh-TW": "雙頻道交叉驗證"},
+  "mini.fire_verify.goal": {"en": "Find the cells that pass the line in both images", "zh-TW": "找出兩張圖都過線的格子"},
+  "mini.fire_verify.controls": {"en": "Click cells to mark them", "zh-TW": "點格子標記"},
+  "mini.fire_verify.hint": {"en": "Both images past the line means real fire", "zh-TW": "兩邊都過線才是真火"},
+  "mini.fire_verify.link": {"en": "A hot spot in one channel can be sun-baked desert or sun glint. Check a second channel: only when both rise is it a real fire. False alarms waste firefighters' time and trust.", "zh-TW": "單一頻道的熱點可能只是沙漠曬熱或太陽反光，要用第二個頻道交叉驗證，兩個都升高才是真火。誤報會浪費消防人力，也會傷害信任。"},
+  "mini.fire_verify.cap.rule": {"en": "Real fire shows up past the line in both images", "zh-TW": "兩邊都過線才是真火"},
+  "mini.fire_verify.cap.submit": {"en": "Check the numbers, then send", "zh-TW": "數字核對好就送出"},
+  "mini.fire_verify.cap.pass": {"en": "Report accepted", "zh-TW": "通報成立"},
+  "mini.fire_verify.cap.fail": {"en": "Too many false alarms or misses", "zh-TW": "誤報或漏報太多"},
+  "mini.fire_verify.lbl.mwir": {"en": "Mid-wave infrared", "zh-TW": "中波紅外線"},
+  "mini.fire_verify.lbl.lwir": {"en": "Long-wave thermal infrared", "zh-TW": "長波熱紅外線"},
+  "mini.fire_verify.lbl.over": {"en": "OVER LINE", "zh-TW": "過線"},
+  "mini.fire_verify.lbl.tap": {"en": "Click a cell", "zh-TW": "點格子看數字"},
+  "mini.fire_verify.lbl.submit": {"en": "SEND", "zh-TW": "送出"},
+  "mini.fire_verify.stat.marked": {"en": "Marked", "zh-TW": "已標記"},
+  "mini.fire_verify.stat.strikes": {"en": "Strikes", "zh-TW": "失誤"}
+}

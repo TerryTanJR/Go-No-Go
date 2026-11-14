@@ -62,6 +62,7 @@ namespace GoNoGo.Core.Tests
                         var e = plan.Events[i];
                         Assert.That(e.Turn, Is.EqualTo(i));
                         Assert.That(e.Day, Is.InRange(plan.TurnStartDays[i], plan.TurnStartDays[i + 1] - 1), diff.Id + " " + e.Id);
+                        if (e.Kind == EventKind.Alien) continue; // 外星人彩蛋不在難度的事件池裡
                         Assert.That(allowed, Does.Contain(e.Kind), diff.Id);
                         seen.Add(e.Kind);
                     }
@@ -198,16 +199,20 @@ namespace GoNoGo.Core.Tests
         public void PressingEveryButtonIsWorseThanFollowingTheManual()
         {
             var d = TestData.Balanced();
-            int seed = Enumerable.Range(1, 200).First(s => Simulator.PlanMission(d, _data, s, "engineer").LaunchRoll < 0.9);
+            int seed = Enumerable.Range(1, 200).First(s =>
+            {
+                var pl = Simulator.PlanMission(d, _data, s, "engineer");
+                return pl.LaunchRoll < 0.9 && pl.Events.All(e => e.Kind != EventKind.Alien); // 彩蛋事件的步驟不同，這個測試不要碰到
+            });
             var ctx = new MissionContext { DifficultyId = "engineer" };
             // 判斷正確，但把所有非野火的操作都按下去：步驟一定做滿，多出來 7 個操作
             var all = new Scripted(e => new EventResponse
             {
                 Judged = OpsEvents.Key(e.Kind),
-                Actions = OpsActions.All.Where(a => !OpsActions.FireOnly(a)).ToList(),
+                Actions = OpsActions.All.Where(a => !OpsActions.FireOnly(a) && a != OpsActions.RepelAlien).ToList(),
             });
             var r = Simulator.SimulateMission(d, _data, seed, all, ctx);
-            Assert.That(r.Events.All(e => e.WrongActions.Count == 7));
+            Assert.That(r.Events.Where(e => e.Event.Kind != EventKind.Alien).All(e => e.WrongActions.Count == 7));
             // 衝突：太陽風暴的安全模式、儀器關機被抵銷；科學機會的三步全被抵銷；零件故障的步驟沒有衝突
             foreach (var e in r.Events)
             {

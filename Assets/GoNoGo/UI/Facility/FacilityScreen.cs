@@ -96,7 +96,8 @@ namespace GoNoGo.UI
             _screens.MarkDirty();
             _lastPhase = M.S.Phase;
             OnChanged();
-            if (_panelId != null) { var id = _panelId; _panelId = null; OpenPanel(id, ""); }
+            if (MinigameDev.PickerOnStart) { MinigameDev.PickerOnStart = false; OpenPanel("minigame_debug", ""); }
+            else if (_panelId != null) { var id = _panelId; _panelId = null; OpenPanel(id, ""); }
             else ShowPhasePanel();
         }
 
@@ -237,6 +238,12 @@ namespace GoNoGo.UI
             // 選單開著、或正在輸入框打字（例如筆記）時，快捷鍵都不作用
             bool keys = kb != null && !Hud.Paused && !UIRoot.IsTyping;
 
+            // F9：小遊戲除錯選單（直接跳進任一個營運小遊戲；只在 Editor 和 Development Build）
+            if (keys && UnityEngine.Debug.isDebugBuild && kb.f9Key.wasPressedThisFrame && (_panel == null || _panelId == "minigame_debug"))
+            {
+                if (_panel == null) OpenPanel("minigame_debug", ""); else ClosePanel();
+                return;
+            }
             // G / N：Go/No-Go 點名
             if (keys && _poll != null && _poll.CanVote && (kb.gKey.wasPressedThisFrame || kb.nKey.wasPressedThisFrame))
                 _poll.Vote(kb.gKey.wasPressedThisFrame);

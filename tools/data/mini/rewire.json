@@ -1,0 +1,20 @@
+{
+  "mini.rewire.name": {"en": "Part Failure", "zh-TW": "零件故障"},
+  "mini.rewire.goal": {"en": "Find the fault, switch to backup, time it right", "zh-TW": "找出故障、接上備援、對準時機"},
+  "mini.rewire.controls": {"en": "Click", "zh-TW": "點擊"},
+  "mini.rewire.link": {"en": "A failed part is isolated first, then backup takes over or it is rebooted, then observations are rescheduled. Parts with a twin can take over by themselves.", "zh-TW": "零件故障時，先隔離，再切到備援或重開機，最後重排觀測。有備援的零件，壞了會自動接手。"},
+  "mini.rewire.stat.stage": {"en": "Step", "zh-TW": "步驟"},
+  "mini.rewire.stat.chances": {"en": "Chances", "zh-TW": "機會"},
+  "mini.rewire.stat.progress": {"en": "Progress", "zh-TW": "進度"},
+  "mini.rewire.hint": {"en": "Click the faulty channel", "zh-TW": "點出故障的通道"},
+  "mini.rewire.lbl.isolate": {"en": "Isolate", "zh-TW": "隔離"},
+  "mini.rewire.lbl.step1": {"en": "Isolate", "zh-TW": "隔離"},
+  "mini.rewire.lbl.step2": {"en": "Backup", "zh-TW": "備援"},
+  "mini.rewire.lbl.step3": {"en": "Reschedule", "zh-TW": "排程"},
+  "mini.rewire.cap.1": {"en": "Click the faulty channel", "zh-TW": "點出故障的通道"},
+  "mini.rewire.cap.1b": {"en": "Press Isolate", "zh-TW": "按下「隔離」"},
+  "mini.rewire.cap.2": {"en": "Click a plug", "zh-TW": "點一個插頭"},
+  "mini.rewire.cap.2b": {"en": "Plug into the same-color socket", "zh-TW": "接到同色的插孔"},
+  "mini.rewire.cap.3": {"en": "Click when the cursor is in the green", "zh-TW": "游標在綠區時點一下"},
+  "mini.rewire.cap.wrong": {"en": "Wrong, lost a chance", "zh-TW": "錯了，扣一次機會"}
+}

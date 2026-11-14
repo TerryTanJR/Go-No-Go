@@ -20,6 +20,8 @@ namespace GoNoGo.Core
         CartAdd = Vote + 3, CartRemove, PlaceOrder,
         // 大廳（加在最後，舊的編號不變）
         SetReady,
+        // 營運小遊戲：交出自己的成績（A = 遊戲 id，N = 分數 0 ~ 1000）
+        MiniDone,
     }
 
     /// <summary>
@@ -358,9 +360,14 @@ namespace GoNoGo.Core
                 case CommandType.Judge:
                 case CommandType.Act:
                     return Respond(s, data, c);
+                case CommandType.MiniDone:
+                    return MiniDone(s, data, c);
                 case CommandType.EndTurn:
                     if (s.Phase != SessionPhase.Ops) return "err.phase";
                     if (s.TurnResolved) return Ok;
+                    // 有人打了小遊戲但還沒全員交成績就被結算：沒交的算 0 分
+                    var cur = CurrentEvent(s, data);
+                    if (cur != null && Response(s, cur.Id).Mini.Count > 0) ResolveMini(s, Response(s, cur.Id));
                     s.TurnResolved = true;
                     return Ok;
                 case CommandType.NextTurn:
@@ -531,12 +538,40 @@ namespace GoNoGo.Core
             else Reveal(s, data);
         }
 
-        /// <summary>學員難度直接告訴玩家是什麼事件（自動判斷正確）。</summary>
+        /// <summary>學員難度直接告訴玩家是什麼事件（自動判斷正確）。外星人彩蛋也一樣：不用查手冊，直接進遊戲。</summary>
         static void Reveal(SessionState s, GameData data)
         {
-            if (!s.Difficulty(data).EventReveal) return;
             var e = CurrentEvent(s, data);
-            if (e != null) Response(s, e.Id).Judged = OpsEvents.Key(e.Kind);
+            if (e != null && (e.Kind == EventKind.Alien || s.Difficulty(data).EventReveal)) Response(s, e.Id).Judged = OpsEvents.Key(e.Kind);
+        }
+
+        /// <summary>
+        /// 小遊戲成績：玩的是「判斷的事件」對應的遊戲；全員交完（或房主強制結算）時算全隊有沒有過。
+        /// 過了 = 做完手冊上那種事件的全部步驟；沒過 = 一個步驟都沒做。判斷錯的話步驟對不上，模擬會照原本的規則扣分。
+        /// </summary>
+        static string MiniDone(SessionState s, GameData data, Command c)
+        {
+            if (s.Phase != SessionPhase.Ops || s.TurnResolved) return "err.phase";
+            var e = CurrentEvent(s, data);
+            if (e == null) return "err.phase";
+            var r = Response(s, e.Id);
+            var def = Minigames.For(r.Judged);
+            if (def == null || def.Id != c.A) return "err.minigame";
+            if (r.Mini.ContainsKey(c.Player)) return Ok; // 重複送出
+            r.Mini[c.Player] = Math.Max(0, Math.Min(1000, c.N));
+            if (r.Mini.Count >= Math.Max(1, s.Players.Count)) ResolveMini(s, r);
+            return Ok;
+        }
+
+        static void ResolveMini(SessionState s, EventResponse r)
+        {
+            var def = Minigames.For(r.Judged);
+            var kind = OpsEvents.Parse(r.Judged);
+            r.MiniPassed = def != null && MinigameRules.TeamPassed(def, r.Mini.Values, Math.Max(1, s.Players.Count));
+            if (r.MiniPassed && kind.HasValue)
+                foreach (var a in Procedures.Required(kind.Value))
+                    if (!r.Actions.Contains(a)) r.Actions.Add(a);
+            s.TurnResolved = true;
         }
 
         static EventResponse Response(SessionState s, string id)
@@ -553,8 +588,10 @@ namespace GoNoGo.Core
             var r = Response(s, e.Id);
             if (c.Type == CommandType.Judge)
             {
+                if (e.Kind == EventKind.Alien) { r.Judged = OpsEvents.Key(e.Kind); return Ok; } // 彩蛋：自動判定，選什麼都一樣
                 if (s.Difficulty(data).EventReveal) return Ok;
                 if (OpsEvents.Parse(c.A) == null) return "err.unknown";
+                if (r.Mini.Count > 0) return "err.locked"; // 已經有人開始處置了，不能改判斷
                 r.Judged = c.A;
             }
             else

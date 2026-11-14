@@ -1,0 +1,26 @@
+{
+ "mini.alien.name": {
+  "en": "Unknown contact",
+  "zh-TW": "不明接觸"
+ },
+ "mini.alien.goal": {
+  "en": "Shoot down 60% of the intruders without losing all hull",
+  "zh-TW": "擊落 60% 入侵者，機身別歸零"
+ },
+ "mini.alien.controls": {
+  "en": "WASD / arrow keys to move, auto-fire",
+  "zh-TW": "WASD／方向鍵移動，自動連射"
+ },
+ "mini.alien.link": {
+  "en": "Nobody has met aliens in orbit, but spacecraft dodge debris and unexpected threats all the time. Better shielding means more hits survived.",
+  "zh-TW": "目前沒人在軌道上遇過外星人，但太空船常得閃避碎片和意外；護盾越好，能撐的攻擊越多。"
+ },
+ "mini.alien.stat.hull": {
+  "en": "Hull",
+  "zh-TW": "機身"
+ },
+ "mini.alien.stat.destroyed": {
+  "en": "Destroyed",
+  "zh-TW": "擊落"
+ }
+}

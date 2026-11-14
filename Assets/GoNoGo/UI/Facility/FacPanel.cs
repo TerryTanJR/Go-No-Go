@@ -25,7 +25,7 @@ namespace GoNoGo.UI
             Refresh();
         }
 
-        public void Refresh()
+        public virtual void Refresh()
         {
             if (Body == null) return;
             Body.Clear();
@@ -40,6 +40,12 @@ namespace GoNoGo.UI
         {
             if (id != null && id.StartsWith("ops:")) return new OpsConsolePanel(id.Substring(4));
             if (id != null && id.StartsWith("manual:")) return new ManualPanel(id.Substring(7));
+            if (id != null && id.StartsWith("minigame:"))
+            {
+                var parts = id.Split(':');
+                int.TryParse(parts.Length > 2 ? parts[2] : "2", out var sev);
+                return new MinigamePanel(parts[1], sev);
+            }
             return id switch
             {
                 "briefing" => new BriefingPanel(),
@@ -56,6 +62,8 @@ namespace GoNoGo.UI
                 "failures" => new FailuresPanel(),
                 "tablet" => new TabletPanel(),
                 "ops_desk" => new OpsDeskPanel(),
+                "minigame" => new MinigamePanel(),
+                "minigame_debug" => new MinigameDebugPanel(),
                 "test" => new TestPanel(),
                 // 組裝區的手冊：嚴格分工時只有代號與用途（數字在中控室）
                 "bay_manual" => M.S.StrictRoles && M.S.Multiplayer ? new BayManualPanel() : new ManualPanel(),

@@ -50,10 +50,12 @@ namespace GoNoGo.UI
                     OpsClock.Trigger(e);
                 }
                 Hud.Toast(Loc.T("ui.ops.new_event"));
+                // 外星人彩蛋：不用判斷，直接進遊戲
+                if (OpsMinigames.Enabled && e != null && e.Kind == EventKind.Alien) Hud.Open("minigame");
             }
             var resp = M.ResponseTo(e?.Id);
             _event.text = s.TurnResolved ? Loc.T("ui.ops.resolved")
-                : M.Difficulty.EventReveal && e != null ? Loc.T("event.title." + OpsEvents.Key(e.Kind))
+                : (M.Difficulty.EventReveal || e?.Kind == EventKind.Alien) && e != null ? Loc.T("event.title." + OpsEvents.Key(e.Kind))
                 : Loc.T("ui.ops.unknown_event");
             if (s.TurnResolved && !_resolvedShown) { _resolvedShown = true; Hud.Open("ops_desk"); }
         }
@@ -63,6 +65,10 @@ namespace GoNoGo.UI
             if (M == null || M.S.Phase != SessionPhase.Ops) return;
             var limit = M.Difficulty.TurnSeconds;
             if (limit <= 0 || M.S.TurnResolved) { _timer.text = ""; return; }
+            // 判斷完、進入處置小遊戲之後不再倒數（小遊戲沒有計時）
+            var cur = M.CurrentEvent;
+            if (OpsMinigames.Enabled && cur != null && !string.IsNullOrEmpty(M.ResponseTo(cur.Id).Judged) && !M.Difficulty.EventReveal)
+            { _timer.text = Loc.T("mini.no_timer"); _timer.EnableInClassList("over", false); return; }
             // 個人模式打開選單（Tab / Esc）時回合計時暫停；多人時大家共用時間，不停
             if (!(Hud.Paused && !M.S.Multiplayer)) _left -= dt;
             _timer.text = Fmt.Clock(_left);
@@ -83,6 +89,40 @@ namespace GoNoGo.UI
         public override string Title => Loc.T("ui.ops.desk");
         public override string WideClass => "modal--wide";
 
+        /// <summary>步驟 2：依判斷的事件打處置小遊戲；全隊都交成績（或房主強制結算）才算完。</summary>
+        void BuildTreat(VisualElement body, MissionEvent e, EventResponse resp)
+        {
+            Ui.Text(Loc.T("ui.ops.step_treat"), "h3").AddTo(body);
+            var def = Minigames.For(resp.Judged);
+            if (def == null)
+            {
+                Ui.Text(Loc.T("ui.ops.treat_wait_judge"), "small", "dim").AddTo(body);
+            }
+            else
+            {
+                int players = System.Math.Max(1, M.S.Players.Count);
+                int me = GameSession.LocalPlayer;
+                bool mine = resp.Mini.ContainsKey(me);
+                var card = Ui.El("mini-link").AddTo(body);
+                Ui.Text(Loc.T("mini." + def.Id + ".name"), "h3").AddTo(card);
+                Ui.Text(Loc.T("mini." + def.Id + ".goal"), "small").AddTo(card);
+                string rule = def.Rule == MiniRule.Sum
+                    ? Loc.T("mini.rule.sum", ("pct", def.PassScore / 10))
+                    : Loc.T("mini.rule.ratio", ("need", System.Math.Max(1, (int)System.Math.Ceiling(def.RatioNeeded * players - 1e-9))), ("n", players));
+                Ui.Text(players > 1 ? rule : Loc.T("mini.rule.solo"), "small", "faint").AddTo(card);
+                if (players > 1) Ui.Text(Loc.T("ui.ops.treat_done", ("a", resp.Mini.Count), ("n", players)), "small", "dim").AddTo(card);
+                if (mine)
+                    Ui.Text(Loc.T("ui.ops.treat_mine", ("v", resp.Mini[me] / 10)), "body", MinigameRules.PlayerPassed(def, resp.Mini[me]) ? "go" : "over").AddTo(card);
+                Ui.Text(Loc.T("mini.no_retry"), "small", "tight").AddTo(card);
+                var play = Ui.Btn(Loc.T(mine ? "ui.ops.treat_waiting" : "ui.ops.treat_start"), () => Hud.Open("minigame"), "btn-primary", "btn-big").AddTo(card);
+                play.SetEnabled(!mine);
+            }
+            var actions = Ui.Row("modal-actions").AddTo(body);
+            Ui.Spacer().AddTo(actions);
+            if (!M.S.Multiplayer || GameSession.IsHost)
+                Ui.Btn(Loc.T(resp.Mini.Count > 0 ? "ui.ops.force_end" : "ui.ops.skip_treat"), () => { Sfx.Confirm(); GameSession.Send(CommandType.EndTurn); Hud.Signal("end_turn"); }, "btn-ghost").AddTo(actions);
+        }
+
         protected override void Build(VisualElement body)
         {
             var s = M.S;
@@ -102,19 +142,23 @@ namespace GoNoGo.UI
             {
                 // 1. 判斷
                 Ui.Text(Loc.T("ui.ops.step_judge"), "h3").AddTo(body);
-                if (diff.EventReveal)
+                if (diff.EventReveal || e.Kind == EventKind.Alien)
                     Ui.Text(Loc.T("ui.ops.revealed", ("e", Loc.T("event.title." + OpsEvents.Key(e.Kind)))), "body", "accent").AddTo(body);
                 else
                 {
                     Ui.Text(Loc.T("ui.ops.judge_hint"), "small", "dim").AddTo(body);
                     var row = Ui.Row("judge-row").AddTo(body);
-                    foreach (var t in GameData.EventTypes(M.Scenario, diff))
+                    var types = new System.Collections.Generic.List<string>(GameData.EventTypes(M.Scenario, diff));
+                    bool locked = OpsMinigames.Enabled && resp.Mini.Count > 0; // 有人開始處置了就不能改判斷
+                    foreach (var t in types)
                     {
                         var key = t;
-                        Ui.Btn(Loc.T("event.title." + key), () => { GameSession.Send(CommandType.Judge, key); Sfx.Click(); }, "chip")
+                        var chip = Ui.Btn(Loc.T("event.title." + key), () => { GameSession.Send(CommandType.Judge, key); Sfx.Click(); }, "chip")
                             .Cls("chip--on", resp.Judged == key).AddTo(row);
+                        chip.SetEnabled(!locked);
                     }
                 }
+                if (OpsMinigames.Enabled) { BuildTreat(body, e, resp); return; }
                 // 2. 操作
                 Ui.Text(Loc.T("ui.ops.step_act"), "h3").AddTo(body);
                 if (resp.Actions.Count == 0) Ui.Text(Loc.T("ui.ops.no_actions"), "small", "dim").AddTo(body);
@@ -139,6 +183,13 @@ namespace GoNoGo.UI
             {
                 bool judgedOk = o.JudgedCorrect;
                 Ui.Text(Loc.T(judgedOk ? "ui.ops.judged_ok" : "ui.ops.judged_wrong"), "body", judgedOk ? "go" : "over").AddTo(body);
+                if (o.MiniGame != "")
+                {
+                    string gname = Loc.T("mini." + o.MiniGame + ".name");
+                    if (!o.MiniPlayed) Ui.Text(Loc.T("ui.ops.mini_none", ("g", gname)), "body", "over").AddTo(body);
+                    else if (!o.JudgedCorrect) Ui.Text(Loc.T("ui.ops.mini_wrong_game", ("g", gname)), "body", "over").AddTo(body);
+                    else Ui.Text(Loc.T(o.MiniPassed ? "ui.ops.mini_pass" : "ui.ops.mini_fail", ("g", gname)), "body", o.MiniPassed ? "go" : "over").AddTo(body);
+                }
                 Ui.Text(Loc.T("ui.ops.steps", ("done", o.StepsDone), ("total", o.StepsRequired)), "body", o.StepsDone == o.StepsRequired ? "go" : "tight").AddTo(body);
                 if (o.WrongActions.Count > 0)
                     Ui.Text(Loc.T("ui.ops.wrong", ("list", string.Join("、", o.WrongActions.Select(a => Loc.T("ops.action." + a)))),
@@ -196,6 +247,12 @@ namespace GoNoGo.UI
                 return;
             }
             var resp = M.ResponseTo(e.Id);
+            if (OpsMinigames.Enabled)
+            {
+                Ui.Text(Loc.T("ui.ops.console_mini"), "small", "dim").AddTo(body);
+                Ui.Btn(Loc.T("ui.ops.open_desk"), () => Hud.Open("ops_desk"), "btn-primary").AddTo(body);
+                return;
+            }
             Ui.Text(Loc.T("ui.ops.actions"), "eyebrow", "ops-actions-title").AddTo(body);
             var acts = Ui.Row("ops-actions").AddTo(body);
             bool fire = M.Scenario != null && M.Scenario.FireAlert;

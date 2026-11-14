@@ -39,7 +39,7 @@ namespace GoNoGo.UI
             // 後排北座的手冊 2・電力（組裝區的完整手冊也算，裡面一樣翻得到第 2 章）
             new Step { Key = "manual", Phase = SessionPhase.Design, Done = s => s == "open:manual:power" || s == "open:bay_manual", Target = "Screen_manual-power" },
             new Step { Key = "launch", Phase = SessionPhase.Design, Done = s => s == "launch", Target = "LaunchButton" },
-            new Step { Key = "console", Phase = SessionPhase.Ops, Done = s => s.StartsWith("act:"), Target = "Screen_ops-power" },
+            new Step { Key = "console", Phase = SessionPhase.Ops, Done = s => s == "open:ops:power" || s.StartsWith("act:"), Target = "Screen_ops-power" },
             new Step { Key = "judge", Phase = SessionPhase.Ops, Done = s => s == "end_turn", Target = "Screen_ops_desk" },
         };
 
