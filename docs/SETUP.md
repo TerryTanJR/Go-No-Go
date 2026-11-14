@@ -283,6 +283,22 @@ unity command build run -- --target WebGL --output-path Builds/WebGL --confirm t
 
 建置期間不要改 `.cs` 檔。`Builds/` 不進版控。大小不設上限，但建完記到藍圖「發布用設定」的大小表。
 
+### 11.5 打包給別人玩（Unity Play／Windows zip）
+
+編輯器選單 **GoNoGo → Release**：
+
+| 選項 | 產出（在 `Builds/Release/`） |
+|------|------|
+| Web + Windows (zip) | 兩個都打包 |
+| Web only (zip for Unity Play) | `GoNoGo_Web_日期.zip`：直接上傳 Unity Play |
+| Windows only (zip) | `GoNoGo_Windows_日期.zip`：解壓縮後執行 `GoNoGo.exe` |
+
+- 兩個都打包約 20–30 分鐘（要切換平台、重新匯入素材）。打包完會跳出視窗顯示 zip 的位置，也寫在 `Builds/Release/last_release.txt`。
+- 瀏覽器版用 Gzip＋備用解壓縮，放在哪個網站都能開；專案本身的 Brotli 設定打包完會改回來。
+- 命令列（編輯器開著）：`unity command script eval "return GoNoGo.EditorTools.ReleaseBuilder.BuildAllQuiet();"`（不跳視窗）。
+- 上傳 Unity Play：https://play.unity.com 登入 → Upload → 拖進 Web 的 zip → 填名稱、縮圖 → 可見度選 Unlisted（只有拿到連結的人能玩）→ Publish。
+- 更新版本時，房主和所有玩家都要換成同一版（網頁重新整理、Windows 版換新 zip），新舊版本可能連不進同一個房間。
+
 ---
 
 ## 12. Mac 安裝（和 Windows 不同的地方）

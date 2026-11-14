@@ -155,12 +155,13 @@ namespace GoNoGo.Net
         }
 
         /// <summary>
-        /// 轉送協定明確指定，和下面 <see cref="Manager"/> 的 UseWebSockets 一致：瀏覽器 WSS、其他 DTLS。
-        /// 不能用套件的 RelayProtocol.Default：編輯器裡它可能還是上次建瀏覽器版時編出來的 WSS，房主會建不起來。
+        /// 轉送協定明確指定，和下面 <see cref="Manager"/> 的 UseWebSockets 一致：瀏覽器和編輯器 WSS、桌面版 DTLS（轉送伺服器兩種都接受）。
+        /// 編輯器一律 WSS：編輯器裡的多人套件可能是照上次的 WebGL 平台編的，只接受 WSS（會把 DTLS 自動換成 WSS，
+        /// 跟 UseWebSockets=false 對不上，房主就建不起來）；WSS 在所有平台都合法。
         /// </summary>
         static NetworkOptions RelayNet() => new NetworkOptions
         {
-#if UNITY_WEBGL && !UNITY_EDITOR
+#if UNITY_WEBGL || UNITY_EDITOR
             RelayProtocol = RelayProtocol.WSS,
 #else
             RelayProtocol = RelayProtocol.DTLS,
@@ -263,7 +264,7 @@ namespace GoNoGo.Net
         }
 
         /// <param name="direct">同一個網路：一律走 WebSocket，瀏覽器才能加入桌面版或編輯器開的房間。
-        /// 房間碼（轉送）：瀏覽器用 WSS、桌面版用 DTLS，轉送伺服器兩種都接受。</param>
+        /// 房間碼（轉送）：瀏覽器和編輯器用 WSS、桌面版用 DTLS，轉送伺服器兩種都接受（見 <see cref="RelayNet"/>）。</param>
         static NetworkManager Manager(bool direct = false)
         {
             var nm = NetworkManager.Singleton;
@@ -287,7 +288,7 @@ namespace GoNoGo.Net
                 nm.SetSingleton();
             }
             if (nm.IsListening) nm.Shutdown();
-#if UNITY_WEBGL && !UNITY_EDITOR
+#if UNITY_WEBGL || UNITY_EDITOR
             Transport(nm).UseWebSockets = true;
 #else
             Transport(nm).UseWebSockets = direct;
