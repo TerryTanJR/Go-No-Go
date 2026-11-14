@@ -261,6 +261,8 @@ unity status --until-ready   # 第一次匯入會比較久（要建 Library/）
 
 第一次開啟會自動下載 `Packages/manifest.json` 裡的套件，包括 URP 17.6、Cinemachine 3.1、glTFast 6.20 + Draco（匯入 NASA `.glb`）、Input System、Splines、Timeline、Newtonsoft JSON，以及讓 CLI 操作 Editor 的 **Pipeline 套件**（`com.unity.pipeline`）。這些**不用手動裝**。
 
+在 Editor 按 Play 一律從標題頁（`Boot` 場景）開始，不管目前開著哪個場景；停止後回到原本的場景。想直接從目前的場景開始（例如開著 `Facility` 直接進中控室測試），把選單 **GoNoGo → Play From Title** 的勾拿掉，這個設定只存在自己的電腦。
+
 ### 11.3 驗證清單
 
 ```bash

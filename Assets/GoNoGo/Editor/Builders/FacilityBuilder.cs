@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using GoNoGo.Core;
 using GoNoGo.Game;
 using GoNoGo.Presentation;
@@ -126,7 +127,7 @@ namespace GoNoGo.EditorTools
             var dir = new GameObject("FacilityDirector").AddComponent<FacilityDirector>();
             dir.assemblySpawn = Spawn("AssemblySpawn", new Vector3(0, 0.05f, -5.2f), 0);
             dir.controlSpawn = Spawn("ControlSpawn", new Vector3(15, 0.05f, 0), 90);
-            dir.opsSpawn = Spawn("OpsSpawn", new Vector3(22.5f, 0.05f, -1.6f), 90);
+            dir.opsSpawn = Spawn("OpsSpawn", new Vector3(16.5f, 0.05f, 0), 90);
             dir.lobbySpawn = Spawn("LobbySpawn", new Vector3(0, 0.05f, 38f), 0);
             dir.playerCamera = cam;
             dir.stand = stand;
@@ -135,7 +136,7 @@ namespace GoNoGo.EditorTools
             dir.lobbyMinZ = 30f;
 
             Probe(bay, new Vector3(0, 2.5f, 0), new Vector3(22, RoomH, 18));
-            Probe(ctrl, new Vector3(23, 2.5f, 0), new Vector3(22, RoomH, 18), 0.6f);
+            Probe(ctrl, new Vector3(23, 3.5f, 0), new Vector3(22, 7f, 18), 0.6f);
 
             var post = BuildUtil.DefaultPost;
             post.bloom = 0.8f; post.bloomThreshold = 1.0f; post.vignette = 0.2f; post.contrast = 8f; post.grain = 0.05f; post.exposure = 0.35f;
@@ -167,22 +168,17 @@ namespace GoNoGo.EditorTools
 
         static void BuildShell(ArtBuilder.Art art, FacMats fm, Transform root, Transform bay, Transform ctrl)
         {
-            float bayW = BayX1 - BayX0, ctrlW = CtrlX1 - CtrlX0, depth = RoomZ * 2;
-            float bayCx = (BayX0 + BayX1) / 2, ctrlCx = (CtrlX0 + CtrlX1) / 2;
+            float bayW = BayX1 - BayX0, depth = RoomZ * 2;
+            float bayCx = (BayX0 + BayX1) / 2;
+            // 中控室的地板、牆、天花板在 Blender 模型裡（BuildControlRoom）
             Solid("Floor", bay, new Vector3(bayCx, -0.1f, 0), new Vector3(bayW, 0.2f, depth), art.floor);
-            Solid("Floor", ctrl, new Vector3(ctrlCx, -0.1f, 0), new Vector3(ctrlW, 0.2f, depth), art.floorMatte);
             Solid("DoorSill", root, new Vector3(11.5f, -0.1f, 0), new Vector3(1f, 0.2f, 2.6f), art.trim);
             Solid("Ceiling", bay, new Vector3(bayCx, RoomH + 0.1f, 0), new Vector3(bayW + 2, 0.2f, depth + 2), art.wallPanel);
-            Solid("Ceiling", ctrl, new Vector3(ctrlCx, RoomH + 0.1f, 0), new Vector3(ctrlW + 2, 0.2f, depth + 2), art.wallDark);
 
             // 組裝區：白色無塵室
             Solid("WallW", bay, new Vector3(BayX0 - 0.15f, RoomH / 2, 0), new Vector3(0.3f, RoomH, depth), art.wallPanel);
             Solid("WallN", bay, new Vector3(bayCx, RoomH / 2, RoomZ + 0.15f), new Vector3(bayW + 0.6f, RoomH, 0.3f), art.wallPanel);
             Solid("WallS", bay, new Vector3(bayCx, RoomH / 2, -RoomZ - 0.15f), new Vector3(bayW + 0.6f, RoomH, 0.3f), art.wallPanel);
-            // 中控室：深色
-            Solid("WallE", ctrl, new Vector3(CtrlX1 + 0.15f, RoomH / 2, 0), new Vector3(0.3f, RoomH, depth), art.wallDark);
-            Solid("WallN", ctrl, new Vector3(ctrlCx, RoomH / 2, RoomZ + 0.15f), new Vector3(ctrlW + 0.6f, RoomH, 0.3f), art.wallDark);
-            Solid("WallS", ctrl, new Vector3(ctrlCx, RoomH / 2, -RoomZ - 0.15f), new Vector3(ctrlW + 0.6f, RoomH, 0.3f), art.wallDark);
 
             // 中間的隔牆（x 11…12），門洞 z -1.3…1.3、高 2.7
             const float doorHalf = 1.3f, doorH = 2.7f;
@@ -225,18 +221,8 @@ namespace GoNoGo.EditorTools
             for (int x = -2; x <= 2; x++)
                 for (int z = -1; z <= 1; z++)
                     Quad("LightPanel", bay, new Vector3(x * 4.2f, RoomH - 0.01f, z * 5.4f), Quaternion.Euler(-90, 0, 0), new Vector2(2.6f, 0.9f), art.lightPanel);
-            for (int x = 0; x < 4; x++)
-                Quad("LightStrip", ctrl, new Vector3(CtrlX0 + 3f + x * 5.3f, RoomH - 0.01f, 0), Quaternion.Euler(-90, 0, 0), new Vector2(0.3f, 14f), art.accentGlow);
-            Box("GlowN", ctrl, new Vector3(ctrlCx, 0.9f, RoomZ - 0.02f), new Vector3(ctrlW, 0.05f, 0.04f), art.accentGlow, shadows: false);
-            Box("GlowS", ctrl, new Vector3(ctrlCx, 0.9f, -RoomZ + 0.02f), new Vector3(ctrlW, 0.05f, 0.04f), art.accentGlow, shadows: false);
-            for (int i = 0; i < 6; i++)
-            {
-                float x = CtrlX0 + 1.5f + i * 3.8f;
-                Box("RibN" + i, ctrl, new Vector3(x, RoomH / 2, RoomZ - 0.1f), new Vector3(0.2f, RoomH, 0.3f), art.trim, shadows: false);
-                Box("RibS" + i, ctrl, new Vector3(x, RoomH / 2, -RoomZ + 0.1f), new Vector3(0.2f, RoomH, 0.3f), art.trim, shadows: false);
-            }
 
-            // 燈：組裝區四盞聚光燈打在整合台、零件架上方補光；中控室暖色頂燈
+            // 燈：組裝區四盞聚光燈打在整合台、零件架上方補光；中控室的燈在 BuildControlRoom
             for (int i = 0; i < 4; i++)
             {
                 var p = Quaternion.Euler(0, i * 90f + 45f, 0) * new Vector3(0, RoomH - 0.3f, -5f) + new Vector3(0, 0, 0.5f);
@@ -245,13 +231,6 @@ namespace GoNoGo.EditorTools
                 l.spotAngle = 42f;
                 l.innerSpotAngle = 22f;
             }
-            for (int i = 0; i < 2; i++)
-            {
-                var l = BuildUtil.Light("CtrlSpot" + i, LightType.Spot, new Color(1f, 0.86f, 0.68f), 30f, new Vector3(CtrlX0 + 6f + i * 10f, RoomH - 0.3f, 0), Quaternion.Euler(90, 0, 0), 12f, LightShadows.None, ctrl);
-                l.spotAngle = 110f;
-                l.innerSpotAngle = 70f;
-            }
-            BuildUtil.Light("ScreenSpill", LightType.Point, new Color(0.35f, 0.6f, 1f), 6f, new Vector3(CtrlX1 - 3f, 3.2f, 0), Quaternion.identity, 12f, LightShadows.None, ctrl);
         }
 
         // ---------------- 整合台 ----------------
@@ -447,72 +426,196 @@ namespace GoNoGo.EditorTools
             fb.AddComponent<BoxCollider>().size = new Vector3(3.5f, 2.2f, 0.12f);
         }
 
+        const string ControlRoomModel = "Assets/GoNoGo/Art/Models/Room/FacilityControlRoom.glb";
+        /// <summary>中控室模型的原點（世界座標）：Blender 的 (x, y, z) = 這裡 + Unity (x, z, y)。</summary>
+        static readonly Vector3 CtrlOrigin = new Vector3((CtrlX0 + CtrlX1) / 2, 0, 0);
+
+        /// <summary>
+        /// 中控室：房間、弧形影像牆、一整座弧形中控台都來自 Blender 模型
+        /// （tools/room/build_facility_control_room.py → Art/Models/Room/FacilityControlRoom.glb）。
+        /// 這裡換上專案材質、加碰撞體，並依物件名稱掛元件：
+        /// Screen_&lt;panel&gt; = 中控台上的一台螢幕（ConsoleTarget，準星對到按 E 打開該面板），
+        /// Wall_Main = 地球大螢幕，Wall_&lt;id&gt; = 影像牆上的即時資訊（WorldScreen）。
+        /// </summary>
         static void BuildControlRoom(ArtBuilder.Art art, FacMats fm, Transform ctrl)
         {
-            // 東牆大螢幕（營運時顯示地球縮景）
-            var main = new GameObject("MainScreen");
-            main.transform.SetParent(ctrl, false);
-            main.transform.localPosition = new Vector3(CtrlX1 - 0.1f, 3.2f, 0);
-            main.transform.localRotation = Quaternion.Euler(0, 90, 0);
-            Box("Frame", main.transform, new Vector3(0, 0, 0.04f), new Vector3(10.4f, 5.9f, 0.06f), art.trim, shadows: false);
-            Quad("Screen", main.transform, Vector3.zero, Quaternion.identity, new Vector2(10.2f, 5.74f), fm.screenRt);
-            Box("Ticker", main.transform, new Vector3(0, 3.1f, 0), new Vector3(10.4f, 0.18f, 0.05f), art.accentGlow, shadows: false);
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(ControlRoomModel);
+            if (prefab == null) throw new System.Exception("找不到中控室模型 " + ControlRoomModel + "（先跑 tools/room/build_facility_control_room.py）");
+            var model = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            model.name = "ControlRoomModel";
+            model.transform.SetParent(ctrl, false);
+            model.transform.localPosition = CtrlOrigin;
+            // glTFast 匯入後 Blender +Y 變成 Unity -Z、X 也翻轉：轉 180° 讓 Blender (x, y, z) = Unity (x, z, y)
+            model.transform.localRotation = Quaternion.Euler(0, 180f, 0);
 
-            Console(art, fm, ctrl, "Dashboard", new Vector3(19.5f, 0, -1.6f), 90f, "dashboard", "ui.fac.dashboard", "ui.fac.dashboard_body", "", art.consoleScreens[1], 1.8f);
-            Console(art, fm, ctrl, "MissionConsole", new Vector3(19.5f, 0, -5.2f), 90f, "mission", "ui.fac.mission", "ui.fac.mission_body", "design,briefing", art.consoleScreens[2], 1.8f);
-            var phone = Console(art, fm, ctrl, "PhoneDesk", new Vector3(19.5f, 0, 2.6f), 90f, "phone", "ui.fac.phone", "ui.fac.phone_body", "", null, 1.4f);
-            // 紅色電話
-            Box("Phone", phone.transform, new Vector3(0, 0.86f, 0.05f), new Vector3(0.36f, 0.1f, 0.24f), fm.red);
-            Box("Handset", phone.transform, new Vector3(0, 0.95f, 0.05f), new Vector3(0.42f, 0.07f, 0.09f), fm.red);
-            Console(art, fm, ctrl, "Notes", new Vector3(19.5f, 0, 5.8f), 90f, "notes", "ui.fac.notes", "ui.fac.notes_body", "", fm.paper, 1.4f);
-            Console(art, fm, ctrl, "ControlManual", new Vector3(14.6f, 0, 7.4f), 0f, "manual", "ui.fac.manual", "ui.fac.manual_body", "", fm.paper, 1.2f);
-            Console(art, fm, ctrl, "OpsDesk", new Vector3(25.5f, 0, 0), 90f, "ops_desk", "ui.fac.ops_desk", "ui.fac.ops_desk_body", "ops,report", art.consoleScreens[3], 2.4f);
-
-            // 四座營運控制台：北牆兩座、南牆兩座
-            string[] ids = { OpsConsoles.Power, OpsConsoles.Payload, OpsConsoles.Attitude, OpsConsoles.Comms };
-            for (int i = 0; i < 4; i++)
+            // 三座中控台各有一個顏色：設計組青、飛行總監琥珀、營運組綠
+            var amber = BuildUtil.Unlit("M_AccentAmber", new Color(2.6f, 1.25f, 0.3f));
+            var green = BuildUtil.Unlit("M_AccentGreen", new Color(0.35f, 2.4f, 1.0f));
+            var glowAmber = BuildUtil.Lit("M_ConsoleGlowAmber", new Color(0.3f, 0.2f, 0.05f), 0f, 0.6f, emission: new Color(0.95f, 0.48f, 0.1f));
+            var glowGreen = BuildUtil.Lit("M_ConsoleGlowGreen", new Color(0.05f, 0.25f, 0.12f), 0f, 0.6f, emission: new Color(0.15f, 0.85f, 0.35f));
+            var panelMat = BuildUtil.Lit("M_ConsolePanel", new Color(0.045f, 0.05f, 0.06f), 0.2f, 0.78f);
+            char GroupOf(string station) => station == "ops_desk" ? 'F'
+                : station is "phone" or "notes" or "manual" or "mission" or "dashboard" ? 'D' : 'O';
+            Material ScreenFor(char grp, int i) => grp switch
             {
-                bool north = i < 2;
-                var pos = new Vector3(i % 2 == 0 ? 27.5f : 31f, 0, north ? RoomZ - 1.2f : -RoomZ + 1.2f);
-                var c = Console(art, fm, ctrl, "Ops_" + ids[i], pos, north ? 0f : 180f, "ops:" + ids[i], "ops.console." + ids[i], "ui.fac.ops_console_body", "ops", art.consoleScreens[i], 1.6f);
-                c.actionKey = "ui.hint.operate";
+                'D' => art.consoleScreens[i % 2 == 0 ? 0 : 3],
+                'F' => art.consoleScreens[2],
+                'O' => art.consoleScreens[i % 3 == 2 ? 3 : 1],
+                _ => art.consoleScreens[i % art.consoleScreens.Length],
+            };
+            Material Slot(string mn) =>
+                mn.StartsWith("M_GlowRed") ? fm.redGlow
+                : mn.StartsWith("M_GlowAmber") ? amber
+                : mn.StartsWith("M_GlowGreen") ? green
+                : mn.StartsWith("M_Glow") ? art.accentGlow
+                : mn.StartsWith("M_Trim") ? art.trim
+                : mn.StartsWith("M_Console") ? art.consoleBody
+                : mn.StartsWith("M_Panel") ? panelMat
+                : mn.StartsWith("M_Floor") ? art.floorMatte
+                : art.wallDark;
+
+            var glows = new Dictionary<string, Renderer>();
+            var anchors = new Dictionary<string, Transform>();
+            var screens = new List<Renderer>();
+            var tops = new Dictionary<string, Renderer>();
+            int deco = 0;
+            foreach (var t in model.GetComponentsInChildren<Transform>(true))
+                if (t.name.StartsWith("Anchor_")) anchors[t.name.Substring(7)] = t;
+            foreach (var r in model.GetComponentsInChildren<Renderer>(true))
+            {
+                string n = r.gameObject.name;
+                Material m = null;
+                if (n.StartsWith("Screen_"))
+                {
+                    string key = n.Substring(7);
+                    m = ScreenFor(GroupOf(key), screens.Count);
+                    screens.Add(r);
+                }
+                else if (n == "Wall_Main") m = fm.screenRt;
+                else if (n.StartsWith("Wall_"))
+                {
+                    m = fm.screenOff;
+                    var ws = r.gameObject.AddComponent<WorldScreen>();
+                    ws.id = n.Substring(5);
+                    ws.resolution = new Vector2Int(1280, 690);
+                    ws.target = r;
+                }
+                else if (n.StartsWith("Deco_"))
+                {
+                    // Deco_<組>_…：組 = D 設計、F 總監、O 營運、B 後排、W 影像牆
+                    m = ScreenFor(n.Length > 5 ? n[5] : 'W', deco++);
+                    int ti = n.IndexOf("_Top_");
+                    if (ti >= 0) tops[n.Substring(ti + 5)] = r;
+                }
+                else if (n.StartsWith("Glow_"))
+                {
+                    string key = n.Substring(5);
+                    char g = GroupOf(key);
+                    m = g == 'F' ? glowAmber : g == 'O' ? glowGreen : fm.glow;
+                    glows[key] = r;
+                }
+                var mats = r.sharedMaterials;
+                bool shadows = false;
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    string mn = mats[i] != null ? mats[i].name : "";
+                    shadows |= mn.StartsWith("M_Trim") || mn.StartsWith("M_Console");
+                    mats[i] = m ?? Slot(mn);
+                }
+                r.sharedMaterials = mats;
+                r.shadowCastingMode = m == null && shadows ? ShadowCastingMode.On : ShadowCastingMode.Off;
+                // 走路會撞到的：地板、牆、影像牆、三座中控台與端板、總監平台、後排桌（發射台用按鈕上的膠囊碰撞體）
+                bool collide = n == "Floor" || (n.StartsWith("Wall") && !n.StartsWith("Wall_"))
+                               || n.StartsWith("Pod_") || n == "Podium_F" || n.StartsWith("Fin_") || n.StartsWith("BackPod");
+                if (collide) r.gameObject.AddComponent<MeshCollider>().sharedMesh = r.GetComponent<MeshFilter>().sharedMesh;
             }
 
-            // 發射按鈕：圓柱底座＋紅色按鈕＋黃黑框
-            var launch = new GameObject("LaunchButton");
-            launch.transform.SetParent(ctrl, false);
-            launch.transform.localPosition = new Vector3(29.5f, 0, 0);
-            var cyl = HiCylinder();
-            var pillar = MeshObj("Pillar", launch.transform, cyl, art.consoleBody, new Vector3(0, 0.5f, 0), 1f);
-            pillar.transform.localScale = new Vector3(0.7f, 0.5f, 0.7f);
-            pillar.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.On;
-            var pc = launch.AddComponent<CapsuleCollider>();
-            pc.center = new Vector3(0, 0.6f, 0);
-            pc.radius = 0.4f;
-            pc.height = 1.2f;
-            MeshObj("Guard", launch.transform, Annulus("Ring_0.25_0.34", 0.25f, 0.34f), fm.hazard, new Vector3(0, 1.005f, 0), 1f);
-            var btn = MeshObj("Button", launch.transform, cyl, fm.red, new Vector3(0, 1.05f, 0), 1f);
-            btn.transform.localScale = new Vector3(0.4f, 0.05f, 0.4f);
-            MeshObj("FloorRing", launch.transform, Annulus("Ring_1.1_1.16", 1.1f, 1.16f), fm.redGlow, new Vector3(0, 0.004f, 0), 1f);
-            var lt = launch.AddComponent<ConsoleTarget>();
-            lt.panel = "launch";
-            lt.titleKey = "ui.fac.launch";
-            lt.bodyKey = "ui.fac.launch_body";
-            lt.actionKey = "ui.hint.launch";
-            lt.phases = "design";
-            lt.glow = btn.GetComponent<Renderer>();
-            Label(launch.transform, "ui.fac.launch", new Vector3(0, 1.7f, 0), "sign", 10f);
-            BuildUtil.Light("LaunchGlow", LightType.Point, new Color(1f, 0.25f, 0.15f), 1.5f, launch.transform.position + Vector3.up * 1.4f, Quaternion.identity, 3f, LightShadows.None, ctrl);
+            // 中控台的每台螢幕：一個席位
+            foreach (var r in screens)
+            {
+                string key = r.gameObject.name.Substring(7);
+                string panel = key.Replace('-', ':');
+                var ct = r.gameObject.AddComponent<ConsoleTarget>();
+                r.gameObject.AddComponent<BoxCollider>();
+                ct.panel = panel;
+                if (glows.TryGetValue(key, out var g)) ct.glow = g;
+                if (panel.StartsWith("ops:"))
+                {
+                    ct.titleKey = "ops.console." + panel.Substring(4);
+                    ct.bodyKey = "ui.fac.ops_console_body";
+                    ct.actionKey = "ui.hint.operate";
+                    ct.phases = "ops";
+                }
+                else
+                {
+                    ct.titleKey = "ui.fac." + panel;
+                    ct.bodyKey = "ui.fac." + panel + "_body";
+                    if (panel == "mission") ct.phases = "design,briefing";
+                    else if (panel == "ops_desk") ct.phases = "ops,report";
+                    else if (panel == "failures") ct.actionKey = "ui.hint.read";
+                }
+                // 標籤放在這席最上面那台螢幕的上方
+                var b = tops.TryGetValue(key, out var upper) ? upper.bounds : r.bounds;
+                var top = new Vector3(r.bounds.center.x, b.max.y + 0.14f, r.bounds.center.z);
+                Label(ctrl, ct.titleKey, top - ctrl.position, "tag", 7f).name = "Label_" + key;
+            }
 
-            // 南牆：失敗原因看板；北牆：儀表板大螢幕
-            var fb = WallScreen(art, fm, ctrl, "FailureBoard", "failures", new Vector3(16.5f, 2.6f, -RoomZ + 0.08f), 180f, new Vector2(3.6f, 2.25f), new Vector2Int(1024, 640));
-            var ft = fb.AddComponent<ConsoleTarget>();
-            ft.panel = "failures";
-            ft.titleKey = "ui.fac.failures";
-            ft.bodyKey = "ui.fac.failures_body";
-            ft.actionKey = "ui.hint.read";
-            fb.AddComponent<BoxCollider>().size = new Vector3(3.7f, 2.3f, 0.12f);
-            WallScreen(art, fm, ctrl, "DashboardWall", "dashboard", new Vector3(17f, 3.0f, RoomZ - 0.08f), 0f, new Vector2(5f, 2.8f), new Vector2Int(1280, 720));
+            // 電話：電話席的桌面左邊
+            if (anchors.TryGetValue("phone", out var pa))
+            {
+                var phone = Facing(ctrl, "Phone", pa, ScreenOf(screens, "phone"));
+                Box("Base", phone, new Vector3(-0.3f, 0.05f, 0.05f), new Vector3(0.3f, 0.1f, 0.22f), fm.red);
+                Box("Handset", phone, new Vector3(-0.3f, 0.13f, 0.05f), new Vector3(0.36f, 0.06f, 0.08f), fm.red);
+            }
+
+            // 發射鈕：中控台前方正中央的獨立發射台，每一席都面向它
+            if (anchors.TryGetValue("launch", out var la))
+            {
+                var launch = BuildUtil.Group("LaunchButton", ctrl);
+                launch.position = la.position;
+                var cyl = HiCylinder();
+                MeshObj("HazardRing", launch, Annulus("Ring_0.36_0.46", 0.36f, 0.46f), fm.hazard, new Vector3(0, 0.003f, 0), 1f);
+                MeshObj("Guard", launch, Annulus("Ring_0.2_0.27", 0.2f, 0.27f), fm.hazard, new Vector3(0, 0.004f, 0), 1f);
+                var btn = MeshObj("Button", launch, cyl, fm.red, new Vector3(0, 0.04f, 0), 1f);
+                btn.transform.localScale = new Vector3(0.34f, 0.04f, 0.34f);
+                // 一個膠囊碰撞體包住整座台：擋人，也讓準星對到台子任何地方都算
+                var cc = launch.gameObject.AddComponent<CapsuleCollider>();
+                cc.center = new Vector3(0, -0.45f, 0);
+                cc.radius = 0.62f;
+                cc.height = 1.2f;
+                var lt = launch.gameObject.AddComponent<ConsoleTarget>();
+                lt.panel = "launch";
+                lt.titleKey = "ui.fac.launch";
+                lt.bodyKey = "ui.fac.launch_body";
+                lt.actionKey = "ui.hint.launch";
+                lt.phases = "design";
+                lt.glow = btn.GetComponent<Renderer>();
+                Label(launch, "ui.fac.launch", new Vector3(0, 0.75f, 0), "sign", 16f);
+                BuildUtil.Light("LaunchGlow", LightType.Point, new Color(1f, 0.25f, 0.15f), 2.5f, la.position + Vector3.up * 0.5f, Quaternion.identity, 3.5f, LightShadows.None, ctrl);
+                var spot = BuildUtil.Light("LaunchSpot", LightType.Spot, new Color(1f, 0.82f, 0.75f), 30f, new Vector3(la.position.x, 6.6f, la.position.z), Quaternion.Euler(90, 0, 0), 9f, LightShadows.None, ctrl);
+                spot.spotAngle = 28f;
+                spot.innerSpotAngle = 14f;
+            }
+
+            // 燈：中控台上方暖色主光、後排補光、影像牆的藍光溢出
+            var key0 = BuildUtil.Light("ConsoleKey", LightType.Spot, new Color(1f, 0.88f, 0.72f), 42f, new Vector3(21.5f, 6.6f, 0), Quaternion.Euler(90, 0, 0), 12f, LightShadows.None, ctrl);
+            key0.spotAngle = 120f; key0.innerSpotAngle = 70f;
+            var key1 = BuildUtil.Light("BackFill", LightType.Spot, new Color(0.85f, 0.9f, 1f), 18f, new Vector3(15.5f, 6.6f, 0), Quaternion.Euler(90, 0, 0), 10f, LightShadows.None, ctrl);
+            key1.spotAngle = 120f; key1.innerSpotAngle = 60f;
+            BuildUtil.Light("ScreenSpill", LightType.Point, new Color(0.35f, 0.6f, 1f), 14f, new Vector3(29f, 3.4f, 0), Quaternion.identity, 16f, LightShadows.None, ctrl);
+        }
+
+        static Renderer ScreenOf(List<Renderer> screens, string key) => screens.Find(s => s.gameObject.name == "Screen_" + key);
+
+        /// <summary>放在錨點上、局部 +Z 朝向螢幕（操作員面對的方向）的空物件。</summary>
+        static Transform Facing(Transform parent, string name, Transform anchor, Renderer screen)
+        {
+            var t = BuildUtil.Group(name, parent);
+            t.position = anchor.position;
+            var fwd = screen != null ? screen.bounds.center - anchor.position : Vector3.right;
+            fwd.y = 0;
+            t.rotation = Quaternion.LookRotation(fwd.normalized, Vector3.up);
+            return t;
         }
 
         // ---------------- 大廳 ----------------
