@@ -18,6 +18,34 @@
       "title": "Wikipedia: Rocket Lab Electron; NASA SST-SoA Table 10-1; Spaceflight Now (CAPSTONE, 2020)",
       "url": "https://en.wikipedia.org/wiki/Rocket_Lab_Electron",
       "note": "sourced: LEO 300 kg (vendor; NASA SoA lists 200), 500 km SSO 200 kg, about US$7.5M, 95 of 99 launches successful, fairing 1.2 m. CAPSTONE 25 kg to the Moon (with Photon kick stage). estimate: 150 kg to 700 km SSO, 9-month lead time"
+    },
+    "flight": {
+      "stages": 3,
+      "ascent": [
+        { "id": "mach1", "t": 60 },
+        { "id": "maxq", "t": 71 },
+        { "id": "meco", "t": 149 },
+        { "id": "stage_sep", "t": 153 },
+        { "id": "ses", "t": 156 },
+        { "id": "fairing", "t": 188 },
+        { "id": "battery_swap", "t": 412 },
+        { "id": "seco", "t": 567 }
+      ],
+      "orbits": {
+        "default": [
+          { "id": "upper_sep", "t": 571, "call": "ui.launch.call.kick_sep" },
+          { "id": "upper_ignite", "t": 1860, "call": "ui.launch.call.kick_ignite" },
+          { "id": "upper_cutoff", "t": 2020, "call": "ui.launch.call.kick_cutoff" },
+          { "id": "deploy", "t": 2025 }
+        ]
+      },
+      "sources": [
+        {
+          "title": "NASA Small Satellite blog: Rocket Lab TROPICS timeline of events (2023-05-25)",
+          "url": "https://www.nasa.gov/blogs/smallsatellites/2023/05/25/rocket-lab-tropics-timeline-of-events-for-todays-launch/",
+          "note": "sourced (page says all times approximate): supersonic T+1:00, Max-Q T+1:11, MECO T+2:29, stage separation T+2:33, stage 2 ignition T+2:36, fairing T+3:08, battery hot swap T+6:52, SECO T+9:27, kick stage separation T+9:31, Curie ignition T+31:00, cutoff T+33:40, payload deployed ~T+33:45. estimate: the same profile is used for every orbit"
+        }
+      ]
     }
   },
   {
@@ -39,6 +67,52 @@
       "title": "SpaceX Capabilities & Services (2025 snapshot); Wikipedia: Falcon 9",
       "url": "http://web.archive.org/web/20250629020031/https://www.spacex.com/media/Capabilities&Services.pdf",
       "note": "sourced: standard price $69.85M, GTO 8,300 kg, reusable LEO 17,400 kg, 698 of 701 successful, 5.2 m fairing. derived: GEO 4,600 kg = GTO x exp(-1.8 km/s / (320 s x g0)) with the satellite's own kick motor. estimate: SSO 11,000 kg, TLI ~5,000 kg -> lunar orbit 3,800 kg, 18-month lead time"
+    },
+    "flight": {
+      "stages": 2,
+      "ascent": [
+        { "id": "maxq", "t": 74 },
+        { "id": "meco", "t": 153 },
+        { "id": "stage_sep", "t": 156 },
+        { "id": "ses", "t": 163 },
+        { "id": "fairing", "t": 208 },
+        { "id": "seco", "t": 487 }
+      ],
+      "orbits": {
+        "leo_400": [
+          { "id": "deploy", "t": 720 }
+        ],
+        "sso_700": [
+          { "id": "restart", "t": 3040 },
+          { "id": "seco2", "t": 3052 },
+          { "id": "deploy", "t": 3300 }
+        ],
+        "geo": [
+          { "id": "restart", "t": 1590 },
+          { "id": "seco2", "t": 1650 },
+          { "id": "deploy", "t": 1950 }
+        ],
+        "llo_100": [
+          { "id": "restart", "t": 2420 },
+          { "id": "seco2", "t": 2700 },
+          { "id": "deploy", "t": 2900 }
+        ],
+        "default": [
+          { "id": "deploy", "t": 720 }
+        ]
+      },
+      "sources": [
+        {
+          "title": "Spaceflight Now: Timeline for Falcon 9 launch of Starlink satellites (2019)",
+          "url": "https://spaceflightnow.com/2019/11/11/launch-timeline-for-falcon-9-launch-of-starlink-satellites/",
+          "note": "sourced: Max-Q T+1:14, MECO T+2:33, stage separation T+2:36, second stage ignition T+2:43"
+        },
+        {
+          "title": "Spaceflight Now: Timeline for Falcon 9's launch of the GPS 3 SV03 spacecraft (2020)",
+          "url": "https://spaceflightnow.com/?p=46045",
+          "note": "sourced: fairing jettison T+3:28, SECO-1 T+8:07. estimate: post-SECO profiles per orbit (LEO direct ~T+12 min like Dragon cargo; SSO two-burn ~T+55 min; GTO ~T+32 min; lunar TLI ~T+48 min like IM-1, 2024)"
+        }
+      ]
     }
   },
   {
@@ -60,6 +134,49 @@
       "title": "SpaceX Capabilities & Services (2021 snapshot); Wikipedia: Falcon Heavy",
       "url": "https://en.wikipedia.org/wiki/Falcon_Heavy",
       "note": "sourced: LEO 63,800 kg, GTO 26,700 kg, $97M (2022), 14 of 14 successful. derived: reliability 0.94 = (14+1)/(14+2) (Laplace rule: few flights = more uncertainty); GEO 15,000 kg from GTO with own kick; lunar orbit 12,200 kg from ~16 t TLI. estimate: SSO 40,000 kg, 30-month lead time"
+    },
+    "flight": {
+      "stages": 2,
+      "ascent": [
+        { "id": "maxq", "t": 67 },
+        { "id": "booster_cutoff", "t": 150 },
+        { "id": "booster_sep", "t": 154 },
+        { "id": "meco", "t": 185 },
+        { "id": "stage_sep", "t": 188 },
+        { "id": "ses", "t": 195 },
+        { "id": "fairing", "t": 225 },
+        { "id": "seco", "t": 473 }
+      ],
+      "orbits": {
+        "leo_400": [
+          { "id": "deploy", "t": 720 }
+        ],
+        "sso_700": [
+          { "id": "restart", "t": 3040 },
+          { "id": "seco2", "t": 3052 },
+          { "id": "deploy", "t": 3300 }
+        ],
+        "geo": [
+          { "id": "restart", "t": 1590 },
+          { "id": "seco2", "t": 1650 },
+          { "id": "deploy", "t": 1950 }
+        ],
+        "llo_100": [
+          { "id": "restart", "t": 2420 },
+          { "id": "seco2", "t": 2700 },
+          { "id": "deploy", "t": 2900 }
+        ],
+        "default": [
+          { "id": "deploy", "t": 720 }
+        ]
+      },
+      "sources": [
+        {
+          "title": "Spaceflight Now: Launch timeline for Falcon Heavy's second flight (2019)",
+          "url": "https://spaceflightnow.com/2019/04/10/launch-timeline-for-falcon-heavys-second-flight/",
+          "note": "sourced: side booster cutoff T+2:30, booster separation T+2:34. Europa Clipper (2024): Max-Q T+1:07, SECO-1 T+7:53. estimate: center core MECO ~T+3:05, fairing ~T+3:45; post-SECO profiles as Falcon 9"
+        }
+      ]
     }
   },
   {
@@ -82,6 +199,35 @@
       "title": "OCO launch press kit (NASA/JPL 2009); Spaceflight Now (2010, 2012); OCO Mishap Investigation summary",
       "url": "https://www.jpl.nasa.gov/news/press_kits/oco-launch.pdf",
       "note": "sourced: up to 1,350 kg to LEO; 'six successful missions... 86-percent success rate'; launch contract ~$70M; 63-inch (1.6 m) fairing. estimate: ~800 kg to 705 km SSO, 24-month lead time"
+    },
+    "flight": {
+      "stages": 4,
+      "ascent": [
+        { "id": "maxq", "t": 55 },
+        { "id": "meco", "t": 84, "call": "ui.launch.call.stage0_burnout" },
+        { "id": "stage_sep", "t": 89 },
+        { "id": "ses", "t": 90, "call": "ui.launch.call.stage_n_ignite" },
+        { "id": "upper_cutoff", "t": 163, "call": "ui.launch.call.stage_n_burnout" },
+        { "id": "fairing", "t": 178 },
+        { "id": "upper_sep", "t": 181, "call": "ui.launch.call.stage_n_sep" },
+        { "id": "upper_ignite", "t": 183, "call": "ui.launch.call.stage_n_ignite" },
+        { "id": "upper_cutoff", "t": 256, "call": "ui.launch.call.stage_n_burnout" },
+        { "id": "upper_sep", "t": 320, "call": "ui.launch.call.stage_n_sep" },
+        { "id": "upper_ignite", "t": 708, "call": "ui.launch.call.stage_n_ignite" },
+        { "id": "seco", "t": 780 }
+      ],
+      "orbits": {
+        "default": [
+          { "id": "deploy", "t": 785 }
+        ]
+      },
+      "sources": [
+        {
+          "title": "Universe Today: OCO press conference notes (2009); Spaceflight Now / NASA: Glory launch (2011)",
+          "url": "https://www.universetoday.com/articles/oco-press-conference-notes-fairing-did-not-separate",
+          "note": "sourced: four solid stages (Castor 120 stage 0, Orion 50S XL, Orion 50 XL, Orion 38); stage 0 burns about 1 min 24 s and separates 5 s later; Glory's fairing should have separated at T+2:58; Glory planned separation T+13:05 after a 72 s final burn. estimate: Max-Q, intermediate stage burnout and separation times"
+        }
+      ]
     }
   },
   {
@@ -104,6 +250,34 @@
       "title": "OCO-2 launch press kit (NASA/JPL 2014); NASA contract release C12-028 (2012)",
       "url": "https://www.jpl.nasa.gov/news/press_kits/oco2-launch-press-kit.pdf",
       "note": "sourced: 149 successful launches, 98% success rate; 10-ft (3 m) fairing. derived: ~$137M = $412M / 3 missions (SMAP, OCO-2, JPSS-1). estimate: ~1,500 kg to 705 km SSO for the 7320 (the 6,100 kg quoted in the press kit is the family maximum), 2,800 kg to 400 km"
+    },
+    "flight": {
+      "stages": 2,
+      "ascent": [
+        { "id": "mach1", "t": 36 },
+        { "id": "maxq", "t": 50 },
+        { "id": "booster_cutoff", "t": 64 },
+        { "id": "booster_sep", "t": 99 },
+        { "id": "meco", "t": 264 },
+        { "id": "stage_sep", "t": 272 },
+        { "id": "ses", "t": 278 },
+        { "id": "fairing", "t": 301 },
+        { "id": "seco", "t": 621 }
+      ],
+      "orbits": {
+        "default": [
+          { "id": "restart", "t": 3050 },
+          { "id": "seco2", "t": 3062 },
+          { "id": "deploy", "t": 3375 }
+        ]
+      },
+      "sources": [
+        {
+          "title": "ULA: Delta II OCO-2 mission booklet (Delta II 7320-10, 2014)",
+          "url": "https://www.ulalaunch.com/docs/default-source/news-items/dii_oco2_mob.pdf",
+          "note": "sourced: three 40 in. x 42 ft solid motors; Mach 1 T+35.7 s, Max-Q 49.7 s, SRM burnout 64.0 s, SRM jettison 99.0 s, MECO 264.2 s, first-stage separation 272.2 s, second-stage ignition 277.7 s, fairing jettison 301.0 s, SECO-1 620.5 s, restart 3050.0 s, SECO-2 3062.4 s, OCO-2 separation 3375.0 s (T+56:15)"
+        }
+      ]
     }
   }
 ]

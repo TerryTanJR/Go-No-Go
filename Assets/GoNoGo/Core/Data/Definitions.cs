@@ -178,6 +178,31 @@ namespace GoNoGo.Core
         public string FlightRecord { get; set; } = "";
         public string Model { get; set; } = "";
         public SourceRef Source { get; set; } = new SourceRef();
+        /// <summary>真實的飛行時間表（發射演出用）。</summary>
+        public FlightProfileDef Flight { get; set; } = new FlightProfileDef();
+    }
+
+    /// <summary>一個飛行事件：幾秒（T+）發生什麼。id 見 <see cref="LaunchTimeline"/>。</summary>
+    public sealed class FlightEventDef
+    {
+        public string Id { get; set; } = "";
+        public double T { get; set; }
+        /// <summary>播報用的字串鍵（空白 = 依 id 的預設播報）。</summary>
+        public string Call { get; set; } = "";
+    }
+
+    /// <summary>
+    /// 火箭的飛行時間表：爬升段（到第一次關機 SECO-1 為止，各軌道共用），
+    /// 以及依目標軌道的後半段（滑行、再點火、踢昇級、衛星分離）。數字取自真實任務的公開時間表。
+    /// </summary>
+    public sealed class FlightProfileDef
+    {
+        public List<FlightEventDef> Ascent { get; set; } = new List<FlightEventDef>();
+        /// <summary>軌道 id → 入軌後的事件；沒有列出的軌道用 default。</summary>
+        public Dictionary<string, List<FlightEventDef>> Orbits { get; set; } = new Dictionary<string, List<FlightEventDef>>();
+        /// <summary>火箭的節數（不含助推器），演出用：Taurus XL 4 節、Electron 2 節 + 踢昇級算 3。</summary>
+        public int Stages { get; set; } = 2;
+        public List<SourceRef> Sources { get; set; } = new List<SourceRef>();
     }
 
     public sealed class RequirementDef

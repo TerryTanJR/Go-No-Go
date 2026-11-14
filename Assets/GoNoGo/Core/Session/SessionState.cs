@@ -58,6 +58,23 @@ namespace GoNoGo.Core
     }
 
     /// <summary>
+    /// 多人的 Go/No-Go 點名：有人按發射就開始，每個人各喊 GO 或 NO-GO，全員 GO 才真的發射。
+    /// 有人喊 NO-GO 就 HOLD（回到設計）。點名中整合台和中控室的設定都鎖住。
+    /// </summary>
+    public sealed class GoPoll
+    {
+        public int Id { get; set; }
+        public int CalledBy { get; set; }
+        /// <summary>玩家 id → true = GO、false = NO-GO。</summary>
+        public Dictionary<int, bool> Votes { get; set; } = new Dictionary<int, bool>();
+        /// <summary>結束後：全員 GO（發射）或 HOLD。</summary>
+        public bool Done { get; set; }
+        public bool Go { get; set; }
+        /// <summary>HOLD 時是誰喊了 NO-GO（0 = 沒有）。</summary>
+        public int NoGoBy { get; set; }
+    }
+
+    /// <summary>
     /// 一局的完整狀態（純資料，可以整包序列化）。多人時房主持有正本，每次改變後把整包廣播給其他人；
     /// 評估、模擬結果都不放在這裡，各台電腦用一樣的輸入自己算（核心是決定性的）。
     /// </summary>
@@ -82,6 +99,20 @@ namespace GoNoGo.Core
         public List<CallRecord> Calls { get; set; } = new List<CallRecord>();
         public List<LaunchRecord> Launches { get; set; } = new List<LaunchRecord>();
 
+        /// <summary>嚴格分工（房主在大廳開）：組裝區的人不能操作中控室，反過來也一樣；設計階段兩區之間的門鎖住。</summary>
+        public bool StrictRoles { get; set; }
+        /// <summary>環境測試（振動、熱真空）的紀錄，最新的在最後。發射前，整合台上的設計一定要測過。</summary>
+        public List<TestRecord> Tests { get; set; } = new List<TestRecord>();
+        /// <summary>進行中的 Go/No-Go 點名（null = 沒有）。</summary>
+        public GoPoll Poll { get; set; }
+        /// <summary>上一次點名的結果（HUD 顯示 HOLD 的原因）。</summary>
+        public GoPoll LastPoll { get; set; }
+        public int Polls { get; set; }
+        /// <summary>發射演出的播放速度（1、5、10、50 倍），多人時大家一起。</summary>
+        public int LaunchSpeed { get; set; } = 1;
+        /// <summary>有人按了「略過」：直接看結果。</summary>
+        public bool LaunchSkipped { get; set; }
+
         /// <summary>營運：目前第幾回合、各事件的判斷與操作、這回合是否已結算。</summary>
         public int OpsTurn { get; set; }
         public bool TurnResolved { get; set; }
@@ -89,6 +120,7 @@ namespace GoNoGo.Core
 
         [JsonIgnore] public LaunchRecord LastLaunch => Launches.Count > 0 ? Launches[Launches.Count - 1] : null;
         [JsonIgnore] public int FailedLaunches => Launches.Count(l => !l.Reached);
+        [JsonIgnore] public TestRecord LastTest => Tests.Count > 0 ? Tests[Tests.Count - 1] : null;
 
         public PlayerInfo Player(int id) => Players.FirstOrDefault(p => p.Id == id);
         public string HeldBy(int player) => Held.TryGetValue(player, out var id) ? id : null;

@@ -19,6 +19,155 @@ namespace GoNoGo.Core.Tests
         }
 
         void Ok(SessionState s, Command c) => Assert.That(SessionRules.Apply(s, _data, c), Is.EqualTo(SessionRules.Ok), c.Type + " " + c.A);
+        string Try(SessionState s, CommandType t, int player, string a = "", int n = 0) => SessionRules.Apply(s, _data, Command.Of(t, player, a, n));
+
+        /// <summary>做完環境測試再發射（發射前一定要測過目前的設計）。</summary>
+        void Fly(SessionState s)
+        {
+            Ok(s, Command.Of(CommandType.RunTest, 1));
+            Ok(s, Command.Of(CommandType.Launch, 1));
+        }
+
+        /// <summary>兩人房：1 號在組裝區、2 號在中控室，已進入設計階段。</summary>
+        SessionState Duo(bool strict)
+        {
+            var s = SessionRules.NewSession(_data, "earth_observation", "engineer", false, true);
+            Ok(s, Command.Of(CommandType.Join, 1));
+            Ok(s, Command.Of(CommandType.Join, 2));
+            if (strict) Ok(s, Command.Of(CommandType.SetStrict, 1, "", 1));
+            Ok(s, Command.Of(CommandType.StartMission, 1));
+            Ok(s, Command.Of(CommandType.BeginDesign, 1));
+            return s;
+        }
+
+        [Test]
+        public void LaunchNeedsAnEnvironmentalTestOfTheCurrentDesign()
+        {
+            var s = Solo();
+            Assert.That(Try(s, CommandType.Launch, 1), Is.EqualTo("err.untested"));
+            Ok(s, Command.Of(CommandType.RunTest, 1));
+            Assert.That(s.LastTest.Findings.Select(f => f.Test).Distinct(), Is.EquivalentTo(new[] { EnvTests.Vibration, EnvTests.Thermal }));
+            // 換了零件（或軌道、火箭）就要重測；年數、地面站不用
+            Ok(s, Command.Of(CommandType.SetYears, 1, "", 5));
+            Ok(s, Command.Of(CommandType.SetGroundStation, 1, "gs_6"));
+            Assert.That(EnvTests.IsCurrent(s), Is.True);
+            Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
+            Ok(s, Command.Of(CommandType.Install, 1));
+            Assert.That(Try(s, CommandType.Launch, 1), Is.EqualTo("err.retest"));
+            Fly(s);
+            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch));
+        }
+
+        [Test]
+        public void ThermalVacuumCatchesABatteryThatDiesInEclipse()
+        {
+            var s = Solo();
+            // 地球觀測的預設設計用 80 Wh 電池：找一個撐不過地影的組合（最小電池 + 最耗電的儀器）
+            var hungry = _data.Parts.Where(p => p.Category == PartCategory.Instrument).OrderByDescending(p => p.PowerW).First();
+            s.Bench.Parts[PartCategory.Battery] = "batt_small";
+            s.Bench.Instruments = new System.Collections.Generic.List<string> { hungry.Id };
+            var ev = Evaluator.EvaluateDesign(s.Bench, _data, s.DifficultyId, false);
+            Assume.That(ev.Power.ActualDod, Is.GreaterThan(1.0), "需要一組撐不過地影的設計");
+            var f = EnvTests.Run(s.Bench, _data, s.DifficultyId);
+            Assert.That(f.Single(x => x.Test == EnvTests.Thermal && x.Level == TestLevel.Fail).Code, Is.EqualTo("test.tv.battery_dead"));
+            // 和發射結果一致：入軌後失效
+            Fly(s);
+            Assert.That(new[] { LaunchOutcome.DeadOnOrbit, LaunchOutcome.Failure }, Has.Member(s.LastLaunch.Outcome));
+        }
+
+        [Test]
+        public void MultiplayerLaunchNeedsEveryoneToCallGo()
+        {
+            var s = Duo(false);
+            Ok(s, Command.Of(CommandType.RunTest, 1));
+            Ok(s, Command.Of(CommandType.Launch, 2));
+            Assert.That(s.Poll, Is.Not.Null);
+            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design), "點名還沒結束");
+            // 點名中不能改設計
+            Assert.That(Try(s, CommandType.SetYears, 2, "", 4), Is.EqualTo("err.poll_active"));
+            Assert.That(Try(s, CommandType.Launch, 2), Is.EqualTo("err.poll_active"));
+            Ok(s, Command.Of(CommandType.Vote, 2, "", 1));
+            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design));
+            Ok(s, Command.Of(CommandType.Vote, 1, "", 0));
+            Assert.That(s.Poll, Is.Null);
+            Assert.That(s.LastPoll.Go, Is.False);
+            Assert.That(s.LastPoll.NoGoBy, Is.EqualTo(1));
+            Assert.That(s.Launches, Is.Empty, "有人 NO-GO：HOLD");
+
+            // 第二次：全員 GO 才發射
+            Ok(s, Command.Of(CommandType.Launch, 2));
+            Ok(s, Command.Of(CommandType.Vote, 1, "", 1));
+            Ok(s, Command.Of(CommandType.Vote, 2, "", 1));
+            Assert.That(s.LastPoll.Go, Is.True);
+            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch));
+            Assert.That(s.Launches.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void SomeoneLeavingDuringThePollCanCompleteIt()
+        {
+            var s = Duo(false);
+            Ok(s, Command.Of(CommandType.RunTest, 1));
+            Ok(s, Command.Of(CommandType.Launch, 2));
+            Ok(s, Command.Of(CommandType.Vote, 2, "", 1));
+            Ok(s, Command.Of(CommandType.Leave, 1));
+            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch), "剩下的人都喊 GO 了");
+        }
+
+        [Test]
+        public void StrictRolesSplitTheWork()
+        {
+            Assert.That(Try(Duo(false), CommandType.SetStrict, 1, "", 1), Is.EqualTo("err.phase"), "開始之後不能改");
+            var lobby = SessionRules.NewSession(_data, "earth_observation", "engineer", false, true);
+            Ok(lobby, Command.Of(CommandType.Join, 1));
+            Ok(lobby, Command.Of(CommandType.Join, 2));
+            Assert.That(Try(lobby, CommandType.SetStrict, 2, "", 1), Is.EqualTo("err.host_only"));
+            Ok(lobby, Command.Of(CommandType.SetStrict, 1, "", 1));
+            Ok(lobby, Command.Of(CommandType.SetStation, 2, "", 0));
+            Assert.That(Try(lobby, CommandType.StartMission, 1), Is.EqualTo("err.strict_need_both"));
+
+            var s = Duo(true);
+            // 1 號在組裝區：不能用中控室
+            Assert.That(Try(s, CommandType.SetLauncher, 1, "falcon9"), Is.EqualTo("err.strict_control"));
+            Assert.That(Try(s, CommandType.Call, 1, "engineering", 0), Is.EqualTo("err.strict_control"));
+            Assert.That(Try(s, CommandType.Launch, 1), Is.EqualTo("err.strict_control"));
+            // 2 號在中控室：不能拿零件、測試
+            Assert.That(Try(s, CommandType.Pick, 2, "batt_large"), Is.EqualTo("err.strict_assembly"));
+            Assert.That(Try(s, CommandType.RunTest, 2), Is.EqualTo("err.strict_assembly"));
+            Ok(s, Command.Of(CommandType.RunTest, 1));
+            Ok(s, Command.Of(CommandType.SetYears, 2, "", 3));
+            Ok(s, Command.Of(CommandType.Launch, 2));
+            // 點名每個人都可以喊
+            Ok(s, Command.Of(CommandType.Vote, 1, "", 1));
+            Ok(s, Command.Of(CommandType.Vote, 2, "", 1));
+            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch));
+
+            // 有一區沒人了：自動取消嚴格分工
+            var s2 = Duo(true);
+            Ok(s2, Command.Of(CommandType.Leave, 2));
+            Assert.That(s2.StrictRoles, Is.False);
+            Ok(s2, Command.Of(CommandType.SetLauncher, 1, "falcon9"));
+        }
+
+        [Test]
+        public void LaunchSpeedAndSkipAreShared()
+        {
+            var s = Solo();
+            Assert.That(Try(s, CommandType.SetLaunchSpeed, 1, "", 10), Is.EqualTo("err.phase"));
+            Fly(s);
+            Assert.That(s.LaunchSpeed, Is.EqualTo(1));
+            Ok(s, Command.Of(CommandType.SetLaunchSpeed, 1, "", 10));
+            Assert.That(Try(s, CommandType.SetLaunchSpeed, 1, "", 7), Is.EqualTo("err.unknown"));
+            Ok(s, Command.Of(CommandType.SkipLaunch, 1));
+            Assert.That(s.LaunchSkipped, Is.True);
+            Ok(s, Command.Of(CommandType.FinishLaunch, 1));
+            if (s.Phase == SessionPhase.Design)
+            {
+                Fly(s);
+                Assert.That(s.LaunchSpeed, Is.EqualTo(1), "每次發射重設");
+                Assert.That(s.LaunchSkipped, Is.False);
+            }
+        }
 
         [Test]
         public void PickInstallReportMovesPartsThroughTheBay()
@@ -99,7 +248,7 @@ namespace GoNoGo.Core.Tests
             // 沒回報：中控室看到的是小電池，實際裝的是大電池
             Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
             Ok(s, Command.Of(CommandType.Install, 1));
-            Ok(s, Command.Of(CommandType.Launch, 1));
+            Fly(s);
             Assert.That(s.LastLaunch.Design.Get(PartCategory.Battery), Is.EqualTo("batt_large"));
             Assert.That(s.Reported.Get(PartCategory.Battery), Is.EqualTo("batt_small"));
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch));
@@ -111,7 +260,7 @@ namespace GoNoGo.Core.Tests
             var s = Solo();
             // 電子號到不了地球同步軌道：一定失敗
             Ok(s, Command.Of(CommandType.SetOrbit, 1, "geo"));
-            Ok(s, Command.Of(CommandType.Launch, 1));
+            Fly(s);
             Assert.That(s.LastLaunch.Reached, Is.False, s.LastLaunch.ReasonCode);
             Ok(s, Command.Of(CommandType.FinishLaunch, 1));
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design));
@@ -135,7 +284,7 @@ namespace GoNoGo.Core.Tests
             {
                 s.Bench.MissionYears = y;
                 if (s.Phase == SessionPhase.Launch) Ok(s, Command.Of(CommandType.FinishLaunch, 1));
-                Ok(s, Command.Of(CommandType.Launch, 1));
+                Fly(s);
             }
             Assume.That(s.LastLaunch.Reached);
             Ok(s, Command.Of(CommandType.FinishLaunch, 1));
@@ -166,7 +315,7 @@ namespace GoNoGo.Core.Tests
             var s = SessionRules.NewSession(_data, "earth_observation", "tutorial", true, false);
             Ok(s, Command.Of(CommandType.Join, 1));
             Ok(s, Command.Of(CommandType.BeginDesign, 1));
-            Ok(s, Command.Of(CommandType.Launch, 1));
+            Fly(s);
             Ok(s, Command.Of(CommandType.FinishLaunch, 1));
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Ops));
             var e = SessionRules.CurrentEvent(s, _data);
@@ -179,7 +328,7 @@ namespace GoNoGo.Core.Tests
         {
             var s = Solo("hist_oco");
             Assert.That(SessionRules.Apply(s, _data, Command.Of(CommandType.SetLauncher, 1, "delta_ii")), Is.EqualTo("err.locked"));
-            Ok(s, Command.Of(CommandType.Launch, 1));
+            Fly(s);
             Assert.That(s.LastLaunch.Outcome, Is.EqualTo(LaunchOutcome.FairingFailure));
             Ok(s, Command.Of(CommandType.FinishLaunch, 1));
             Ok(s, Command.Of(CommandType.SetLauncher, 1, "delta_ii"));

@@ -14,6 +14,8 @@ namespace GoNoGo.Core
         SetOrbit, SetLauncher, SetGroundStation, SetYears, Call, Launch, FinishLaunch,
         // 營運
         Judge, Act, EndTurn, NextTurn,
+        // 團隊合作（加在最後，舊的編號不變）
+        SetStrict, RunTest, Vote, SetLaunchSpeed, SkipLaunch,
     }
 
     /// <summary>
@@ -91,8 +93,45 @@ namespace GoNoGo.Core
             return r;
         }
 
+        /// <summary>房主的玩家編號（多人時 = Netcode clientId 0 + 1；個人模式只有 1）。</summary>
+        public const int HostPlayer = 1;
+        /// <summary>發射演出可以選的播放速度。</summary>
+        public static readonly int[] LaunchSpeeds = { 1, 5, 10, 50 };
+
+        /// <summary>組裝區的操作（嚴格分工時只有組裝區的人能做）。</summary>
+        public static bool IsAssemblyCommand(CommandType t) =>
+            t == CommandType.Pick || t == CommandType.Drop || t == CommandType.Install || t == CommandType.Report || t == CommandType.RunTest;
+
+        /// <summary>中控室的操作（嚴格分工時只有中控室的人能做）。</summary>
+        public static bool IsControlCommand(CommandType t) =>
+            t == CommandType.SetOrbit || t == CommandType.SetLauncher || t == CommandType.SetGroundStation || t == CommandType.SetYears
+            || t == CommandType.Call || t == CommandType.Launch;
+
+        /// <summary>嚴格分工是否正在限制（只有設計前後：簡報與設計階段；營運時全員都在中控室）。</summary>
+        public static bool StrictNow(this SessionState s) =>
+            s.Multiplayer && s.StrictRoles && (s.Phase == SessionPhase.Briefing || s.Phase == SessionPhase.Design);
+
+        /// <summary>這個玩家現在能不能做這個操作（嚴格分工）。回傳 Ok 或原因字串鍵。</summary>
+        public static string RoleCheck(SessionState s, int player, CommandType t)
+        {
+            if (!s.StrictNow()) return Ok;
+            var p = s.Player(player);
+            if (p == null) return Ok;
+            if (IsAssemblyCommand(t) && p.Station != Station.Assembly) return "err.strict_assembly";
+            if (IsControlCommand(t) && p.Station != Station.Control) return "err.strict_control";
+            return Ok;
+        }
+
+        /// <summary>點名中不能改設計（要改就喊 NO-GO）。</summary>
+        static bool ChangesDesign(CommandType t) =>
+            t == CommandType.Install || t == CommandType.Report || t == CommandType.RunTest
+            || t == CommandType.SetOrbit || t == CommandType.SetLauncher || t == CommandType.SetGroundStation || t == CommandType.SetYears;
+
         static string ApplyInner(SessionState s, GameData data, Command c)
         {
+            var role = RoleCheck(s, c.Player, c.Type);
+            if (role != Ok) return role;
+            if (s.Poll != null && ChangesDesign(c.Type)) return "err.poll_active";
             switch (c.Type)
             {
                 case CommandType.Join:
@@ -103,6 +142,18 @@ namespace GoNoGo.Core
                 case CommandType.Leave:
                     s.Players.RemoveAll(p => p.Id == c.Player);
                     s.Held.Remove(c.Player);
+                    // 嚴格分工但有一區沒人了：取消限制，不然剩下的人永遠做不完
+                    if (s.StrictRoles && s.Phase != SessionPhase.Lobby && !BothStationsManned(s)) s.StrictRoles = false;
+                    if (s.Poll != null)
+                    {
+                        s.Poll.Votes.Remove(c.Player);
+                        CheckPoll(s, data);
+                    }
+                    return Ok;
+                case CommandType.SetStrict:
+                    if (s.Phase != SessionPhase.Lobby) return "err.phase";
+                    if (c.Player != HostPlayer) return "err.host_only";
+                    s.StrictRoles = c.N == 1;
                     return Ok;
                 case CommandType.SetLook:
                     var pl = s.Player(c.Player);
@@ -112,10 +163,13 @@ namespace GoNoGo.Core
                 case CommandType.SetStation:
                     var ps = s.Player(c.Player);
                     if (ps == null) return "err.no_player";
+                    // 嚴格分工時，開始之後位置就固定了
+                    if (s.StrictRoles && s.Phase != SessionPhase.Lobby) return "err.phase";
                     ps.Station = c.N == 1 ? Station.Control : Station.Assembly;
                     return Ok;
                 case CommandType.StartMission:
                     if (s.Phase != SessionPhase.Lobby) return "err.phase";
+                    if (s.StrictRoles && !BothStationsManned(s)) return "err.strict_need_both";
                     s.Phase = SessionPhase.Briefing;
                     return Ok;
                 case CommandType.BeginDesign:
@@ -154,7 +208,28 @@ namespace GoNoGo.Core
                     if (!s.Calls.Any(x => x.Department == dep.Id && x.LineId == lineId))
                         s.Calls.Add(new CallRecord { Department = dep.Id, LineId = lineId });
                     return Ok;
-                case CommandType.Launch: return Launch(s, data);
+                case CommandType.Launch: return RequestLaunch(s, data, c.Player);
+                case CommandType.Vote: return Vote(s, data, c.Player, c.N == 1);
+                case CommandType.RunTest:
+                    if (s.Phase != SessionPhase.Design) return "err.phase";
+                    s.Tests.Add(new TestRecord
+                    {
+                        N = (s.LastTest?.N ?? 0) + 1,
+                        Hash = EnvTests.Hash(s.Bench),
+                        By = c.Player,
+                        Findings = EnvTests.Run(s.Bench, data, s.DifficultyId),
+                    });
+                    while (s.Tests.Count > 6) s.Tests.RemoveAt(0);
+                    return Ok;
+                case CommandType.SetLaunchSpeed:
+                    if (s.Phase != SessionPhase.Launch) return "err.phase";
+                    if (Array.IndexOf(LaunchSpeeds, c.N) < 0) return "err.unknown";
+                    s.LaunchSpeed = c.N;
+                    return Ok;
+                case CommandType.SkipLaunch:
+                    if (s.Phase != SessionPhase.Launch) return "err.phase";
+                    s.LaunchSkipped = true;
+                    return Ok;
                 case CommandType.FinishLaunch:
                     if (s.Phase != SessionPhase.Launch) return "err.phase";
                     if (s.LastLaunch.Reached) StartOps(s, data);
@@ -208,6 +283,7 @@ namespace GoNoGo.Core
             {
                 // 從船上拆下來
                 if (s.DesignLocked(data)) return "err.locked";
+                if (s.Poll != null) return "err.poll_active";
                 if (part.Category == PartCategory.Instrument) s.Bench.Instruments.Remove(partId);
                 else s.Bench.Parts.Remove(part.Category);
             }
@@ -248,9 +324,68 @@ namespace GoNoGo.Core
             return Ok;
         }
 
+        static bool BothStationsManned(SessionState s) =>
+            s.Players.Any(p => p.Station == Station.Assembly) && s.Players.Any(p => p.Station == Station.Control);
+
+        /// <summary>現在能不能按發射（不含嚴格分工的檢查）。回傳 Ok 或原因。</summary>
+        public static string CanLaunch(SessionState s)
+        {
+            if (s.Phase != SessionPhase.Design) return "err.phase";
+            if (s.Poll != null) return "err.poll_active";
+            // 環境測試：整合台上目前的設計一定要測過（結果好壞不擋，由團隊自己判斷）
+            if (!EnvTests.IsCurrent(s)) return s.LastTest == null ? "err.untested" : "err.retest";
+            return Ok;
+        }
+
+        /// <summary>
+        /// 按下發射。個人模式直接發射；多人時開始 Go/No-Go 點名，全員 GO 才發射。
+        /// </summary>
+        static string RequestLaunch(SessionState s, GameData data, int player)
+        {
+            var why = CanLaunch(s);
+            if (why != Ok) return why;
+            if (!s.Multiplayer || s.Players.Count <= 1) return Launch(s, data);
+            s.Poll = new GoPoll { Id = ++s.Polls, CalledBy = player };
+            return Ok;
+        }
+
+        static string Vote(SessionState s, GameData data, int player, bool go)
+        {
+            if (s.Poll == null || s.Phase != SessionPhase.Design) return "err.no_poll";
+            if (s.Player(player) == null) return "err.no_player";
+            s.Poll.Votes[player] = go;
+            CheckPoll(s, data);
+            return Ok;
+        }
+
+        /// <summary>有人喊 NO-GO：HOLD；所有在場的人都喊 GO：發射。</summary>
+        static void CheckPoll(SessionState s, GameData data)
+        {
+            var poll = s.Poll;
+            if (poll == null) return;
+            var nogo = poll.Votes.Where(kv => !kv.Value).Select(kv => kv.Key).FirstOrDefault();
+            if (nogo != 0)
+            {
+                poll.Done = true;
+                poll.Go = false;
+                poll.NoGoBy = nogo;
+                s.LastPoll = poll;
+                s.Poll = null;
+                return;
+            }
+            if (s.Players.Count == 0 || !s.Players.All(p => poll.Votes.TryGetValue(p.Id, out var v) && v)) return;
+            poll.Done = true;
+            poll.Go = true;
+            s.LastPoll = poll;
+            s.Poll = null;
+            Launch(s, data);
+        }
+
         static string Launch(SessionState s, GameData data)
         {
             if (s.Phase != SessionPhase.Design) return "err.phase";
+            s.LaunchSpeed = 1;
+            s.LaunchSkipped = false;
             var design = s.Bench.Clone();
             int failed = s.FailedLaunches;
             int seed = design.StableHash();
