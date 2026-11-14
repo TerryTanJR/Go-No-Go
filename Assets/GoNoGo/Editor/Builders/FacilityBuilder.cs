@@ -1173,8 +1173,8 @@ namespace GoNoGo.EditorTools
             Box("DividerGlowS", g, new Vector3(12.04f, 4.2f, -7f), new Vector3(0.03f, 0.04f, 8.6f), lm.ctlGlow, shadows: false);
 
             // 北牆上的兩面旗：站名
-            Banner(g, "BannerN1", new Vector3(26f, 5.0f, 9f * CtrlS - 0.06f), CtlColor, "ui.area.control", lm.ctlGlow, 0f);
-            Banner(g, "BannerN2", new Vector3(31.5f, 5.0f, 9f * CtrlS - 0.06f), CtlColor, "ui.area.control", lm.ctlGlow, 0f);
+            Banner(g, "BannerN1", new Vector3(26f, 5.0f, 9f * CtrlS - 0.06f), CtlColor, null, lm.ctlGlow, 0f);
+            Banner(g, "BannerN2", new Vector3(31.5f, 5.0f, 9f * CtrlS - 0.06f), CtlColor, null, lm.ctlGlow, 0f);
 
             // 以上座標都是以 CtrlX0 = 12 寫的，整組平移到實際的中控室位置
             g.position += new Vector3(CtrlX0 - 12f, 0, 0);
@@ -1493,8 +1493,8 @@ namespace GoNoGo.EditorTools
                 if (Mathf.Abs(i) >= 3 && Mathf.Abs(i) <= 5) continue;
                 Box("Slat", lobby, new Vector3(i * 1.1f, 3.2f, LZ0 + 0.03f), new Vector3(0.5f, 5.6f, 0.08f), art.wallDark, shadows: false);
             }
-            Banner(lobby, "BannerA", new Vector3(-4.4f, 3.2f, LZ0 + 0.05f), AsmColor, "ui.area.assembly", lm.asmGlow);
-            Banner(lobby, "BannerC", new Vector3(4.4f, 3.2f, LZ0 + 0.05f), CtlColor, "ui.area.control", lm.ctlGlow);
+            Banner(lobby, "BannerA", new Vector3(-4.4f, 3.2f, LZ0 + 0.05f), AsmColor, null, lm.asmGlow);
+            Banner(lobby, "BannerC", new Vector3(4.4f, 3.2f, LZ0 + 0.05f), CtlColor, null, lm.ctlGlow);
             Label(lobby, "ui.lobby.window", new Vector3(0, 5.6f, LZ0 + 0.3f), "sign", 16f);
         }
 
@@ -1746,7 +1746,7 @@ namespace GoNoGo.EditorTools
             return _bannerLogo = m;
         }
 
-        /// <summary>牆上的旗子：深藍旗面、兩側隊色邊條、上緣發光、隊伍徽章，下面掛站名。yaw 180 = 朝北（掛在南牆），0 = 朝南（掛在北牆）。</summary>
+        /// <summary>牆上的旗子：深藍旗面、兩側隊色邊條、上緣發光、隊伍徽章；nameKey 為空就不掛字。yaw 180 = 朝北（掛在南牆），0 = 朝南（掛在北牆）。</summary>
         static void Banner(Transform parent, string name, Vector3 pos, Color col, string nameKey, Material glow, float yaw = 180f)
         {
             var mat = BuildUtil.Lit("M_Banner_" + name, new Color(0.04f, 0.07f, 0.17f), 0f, 0.3f, emission: col * 0.05f);
@@ -1760,7 +1760,7 @@ namespace GoNoGo.EditorTools
             Box("Top", g, new Vector3(0, 2.25f, 0), new Vector3(2.3f, 0.1f, 0.09f), glow, shadows: false);
             Box("Bottom", g, new Vector3(0, -2.2f, 0), new Vector3(2.2f, 0.06f, 0.07f), edge, shadows: false);
             Quad("Logo", g, new Vector3(0, 0.75f, f * 0.04f), Quaternion.Euler(0, yaw, 0), new Vector2(1.9f, 1.9f), BannerLogo());
-            Label(g, nameKey, new Vector3(0, -1.2f, f * 0.2f), "sign", 16f);
+            if (!string.IsNullOrEmpty(nameKey)) Label(g, nameKey, new Vector3(0, -1.2f, f * 0.2f), "sign", 16f);
         }
 
         // ---------------- 營運縮景（給大螢幕） ----------------
