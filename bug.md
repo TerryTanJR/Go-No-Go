@@ -6,6 +6,53 @@
 
 ---
 
+## BUG-002：沒有指定難度時，預設難度跟著清單順序變成學員
+
+- **嚴重度**：中（評價頁的預算數字錯；兩個核心測試失敗）
+- **狀態**：未修
+
+### 現象
+
+- 評價頁「花費 / 預算」那一行，不管這一局選哪個難度，預算都用學員的倍率（×1.5）算。例如工程師難度的「看顧地球」應該是 140 M$，會顯示 210 M$。（依程式推斷，還沒在遊戲裡實際看過。）
+- 核心測試失敗：
+  - `EvaluatorTests.BudgetIsDevelopmentLaunchAndOperations`：預期預算 140，實際 210。
+  - `SimulatorTests.CrossRuntimeFingerprint`：指紋從 `92B23DD720C0BC75` 變成別的值。
+  - `BalanceTests.HistoryRepeatsThenCanBeRewritten` 原本也因此失敗（預期 300.74，實際 451.11）；`feature/historical-missions` 讓歷史關卡的預算不乘難度倍率之後，這個已經通過。
+
+### 怎麼重現
+
+1. 跑 `tools/run-core-tests.sh`，上面兩個測試失敗。
+2. 遊戲裡：選工程師或任務主管難度玩完一局，到評價頁看「花費 / 預算」。
+
+### 驗證結果
+
+用 git worktree 在兩個版本各跑一次核心測試：
+
+| 版本 | 結果 |
+| --- | --- |
+| `87e8822`（`373320e` 的前一個） | 116 個全部通過 |
+| `373320e` feat: order difficulty menu easiest to hardest, recommend Cadet | 3 個失敗（就是上面三個） |
+
+### 原因
+
+- 核心程式在呼叫端沒有指定難度時，拿 `difficulty.json` 的**第一個難度**當預設：
+  - `Evaluator.EvaluateDesign`、`FixFinder`、`Scoring`、`Simulator`：`data.Difficulties.FirstOrDefault()`
+  - `SessionRules`：難度 id 找不到時用 `data.SelectableDifficulties.First()`
+- `373320e` 為了讓選單由易到難，把學員移到清單第一個，預設難度就從工程師變成學員。
+- 遊戲裡沒有傳難度的呼叫：
+  - `ReportScreen.cs`（評價頁的花費 / 預算）：**數字錯**。
+  - `OpsPanels.cs`（營運控制台的讀數）：讀數用到評估結果，有沒有受影響還沒確認。
+  - `LaunchDirector.cs`、`IntegrationStand.cs`、`OpsView.cs`：只拿評估結果去組衛星的外觀，應該不受影響。
+- 這其實是更早就有的問題：`373320e` 之前，評價頁一直用工程師的預算，學員和任務主管本來就顯示錯，只是剛好和測試用的預設難度一樣，所以沒被發現。
+
+### 可能的修法
+
+1. 預設難度改成固定的 id（例如 `GameData.DefaultDifficultyId = "engineer"`），不要依賴清單順序。選單怎麼排都不影響規則。
+2. `ReportScreen`、`OpsPanels` 改成傳入這一局的難度（`M.S.DifficultyId`）。
+3. 修完 `main` 上的指紋應該回到 `92B23DD720C0BC75`；之後合併 `feature/lunar-mapping` 時，天數捨入的修正會刻意改變模擬結果，要再更新一次指紋（並在 Unity 裡比對）。
+
+---
+
 ## BUG-001：月球測繪任務在學員難度完全無法發射
 
 - **嚴重度**：高（學員難度下這一關無法過關）
