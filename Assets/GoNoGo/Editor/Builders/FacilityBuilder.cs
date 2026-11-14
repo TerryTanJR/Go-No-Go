@@ -11,13 +11,15 @@ namespace GoNoGo.EditorTools
 {
     /// <summary>
     /// MainMenu 與 Facility 場景。
-    /// Facility 是一個場景裡的三個區域：組裝區（x -11…11）、中控室（x 12…34，中間一道自動門）、
+    /// Facility 是一個場景裡的三個區域：組裝區（x -9…11、z -8…8）、中控室（x 12…34，中間一道自動門）、
     /// 大廳（z 34…50，多人才用，開始任務時傳送過去）。營運時中控室大螢幕顯示遠處（y -400）的地球縮景。
     /// </summary>
     public static partial class SceneBuilder
     {
         const float RoomH = 6f;
-        const float BayX0 = -11f, BayX1 = 11f, CtrlX0 = 12f, CtrlX1 = 34f, RoomZ = 9f;
+        const float BayX0 = -9f, BayX1 = 11f, CtrlX0 = 12f, CtrlX1 = 34f, RoomZ = 9f;
+        /// <summary>組裝區南北牆（中控室和隔牆還是 ±RoomZ）。</summary>
+        const float BayZ = 8f;
         static readonly Vector3 DioramaPos = new Vector3(0, -400f, 0);
 
         // ================= MainMenu =================
@@ -103,7 +105,8 @@ namespace GoNoGo.EditorTools
 
             BuildShell(art, fm, root, bay, ctrl);
             var stand = BuildStand(art, fm, bay);
-            var racks = BuildRacks(art, fm, bay);
+            var delivery = BuildDelivery(art, fm, bay);
+            BuildBayDecor(art, fm, bay);
             BuildBayConsoles(art, fm, bay);
             BuildControlRoom(art, fm, ctrl);
             BuildLobby(art, fm, lobby);
@@ -131,11 +134,11 @@ namespace GoNoGo.EditorTools
             dir.lobbySpawn = Spawn("LobbySpawn", new Vector3(0, 0.05f, 38f), 0);
             dir.playerCamera = cam;
             dir.stand = stand;
-            dir.racks = racks;
+            dir.delivery = delivery;
             dir.areaSplitX = 11.5f;
             dir.lobbyMinZ = 30f;
 
-            Probe(bay, new Vector3(0, 2.5f, 0), new Vector3(22, RoomH, 18));
+            Probe(bay, new Vector3((BayX0 + BayX1) / 2, 2.5f, 0), new Vector3(BayX1 - BayX0, RoomH, BayZ * 2));
             Probe(ctrl, new Vector3(23, 3.5f, 0), new Vector3(22, 7f, 18), 0.6f);
 
             var post = BuildUtil.DefaultPost;
@@ -168,7 +171,7 @@ namespace GoNoGo.EditorTools
 
         static void BuildShell(ArtBuilder.Art art, FacMats fm, Transform root, Transform bay, Transform ctrl)
         {
-            float bayW = BayX1 - BayX0, depth = RoomZ * 2;
+            float bayW = BayX1 - BayX0, depth = BayZ * 2;
             float bayCx = (BayX0 + BayX1) / 2;
             // 中控室的地板、牆、天花板在 Blender 模型裡（BuildControlRoom）
             Solid("Floor", bay, new Vector3(bayCx, -0.1f, 0), new Vector3(bayW, 0.2f, depth), art.floor);
@@ -177,8 +180,8 @@ namespace GoNoGo.EditorTools
 
             // 組裝區：白色無塵室
             Solid("WallW", bay, new Vector3(BayX0 - 0.15f, RoomH / 2, 0), new Vector3(0.3f, RoomH, depth), art.wallPanel);
-            Solid("WallN", bay, new Vector3(bayCx, RoomH / 2, RoomZ + 0.15f), new Vector3(bayW + 0.6f, RoomH, 0.3f), art.wallPanel);
-            Solid("WallS", bay, new Vector3(bayCx, RoomH / 2, -RoomZ - 0.15f), new Vector3(bayW + 0.6f, RoomH, 0.3f), art.wallPanel);
+            Solid("WallN", bay, new Vector3(bayCx, RoomH / 2, BayZ + 0.15f), new Vector3(bayW + 0.6f, RoomH, 0.3f), art.wallPanel);
+            Solid("WallS", bay, new Vector3(bayCx, RoomH / 2, -BayZ - 0.15f), new Vector3(bayW + 0.6f, RoomH, 0.3f), art.wallPanel);
 
             // 中間的隔牆（x 11…12），門洞 z -1.3…1.3、高 2.7
             const float doorHalf = 1.3f, doorH = 2.7f;
@@ -206,23 +209,7 @@ namespace GoNoGo.EditorTools
             Label(root, "ui.area.control", new Vector3(10.6f, 3.1f, 0), "sign", 10f);
             Label(root, "ui.area.assembly", new Vector3(12.4f, 3.1f, 0), "sign", 10f);
 
-            // 牆上的細節：腳邊發光條、肋條、天花板燈板
-            Box("GlowW", bay, new Vector3(BayX0 + 0.02f, 0.9f, 0), new Vector3(0.04f, 0.05f, depth), art.accentGlow, shadows: false);
-            Box("GlowN", bay, new Vector3(bayCx, 0.9f, RoomZ - 0.02f), new Vector3(bayW, 0.05f, 0.04f), art.accentGlow, shadows: false);
-            Box("GlowS", bay, new Vector3(bayCx, 0.9f, -RoomZ + 0.02f), new Vector3(bayW, 0.05f, 0.04f), art.accentGlow, shadows: false);
-            for (int i = 0; i < 6; i++)
-            {
-                float x = BayX0 + 1.8f + i * 3.7f;
-                Box("RibN" + i, bay, new Vector3(x, RoomH / 2, RoomZ - 0.1f), new Vector3(0.2f, RoomH, 0.2f), art.trim, shadows: false);
-                Box("RibS" + i, bay, new Vector3(x, RoomH / 2, -RoomZ + 0.1f), new Vector3(0.2f, RoomH, 0.2f), art.trim, shadows: false);
-            }
-            Box("UpperBandN", bay, new Vector3(bayCx, RoomH - 0.5f, RoomZ - 0.05f), new Vector3(bayW, 1f, 0.1f), art.trim, shadows: false);
-            Box("UpperBandS", bay, new Vector3(bayCx, RoomH - 0.5f, -RoomZ + 0.05f), new Vector3(bayW, 1f, 0.1f), art.trim, shadows: false);
-            for (int x = -2; x <= 2; x++)
-                for (int z = -1; z <= 1; z++)
-                    Quad("LightPanel", bay, new Vector3(x * 4.2f, RoomH - 0.01f, z * 5.4f), Quaternion.Euler(-90, 0, 0), new Vector2(2.6f, 0.9f), art.lightPanel);
-
-            // 燈：組裝區四盞聚光燈打在整合台、零件架上方補光；中控室的燈在 BuildControlRoom
+            // 燈：組裝區四盞聚光燈打在整合台；牆面、天花板的裝潢在 BuildBayDecor；中控室的燈在 BuildControlRoom
             for (int i = 0; i < 4; i++)
             {
                 var p = Quaternion.Euler(0, i * 90f + 45f, 0) * new Vector3(0, RoomH - 0.3f, -5f) + new Vector3(0, 0, 0.5f);
@@ -306,56 +293,373 @@ namespace GoNoGo.EditorTools
             return stand;
         }
 
-        // ---------------- 零件架 ----------------
+        // ---------------- 收貨窗口與輸送帶 ----------------
 
-        static PartRack[] BuildRacks(ArtBuilder.Art art, FacMats fm, Transform bay)
+        /// <summary>輸送帶：從西北角的收貨窗口出來，沿北牆往東走到末端擋板。皮帶面高 BeltY、中心線 z = BeltZ。</summary>
+        const float BeltY = 0.86f, BeltZ = 7.15f, BeltW = 0.8f, BeltX0 = BayX0 + 0.1f, BeltX1 = 6.3f;
+        /// <summary>收貨窗口的外框（x BayX0…BoothX、z BoothZ0…BayZ），開口朝東。</summary>
+        const float BoothX = -7.4f, BoothZ0 = 6.3f, BoothH = 2.6f, OpenH = 1.5f;
+
+        static Material _hazardStripe, _steel, _rubber;
+
+        /// <summary>斜紋警示貼圖（黃黑）。</summary>
+        static Material HazardStripe(string name, Vector2 tiling)
         {
-            return new[]
-            {
-                Rack(art, fm, bay, "Rack_Payload", "instrument", "ui.fac.rack.payload", new Vector3(BayX0 + 0.55f, 0, 0), 90, 5.4f),
-                Rack(art, fm, bay, "Rack_Power", "solar,battery", "ui.fac.rack.power", new Vector3(-4.2f, 0, RoomZ - 0.55f), 180, 4.6f),
-                Rack(art, fm, bay, "Rack_Comms", "antenna", "ui.fac.rack.comms", new Vector3(3.6f, 0, RoomZ - 0.55f), 180, 3.2f),
-                Rack(art, fm, bay, "Rack_Avionics", "computer,adcs", "ui.fac.rack.avionics", new Vector3(-4.2f, 0, -RoomZ + 0.55f), 0, 4.6f),
-                Rack(art, fm, bay, "Rack_Structure", "propulsion,shielding", "ui.fac.rack.structure", new Vector3(3.6f, 0, -RoomZ + 0.55f), 0, 4.6f),
-            };
+            var tex = BuildUtil.SavePng("T_HazardStripe", 64, 64, (x, y) =>
+                ((x + y) / 16) % 2 == 0 ? new Color(0.95f, 0.72f, 0.1f) : new Color(0.08f, 0.08f, 0.09f));
+            var m = BuildUtil.Lit(name, Color.white, 0f, 0.45f, tex);
+            m.SetTextureScale("_BaseMap", tiling);
+            return m;
         }
 
-        static PartRack Rack(ArtBuilder.Art art, FacMats fm, Transform parent, string name, string categories, string signKey, Vector3 pos, float yaw, float width)
+        static DeliveryConveyor BuildDelivery(ArtBuilder.Art art, FacMats fm, Transform bay)
         {
-            var go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = pos;
-            go.transform.localRotation = Quaternion.Euler(0, yaw, 0);
-            var rack = go.AddComponent<PartRack>();
-            rack.categories = categories;
-            rack.width = width;
-            rack.depth = 0.7f;
-            rack.shelfHeights = new[] { 0.32f, 0.86f, 1.4f };
-            rack.itemSize = 0.5f;
+            _hazardStripe = HazardStripe("M_HazardStripe", Vector2.one);
+            _steel = BuildUtil.Lit("M_Steel", new Color(0.62f, 0.64f, 0.68f), 0.9f, 0.6f);
+            _rubber = BuildUtil.Lit("M_Rubber", new Color(0.05f, 0.05f, 0.055f), 0f, 0.2f);
+            var booth = BuildUtil.Lit("M_DeliveryBooth", new Color(0.16f, 0.3f, 0.48f), 0.3f, 0.55f);
+            var curtain = BuildUtil.Lit("M_StripCurtain", new Color(0.5f, 0.62f, 0.68f), 0.1f, 0.92f);
+            var lamp = BuildUtil.Unlit("M_StatusLamp", new Color(0.2f, 1.6f, 0.5f));
+
+            var go = new GameObject("DeliveryConveyor");
+            go.transform.SetParent(bay, false);
             var t = go.transform;
-            // 淺色架子：深色零件放在上面才看得清楚
-            Solid("Back", t, new Vector3(0, 1.0f, -0.4f), new Vector3(width + 0.3f, 2.0f, 0.08f), fm.white);
-            for (int s = 0; s < rack.shelfHeights.Length; s++)
+            var conv = go.AddComponent<DeliveryConveyor>();
+
+            // ---- 收貨窗口：牆角凸出來的一座機台，開口有黃黑框和塑膠簾 ----
+            float bx = (BayX0 + BoothX) / 2, bw = BoothX - BayX0, bz = (BoothZ0 + BayZ) / 2, bd = BayZ - BoothZ0;
+            float side = 0.24f, openZ0 = BoothZ0 + side, openZ1 = BayZ - side, openW = openZ1 - openZ0;
+            Solid("BoothTop", t, new Vector3(bx, (OpenH + BoothH) / 2, bz), new Vector3(bw, BoothH - OpenH, bd), booth, true);
+            Solid("BoothS", t, new Vector3(bx, OpenH / 2, BoothZ0 + side / 2), new Vector3(bw, OpenH, side), booth, true);
+            Solid("BoothN", t, new Vector3(bx, OpenH / 2, BayZ - side / 2), new Vector3(bw, OpenH, side), booth, true);
+            Box("BoothBase", t, new Vector3(bx, 0.28f, bz), new Vector3(bw, 0.56f, openW), art.wallDark, shadows: false);
+            Box("TunnelBack", t, new Vector3(BayX0 + 0.02f, OpenH / 2, bz), new Vector3(0.04f, OpenH, openW), art.wallDark, shadows: false);
+            Box("BoothCap", t, new Vector3(bx + 0.02f, BoothH + 0.03f, bz), new Vector3(bw + 0.08f, 0.06f, bd + 0.04f), art.trim, shadows: false);
+            Box("BoothStripe", t, new Vector3(BoothX + 0.005f, OpenH + 0.86f, bz), new Vector3(0.02f, 0.04f, bd), art.accentGlow, shadows: false);
+            // 開口上方的指示板：三個朝下的箭頭指著出貨口
+            Box("SignPlate", t, new Vector3(BoothX + 0.015f, OpenH + 0.45f, bz), new Vector3(0.03f, 0.5f, bd - 0.3f), art.wallDark, shadows: false);
+            for (int i = 0; i < 3; i++)
             {
-                Box("Shelf" + s, t, new Vector3(0, rack.shelfHeights[s] - 0.03f, 0), new Vector3(width + 0.2f, 0.05f, 0.75f), fm.white);
-                Box("ShelfEdge" + s, t, new Vector3(0, rack.shelfHeights[s] - 0.03f, 0.38f), new Vector3(width + 0.2f, 0.05f, 0.02f), art.accentGlow, shadows: false);
+                float az = bz - 0.36f + i * 0.36f;
+                Box("ArrowA", t, new Vector3(BoothX + 0.035f, OpenH + 0.45f, az - 0.055f), new Vector3(0.01f, 0.04f, 0.15f), art.accentGlow, Quaternion.Euler(40f, 0, 0), false);
+                Box("ArrowB", t, new Vector3(BoothX + 0.035f, OpenH + 0.45f, az + 0.055f), new Vector3(0.01f, 0.04f, 0.15f), art.accentGlow, Quaternion.Euler(-40f, 0, 0), false);
             }
-            Box("ShelfGlow", t, new Vector3(0, 1.98f, 0.0f), new Vector3(width + 0.2f, 0.04f, 0.7f), art.accentGlow, shadows: false);
-            Solid("PostL", t, new Vector3(-width / 2 - 0.15f, 1.0f, 0), new Vector3(0.08f, 2.0f, 0.75f), art.trim);
-            Solid("PostR", t, new Vector3(width / 2 + 0.15f, 1.0f, 0), new Vector3(0.08f, 2.0f, 0.75f), art.trim);
-            // 看不見的牆，避免走進層板裡
+            // 開口的黃黑框
+            Box("FrameS", t, new Vector3(BoothX + 0.05f, OpenH / 2, openZ0 - 0.06f), new Vector3(0.1f, OpenH + 0.12f, 0.14f), _hazardStripe, shadows: false);
+            Box("FrameN", t, new Vector3(BoothX + 0.05f, OpenH / 2, openZ1 + 0.06f), new Vector3(0.1f, OpenH + 0.12f, 0.14f), _hazardStripe, shadows: false);
+            Box("FrameTop", t, new Vector3(BoothX + 0.05f, OpenH + 0.06f, bz), new Vector3(0.1f, 0.14f, openW + 0.26f), _hazardStripe, shadows: false);
+            // 窗口裡的暖色燈：讓開口看起來是通往倉庫的通道
+            var inside = BuildUtil.Light("TunnelLight", LightType.Point, new Color(1f, 0.72f, 0.4f), 2.2f, new Vector3(BayX0 + 0.5f, 1.2f, bz), Quaternion.identity, 2.4f, LightShadows.None, t);
+            inside.renderMode = LightRenderMode.ForcePixel;
+
+            // 塑膠簾：樞紐在開口上緣，零件經過時往東掀
+            const int strips = 6;
+            var flaps = new Transform[strips];
+            float sw = openW / strips;
+            for (int i = 0; i < strips; i++)
+            {
+                var pivot = BuildUtil.Group("Flap" + i, t);
+                pivot.localPosition = new Vector3(BoothX - 0.08f, OpenH - 0.01f, openZ0 + sw * (i + 0.5f));
+                Box("Strip", pivot, new Vector3(0, -(OpenH - BeltY) / 2, 0), new Vector3(0.012f, OpenH - BeltY - 0.02f, sw - 0.012f), curtain, shadows: false);
+                flaps[i] = pivot;
+            }
+
+            // 頂上的狀態燈（閒置綠、出貨琥珀）和出貨時旋轉的警示燈
+            var cyl = HiCylinder();
+            var lampBase = MeshObj("LampBase", t, cyl, art.trim, new Vector3(bx, BoothH + 0.1f, bz), 1f);
+            lampBase.transform.localScale = new Vector3(0.32f, 0.04f, 0.32f);
+            var dome = BuildUtil.Prim(PrimitiveType.Sphere, "StatusLamp", t, new Vector3(bx, BoothH + 0.22f, bz), Vector3.one * 0.24f, lamp);
+            dome.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
+            var spin = BuildUtil.Group("Beacon", t);
+            spin.localPosition = new Vector3(bx, BoothH + 0.22f, bz);
+            var bl = BuildUtil.Light("BeaconLight", LightType.Spot, new Color(1f, 0.6f, 0.15f), 7f, spin.position, Quaternion.LookRotation(new Vector3(1f, -0.25f, 0f)), 12f, LightShadows.None, spin);
+            bl.spotAngle = 55f;
+            bl.innerSpotAngle = 20f;
+            Label(t, "ui.fac.delivery", new Vector3(BoothX + 0.1f, BoothH + 0.75f, bz), "sign", 22f);
+
+            // ---- 輸送帶 ----
+            float len = BeltX1 - BeltX0, cx = (BeltX0 + BeltX1) / 2;
+            const float beltTile = 0.25f;
+            var beltTex = BuildUtil.SavePng("T_ConveyorBelt", 64, 64, (x, y) =>
+            {
+                float v = 0.13f + ((x * 7 + y * 13) % 5) * 0.004f;
+                if (x % 64 < 6) v = 0.24f;            // 橫向的防滑肋
+                else if (x % 64 < 9) v = 0.07f;
+                return new Color(v, v, v * 1.05f);
+            });
+            var beltMat = BuildUtil.Lit("M_ConveyorBelt", Color.white, 0f, 0.3f, beltTex);
+            beltMat.SetTextureScale("_BaseMap", new Vector2(len / beltTile, 1f));
+
+            Box("BeltBody", t, new Vector3(cx, (BeltY - 0.3f + BeltY - 0.01f) / 2, BeltZ), new Vector3(len, 0.29f, BeltW + 0.06f), art.consoleBody);
+            var belt = Quad("Belt", t, new Vector3(cx, BeltY + 0.001f, BeltZ), Quaternion.Euler(90, 0, 0), new Vector2(len, BeltW - 0.02f), beltMat);
+            foreach (float s in new[] { -1f, 1f })
+                Box("Rail", t, new Vector3(cx, BeltY, BeltZ + s * (BeltW / 2 + 0.03f)), new Vector3(len, 0.12f, 0.05f), _steel, shadows: false);
+            Box("RailGlow", t, new Vector3(cx + 0.4f, BeltY - 0.02f, BeltZ - BeltW / 2 - 0.058f), new Vector3(len - 0.8f, 0.025f, 0.01f), art.accentGlow, shadows: false);
+            // 滾筒端蓋：前側一排小圓點
+            for (float x = BoothX + 0.4f; x < BeltX1 - 0.2f; x += 0.5f)
+                Box("Roller", t, new Vector3(x, BeltY - 0.12f, BeltZ - BeltW / 2 - 0.035f), new Vector3(0.06f, 0.06f, 0.01f), _steel, shadows: false);
+            // 腳架
+            for (float x = BoothX + 0.6f; x < BeltX1; x += 1.6f)
+            {
+                foreach (float s in new[] { -1f, 1f })
+                {
+                    Box("Leg", t, new Vector3(x, (BeltY - 0.3f) / 2, BeltZ + s * 0.34f), new Vector3(0.07f, BeltY - 0.3f, 0.07f), _steel);
+                    Box("Foot", t, new Vector3(x, 0.01f, BeltZ + s * 0.34f), new Vector3(0.16f, 0.02f, 0.16f), art.trim, shadows: false);
+                }
+                Box("Brace", t, new Vector3(x, 0.16f, BeltZ), new Vector3(0.05f, 0.05f, 0.68f), _steel, shadows: false);
+            }
+            // 末端擋板
+            Box("EndStop", t, new Vector3(BeltX1 + 0.06f, BeltY + 0.12f, BeltZ), new Vector3(0.12f, 0.36f, BeltW + 0.12f), _hazardStripe);
+            Box("Bumper", t, new Vector3(BeltX1 - 0.02f, BeltY + 0.1f, BeltZ), new Vector3(0.04f, 0.18f, BeltW - 0.2f), _rubber, shadows: false);
+            // 地上：輸送帶前的警示線
+            var floorStripe = HazardStripe("M_HazardFloor", new Vector2((BeltX1 - BoothX) / 0.3f, 1f));
+            Quad("FloorStripe", t, new Vector3((BoothX + BeltX1) / 2 + 0.05f, 0.004f, BeltZ - BeltW / 2 - 0.3f), Quaternion.Euler(90, 0, 0), new Vector2(BeltX1 - BoothX + 0.1f, 0.12f), floorStripe);
+
+            // 看不見的牆：不要走上皮帶（不擋準星）
             var block = new GameObject("Block");
             block.transform.SetParent(t, false);
-            block.transform.localPosition = new Vector3(0, 1f, -0.05f);
-            block.layer = 2; // 不擋準星
-            block.AddComponent<BoxCollider>().size = new Vector3(width + 0.3f, 2f, 0.7f);
-            Label(t, signKey, new Vector3(0, 2.35f, 0), "sign", 22f);
-            var l = BuildUtil.Light("RackLight", LightType.Spot, new Color(1f, 0.97f, 0.92f), 6f, Vector3.zero, Quaternion.identity, 5f, LightShadows.None, t);
-            l.transform.localPosition = new Vector3(0, 2.9f, 1.4f);
-            l.transform.localRotation = Quaternion.LookRotation(new Vector3(0, 0.9f, 0) - l.transform.localPosition);
-            l.spotAngle = 80f;
-            l.innerSpotAngle = 50f;
-            return rack;
+            block.transform.localPosition = new Vector3(cx, 0.6f, BeltZ);
+            block.layer = 2;
+            block.AddComponent<BoxCollider>().size = new Vector3(len, 1.2f, BeltW + 0.12f);
+
+            // 零件的父物件轉 180°：局部 +Z 朝南（房間），零件的大面朝玩家
+            var items = BuildUtil.Group("Items", t);
+            items.localRotation = Quaternion.Euler(0, 180, 0);
+            conv.items = items;
+            conv.start = items.InverseTransformPoint(new Vector3(BayX0 + 0.25f, BeltY + 0.01f, BeltZ));
+            conv.end = items.InverseTransformPoint(new Vector3(BeltX1 - 0.4f, BeltY + 0.01f, BeltZ));
+            conv.entry = BoothX + 0.32f - (BayX0 + 0.25f);
+            conv.spacing = 0.62f;
+            conv.minSpacing = 0.4f;
+            conv.speed = 1.6f;
+            conv.itemSize = 0.5f;
+            conv.belt = belt.GetComponent<Renderer>();
+            conv.beltTile = beltTile;
+            conv.flaps = flaps;
+            conv.beacon = spin;
+            conv.beaconLight = bl;
+            conv.statusLamp = dome.GetComponent<Renderer>();
+
+            // 皮帶上方的補光
+            for (int i = 0; i < 3; i++)
+            {
+                var p = new Vector3(BoothX + 2.2f + i * 4.6f, 3.2f, BeltZ - 1.4f);
+                var l = BuildUtil.Light("BeltLight" + i, LightType.Spot, new Color(1f, 0.97f, 0.92f), 7f, p, Quaternion.LookRotation(new Vector3(p.x, BeltY, BeltZ) - p), 6f, LightShadows.None, t);
+                l.spotAngle = 85f;
+                l.innerSpotAngle = 55f;
+            }
+            return conv;
+        }
+
+        // ---------------- 組裝區裝潢 ----------------
+
+        static void BuildBayDecor(ArtBuilder.Art art, FacMats fm, Transform bay)
+        {
+            var t = BuildUtil.Group("Decor", bay);
+            float bayW = BayX1 - BayX0, depth = BayZ * 2, bayCx = (BayX0 + BayX1) / 2;
+            var wainscot = BuildUtil.Lit("M_Wainscot", new Color(0.3f, 0.34f, 0.4f), 0.2f, 0.5f);
+            var accentPanel = BuildUtil.Lit("M_BayAccent", new Color(0.16f, 0.3f, 0.48f), 0.3f, 0.55f);
+            var line = BuildUtil.Lit("M_FloorLine", new Color(0.9f, 0.76f, 0.22f), 0f, 0.4f);
+            const float wy = 1.1f;
+
+            // ---- 牆：下半截深色護牆板、上緣發光條、肋條、水平分割線、頂部飾帶 ----
+            Box("WainscotW", t, new Vector3(BayX0 + 0.03f, wy / 2, 0), new Vector3(0.06f, wy, depth), wainscot, shadows: false);
+            Box("WainscotN", t, new Vector3(bayCx, wy / 2, BayZ - 0.03f), new Vector3(bayW, wy, 0.06f), wainscot, shadows: false);
+            Box("WainscotS", t, new Vector3(bayCx, wy / 2, -BayZ + 0.03f), new Vector3(bayW, wy, 0.06f), wainscot, shadows: false);
+            Box("GlowW", t, new Vector3(BayX0 + 0.065f, wy + 0.02f, 0), new Vector3(0.02f, 0.04f, depth), art.accentGlow, shadows: false);
+            Box("GlowN", t, new Vector3(bayCx, wy + 0.02f, BayZ - 0.065f), new Vector3(bayW, 0.04f, 0.02f), art.accentGlow, shadows: false);
+            Box("GlowS", t, new Vector3(bayCx, wy + 0.02f, -BayZ + 0.065f), new Vector3(bayW, 0.04f, 0.02f), art.accentGlow, shadows: false);
+            Box("SeamW", t, new Vector3(BayX0 + 0.02f, 3.3f, 0), new Vector3(0.04f, 0.03f, depth), art.trim, shadows: false);
+            Box("SeamN", t, new Vector3(bayCx, 3.3f, BayZ - 0.02f), new Vector3(bayW, 0.03f, 0.04f), art.trim, shadows: false);
+            Box("SeamS", t, new Vector3(bayCx, 3.3f, -BayZ + 0.02f), new Vector3(bayW, 0.03f, 0.04f), art.trim, shadows: false);
+            for (int i = 0; i < 6; i++)
+            {
+                float x = -6.2f + i * 3.25f;
+                Box("RibN" + i, t, new Vector3(x, RoomH / 2, BayZ - 0.1f), new Vector3(0.2f, RoomH, 0.2f), art.trim, shadows: false);
+                Box("RibS" + i, t, new Vector3(x, RoomH / 2, -BayZ + 0.1f), new Vector3(0.2f, RoomH, 0.2f), art.trim, shadows: false);
+            }
+            foreach (float z in new[] { -5.2f, 4.4f })
+                Box("RibW", t, new Vector3(BayX0 + 0.1f, RoomH / 2, z), new Vector3(0.2f, RoomH, 0.2f), art.trim, shadows: false);
+            Box("UpperBandN", t, new Vector3(bayCx, RoomH - 0.5f, BayZ - 0.05f), new Vector3(bayW, 1f, 0.1f), art.trim, shadows: false);
+            Box("UpperBandS", t, new Vector3(bayCx, RoomH - 0.5f, -BayZ + 0.05f), new Vector3(bayW, 1f, 0.1f), art.trim, shadows: false);
+            Box("UpperBandW", t, new Vector3(BayX0 + 0.05f, RoomH - 0.5f, 0), new Vector3(0.1f, 1f, depth), art.trim, shadows: false);
+
+            // ---- 西牆主視覺：遊戲徽章（Art/Textures/Decals/Logo_TradeOff.png，圓外透明），兩側直條飾板 ----
+            float ez = -0.4f, ey = 3.3f;
+            const string logoPath = "Assets/GoNoGo/Art/Textures/Decals/Logo_TradeOff.png";
+            var logoTex = BuildUtil.ConfigureTexture(logoPath, 1024, true, TextureWrapMode.Clamp);
+            var logoMat = BuildUtil.Unlit("M_WallLogo", new Color(0.92f, 0.92f, 0.92f), logoTex);
+            logoMat.SetFloat("_AlphaClip", 1f);
+            logoMat.SetFloat("_Cutoff", 0.5f);
+            logoMat.EnableKeyword("_ALPHATEST_ON");
+            logoMat.renderQueue = (int)RenderQueue.AlphaTest;
+            EditorUtility.SetDirty(logoMat);
+            // Quad 正面朝 -Z，轉 -90° 後朝東（房間），貼圖不會左右顛倒
+            Quad("WallLogo", t, new Vector3(BayX0 + 0.04f, ey, ez), Quaternion.Euler(0, -90f, 0), new Vector2(3.3f, 3.3f), logoMat);
+            Box("EmblemPanelA", t, new Vector3(BayX0 + 0.04f, wy + 0.06f + 2.0f, ez + 2.6f), new Vector3(0.05f, 4.0f, 0.5f), accentPanel, shadows: false);
+            Box("EmblemPanelB", t, new Vector3(BayX0 + 0.04f, wy + 0.06f + 2.0f, ez - 2.6f), new Vector3(0.05f, 4.0f, 0.5f), accentPanel, shadows: false);
+            Box("EmblemGlowA", t, new Vector3(BayX0 + 0.07f, wy + 0.06f + 2.0f, ez + 2.6f), new Vector3(0.01f, 3.6f, 0.04f), art.accentGlow, shadows: false);
+            Box("EmblemGlowB", t, new Vector3(BayX0 + 0.07f, wy + 0.06f + 2.0f, ez - 2.6f), new Vector3(0.01f, 3.6f, 0.04f), art.accentGlow, shadows: false);
+            Label(t, "ui.area.assembly", new Vector3(BayX0 + 0.3f, ey - 2.0f, ez), "sign", 16f);
+
+            // ---- 天花板：燈板、橋式吊車（停在整合台西邊，不擋衛星） ----
+            for (int x = -2; x <= 2; x++)
+                for (int z = -1; z <= 1; z++)
+                    Quad("LightPanel", t, new Vector3(bayCx + x * 4.2f, RoomH - 0.01f, z * 5f), Quaternion.Euler(-90, 0, 0), new Vector2(2.6f, 0.9f), art.lightPanel);
+            const float runY = 5.35f, runZ = 5.9f;
+            foreach (float s in new[] { -1f, 1f })
+            {
+                Box("Runway", t, new Vector3(bayCx, runY, s * runZ), new Vector3(bayW - 0.1f, 0.3f, 0.24f), art.trim);
+                for (float x = BayX0 + 1.5f; x < BayX1; x += 4f)
+                    Box("Hanger", t, new Vector3(x, (runY + 0.15f + RoomH) / 2, s * runZ), new Vector3(0.06f, RoomH - runY - 0.15f, 0.06f), _steel, shadows: false);
+            }
+            const float craneX = -5.4f, trolleyZ = 2.2f;
+            Box("Bridge", t, new Vector3(craneX, runY - 0.32f, 0), new Vector3(0.4f, 0.36f, runZ * 2 + 0.2f), fm.hazard);
+            foreach (float s in new[] { -1f, 1f })
+            {
+                Box("EndTruck", t, new Vector3(craneX, runY - 0.22f, s * runZ), new Vector3(0.9f, 0.24f, 0.36f), fm.hazard);
+                Box("BridgeStripe", t, new Vector3(craneX, runY - 0.32f, s * (runZ - 0.7f)), new Vector3(0.42f, 0.37f, 0.9f), _hazardStripe, shadows: false);
+            }
+            Box("Trolley", t, new Vector3(craneX, runY - 0.62f, trolleyZ), new Vector3(0.7f, 0.3f, 0.6f), art.trim);
+            var drum = BuildUtil.Prim(PrimitiveType.Cylinder, "HoistDrum", t, new Vector3(craneX, runY - 0.86f, trolleyZ), new Vector3(0.24f, 0.25f, 0.24f), _steel);
+            drum.transform.localRotation = Quaternion.Euler(90, 0, 0);
+            Box("Cable", t, new Vector3(craneX, (runY - 0.9f + 3.3f) / 2, trolleyZ), new Vector3(0.025f, runY - 0.9f - 3.3f, 0.025f), art.trim, shadows: false);
+            Box("HookBlock", t, new Vector3(craneX, 3.15f, trolleyZ), new Vector3(0.22f, 0.3f, 0.16f), fm.hazard);
+            Box("Hook", t, new Vector3(craneX, 2.92f, trolleyZ), new Vector3(0.05f, 0.18f, 0.05f), _steel, shadows: false);
+            Box("HookTip", t, new Vector3(craneX + 0.05f, 2.84f, trolleyZ), new Vector3(0.1f, 0.04f, 0.05f), _steel, shadows: false);
+
+            // ---- 地板：整合台底下的深色工作區、門口進來的走道線 ----
+            var pad = MeshObj("WorkPad", t, Annulus("Disk_0_3.4", 0f, 3.4f), art.floorMatte, new Vector3(0, 0.002f, 0.5f), 1f);
+            pad.GetComponent<Renderer>().receiveShadows = true;
+            foreach (float s in new[] { -1f, 1f })
+                Quad("Walkway", t, new Vector3((3.6f + BayX1) / 2, 0.004f, s * 1.45f), Quaternion.Euler(90, 0, 0), new Vector2(BayX1 - 3.6f, 0.08f), line);
+
+            // ---- 南牆：工作台＋工具板、儀器櫃、氣瓶 ----
+            float wz = -BayZ;
+            Solid("BenchBase", t, new Vector3(-5.2f, 0.42f, wz + 0.42f), new Vector3(2.8f, 0.84f, 0.7f), art.consoleBody, true);
+            Box("BenchTop", t, new Vector3(-5.2f, 0.87f, wz + 0.45f), new Vector3(2.9f, 0.06f, 0.8f), fm.white);
+            for (int i = 0; i < 4; i++)
+                Box("Drawer", t, new Vector3(-6.25f + i * 0.7f, 0.5f, wz + 0.775f), new Vector3(0.6f, 0.02f, 0.01f), _steel, shadows: false);
+            Box("Pegboard", t, new Vector3(-5.2f, 1.75f, wz + 0.04f), new Vector3(2.6f, 1.1f, 0.03f), wainscot, shadows: false);
+            var tools = new[] { (0.08f, 0.5f), (0.3f, 0.12f), (0.06f, 0.36f), (0.22f, 0.22f), (0.05f, 0.44f), (0.34f, 0.1f), (0.1f, 0.3f), (0.18f, 0.26f) };
+            for (int i = 0; i < tools.Length; i++)
+            {
+                var (w, h) = tools[i];
+                Box("Tool", t, new Vector3(-6.25f + i * 0.3f, 1.85f - (i % 3) * 0.12f, wz + 0.07f), new Vector3(w, h, 0.03f), i % 3 == 0 ? fm.hazard : art.trim, shadows: false);
+            }
+            Box("BenchLamp", t, new Vector3(-5.2f, 2.38f, wz + 0.2f), new Vector3(2.4f, 0.04f, 0.3f), art.lightPanel, shadows: false);
+            for (int i = 0; i < 3; i++)
+            {
+                float x = 4.6f + i * 0.95f;
+                Solid("Cabinet", t, new Vector3(x, 1.05f, wz + 0.32f), new Vector3(0.9f, 2.1f, 0.6f), art.consoleBody, true);
+                Box("CabinetDoor", t, new Vector3(x, 1.1f, wz + 0.625f), new Vector3(0.8f, 1.8f, 0.01f), wainscot, shadows: false);
+                for (int k = 0; k < 4; k++)
+                    Box("Vent", t, new Vector3(x, 0.35f + k * 0.06f, wz + 0.632f), new Vector3(0.6f, 0.02f, 0.01f), art.trim, shadows: false);
+                Box("Led", t, new Vector3(x - 0.28f, 1.75f, wz + 0.632f), new Vector3(0.05f, 0.05f, 0.01f), i == 1 ? fm.redGlow : art.accentGlow, shadows: false);
+                Box("LedBar", t, new Vector3(x + 0.05f, 1.75f, wz + 0.632f), new Vector3(0.4f, 0.02f, 0.01f), art.accentGlow, shadows: false);
+            }
+            var bottleMats = new[] { BuildUtil.Lit("M_GasN2", new Color(0.2f, 0.22f, 0.25f), 0.4f, 0.6f), BuildUtil.Lit("M_GasHe", new Color(0.55f, 0.42f, 0.2f), 0.4f, 0.6f) };
+            for (int i = 0; i < 3; i++)
+            {
+                var p = new Vector3(BayX0 + 0.4f + i * 0.42f, 0.7f, wz + 0.35f);
+                BuildUtil.Prim(PrimitiveType.Cylinder, "GasBottle", t, p, new Vector3(0.3f, 0.7f, 0.3f), bottleMats[i % 2], collider: true);
+                BuildUtil.Prim(PrimitiveType.Sphere, "BottleCap", t, p + Vector3.up * 0.7f, new Vector3(0.3f, 0.18f, 0.3f), bottleMats[i % 2]);
+                BuildUtil.Prim(PrimitiveType.Cylinder, "Valve", t, p + Vector3.up * 0.84f, new Vector3(0.08f, 0.06f, 0.08f), _steel);
+            }
+            Box("BottleStrap", t, new Vector3(BayX0 + 0.82f, 1.1f, wz + 0.52f), new Vector3(1.3f, 0.05f, 0.02f), fm.hazard, shadows: false);
+
+            BuildFilterWall(t);
+            BuildPatchWall(t);
+        }
+
+        /// <summary>北牆上半截：整面送風濾網（無塵室的 HEPA 牆），格子和百葉畫在貼圖裡。</summary>
+        static void BuildFilterWall(Transform t)
+        {
+            const int px = 128;
+            var tex = BuildUtil.SavePng("T_FilterGrille", px, px, (x, y) =>
+            {
+                if (x < 4 || y < 4) return new Color(0.42f, 0.45f, 0.5f);          // 面板框
+                if (x < 10 || y < 10 || x > px - 7 || y > px - 7) return new Color(0.8f, 0.82f, 0.85f);
+                return y % 8 < 2 ? new Color(0.5f, 0.53f, 0.57f) : new Color(0.86f, 0.88f, 0.9f); // 百葉
+            });
+            const float y0 = 1.3f, y1 = 4.9f, tile = 1.2f;
+            float x0 = BayX0 + 1.6f, x1 = BayX1 - 0.1f;
+            var m = BuildUtil.Lit("M_FilterGrille", Color.white, 0.1f, 0.35f, tex);
+            m.SetTextureScale("_BaseMap", new Vector2((x1 - x0) / tile, (y1 - y0) / tile));
+            Quad("FilterWall", t, new Vector3((x0 + x1) / 2, (y0 + y1) / 2, BayZ - 0.065f), Quaternion.identity, new Vector2(x1 - x0, y1 - y0), m);
+            Box("FilterFrameTop", t, new Vector3((x0 + x1) / 2, y1 + 0.03f, BayZ - 0.07f), new Vector3(x1 - x0, 0.06f, 0.06f), _steel, shadows: false);
+            Box("FilterFrameBottom", t, new Vector3((x0 + x1) / 2, y0 - 0.03f, BayZ - 0.07f), new Vector3(x1 - x0, 0.06f, 0.06f), _steel, shadows: false);
+        }
+
+        /// <summary>
+        /// 南牆高處一排任務徽章（像太空船組裝廠歷年任務的徽章牆）。圖案是程式畫的虛構徽章：
+        /// 外框、星空、行星、軌道，每個配色不同；圓外透明。
+        /// </summary>
+        static void BuildPatchWall(Transform t)
+        {
+            var palette = new[]
+            {
+                (new Color(0.06f, 0.1f, 0.24f), new Color(1f, 0.5f, 0.12f), new Color(0.95f, 0.55f, 0.2f)),
+                (new Color(0.12f, 0.05f, 0.2f), new Color(0.85f, 0.8f, 0.95f), new Color(0.75f, 0.35f, 0.9f)),
+                (new Color(0.03f, 0.16f, 0.16f), new Color(0.3f, 0.95f, 0.8f), new Color(0.25f, 0.6f, 1f)),
+                (new Color(0.2f, 0.04f, 0.04f), new Color(1f, 0.82f, 0.3f), new Color(0.9f, 0.3f, 0.2f)),
+                (new Color(0.04f, 0.08f, 0.12f), new Color(0.9f, 0.92f, 0.95f), new Color(0.35f, 0.75f, 0.45f)),
+                (new Color(0.08f, 0.12f, 0.3f), new Color(0.95f, 0.25f, 0.3f), new Color(0.85f, 0.85f, 0.9f)),
+                (new Color(0.15f, 0.12f, 0.05f), new Color(0.4f, 0.8f, 1f), new Color(0.95f, 0.75f, 0.35f)),
+                (new Color(0.02f, 0.02f, 0.05f), new Color(0.95f, 0.7f, 0.15f), new Color(0.5f, 0.85f, 1f)),
+            };
+            float[] ribs = { -6.2f, -2.95f, 0.3f, 3.55f, 6.8f, 10.05f };
+            var mats = new Material[palette.Length];
+            int n = 0;
+            for (int b = 0; b + 1 < ribs.Length; b++)
+                foreach (float off in new[] { -0.78f, 0.78f })
+                {
+                    int v = n % palette.Length;
+                    if (mats[v] == null) mats[v] = PatchMaterial(v, palette[v]);
+                    float x = (ribs[b] + ribs[b + 1]) / 2 + off;
+                    // Quad 正面朝 -Z，轉 180° 朝北（房間）
+                    Quad("Patch" + n, t, new Vector3(x, 4.15f + (n % 2 == 0 ? 0f : 0.12f), -BayZ + 0.04f), Quaternion.Euler(0, 180f, 0), new Vector2(1.05f, 1.05f), mats[v]);
+                    n++;
+                }
+        }
+
+        static Material PatchMaterial(int variant, (Color bg, Color border, Color planet) c)
+        {
+            const int S = 256;
+            var rng = new System.Random(1234 + variant * 31);
+            float pcx = 0.35f + (float)rng.NextDouble() * 0.3f, pcy = 0.3f + (float)rng.NextDouble() * 0.25f, pr = 0.14f + (float)rng.NextDouble() * 0.1f;
+            float tilt = (float)rng.NextDouble() * 1.2f - 0.6f, orbitA = 0.5f + (float)rng.NextDouble() * 0.15f, orbitB = 0.16f + (float)rng.NextDouble() * 0.1f;
+            var stars = new Vector3[7];
+            for (int i = 0; i < stars.Length; i++) stars[i] = new Vector3((float)rng.NextDouble() * 1.2f - 0.6f, (float)rng.NextDouble() * 1.2f - 0.6f, 0.012f + (float)rng.NextDouble() * 0.015f);
+            bool rings = variant % 3 == 0;
+            var tex = BuildUtil.SavePng("T_Patch" + variant, S, S, (x, y) =>
+            {
+                float u = (x + 0.5f) / S * 2 - 1, v = (y + 0.5f) / S * 2 - 1;
+                float r = Mathf.Sqrt(u * u + v * v);
+                if (r > 0.98f) return new Color(0, 0, 0, 0);
+                if (r > 0.86f) return c.border;
+                if (r > 0.82f) return c.bg;
+                if (r > 0.8f) return Color.Lerp(c.bg, Color.white, 0.4f);
+                // 軌道（傾斜橢圓）：前半圈畫在行星前面
+                float cu = u * Mathf.Cos(tilt) + v * Mathf.Sin(tilt), cv = -u * Mathf.Sin(tilt) + v * Mathf.Cos(tilt);
+                float e = Mathf.Sqrt(cu * cu / (orbitA * orbitA) + cv * cv / (orbitB * orbitB));
+                float du = u - (pcx - 0.5f) * 2 * 0.6f, dv = v - (pcy - 0.5f) * 2 * 0.6f;
+                float pd = Mathf.Sqrt(du * du + dv * dv);
+                if (Mathf.Abs(e - 1f) < 0.04f && cv < 0) return c.border;
+                if (pd < pr) return Color.Lerp(c.planet, Color.white, Mathf.Clamp01((dv + du) * 0.8f) * 0.35f);
+                if (rings && Mathf.Abs(Mathf.Sqrt(du * du + dv * dv / 0.12f) - pr * 1.9f) < 0.025f) return Color.Lerp(c.border, Color.white, 0.5f);
+                if (Mathf.Abs(e - 1f) < 0.04f) return c.border;
+                foreach (var s in stars)
+                    if ((u - s.x) * (u - s.x) + (v - s.y) * (v - s.y) < s.z * s.z) return new Color(0.95f, 0.95f, 0.9f);
+                return c.bg;
+            }, wrap: TextureWrapMode.Clamp);
+            var m = BuildUtil.Unlit("M_Patch" + variant, new Color(0.9f, 0.9f, 0.9f), tex);
+            m.SetFloat("_AlphaClip", 1f);
+            m.SetFloat("_Cutoff", 0.5f);
+            m.EnableKeyword("_ALPHATEST_ON");
+            m.renderQueue = (int)RenderQueue.AlphaTest;
+            EditorUtility.SetDirty(m);
+            return m;
         }
 
         // ---------------- 控制台 ----------------
@@ -413,8 +717,6 @@ namespace GoNoGo.EditorTools
             // 環境測試台（振動／熱真空）：和回報台對稱，在整合台的另一邊
             var test = Console(art, fm, bay, "TestConsole", new Vector3(-4.2f, 0, -3.2f), 45f, "test", "ui.fac.test", "ui.fac.test_body", "design", art.consoleScreens[2], 1.3f);
             test.actionKey = "ui.hint.test";
-            // 組裝區的手冊：嚴格分工時只有代號與用途（bay_manual）
-            Console(art, fm, bay, "BayManual", new Vector3(8.2f, 0, 5.6f), 45f, "bay_manual", "ui.fac.manual", "ui.fac.manual_body", "", fm.paper, 1.1f);
 
             // 東牆（門的南邊）：失敗原因看板
             var fb = WallScreen(art, fm, bay, "FailureBoard", "failures", new Vector3(BayX1 - 0.08f, 2.4f, -5.2f), 90f, new Vector2(3.4f, 2.1f), new Vector2Int(1024, 640));
