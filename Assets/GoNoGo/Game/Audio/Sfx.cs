@@ -12,10 +12,10 @@ namespace GoNoGo.Game
     public sealed class Sfx : MonoBehaviour
     {
         static Sfx _i;
-        AudioSource _ui, _ambience, _ambience2;
+        AudioSource _ui, _ambience;
         readonly Dictionary<string, AudioClip> _synth = new Dictionary<string, AudioClip>();
         float _hoverCooldown;
-        float _ambienceTarget, _ambience2Target;
+        float _ambienceTarget;
 
         /// <summary>主音量：所有聲音（包含發射場景的聲音）。</summary>
         public static float MasterVolume
@@ -66,10 +66,6 @@ namespace GoNoGo.Game
             _ambience.loop = true;
             _ambience.playOnAwake = false;
             _ambience.volume = 0;
-            _ambience2 = gameObject.AddComponent<AudioSource>();
-            _ambience2.loop = true;
-            _ambience2.playOnAwake = false;
-            _ambience2.volume = 0;
             AudioListener.volume = MasterVolume;
         }
 
@@ -79,9 +75,7 @@ namespace GoNoGo.Game
             float k = 1f - Mathf.Exp(-Time.unscaledDeltaTime * 2.5f);
             float amb = AmbienceVolume;
             _ambience.volume = Mathf.Lerp(_ambience.volume, _ambienceTarget * amb, k);
-            _ambience2.volume = Mathf.Lerp(_ambience2.volume, _ambience2Target * amb, k);
             if (_ambienceTarget <= 0 && _ambience.volume < 0.005f && _ambience.isPlaying) _ambience.Stop();
-            if (_ambience2Target <= 0 && _ambience2.volume < 0.005f && _ambience2.isPlaying) _ambience2.Stop();
         }
 
         // ---------------- 介面音效 ----------------
@@ -125,26 +119,24 @@ namespace GoNoGo.Game
 
         // ---------------- 環境音 ----------------
 
+        /// <summary>ControlRoom 和 None 一樣是安靜的（保留給呼叫端標明場景）；Space 是營運畫面的電波聲。</summary>
         public enum Ambience { None, ControlRoom, Space }
 
-        /// <summary>切換背景環境音（淡入淡出）。</summary>
+        /// <summary>
+        /// 切換背景環境音（淡入淡出）。控制室（標題、主選單、設施、報告）不放底噪，安靜就好；
+        /// 營運畫面的太空放 Juno 的電波聲。
+        /// </summary>
         public static void SetAmbience(Ambience a)
         {
             var s = I;
             switch (a)
             {
-                case Ambience.ControlRoom:
-                    s.StartLoop(s._ambience, s.GetSynth("room"), 0.28f, ref s._ambienceTarget);
-                    s._ambience2Target = 0;
-                    break;
                 case Ambience.Space:
                     var bank = AudioBank.Load();
-                    s.StartLoop(s._ambience, s.GetSynth("room"), 0.08f, ref s._ambienceTarget);
-                    if (bank != null && bank.spaceAmbience != null) s.StartLoop(s._ambience2, bank.spaceAmbience, 0.22f, ref s._ambience2Target);
+                    if (bank != null && bank.spaceAmbience != null) s.StartLoop(s._ambience, bank.spaceAmbience, 0.22f, ref s._ambienceTarget);
                     break;
                 default:
                     s._ambienceTarget = 0;
-                    s._ambience2Target = 0;
                     break;
             }
         }
@@ -230,31 +222,6 @@ namespace GoNoGo.Game
                         lp += (n - lp) * cutoff;
                         return lp * 1.6f * Mathf.Sin(Mathf.PI * t / 0.6f);
                     });
-                }
-                case "room":
-                {
-                    // 控制室底噪：褐噪音 + 很輕的 60 Hz 電源哼聲，8 秒循環（頭尾交叉淡化，接縫聽不出來）
-                    var rnd = new System.Random(3);
-                    int n = Rate * 8;
-                    var raw = new float[n];
-                    float b = 0;
-                    for (int i = 0; i < n; i++)
-                    {
-                        b = (b + (float)(rnd.NextDouble() * 2 - 1) * 0.02f) * 0.997f;
-                        float t = i / (float)Rate;
-                        raw[i] = b * 3f + Sine(60, t) * 0.015f + Sine(120, t) * 0.008f;
-                    }
-                    int fade = Rate / 2;
-                    for (int i = 0; i < fade; i++)
-                    {
-                        float w = i / (float)fade;
-                        raw[i] = raw[i] * w + raw[n - fade + i] * (1 - w);
-                    }
-                    var loop = new float[n - fade];
-                    Array.Copy(raw, loop, loop.Length);
-                    var clip = AudioClip.Create(id, loop.Length, 1, Rate, false);
-                    clip.SetData(loop, 0);
-                    return clip;
                 }
                 default: return Tone(id, 0.05f, t => 0);
             }
