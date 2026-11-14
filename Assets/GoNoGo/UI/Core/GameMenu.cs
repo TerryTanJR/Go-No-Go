@@ -145,6 +145,7 @@ namespace GoNoGo.UI
         public static void SoundControls(VisualElement body)
         {
             SliderRow(body, Loc.T("ui.gmenu.vol.master"), 0f, 1f, Sfx.MasterVolume, v => Sfx.MasterVolume = v, Percent);
+            SliderRow(body, Loc.T("ui.gmenu.vol.music"), 0f, 1f, Sfx.MusicVolume, v => Sfx.MusicVolume = v, Percent);
             SliderRow(body, Loc.T("ui.gmenu.vol.ambience"), 0f, 1f, Sfx.AmbienceVolume, v => Sfx.AmbienceVolume = v, Percent);
             SliderRow(body, Loc.T("ui.gmenu.vol.effects"), 0f, 1f, Sfx.EffectsVolume, v => Sfx.EffectsVolume = v, Percent, Sfx.Click);
             Ui.Text(Loc.T("ui.gmenu.vol.note"), "small", "dim").AddTo(body);

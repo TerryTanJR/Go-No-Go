@@ -16,6 +16,7 @@ namespace GoNoGo.UI
         protected override void Build()
         {
             Sfx.SetAmbience(Sfx.Ambience.ControlRoom);
+            Sfx.SetMusic(Sfx.Music.Menu);
             GameSession.EnsureMission();
             var r = M.Result;
             if (r == null)

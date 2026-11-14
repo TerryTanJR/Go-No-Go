@@ -5,17 +5,18 @@ using UnityEngine;
 namespace GoNoGo.Game
 {
     /// <summary>
-    /// 全遊戲的聲音：介面音效用程式合成（不需要音檔，也沒有授權問題），
+    /// 全遊戲的聲音：介面音效和背景音樂用程式合成（不需要音檔，也沒有授權問題），
     /// 背景環境音與發射音效用 NASA 的錄音（AudioBank）。
     /// 瀏覽器要等玩家第一次點擊後才允許出聲，Unity WebGL 會自動處理。
     /// </summary>
     public sealed class Sfx : MonoBehaviour
     {
         static Sfx _i;
-        AudioSource _ui, _ambience;
+        AudioSource _ui, _ambience, _music;
         readonly Dictionary<string, AudioClip> _synth = new Dictionary<string, AudioClip>();
         float _hoverCooldown;
-        float _ambienceTarget;
+        float _ambienceTarget, _musicTarget;
+        AudioClip _musicClip;
 
         /// <summary>主音量：所有聲音（包含發射場景的聲音）。</summary>
         public static float MasterVolume
@@ -24,7 +25,14 @@ namespace GoNoGo.Game
             set { PlayerPrefs.SetFloat("gonogo.volume", Mathf.Clamp01(value)); AudioListener.volume = Mathf.Clamp01(value); }
         }
 
-        static float? _ambienceVol, _effectsVol;
+        static float? _ambienceVol, _effectsVol, _musicVol;
+
+        /// <summary>背景音樂的倍率 0–1。</summary>
+        public static float MusicVolume
+        {
+            get => _musicVol ??= Mathf.Clamp01(PlayerPrefs.GetFloat("gonogo.volume.music", 0.7f));
+            set { _musicVol = Mathf.Clamp01(value); PlayerPrefs.SetFloat("gonogo.volume.music", _musicVol.Value); }
+        }
 
         /// <summary>環境音（控制室底噪、太空背景音）的倍率 0–1。</summary>
         public static float AmbienceVolume
@@ -56,7 +64,7 @@ namespace GoNoGo.Game
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() { _i = null; _ambienceVol = null; _effectsVol = null; }
+        static void ResetStatics() { _i = null; _ambienceVol = null; _effectsVol = null; _musicVol = null; }
 
         void Init()
         {
@@ -66,6 +74,10 @@ namespace GoNoGo.Game
             _ambience.loop = true;
             _ambience.playOnAwake = false;
             _ambience.volume = 0;
+            _music = gameObject.AddComponent<AudioSource>();
+            _music.loop = true;
+            _music.playOnAwake = false;
+            _music.volume = 0;
             AudioListener.volume = MasterVolume;
         }
 
@@ -76,6 +88,8 @@ namespace GoNoGo.Game
             float amb = AmbienceVolume;
             _ambience.volume = Mathf.Lerp(_ambience.volume, _ambienceTarget * amb, k);
             if (_ambienceTarget <= 0 && _ambience.volume < 0.005f && _ambience.isPlaying) _ambience.Stop();
+            _music.volume = Mathf.Lerp(_music.volume, _musicTarget * MusicVolume, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 1.2f));
+            if (_musicTarget <= 0 && _music.volume < 0.003f && _music.isPlaying) _music.Pause();
         }
 
         // ---------------- 介面音效 ----------------
@@ -106,6 +120,23 @@ namespace GoNoGo.Game
         /// <summary>電話撥號鈴聲。</summary>
         public static void Ring() => I.Play("ring", 0.35f);
         public static void Door() => I.Play("door", 0.3f);
+        /// <summary>翻書頁：一陣紙張摩擦的沙沙聲。</summary>
+        public static void Page() => I.Play("page", 0.4f);
+
+        // ---------------- 背景音樂 ----------------
+
+        /// <summary>Menu：標題、主選單、報告；Facility：設施裡小聲一點，不蓋過電話和音效；None：發射（有自己的聲音）。</summary>
+        public enum Music { None, Menu, Facility }
+
+        public static void SetMusic(Music m)
+        {
+            var s = I;
+            s._musicTarget = m switch { Music.Menu => 0.45f, Music.Facility => 0.2f, _ => 0f };
+            if (s._musicTarget <= 0) return;
+            if (s._musicClip == null) s._musicClip = MusicLoop.Build();
+            if (s._music.clip != s._musicClip) s._music.clip = s._musicClip;
+            if (!s._music.isPlaying) s._music.Play();
+        }
 
         void Play(string id, float vol)
         {
@@ -191,6 +222,21 @@ namespace GoNoGo.Game
                         float n = (float)(rnd.NextDouble() * 2 - 1);
                         lp += (n - lp) * 0.05f;
                         return lp * 1.6f * Env(t, 0.05f, 0.45f) + Sine(60, t) * 0.2f * Env(t, 0.02f, 0.4f);
+                    });
+                }
+                case "page":
+                {
+                    // 紙張：白噪音經過一個慢慢打開又關上的低通，兩段（翻起、落下）
+                    var rnd = new System.Random(17);
+                    float lp = 0, hp = 0;
+                    return Tone(id, 0.32f, t =>
+                    {
+                        float n = (float)(rnd.NextDouble() * 2 - 1);
+                        float open = 0.08f + 0.5f * Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 0.32f));
+                        lp += (n - lp) * open;
+                        hp = lp - hp * 0.6f;
+                        float env = Env(t, 0.02f, 0.16f) + 0.6f * Env(Mathf.Max(0, t - 0.16f), 0.01f, 0.12f) * (t > 0.16f ? 1 : 0);
+                        return hp * 0.9f * env;
                     });
                 }
                 case "click": return Tone(id, 0.045f, t => Sine(2400, t) * Env(t, 0.002f, 0.04f) * 0.6f + Sine(1200, t) * Env(t, 0.001f, 0.02f) * 0.4f);

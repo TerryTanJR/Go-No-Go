@@ -720,6 +720,7 @@
   "ui.gmenu.back": { "en": "Back", "zh-TW": "返回" },
   "ui.gmenu.cancel": { "en": "Cancel", "zh-TW": "取消" },
   "ui.gmenu.vol.master": { "en": "Master volume", "zh-TW": "主音量" },
+  "ui.gmenu.vol.music": { "en": "Music", "zh-TW": "音樂" },
   "ui.gmenu.vol.ambience": { "en": "Ambience", "zh-TW": "環境音" },
   "ui.gmenu.vol.effects": { "en": "Sound effects", "zh-TW": "音效" },
   "ui.gmenu.vol.note": { "en": "Master volume also covers the launch sounds.", "zh-TW": "主音量也包含發射時的聲音。" },
