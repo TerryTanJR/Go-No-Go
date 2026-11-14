@@ -250,6 +250,8 @@
   "ui.launch.call.maxq": { "en": "Max-Q: maximum aerodynamic pressure.", "zh-TW": "通過最大動壓。" },
   "ui.launch.call.meco": { "en": "Main engine cutoff.", "zh-TW": "主引擎關機。" },
   "ui.launch.call.stagesep": { "en": "Stage separation confirmed.", "zh-TW": "確認節間分離。" },
+  "ui.launch.call.boostersep": { "en": "Booster separation.", "zh-TW": "助推器分離。" },
+  "ui.launch.call.ses": { "en": "Second stage ignition.", "zh-TW": "第二節點火。" },
   "ui.launch.call.fairing": { "en": "Fairing separation.", "zh-TW": "整流罩分離。" },
   "ui.launch.call.fairing_fail": { "en": "No fairing separation indication...", "zh-TW": "沒有整流罩分離的訊號……" },
   "ui.launch.call.underspeed": { "en": "Vehicle is under speed. It will not make orbit.", "zh-TW": "速度不足，無法進入軌道。" },

@@ -84,9 +84,8 @@ namespace GoNoGo.UI
             }
 
             float T = LaunchFeed.T;
-            float a = Mathf.Abs(T);
-            int h = (int)(a / 3600), m = (int)(a / 60) % 60, s = (int)a % 60;
-            _clock.text = $"T{(T < 0 ? "-" : "+")}{h:00}:{m:00}:{s:00}";
+            // 倒數無條件進位：念「十」的那一刻畫面才跳到 10（截斷的話會早一秒）
+            _clock.text = LaunchClock.Format(T);
             _alt.text = LaunchFeed.AltitudeKm.ToString("0.0");
             _vel.text = LaunchFeed.VelocityKms.ToString("0.00");
             _thr.text = (LaunchFeed.Throttle * 100).ToString("0");

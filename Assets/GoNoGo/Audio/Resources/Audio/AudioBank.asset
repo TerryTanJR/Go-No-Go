@@ -13,7 +13,18 @@ MonoBehaviour:
   m_Name: AudioBank
   m_EditorClassIdentifier: GoNoGo.Game::GoNoGo.Game.AudioBank
   countdownNet: {fileID: 8300000, guid: fbed9a825ebb0e249980334163d7b70e, type: 3}
-  countdownTerminalStart: 43
+  countdownCalls:
+  - 44.44
+  - 45.3
+  - 46.22
+  - 47.18
+  - 48.1
+  - 49.04
+  - 49.96
+  - 50.98
+  - 51.86
+  - 52.8
+  - 53.56
   padRoar: {fileID: 8300000, guid: 6ce49b24589114a40920f87217e0ece9, type: 3}
   padIgnitionAt: 8
   distantRumble: {fileID: 8300000, guid: d70fbee13398e664cb07cf1fe09c7527, type: 3}
