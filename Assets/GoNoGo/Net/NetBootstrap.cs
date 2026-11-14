@@ -185,6 +185,7 @@ namespace GoNoGo.Net
                 return "ui.net.err.create";
             }
             StartAsHost(nm, session, session.Code, scenario, difficulty);
+            VoiceChat.Join(session.Code);
             return "";
         }
 
@@ -204,7 +205,9 @@ namespace GoNoGo.Net
                 Debug.LogWarning("[Net] join: " + e.Error + " " + e.Message);
                 return e.Error == SessionError.SessionNotFound || e.Message.Contains("404") ? "ui.net.err.code" : "ui.net.err.connect";
             }
-            return await WaitForState(NetLinkClient(nm, session, session.Code));
+            err = await WaitForState(NetLinkClient(nm, session, session.Code));
+            if (string.IsNullOrEmpty(err)) VoiceChat.Join(session.Code);
+            return err;
         }
 
         // ---------------------------------------------------------------- 區網直連

@@ -17,5 +17,12 @@ namespace GoNoGo.Game
         public static Action<string, string, Action<string>> HostDirect;
 
         public static bool Available => Host != null;
+
+        /// <summary>已經加入房間的語音頻道（GoNoGo.Net 寫入）。</summary>
+        public static bool VoiceConnected;
+        /// <summary>自己的麥克風靜音中（GoNoGo.Net 寫入）。</summary>
+        public static bool MicMuted;
+        /// <summary>切換自己的麥克風靜音（GoNoGo.Net 註冊）。</summary>
+        public static Action<bool> SetMicMuted;
     }
 }
