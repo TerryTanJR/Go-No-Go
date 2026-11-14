@@ -313,3 +313,7 @@
 73. **WebGL 建置後專案根目錄多了 `Data/Plugins/lib_burst_generated.{cpp,wasm}`，被 `git add -A` 一起 commit 了**
     - 原因：Burst 在 WebGL 建置時把產生的程式碼放在專案根目錄的 `Data/`，Unity 的標準 .gitignore 沒有涵蓋。
     - 解法：`.gitignore` 加 `/Data/`，`git rm -r --cached Data` 從版控移除（檔案留在本機）。以後 commit 前先看 `git status`，不要直接 `add -A`。另外建置也會更新 URP 資產的 shader 剝除旗標（`m_Prefilter*`）、在 `preloadedAssets` 加入 Input System 的全專案動作表，這兩個是正常變動。
+
+74. **標題畫面的 Landsat 8 幾乎看不到**
+    - 原因：軌道一圈 112 秒，起始相位 200° 剛好在地球背面，之後又轉到畫面右緣外（viewport x 1.11），玩家停在標題的前一分鐘都看不到它。
+    - 解法：用 eval 每 15° 取樣一次軌道位置的 viewport 座標與前後關係，找出在地球正面、畫面裡的那一段（相位 345°→100°）；起始相位改成 350°、速度降到 2.4°/s，進標題後約 48 秒都看得到它從地球前面飛過。

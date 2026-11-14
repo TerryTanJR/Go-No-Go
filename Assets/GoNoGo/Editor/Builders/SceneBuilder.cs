@@ -351,9 +351,11 @@ namespace GoNoGo.EditorTools
             var orbit = satOrbit.gameObject.AddComponent<OrbitAround>();
             orbit.center = tilt;
             orbit.radius = 5.3f;
-            orbit.degreesPerSecond = 3.2f;
+            // 這條軌道只有相位 345°→100° 這段在地球正面、畫面裡；從 350° 開始，一進標題就看到它從右邊飛進來，
+            // 2.4°/s 讓正面這段停留約 48 秒（原本 200° 起跑時整整一分鐘都在地球背面或畫面外）
+            orbit.degreesPerSecond = 2.4f;
             orbit.axis = new Vector3(0.35f, 1f, 0.2f);
-            orbit.phase = 200f;
+            orbit.phase = 350f;
             landsat.transform.localRotation = Quaternion.Euler(0, 90, 0);
 
             var cam = MainCamera(new Vector3(0, 0, -10), new Vector3(0, 0, 0), 35f, 0.1f, 500f);
