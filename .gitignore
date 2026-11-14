@@ -159,5 +159,8 @@ crashlytics-build.properties
 # 驗證用截圖（本機）
 /[Ss]creenshots/
 
+# WebGL 建置時 Burst 在專案根目錄產生的中間檔
+/Data/
+
 # GoNoGo blueprint docs stay out of the repo
 docs/unity-blueprint/

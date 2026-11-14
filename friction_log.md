@@ -309,3 +309,7 @@
 72. **建置時出現 3 個 `UAC1015` 警告：`RoomSnapshot` 的 Dictionary 欄位沒有 `[SerializeField]`**
     - 原因：Unity 6.6 的序列化分析器開始檢查 Dictionary 欄位。這個類別是線上版用 Json.NET 寫進 Firebase 的，不走 Unity 序列化。
     - 解法：加 `[UnityEngine.SerializeField]` 明確表態。**不能**用 `[NonSerialized]`：Json.NET 也會跳過有 `NonSerialized` 的欄位，線上版的成員、投票、選擇就同步不到了。第二次建置 0 警告。
+
+73. **WebGL 建置後專案根目錄多了 `Data/Plugins/lib_burst_generated.{cpp,wasm}`，被 `git add -A` 一起 commit 了**
+    - 原因：Burst 在 WebGL 建置時把產生的程式碼放在專案根目錄的 `Data/`，Unity 的標準 .gitignore 沒有涵蓋。
+    - 解法：`.gitignore` 加 `/Data/`，`git rm -r --cached Data` 從版控移除（檔案留在本機）。以後 commit 前先看 `git status`，不要直接 `add -A`。另外建置也會更新 URP 資產的 shader 剝除旗標（`m_Prefilter*`）、在 `preloadedAssets` 加入 Input System 的全專案動作表，這兩個是正常變動。
