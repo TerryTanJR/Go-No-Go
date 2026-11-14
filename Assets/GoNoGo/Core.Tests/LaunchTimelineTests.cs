@@ -104,6 +104,31 @@ namespace GoNoGo.Core.Tests
             for (double t = 0; t < 497; t += 2) { var v = f9.Velocity(t); Assert.That(v, Is.GreaterThanOrEqualTo(prev - 0.03), "t=" + t); prev = v; }
         }
 
+        /// <summary>關機後的滑行：高度沿轉移橢圓慢慢爬上去、速度跟著變慢，不是再點火那幾秒才跳上去。</summary>
+        [Test]
+        public void CoastsClimbAlongTheTransferOrbit()
+        {
+            // Transporter：SECO-1 進 200 × 700 km 的橢圓，滑行約 42 分鐘到遠地點，再點火 4 秒圓化
+            var sso = Tl("falcon9", "sso_700");
+            double seco = sso.First("seco").T, restart = sso.First("restart").T;
+            Assert.That(sso.Altitude((seco + restart) / 2), Is.InRange(350.0, 550.0), "滑行到一半時在半路上");
+            Assert.That(sso.Altitude(restart), Is.EqualTo(700).Within(1));
+            Assert.That(sso.Velocity(seco), Is.EqualTo(7.93).Within(0.01), "近地點速度");
+            Assert.That(sso.Velocity(restart), Is.EqualTo(7.37).Within(0.01), "遠地點速度");
+            Assert.That(sso.Velocity(sso.First("seco2").T), Is.EqualTo(LaunchTimeline.CircularVelocity(700)).Within(0.01));
+
+            // 地球同步轉移：關機後 5 分鐘約 540 km（克卜勒方程式），不是線性往上衝
+            var gto = Tl("falcon9", "geo");
+            double dep = gto.First("deploy").T;
+            Assert.That(gto.Altitude(dep), Is.InRange(450.0, 650.0));
+            Assert.That(gto.Velocity(dep), Is.InRange(9.8, 10.1));
+
+            // Taurus：倒數第二節燒完時速度還不夠入軌，不會已經在目標高度；滑行到目標高度才點最後一節
+            var taurus = Tl("taurus_xl", "sso_700");
+            Assert.That(taurus.Altitude(taurus.Events.Last(e => e.Id == "upper_cutoff").T), Is.LessThan(250));
+            Assert.That(taurus.Altitude(taurus.Events.Last(e => e.Id == "upper_ignite").T), Is.EqualTo(700).Within(1));
+        }
+
         [Test]
         public void DeployCallMatchesTheSolarArray()
         {

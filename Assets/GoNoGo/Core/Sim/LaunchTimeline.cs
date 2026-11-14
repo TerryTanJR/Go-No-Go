@@ -247,7 +247,8 @@ namespace GoNoGo.Core
         /// <summary>
         /// 高度與速度的關鍵點：最大動壓約 12 km、0.45 km/s；一節關機的高度與速度依燒的時間（Falcon 9 約 70 km、2.3 km/s，
         /// Delta II 燒得久，約 115 km、4 km/s）；拋整流罩時已在 110 km 以上；SECO 時到停泊軌道（約 200 km）或目標軌道。
-        /// 關機到下一次點火之間速度、高度維持（滑行）。
+        /// 關機到下一次點火之間是無動力滑行：高度照轉移橢圓往上爬、速度跟著變慢（能量守恆），到了再點火圓化；
+        /// 地球同步、地月轉移的停泊軌道是圓的，高度、速度維持。
         /// </summary>
         void BuildTelemetry(double orbitAltKm, LaunchOutcome outcome, bool reaches)
         {
@@ -255,14 +256,16 @@ namespace GoNoGo.Core
             if (outcome == LaunchOutcome.LowerOrbit) finalAlt *= 0.8;
             bool parking = Events.Any(e => e.Id == "restart") || Events.Any(e => e.Id == "upper_ignite" && e.T > (First("seco")?.T ?? 1e9));
             bool deepSpace = OrbitId == "geo" || OrbitId == "llo_100";
+            // 太陽同步這類：SECO-1 進的是近地點 200 km、遠地點在目標高度的轉移橢圓，滑行約半圈再點火（Transporter、OCO-2 都是約 40 分鐘）
+            bool transfer = reaches && parking && !deepSpace && finalAlt > ParkingAltKm + 1;
 
             var meco = First("meco");
             double tMeco = meco?.T ?? 150;
             double altMeco = Clamp(0.45 * tMeco, 35, 115), vMeco = 0.015 * tMeco;
             var seco = First("seco") ?? First("underspeed");
             double tSeco = seco?.T ?? tMeco + 300;
-            double altSeco = !reaches ? 150 : parking ? 200 : Math.Min(finalAlt, 700);
-            double vSeco = !reaches ? 6.4 : CircularVelocity(altSeco);
+            double altSeco = !reaches ? 150 : parking ? ParkingAltKm : Math.Min(finalAlt, 700);
+            double vSeco = !reaches ? 6.4 : transfer ? EllipseSpeed(altSeco, altSeco, finalAlt) : CircularVelocity(altSeco);
             double tFair = (First("fairing") ?? First("fairing_fail"))?.T ?? tMeco + 40;
             var ses = First("ses");
             double altSes = ses != null ? altMeco + Math.Max(0, ses.T - tMeco) * 0.9 : altMeco;
@@ -279,12 +282,14 @@ namespace GoNoGo.Core
             Key(tMeco, altMeco, vMeco);
             if (ses != null) Key(ses.T, altSes, vMeco - 0.02 * (ses.T - tMeco) / 10);
 
-            // 爬升段中途的上節關機（多節火箭）：速度依燒完的節數平均分配，關機到下一節點火之間維持
+            // 爬升段中途的上節關機（多節火箭）：速度依燒完的節數平均分配；有動力的爬升最多到停泊軌道的高度，
+            // 再上去是關機後滑行到遠地點（Taurus 的第三節燒完滑行約 8 分鐘，到目標高度才點第四節圓化）
             var burns = Events.Where(e => e.T > (ses?.T ?? tMeco) && e.T <= tSeco && (e.Id == "upper_cutoff" || e.Id == "upper_ignite" || e.Id == "fairing" || e.Id == "fairing_fail")).ToList();
             int nCut = burns.Count(e => e.Id == "upper_cutoff") + 1;
             int k = 0;
-            double lastA = altMeco, lastV = vMeco;
-            double v0 = ses != null ? vMeco : vMeco;
+            double lastA = altMeco, lastV = vMeco, lastCut = tMeco;
+            double v0 = vMeco, altBurn = Math.Min(altSeco, ParkingAltKm);
+            var lastIgnite = burns.LastOrDefault(e => e.Id == "upper_ignite");
             foreach (var e in burns)
             {
                 double f = (double)(k + (e.Id == "upper_cutoff" ? 1 : 0)) / nCut;
@@ -293,7 +298,14 @@ namespace GoNoGo.Core
                     if (nCut == 1) Key(e.T, altFair, Lerp(v0, vSeco, (e.T - (ses?.T ?? tMeco)) / Math.Max(1, tSeco - (ses?.T ?? tMeco)) * 0.6));
                     continue;
                 }
-                if (e.Id == "upper_cutoff") { k++; lastA = Math.Max(altFair, Lerp(altMeco, altSeco, f)); lastV = Lerp(v0, vSeco, f); Key(e.T, lastA, lastV); }
+                if (e.Id == "upper_cutoff") { k++; lastA = Math.Max(altFair, Lerp(altMeco, altBurn, f)); lastV = Lerp(v0, vSeco, f); lastCut = e.T; Key(e.T, lastA, lastV); }
+                else if (ReferenceEquals(e, lastIgnite) && e.T - lastCut > 60 && altSeco > lastA)
+                {
+                    // 最後一節點火前的長滑行：爬到目標高度，速度照能量守恆變慢
+                    lastV = CoastSpeed(lastV, lastA, altSeco);
+                    lastA = altSeco;
+                    Key(e.T, lastA, lastV);
+                }
                 else Key(e.T, lastA, lastV); // 下一節點火：滑行結束
             }
             Key(tSeco, altSeco, vSeco);
@@ -311,25 +323,62 @@ namespace GoNoGo.Core
                 LunarTelemetry(tSeco, a, v);
                 return;
             }
+            bool gto = false;
             foreach (var e in Events.Where(x => x.T > tSeco))
             {
-                if (IsIgnition(e.Id)) Key(e.T, a, v);
+                if (IsIgnition(e.Id))
+                {
+                    // 轉移橢圓滑行到遠地點：高度到目標、速度降到遠地點速度（之後點火補到圓軌道速度）
+                    if (transfer && a < finalAlt) { v = EllipseSpeed(finalAlt, a, finalAlt); a = finalAlt; }
+                    Key(e.T, a, v);
+                }
                 else if (e.Id == "seco2" || e.Id == "upper_cutoff")
                 {
-                    if (OrbitId == "geo") { a = 250; v = 10.2; }
+                    // 地球同步轉移：近地點 250 km、遠地點 35,786 km 的橢圓，近地點速度約 10.2 km/s
+                    if (OrbitId == "geo") { a = GtoPerigeeAltKm; v = EllipseSpeed(a, a, GeoAltKm); gto = true; }
                     else if (OrbitId == "llo_100") { a = 260; v = 10.9; }
                     else { a = finalAlt; v = CircularVelocity(finalAlt); }
                     Key(e.T, a, v);
                     lastT = e.T;
                 }
-                else if (e.Id == "deploy")
-                {
-                    // 地球同步轉移、地月轉移：關機後一路往上爬（速度跟著變慢）
-                    if (deepSpace) { double dt = e.T - lastT; a += dt * 2.2; v -= dt * 0.0012; }
-                    Key(e.T, a, v);
-                }
+                else if (e.Id == "deploy" && !gto) Key(e.T, a, v);
             }
-            Key(End, a + (deepSpace ? (End - lastT) * 2.2 : 0), v);
+            if (gto)
+            {
+                // 關機後沿轉移橢圓往上飛（克卜勒方程式），每 30 秒取一個點
+                for (double t = lastT + 30; t < End; t += 30) GtoKey(t, lastT);
+                GtoKey(End, lastT);
+                return;
+            }
+            Key(End, a, v);
+        }
+
+        void GtoKey(double t, double perigeeT)
+        {
+            Kepler(Re + GtoPerigeeAltKm, Re + GeoAltKm, t - perigeeT, out double r, out double v);
+            Key(t, r - Re, v);
+        }
+
+        const double ParkingAltKm = 200, GtoPerigeeAltKm = 250, GeoAltKm = 35786;
+
+        /// <summary>近地點、遠地點高度為 periAlt、apoAlt 的橢圓，在高度 alt 的速度（活力公式）。</summary>
+        static double EllipseSpeed(double alt, double periAlt, double apoAlt)
+        {
+            double a = Re + (periAlt + apoAlt) / 2;
+            return Math.Sqrt(Mu * (2 / (Re + alt) - 1 / a));
+        }
+
+        /// <summary>無動力滑行從高度 fromAlt 爬到 toAlt 之後的速度（動能換成位能）。</summary>
+        static double CoastSpeed(double v, double fromAlt, double toAlt) =>
+            Math.Sqrt(Math.Max(0, v * v - 2 * Mu * (1 / (Re + fromAlt) - 1 / (Re + toAlt))));
+
+        /// <summary>過近地點 tau 秒後離地心的距離與速度（近地點、遠地點是離地心的距離）。</summary>
+        static void Kepler(double rp, double ra, double tau, out double r, out double v)
+        {
+            double a = (rp + ra) / 2, e = (ra - rp) / (ra + rp);
+            double E = LunarTransfer.SolveKepler(Math.Sqrt(Mu / (a * a * a)) * tau, e);
+            r = a * (1 - e * Math.Cos(E));
+            v = Math.Sqrt(Mu * (2 / r - 1 / a));
         }
 
         /// <summary>
@@ -529,10 +578,12 @@ namespace GoNoGo.Core
         }
 
         /// <summary>過近地點 tau 秒後的偏近點角（0..π）。</summary>
-        public double EccentricAnomaly(double tau)
+        public double EccentricAnomaly(double tau) => SolveKepler(MeanMotion * tau, Eccentricity);
+
+        /// <summary>克卜勒方程式 M = E − e·sinE：平近點角 m（0..π，超出範圍會夾住）的偏近點角。</summary>
+        public static double SolveKepler(double m, double e)
         {
-            double m = Math.Max(0, Math.Min(Math.PI, MeanMotion * Math.Max(0, tau)));
-            double e = Eccentricity;
+            m = Math.Max(0, Math.Min(Math.PI, m));
             // 牛頓法從 π 開始：f(E) = E − e·sinE − M 在 [0, π] 遞增且下凸，從右邊出發一定單調收斂（e≈0.97 也一樣）
             double E = Math.PI;
             for (int i = 0; i < 60; i++)
