@@ -814,6 +814,17 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     background-color: rgba(255, 255, 255, 0.85);
     border-width: 1px;
     border-color: rgba(0, 0, 0, 0.5);
+    transition-property: width, height, translate, border-radius, background-color;
+    transition-duration: 0.12s;
+}
+.crosshair--on {
+    width: 18px;
+    height: 18px;
+    translate: -9px -9px;
+    border-radius: 9px;
+    border-width: 2px;
+    border-color: var(--c-accent);
+    background-color: rgba(57, 198, 244, 0.15);
 }
 .hold-ring {
     position: absolute;
@@ -823,6 +834,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     height: 64px;
     translate: -32px -32px;
 }
+.hold-ring--low { top: auto; bottom: 84px; translate: -32px 0; }
 .info-box {
     position: absolute;
     left: 50%;
@@ -1537,6 +1549,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .ops-bar-event { color: var(--c-tight); -unity-font-style: bold; }
 .ops-bar-timer { color: var(--c-text); font-size: var(--fs-18); }
 .judge-row, .act-row { flex-direction: row; flex-wrap: wrap; margin: 6px 0 10px 0; }
+.judge-row > .unity-button, .act-row > .unity-button { margin: 0 10px 8px 0; }
 .readings { margin: 6px 0 12px 0; border-width: 1px; border-color: var(--c-line); border-radius: 4px; }
 .reading { flex-direction: row; align-items: center; padding: 6px 10px; border-bottom-width: 1px; border-color: rgba(31, 53, 80, 0.5); }
 .reading--alert { background-color: rgba(255, 181, 71, 0.1); }
@@ -1665,7 +1678,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .proc-head { flex-direction: row; align-items: center; margin-bottom: 8px; }
 .proc-head-note { margin-left: 14px; flex-shrink: 1; }
 /* 固定高度（= 預覽的高度）並裁掉超出的部分：內容太多時在欄內捲動，不會蓋到下面的購物車列 */
-.proc-wrap { flex-direction: row; height: 420px; flex-shrink: 0; overflow: hidden; margin-top: 8px; }
+.proc-wrap { flex-direction: row; height: 500px; flex-shrink: 0; overflow: hidden; margin-top: 8px; }
 /* .row 會垂直置中（align-items: center），左右兩欄要撐滿整排高度，內容太長才會在欄內捲動 */
 .proc-list { width: 26%; flex-shrink: 0; margin-right: 14px; align-self: stretch; }
 .proc-item {
@@ -1702,6 +1715,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .proc-info-text { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-height: 0; }
 .proc-info-top { flex-direction: row; align-items: center; }
 .proc-info-name { margin-left: 12px; flex-shrink: 1; }
+.modal--manual .proc-info-name { font-size: var(--fs-24); letter-spacing: 1px; }
 .proc-info-cat { margin-top: 8px; }
 .modal--manual .proc-func { margin-top: 10px; color: var(--c-text); font-size: var(--fs-20); }
 .modal--manual .proc-explainer { margin-top: 12px; font-size: var(--fs-19); color: #B9C9DC; }

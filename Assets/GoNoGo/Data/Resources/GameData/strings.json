@@ -688,7 +688,7 @@
   "ui.tut.view.t": { "en": "Change the camera", "zh-TW": "換個視角" },
   "ui.tut.view": { "en": "Press Q to switch between first person and third person.", "zh-TW": "按 Q 切換第一人稱和第三人稱。" },
   "ui.tut.pick.t": { "en": "Pick up a part", "zh-TW": "拿一個零件" },
-  "ui.tut.pick": { "en": "The battery you ordered is now on the POWER rack. Aim at it and press C. The box tells you what the part does.", "zh-TW": "你買的電池已經放在「電力」架上。準星對著它按 C，資訊框會告訴你這個零件做什麼用。" },
+  "ui.tut.pick": { "en": "The battery you ordered is now on the POWER rack. Walk up to it and press C. The box tells you what the part does.", "zh-TW": "你買的電池已經放在「電力」架上。走到它前面按 C，資訊框會告訴你這個零件做什麼用。" },
   "ui.tut.install.t": { "en": "Install it", "zh-TW": "裝上去" },
   "ui.tut.install": { "en": "Carry it to the integration stand. A see-through preview appears: hold V until the ring fills.", "zh-TW": "拿到中間的整合台旁邊，會出現半透明預覽：長按 V 直到光環填滿。" },
   "ui.tut.report.t": { "en": "Report the design", "zh-TW": "回報設計" },

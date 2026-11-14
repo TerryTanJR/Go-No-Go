@@ -223,6 +223,8 @@ namespace GoNoGo.UI
             bool playing = _panel == null && !Hud.Paused;
             // 第三人稱不靠準星選目標（角色的頭也剛好在畫面中央），只有第一人稱顯示
             _crosshair.style.display = playing && Hud.FirstPerson ? DisplayStyle.Flex : DisplayStyle.None;
+            // 對到能互動的東西：準星變成一個圈
+            _crosshair.EnableInClassList("crosshair--on", Hud.Target != null && Hud.Target.Keys.Count > 0);
             _hud.style.opacity = _panel == null ? 1f : 0.35f;
 
             // 資訊框
@@ -252,6 +254,8 @@ namespace GoNoGo.UI
                 }
             }
             _ring.Value = Hud.Progress;
+            // 第三人稱畫面中央是角色的頭：進度環移到下方、手上零件的上面
+            _ring.EnableInClassList("hold-ring--low", !Hud.FirstPerson);
             _ring.style.display = Hud.Progress > 0 ? DisplayStyle.Flex : DisplayStyle.None;
 
             _mic.style.display = Multiplayer.VoiceConnected ? DisplayStyle.Flex : DisplayStyle.None;
@@ -281,7 +285,7 @@ namespace GoNoGo.UI
         float _areaTime;
 
         /// <summary>
-        /// 資訊框位置：有錨點（第三人稱）就貼在物件上方、往右偏一點，不會跑出畫面；沒有就用 USS 的位置（準星右下）。
+        /// 資訊框位置：有錨點（第三人稱）就置中放在物件上方，不蓋住物件、不會跑出畫面；沒有就用 USS 的位置（準星右下）。
         /// </summary>
         void PlaceInfo(Vector3? anchor)
         {
@@ -298,8 +302,8 @@ namespace GoNoGo.UI
             var size = Root.layout.size;
             var box = _info.layout.size;
             if (float.IsNaN(box.x)) box = Vector2.zero;
-            _info.style.left = Mathf.Clamp(sp.x + 24f, 16f, Mathf.Max(16f, size.x - box.x - 16f));
-            _info.style.top = Mathf.Clamp(sp.y - box.y, 16f, Mathf.Max(16f, size.y - box.y - 16f));
+            _info.style.left = Mathf.Clamp(sp.x - box.x / 2f, 16f, Mathf.Max(16f, size.x - box.x - 16f));
+            _info.style.top = Mathf.Clamp(sp.y - box.y - 8f, 16f, Mathf.Max(16f, size.y - box.y - 16f));
             _info.style.translate = new Translate(0, 0);
         }
 

@@ -56,6 +56,7 @@ namespace GoNoGo.Presentation
                         hitCol = hit.collider;
                     }
                 }
+                if (found == null) found = Assist(out hitCol);
             }
             else if (active) found = Nearby(out hitCol);
             if (found is IntegrationStand st) st.Aim(hitCol);
@@ -189,6 +190,35 @@ namespace GoNoGo.Presentation
             return best;
         }
 
+        /// <summary>
+        /// 第一人稱的吸附：準星差一點沒對到（偏 8° 以內）也算，桌上的電話、架上的小零件不用對得剛剛好。
+        /// </summary>
+        Interactable Assist(out Collider col)
+        {
+            col = null;
+            var aim = _pc.AimRay;
+            float best = 8f;
+            Interactable pick = null;
+            foreach (var it in Interactable.All)
+            {
+                if (it == null || !it.isActiveAndEnabled) continue;
+                foreach (var c in it.Colliders)
+                {
+                    if (c == null || !c.enabled || !c.gameObject.activeInHierarchy) continue;
+                    var b = c.bounds;
+                    // 碰撞框上離準星射線最近的點
+                    var p = b.ClosestPoint(aim.origin + aim.direction * Mathf.Max(0, Vector3.Dot(b.center - aim.origin, aim.direction)));
+                    if (Vector3.Distance(_pc.Pivot, p) > it.Range) continue;
+                    float a = Vector3.Angle(aim.direction, p - aim.origin);
+                    if (a >= best || Blocked(it, aim.origin, p)) continue;
+                    best = a;
+                    pick = it;
+                    col = c;
+                }
+            }
+            return pick;
+        }
+
         /// <summary>角色和物件之間隔著別的東西（牆、別的桌子）。</summary>
         static bool Blocked(Interactable it, Vector3 from, Vector3 to)
         {
@@ -197,17 +227,24 @@ namespace GoNoGo.Presentation
             return hit.distance < Vector3.Distance(from, to) - 0.15f;
         }
 
-        /// <summary>物件頂端上方一點：提示框貼在這裡。</summary>
+        /// <summary>物件頂端上方一點：提示框貼在這裡。用看得到的模型算（碰撞框常常比模型矮，提示框會蓋住模型）。</summary>
         static Vector3 TopOf(Interactable it)
         {
             Bounds b = default;
             bool any = false;
-            foreach (var c in it.Colliders)
+            foreach (var r in it.GetComponentsInChildren<Renderer>())
             {
-                if (c == null || !c.enabled) continue;
-                if (!any) { b = c.bounds; any = true; }
-                else b.Encapsulate(c.bounds);
+                if (!r.enabled || !r.gameObject.activeInHierarchy) continue;
+                if (!any) { b = r.bounds; any = true; }
+                else b.Encapsulate(r.bounds);
             }
+            if (!any)
+                foreach (var c in it.Colliders)
+                {
+                    if (c == null || !c.enabled) continue;
+                    if (!any) { b = c.bounds; any = true; }
+                    else b.Encapsulate(c.bounds);
+                }
             if (!any) return it.transform.position + Vector3.up * 0.3f;
             return new Vector3(b.center.x, b.max.y + 0.15f, b.center.z);
         }

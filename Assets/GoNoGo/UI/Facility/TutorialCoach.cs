@@ -127,7 +127,8 @@ namespace GoNoGo.UI
                 _pinned = !Expanded;
                 _expandFor = 0;
             }
-            _expandFor = Mathf.Max(0, _expandFor - dt);
+            // 面板開著的時候不倒數：關掉面板回來還看得到新步驟的說明
+            if (visible) _expandFor = Mathf.Max(0, _expandFor - dt);
             bool open = Expanded;
             _body.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
             _more.text = Loc.T(open ? "ui.tut.less" : "ui.tut.more");
@@ -178,8 +179,8 @@ namespace GoNoGo.UI
             var wp = pos.Value;
             var player = PoseFeed.Local.Position;
             float dist = Vector3.Distance(new Vector3(player.x, 0, player.z), new Vector3(wp.x, 0, wp.z));
-            // 已經走到旁邊、或正對著某個東西：互動提示會出現，標記就不需要了
-            if (dist < 2.2f || Hud.Target != null)
+            // 已經走到旁邊：互動提示會出現，標記就不需要了
+            if (dist < 2.2f)
             {
                 _marker.style.display = DisplayStyle.None;
                 return;
