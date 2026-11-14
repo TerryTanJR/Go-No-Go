@@ -364,6 +364,40 @@
 /* ---------- 共用 ---------- */
 .fader { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: #000000; opacity: 0; transition-duration: 0.45s; }
 .fader--on { opacity: 1; }
+/* 進場過場：火箭進度條 */
+.loading {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(3, 6, 12, 0.94);
+    opacity: 1;
+    transition-property: opacity;
+    transition-duration: 0.3s;
+}
+.loading--out { opacity: 0; }
+.loading-col { width: 640px; }
+.loading-title { font-size: var(--fs-26); letter-spacing: 6px; -unity-font-style: bold; color: var(--c-text); margin-bottom: 28px; }
+.loading-track {
+    height: 8px;
+    border-radius: 4px;
+    background-color: rgba(57, 198, 244, 0.15);
+    overflow: visible;
+}
+.loading-fill { height: 8px; border-radius: 4px; background-color: var(--c-accent); }
+.loading-rocket {
+    position: absolute;
+    top: 50%;
+    width: 64px;
+    height: 32px;
+    translate: -85% -50%;
+}
+.loading-row { margin-top: 26px; align-items: center; }
+.loading-stage { font-size: var(--fs-16); color: var(--c-dim); }
+.loading-pct { font-size: var(--fs-16); color: var(--c-accent); }
 .toast {
     position: absolute;
     left: 50%;

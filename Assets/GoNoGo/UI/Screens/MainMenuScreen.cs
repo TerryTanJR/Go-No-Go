@@ -102,7 +102,7 @@ namespace GoNoGo.UI
         void RootMenu(VisualElement col)
         {
             Ui.Text(Loc.T("ui.menu.hello", ("name", Profile.Look.Name)), "eyebrow").AddTo(col);
-            Item(col, "ui.menu.tutorial", "ui.menu.tutorial_desc", () => { Sfx.Confirm(); GameSession.StartSolo("earth_observation", "tutorial", true); });
+            Item(col, "ui.menu.tutorial", "ui.menu.tutorial_desc", () => { Sfx.Confirm(); UIRoot.BeginLoading(false); GameSession.StartSolo("earth_observation", "tutorial", true); });
             Item(col, "ui.menu.solo", "ui.menu.solo_desc", () => { _multi = false; Go(Page.Missions); });
             Item(col, "ui.menu.host", "ui.menu.host_desc", () => { _multi = true; Go(Page.Missions); });
             Item(col, "ui.menu.join", "ui.menu.join_desc", () => Go(Page.Join));
@@ -183,25 +183,34 @@ namespace GoNoGo.UI
             DescLine(col, recommended);
             foreach (var (b, d) in items) Describe(b, d);
             if (_multi && !Multiplayer.Available) Ui.Text(Loc.T("ui.menu.no_net"), "small", "tight").AddTo(col);
-            if (_busy) Ui.Text(Loc.T("ui.menu.connecting"), "small", "accent").AddTo(col);
         }
 
         void Start(string difficulty)
         {
             if (_busy) return;
             Sfx.Confirm();
-            if (!_multi) { GameSession.StartSolo(_scenario, difficulty); return; }
+            if (!_multi) { UIRoot.BeginLoading(false); GameSession.StartSolo(_scenario, difficulty); return; }
             if (!Multiplayer.Available) { _error = "ui.menu.no_net"; Rebuild(); return; }
+            Connect(() => Multiplayer.Host(_scenario, difficulty, Done));
+        }
+
+        /// <summary>開始連線：蓋上過場（期間不能再點介面），成功時場景換掉、過場自己收起來。</summary>
+        void Connect(System.Action go)
+        {
             _busy = true;
-            Rebuild();
-            Multiplayer.Host(_scenario, difficulty, Done);
+            _error = "";
+            UIRoot.BeginLoading(true);
+            go();
         }
 
         void Done(string err)
         {
             _busy = false;
             _error = err ?? "";
-            if (!string.IsNullOrEmpty(_error)) { Sfx.NoGo(); Rebuild(); }
+            if (string.IsNullOrEmpty(_error)) return;
+            UIRoot.EndLoading();
+            Sfx.NoGo();
+            Rebuild();
         }
 
         // ---------------- 加入房間 ----------------
@@ -220,17 +229,12 @@ namespace GoNoGo.UI
             {
                 if (!Multiplayer.Available) { _error = "ui.menu.no_net"; Rebuild(); return; }
                 if (string.IsNullOrEmpty(_code)) return;
-                _busy = true; Rebuild();
-                Multiplayer.Join(_code, Done);
+                Connect(() => Multiplayer.Join(_code, Done));
             }, "btn-primary").AddTo(row);
 
             // 同一個網路直接連（測試用）：收在「進階」裡
             Ui.Btn((_lan ? "▾  " : "▸  ") + Loc.T("ui.menu.advanced"), () => { _lan = !_lan; Rebuild(); }, "btn-ghost", "menu-sub", "menu-back").AddTo(col);
-            if (!_lan)
-            {
-                if (_busy) Ui.Text(Loc.T("ui.menu.connecting"), "small", "accent").AddTo(col);
-                return;
-            }
+            if (!_lan) return;
             Ui.Text(Loc.T("ui.menu.lan"), "eyebrow").AddTo(col);
             var ip = new TextField { value = _ip };
             ip.AddToClassList("code-field");
@@ -240,16 +244,13 @@ namespace GoNoGo.UI
             Ui.Btn(Loc.T("ui.menu.lan_join"), () =>
             {
                 if (Multiplayer.JoinDirect == null) { _error = "ui.menu.no_net"; Rebuild(); return; }
-                _busy = true; Rebuild();
-                Multiplayer.JoinDirect(_ip, Done);
+                Connect(() => Multiplayer.JoinDirect(_ip, Done));
             }, "menu-btn-gap").AddTo(row2);
             Ui.Btn(Loc.T("ui.menu.lan_host"), () =>
             {
                 if (Multiplayer.HostDirect == null) { _error = "ui.menu.no_net"; Rebuild(); return; }
-                _busy = true; Rebuild();
-                Multiplayer.HostDirect(_scenario ?? "earth_observation", "engineer", Done);
+                Connect(() => Multiplayer.HostDirect(_scenario ?? "earth_observation", "engineer", Done));
             }).AddTo(row2);
-            if (_busy) Ui.Text(Loc.T("ui.menu.connecting"), "small", "accent").AddTo(col);
         }
 
         // ---------------- 設定 ----------------

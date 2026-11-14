@@ -23,11 +23,14 @@ namespace GoNoGo.Game
         public static Action<float> FadeIn;
 
         public static bool Loading { get; private set; }
+        /// <summary>載入新場景的進度 0–1（過場畫面的進度條用）。</summary>
+        public static float Progress { get; private set; }
 
         public static void Go(string scene, float fade = 0.45f)
         {
             if (Loading) return;
             Loading = true;
+            Progress = 0;
             GameSession.Instance.StartCoroutine(Load(scene, fade));
         }
 
@@ -38,7 +41,12 @@ namespace GoNoGo.Game
             float t = 0;
             while (!faded && t < fade + 1f) { t += Time.unscaledDeltaTime; yield return null; }
             var op = SceneManager.LoadSceneAsync(scene);
-            while (op != null && !op.isDone) yield return null;
+            while (op != null && !op.isDone)
+            {
+                Progress = Mathf.Clamp01(op.progress / 0.9f); // Unity 的 progress 載完資料停在 0.9，啟用場景後才到 1
+                yield return null;
+            }
+            Progress = 1;
             Loading = false;
             FadeIn?.Invoke(fade);
         }
