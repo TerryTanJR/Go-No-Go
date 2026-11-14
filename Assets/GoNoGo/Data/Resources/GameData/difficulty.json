@@ -1,5 +1,36 @@
 [
   {
+    "id": "cadet",
+    "name": {
+      "en": "Cadet",
+      "zh-TW": "學員"
+    },
+    "description": {
+      "en": "Bigger budget, fewer parts, a coloured dashboard and a launch checklist. Events are named for you; the first failed launch is free.",
+      "zh-TW": "預算多一半、零件少一些，儀表板有紅黃綠，電話內容自動整理成發射條件清單。營運事件直接告訴你名稱，第一次發射失敗不扣分。"
+    },
+    "budget_multiplier": 1.5,
+    "required_margin": 0.0,
+    "tiers_per_category": 2,
+    "decoy_categories": ["instrument"],
+    "dashboard_colors": true,
+    "notes_mode": "checklist",
+    "requirement_conflicts": 0,
+    "failure_detail": "advice",
+    "free_first_failure": true,
+    "event_reveal": true,
+    "turns": 6,
+    "event_types": [
+      "solar_storm",
+      "science_opportunity"
+    ],
+    "turn_seconds": 0,
+    "guaranteed_launch": false,
+    "orders": 3,
+    "rush_fee": 0.0,
+    "extra_action_penalty": 5
+  },
+  {
     "id": "engineer",
     "name": {
       "en": "Engineer",
@@ -30,37 +61,6 @@
     "orders": 2,
     "rush_fee": 0.3,
     "extra_action_penalty": 10
-  },
-  {
-    "id": "cadet",
-    "name": {
-      "en": "Cadet",
-      "zh-TW": "學員"
-    },
-    "description": {
-      "en": "Bigger budget, fewer parts, a coloured dashboard and a launch checklist. Events are named for you; the first failed launch is free.",
-      "zh-TW": "預算多一半、零件少一些，儀表板有紅黃綠，電話內容自動整理成發射條件清單。營運事件直接告訴你名稱，第一次發射失敗不扣分。"
-    },
-    "budget_multiplier": 1.5,
-    "required_margin": 0.0,
-    "tiers_per_category": 2,
-    "decoy_categories": ["instrument"],
-    "dashboard_colors": true,
-    "notes_mode": "checklist",
-    "requirement_conflicts": 0,
-    "failure_detail": "advice",
-    "free_first_failure": true,
-    "event_reveal": true,
-    "turns": 6,
-    "event_types": [
-      "solar_storm",
-      "science_opportunity"
-    ],
-    "turn_seconds": 0,
-    "guaranteed_launch": false,
-    "orders": 3,
-    "rush_fee": 0.0,
-    "extra_action_penalty": 5
   },
   {
     "id": "director",

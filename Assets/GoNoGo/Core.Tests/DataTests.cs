@@ -291,7 +291,7 @@ namespace GoNoGo.Core.Tests
         public void TutorialDifficultyIsHidden()
         {
             var data = TestData.Load();
-            Assert.That(data.SelectableDifficulties.Select(d => d.Id), Is.EqualTo(new[] { "engineer", "cadet", "director" }));
+            Assert.That(data.SelectableDifficulties.Select(d => d.Id), Is.EqualTo(new[] { "cadet", "engineer", "director" }));
             var t = data.Difficulty("tutorial");
             Assert.That(t.Hidden && t.GuaranteedLaunch && t.Turns == 1);
         }

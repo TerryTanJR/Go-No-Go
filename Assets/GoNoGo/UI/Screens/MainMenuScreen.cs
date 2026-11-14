@@ -175,7 +175,7 @@ namespace GoNoGo.UI
                 b.Clear();
                 var head = Ui.Row().AddTo(b);
                 Ui.Text(Loc.T(df.Name), "h3").AddTo(head);
-                if (id == "engineer")
+                if (id == "cadet")
                 {
                     Ui.Text(Loc.T("ui.menu.default"), "small", "accent", "menu-tag").AddTo(head);
                     recommended = Loc.T(df.Description);
