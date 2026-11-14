@@ -1008,7 +1008,6 @@
   "suggest.fire_tradeoff": { "en": "Try the other good answer: the high-resolution detector finds more fires, the long-wave thermal imager rules out false ones. Which matters more depends on the difficulty.", "zh-TW": "試試另一種正解：高解析火點儀找得到更多火點，長波熱紅外線能排除假火點。哪個比較重要，要看難度。" },
   "ui.brief.back_to_work": { "en": "Back to work", "zh-TW": "回去工作" },
   "ui.brief.review_hint": { "en": "B  Briefing", "zh-TW": "B  任務簡報" },
-  "ui.brief.review_note": { "en": "Your own copy of the briefing: the rest of the team is not waiting for you.", "zh-TW": "這是你自己的簡報，不會影響隊友，也不用等其他人。" },
   "ui.intro.assembly.t": { "en": "YOU ARE ASSEMBLY", "zh-TW": "你在組裝區" },
   "ui.intro.assembly": { "en": "Order parts at the procurement terminal (the control room approves each order), carry them from the delivery window to the integration stand (C to pick up, V to install), report the design, and read the DASHBOARD wall screen. Only you see the spacecraft's numbers: read them out to Control.", "zh-TW": "在採購終端下單（每一單要中控室批准），把零件從收貨口搬到整合台（C 拿取、V 安裝），回報設計，並看儀表板大螢幕。太空船的數字只有你看得到，要念給中控組聽。" },
   "ui.intro.control.t": { "en": "YOU ARE CONTROL ROOM", "zh-TW": "你在中控室" },
