@@ -80,6 +80,7 @@ namespace GoNoGo.UI
             _tip.pickingMode = PickingMode.Ignore;
             _tipText = Ui.Text("", "body").AddTo(_tip);
             _tip.style.display = DisplayStyle.None;
+            _tip.RegisterCallback<GeometryChangedEvent>(_ => PlaceTip());
 
             _fader = Ui.El("fader").AddTo(root).Named("fader");
             _fader.pickingMode = PickingMode.Ignore;
@@ -93,12 +94,27 @@ namespace GoNoGo.UI
             SceneFlow.FadeIn = FadeIn;
             SceneManager.sceneLoaded += OnSceneLoaded;
             Loc.Changed += OnLangChanged;
+            GameSettings.TextScaleChanged += ApplyTextScale;
+            ApplyTextScale();
+        }
+
+        /// <summary>
+        /// 字體大小：根元素掛 fs-{百分比}，FontScale.uss 依此換掉所有 --fs-N 變數，整個 UI（含選單、提示、場景標籤）一起變。
+        /// 不必重建畫面：樣式重算後版面自動重排。
+        /// </summary>
+        void ApplyTextScale()
+        {
+            var root = _doc.rootVisualElement;
+            foreach (int pct in GameSettings.TextScales)
+                root.EnableInClassList(GameSettings.TextScaleClass(pct), pct == GameSettings.TextScale);
+            HideTip();
         }
 
         void OnDestroy()
         {
             SceneManager.sceneLoaded -= OnSceneLoaded;
             Loc.Changed -= OnLangChanged;
+            GameSettings.TextScaleChanged -= ApplyTextScale;
             if (_i == this)
             {
                 _i = null;
@@ -243,13 +259,25 @@ namespace GoNoGo.UI
             if (_i == null || anchor?.panel == null) return;
             _i._tipText.text = text;
             _i._tip.style.display = DisplayStyle.Flex;
-            var b = anchor.worldBound;
-            var root = _i._overlay.worldBound;
+            _i._tipAnchor = anchor;
+            _i.PlaceTip();
+        }
+
+        VisualElement _tipAnchor;
+
+        /// <summary>放在元素右邊，超出畫面就移到左邊／往上。用提示框實際的大小（字體放大後會變大），排版完成後會再算一次。</summary>
+        void PlaceTip()
+        {
+            if (_tipAnchor?.panel == null || _tip.style.display == DisplayStyle.None) return;
+            var b = _tipAnchor.worldBound;
+            var root = _overlay.worldBound;
+            float w = _tip.layout.width > 0 && !float.IsNaN(_tip.layout.width) ? _tip.layout.width : 360;
+            float h = _tip.layout.height > 0 && !float.IsNaN(_tip.layout.height) ? _tip.layout.height : 160;
             float x = b.xMax + 12, y = b.yMin;
-            if (x + 360 > root.width) x = Mathf.Max(8, b.xMin - 372);
-            if (y + 160 > root.height) y = Mathf.Max(64, root.height - 170);
-            _i._tip.style.left = x;
-            _i._tip.style.top = y;
+            if (x + w > root.width) x = Mathf.Max(8, b.xMin - w - 12);
+            if (y + h > root.height - 8) y = Mathf.Max(8, root.height - h - 8);
+            _tip.style.left = x;
+            _tip.style.top = y;
         }
 
         public static void HideTip()

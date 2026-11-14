@@ -114,7 +114,11 @@ namespace GoNoGo.UI
             FailureBoardView.Build(launches);
 
             // ---- 右欄：對照 ----
-            var right = Ui.El("report-col", "report-col--compare").AddTo(wrap);
+            var rightCol = Ui.El("report-col", "report-col--compare").AddTo(wrap);
+            // 和左、中欄一樣可以捲動：字體放大時對照卡片會變長
+            var rightScroll = new ScrollView(ScrollViewMode.Vertical).AddTo(rightCol);
+            rightScroll.AddToClassList("why-scroll");
+            var right = rightScroll.contentContainer;
             var you = Ui.Panel(right, Loc.T("ui.report.your_mission"), out _);
             Fact(you, "ui.report.f.launch", Loc.T(r.Launch.ReasonCode));
             Fact(you, "ui.report.f.years", Fmt.Years(r.ActualYears) + " / " + Fmt.Years(r.TargetYears));

@@ -146,8 +146,30 @@ namespace GoNoGo.UI
             SliderRow(body, Loc.T("ui.gmenu.mouse"), GameSettings.MinMouse, GameSettings.MaxMouse, GameSettings.MouseSensitivity,
                 v => GameSettings.MouseSensitivity = v, v => v.ToString("0.0") + "×");
 
+        /// <summary>字體大小（主選單的設定頁也用）。點下去立刻套用，選單本身就是預覽。</summary>
+        public static void TextSizeControl(VisualElement body)
+        {
+            var row = ChoiceRow(body, Loc.T("ui.gmenu.textsize"));
+            var chips = new System.Collections.Generic.List<(Button b, int pct)>();
+            foreach (int pct in GameSettings.TextScales)
+            {
+                int p = pct;
+                var b = Ui.Btn(p + "%", null, "chip").AddTo(row);
+                b.clicked += () =>
+                {
+                    GameSettings.TextScale = p;
+                    foreach (var c in chips) c.b.EnableInClassList("chip--on", c.pct == GameSettings.TextScale);
+                };
+                b.EnableInClassList("chip--on", p == GameSettings.TextScale);
+                chips.Add((b, p));
+            }
+            Ui.Text(Loc.T("ui.gmenu.textsize.note"), "small", "dim").AddTo(body);
+        }
+
         void BuildSettings(VisualElement body)
         {
+            TextSizeControl(body);
+
             // 語言
             var lang = ChoiceRow(body, Loc.T("ui.lang"));
             Chip(lang, "中文", Loc.IsZh, () => { if (!Loc.IsZh) Loc.Toggle(); });

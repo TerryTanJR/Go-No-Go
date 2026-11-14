@@ -558,6 +558,8 @@
   "ui.gmenu.view.first": { "en": "First person", "zh-TW": "第一人稱" },
   "ui.gmenu.view.note": { "en": "In the facility you can also press Q to switch.", "zh-TW": "在設施裡也可以按 Q 切換。" },
   "ui.gmenu.mouse": { "en": "Mouse sensitivity", "zh-TW": "滑鼠靈敏度" },
+  "ui.gmenu.textsize": { "en": "Text size", "zh-TW": "字體大小" },
+  "ui.gmenu.textsize.note": { "en": "Applies to every menu, panel and label. Screens inside the facility keep their size.", "zh-TW": "所有選單、面板和場景標籤都會一起變。設施裡牆上的螢幕維持原本大小。" },
   "ui.gmenu.quit.ask": { "en": "Return to the main menu?", "zh-TW": "要返回主選單嗎？" },
   "ui.gmenu.quit.solo": { "en": "This mission's progress will not be saved.", "zh-TW": "這一局的進度不會保存。" },
   "ui.gmenu.quit.tutorial": { "en": "The tutorial ends here. You can start it again from the main menu.", "zh-TW": "新手訓練會在這裡結束，之後可以從主選單重新開始。" },

@@ -217,6 +217,7 @@ namespace GoNoGo.UI
             Ui.Btn(Loc.IsZh ? "English" : "中文", Loc.Toggle, "btn-ghost").AddTo(col);
             // 和遊戲中選單（Tab）同一組控制項
             var box = Ui.El("gm-col", "gm-settings").AddTo(col);
+            GameMenu.TextSizeControl(box);
             GameMenu.SoundControls(box);
             GameMenu.MouseControl(box);
             box.RegisterCallback<DetachFromPanelEvent>(_ => GameSettings.Save());
