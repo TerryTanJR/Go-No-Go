@@ -523,14 +523,7 @@ def console():
                     arc_box(f"Divider_{sid}", C, RC + 0.02, RC + 0.38, ab - 0.12, ab + 0.12, 0.79, 0.86, "M_Console", segs=1)
         obj_from_bm(f"Btns_{grp}", solid(btns), glow)
 
-    # 地板的光線：從兩條縫穿過去，匯到發射台
-    for i, (grp, ids, a0, a1, centers) in enumerate(pods[:-1]):
-        g = a1 + GAP_DEG / 2
-        gp = polar(C, RC, g)
-        p0, p1 = polar(C, RC + 1.7, g), polar(LAUNCH, 1.55, math.degrees(math.atan2(gp.y - LAUNCH.y, gp.x - LAUNCH.x)))
-        d = Vector((p1.x - p0.x, p1.y - p0.y, 0))
-        m = Vector(((p0.x + p1.x) / 2, (p0.y + p1.y) / 2, 0.005))
-        oriented_box(f"FloorGlow_Gap{i}", m, d.normalized(), Z, d.normalized().cross(Z), d.length, 0.05, 0.01, "M_Glow")
+    # （原本這裡有兩條地板光線從縫穿過去匯到發射台；線太細，視角一動就斷成虛線閃爍，已拿掉）
 
 
 def launch_pedestal():

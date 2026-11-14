@@ -13,6 +13,7 @@ namespace GoNoGo.Presentation
     public static class SatelliteBuilder
     {
         static Mesh _cone, _dish, _cylinder, _cube;
+        static float _skin = 0.012f;
 
         public static GameObject Build(Design design, GameData data, Evaluation ev, Transform parent)
         {
@@ -30,6 +31,9 @@ namespace GoNoGo.Presentation
             float h = s * 1.15f;
 
             string shield = design.Get(PartCategory.Shielding) ?? "";
+            // 貼身太陽能板蓋住四個側面時，側面的小板（散熱板、電池板、感測器）要再往外一點，不然兩者在同一個平面上會閃爍破圖
+            var solarDef = data.Part(design.Get(PartCategory.Solar));
+            _skin = solarDef != null && (solarDef.Id == "solar_body" || solarDef.AreaM2 < 0.6) ? 0.03f : 0.012f;
             BuildBus(root.transform, mats, s, h, shield);
             BuildSolar(root.transform, mats, s, h, data.Part(design.Get(PartCategory.Solar)));
             BuildAntenna(root.transform, mats, s, h, design.Get(PartCategory.Antenna));
@@ -383,7 +387,7 @@ namespace GoNoGo.Presentation
         {
             var g = Group(root, PartCategory.Adcs, id ?? "");
             // 太陽感測器（每種都有）
-            Box(g, new Vector3(s / 2 + 0.01f * s, h * 0.42f, s * 0.38f), new Vector3(0.02f * s, 0.05f * s, 0.05f * s), m.lens);
+            Box(g, new Vector3(s / 2 + (_skin - 0.002f) * s, h * 0.42f, s * 0.38f), new Vector3(0.02f * s, 0.05f * s, 0.05f * s), m.lens);
             if (id == "adcs_wheels" || id == "adcs_precision" || id == "adcs_cmg")
             {
                 foreach (var z in new[] { -0.2f, 0.2f })
@@ -421,14 +425,14 @@ namespace GoNoGo.Presentation
             var g = Group(root, PartCategory.Computer, id ?? "");
             // 電腦的散熱板：等級越高越大
             float size = id == "obc_radhard" ? 0.5f : id == "obc_mass_memory" ? 0.38f : 0.24f;
-            Box(g, new Vector3(-s / 2 - 0.012f * s, -0.15f * h, 0), new Vector3(0.008f * s, size * h, size * s), m.paintWhite);
+            Box(g, new Vector3(-s / 2 - _skin * s, -0.15f * h, 0), new Vector3(0.008f * s, size * h, size * s), m.paintWhite);
         }
 
         static void BuildBattery(Transform root, SatMaterials m, float s, float h, string id)
         {
             var g = Group(root, PartCategory.Battery, id ?? "");
             float size = id == "batt_large" ? 0.34f : id == "batt_medium" ? 0.24f : id == "batt_cubesat" ? 0.11f : 0.15f;
-            Box(g, new Vector3(s / 2 + 0.012f * s, -0.22f * h, -0.18f * s), new Vector3(0.008f * s, size * h, size * s), m.paintWhite);
+            Box(g, new Vector3(s / 2 + _skin * s, -0.22f * h, -0.18f * s), new Vector3(0.008f * s, size * h, size * s), m.paintWhite);
         }
 
         // ---------------- 幾何工具 ----------------
