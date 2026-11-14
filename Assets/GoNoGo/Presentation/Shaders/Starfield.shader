@@ -6,6 +6,10 @@ Shader "GoNoGo/Starfield"
         _Brightness ("Brightness", Range(0, 4)) = 1.2
         _MilkyWay ("Milky Way", Range(0, 1)) = 0.35
         _Tint ("Background tint", Color) = (0.004, 0.006, 0.014, 1)
+        // 星空的旋轉（3×3 矩陣的三列）：發射演出在軌道上照軌道角速度轉，和地球一起流動
+        [HideInInspector] _SkyRotX ("Sky rotation row X", Vector) = (1, 0, 0, 0)
+        [HideInInspector] _SkyRotY ("Sky rotation row Y", Vector) = (0, 1, 0, 0)
+        [HideInInspector] _SkyRotZ ("Sky rotation row Z", Vector) = (0, 0, 1, 0)
     }
     SubShader
     {
@@ -21,6 +25,7 @@ Shader "GoNoGo/Starfield"
             CBUFFER_START(UnityPerMaterial)
                 float _Brightness, _MilkyWay;
                 float4 _Tint;
+                float4 _SkyRotX, _SkyRotY, _SkyRotZ;
             CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; };
@@ -74,6 +79,7 @@ Shader "GoNoGo/Starfield"
             half4 frag(Varyings i) : SV_Target
             {
                 float3 d = normalize(i.dir);
+                d = float3(dot(_SkyRotX.xyz, d), dot(_SkyRotY.xyz, d), dot(_SkyRotZ.xyz, d));
                 float3 col = _Tint.rgb;
                 col += Stars(d, 70.0, 0.22, 0.05) * 1.0;
                 col += Stars(d, 180.0, 0.30, 0.07) * 0.35;

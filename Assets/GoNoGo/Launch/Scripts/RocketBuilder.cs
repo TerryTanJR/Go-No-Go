@@ -50,13 +50,13 @@ namespace GoNoGo.Launch
         {
             switch (id)
             {
-                // 第二節 2.4 m，上面是 0.45 m 的踢昇級（Curie 引擎），裝在整流罩底部
-                case "electron": return new Spec { height = 18f, diameter = 1.2f, fairingD = 1.2f, fairingLen = 2.5f, upperSegs = new[] { 2.4f, 0.45f }, engines = 9, body = "black" };
-                case "falcon_heavy": return new Spec { height = 70f, diameter = 3.66f, fairingD = 5.2f, fairingLen = 13f, upperLen = 12.6f, engines = 9, boosters = 2, boosterLen = 44f, boosterD = 3.66f, body = "white" };
-                // 四節固體火箭：第 0 節 Castor 120，上面是 Orion 50SXLG、Orion 50XLG、Orion 38（直徑比第 0 節細）
-                case "taurus_xl": return new Spec { height = 31.5f, diameter = 2.35f, fairingD = 1.6f, fairingLen = 5.1f, upperSegs = new[] { 8.9f, 3.1f, 1.6f }, engines = 1, body = "white" };
-                // Delta II 7320（OCO-2 用的構型）：三支 GEM-40 固體助推器
-                case "delta_ii": return new Spec { height = 38.9f, diameter = 2.44f, fairingD = 2.9f, fairingLen = 8.5f, upperLen = 6f, engines = 1, boosters = 3, boosterLen = 12.8f, boosterD = 1.0f, body = "teal" };
+                // 第二節 2.4 m，上面是 0.405 m 的踢昇級（Curie 引擎），裝在整流罩底部（Electron Payload User Guide 7.0）
+                case "electron": return new Spec { height = 18f, diameter = 1.2f, fairingD = 1.2f, fairingLen = 2.5f, upperSegs = new[] { 2.4f, 0.405f }, engines = 9, body = "black" };
+                case "falcon_heavy": return new Spec { height = 70f, diameter = 3.66f, fairingD = 5.2f, fairingLen = 13f, upperLen = 12.6f, engines = 9, boosters = 2, boosterLen = 42.6f, boosterD = 3.66f, body = "white" };
+                // 四節固體火箭：第 0 節 Castor 120，上面是 Orion 50SXLG 8.74 m、Orion 50XLG 3.07 m、Orion 38 1.34 m（Northrop Grumman Orion Motor Series）
+                case "taurus_xl": return new Spec { height = 31.5f, diameter = 2.35f, fairingD = 1.6f, fairingLen = 5.1f, upperSegs = new[] { 8.74f, 3.07f, 1.34f }, engines = 1, body = "white" };
+                // Delta II 7320-10（OCO-2 用的構型）：三支 GEM-40 固體助推器，10 呎整流罩 3.0 m × 8.9 m（Delta II Payload Planners Guide Table 2-1）
+                case "delta_ii": return new Spec { height = 38.9f, diameter = 2.44f, fairingD = 3.0f, fairingLen = 8.9f, upperLen = 6f, engines = 1, boosters = 3, boosterLen = 12.8f, boosterD = 1.0f, body = "teal" };
                 case "falcon9_rideshare": return new Spec { height = 70f, diameter = 3.66f, fairingD = 5.2f, fairingLen = 13f, upperLen = 12.6f, engines = 9, body = "white", rideshare = true };
                 default: return new Spec { height = 70f, diameter = 3.66f, fairingD = 5.2f, fairingLen = 13f, upperLen = 12.6f, engines = 9, body = "white" }; // falcon9
             }
@@ -119,7 +119,7 @@ namespace GoNoGo.Launch
             p.upperStage = new GameObject("UpperStage").transform;
             p.upperStage.SetParent(root, false);
             p.upperStage.localPosition = new Vector3(0, firstLen, 0);
-            float y = 0;
+            float y = 0, topR = ur;
             for (int i = 0; i < segs.Length; i++)
             {
                 bool last = i == segs.Length - 1;
@@ -135,6 +135,7 @@ namespace GoNoGo.Launch
                 Nozzle(seg, new Vector3(0, -nr * 0.9f, 0), nr, nr * 2.2f, kit.metal);
                 var plume = Plume(seg, new Vector3(0, -nr * 2f, 0), nr * 1.1f, kit.plume);
                 p.segmentBase.Add(y);
+                if (last) topR = sr;
                 if (last) p.upperPlumes.Add(plume);
                 else { p.upperSegments.Add(seg); p.segmentPlumes.Add(plume); }
                 y += len;
@@ -149,6 +150,8 @@ namespace GoNoGo.Launch
             p.payloadMount = new GameObject("PayloadMount").transform;
             p.payloadMount.SetParent(p.upperStage, false);
             p.payloadMount.localPosition = new Vector3(0, fBase + 0.3f, 0);
+            // 衛星轉接座：上節頂端到衛星底部那 0.3 m 用一段往上收窄的錐台接起來，衛星才不會像浮在半空中
+            Cone(p.upperStage, new Vector3(0, fBase, 0), topR * 0.9f, Mathf.Min(topR * 0.45f, 0.5f), 0.3f, kit.metal);
             // 擴張段：整流罩比上節粗時（Falcon 9 是 3.66 → 5.2 m）做成斜的轉接段，太短的話看起來像一片圓盤
             float flare = Mathf.Max(0.6f, (fr - ur) * 1.6f);
             if (fr > ur + 0.05f) Cone(p.upperStage, new Vector3(0, fBase - flare, 0), ur, fr, flare, bodyMat);
@@ -206,7 +209,7 @@ namespace GoNoGo.Launch
             return go;
         }
 
-        static Renderer Plume(Transform parent, Vector3 top, float radius, Material mat)
+        internal static Renderer Plume(Transform parent, Vector3 top, float radius, Material mat)
         {
             // 尾焰：旋轉體 y=0 接噴口、y=1 是尾端；繞 X 轉 180° 讓它往下長。長度由導演依推力與高度調整（縮放 Y）
             var go = Obj(parent, "plume", Lathe("Plume", new[] { new Vector2(0.9f, 0f), new Vector2(1.25f, 0.25f), new Vector2(1.5f, 0.65f), new Vector2(1.2f, 1f) }, 20, true), mat);

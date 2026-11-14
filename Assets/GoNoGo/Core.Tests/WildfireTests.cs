@@ -17,8 +17,15 @@ namespace GoNoGo.Core.Tests
 
         Evaluation Ev(Design d, string diff = "engineer") => Evaluator.EvaluateDesign(d, _data, diff, false);
 
-        TestLevel Level(Design d, string test, string diff = "engineer") =>
-            EnvTests.Run(d, _data, diff).Where(f => f.Test == test).Select(f => f.Level).DefaultIfEmpty(TestLevel.Pass).Max();
+        // 以前的環境測試（採購機制 v2 拿掉了）抓的兩件事，改成直接看評估結果：
+        // 火箭載不載得動（質量餘裕 5% 以上）、電池撐不撐得過地影（fail = 撐不過、warn = 撐得過但放電太深或太陽能板不夠）
+        bool Liftable(Design d) => Ev(d).Mass.OrbitReachable && Ev(d)[ResourceId.Mass].Margin >= 0.05;
+
+        string Eclipse(Design d)
+        {
+            var p = Ev(d).Power;
+            return p.ActualDod > 1.0 ? "fail" : p.ActualDod > p.AllowedDod || p.ArrayMargin < 0 ? "warn" : "pass";
+        }
 
         MissionResult Run(Design d, string diff = "engineer", int seed = 3, IDecisionSource choices = null) =>
             Simulator.SimulateMission(d, _data, seed, choices ?? new PerfectDecisions(), new MissionContext
@@ -35,8 +42,8 @@ namespace GoNoGo.Core.Tests
             var d = WildfireCombos.A();
             var ev = Ev(d);
             Assert.That(ev.AnyOver, Is.False);
-            Assert.That(Level(d, EnvTests.Vibration), Is.EqualTo(TestLevel.Pass));
-            Assert.That(Level(d, EnvTests.Thermal), Is.EqualTo(TestLevel.Pass));
+            Assert.That(Liftable(d));
+            Assert.That(Eclipse(d), Is.EqualTo("pass"));
             Assert.That(ev.Fire.LatencyMin, Is.GreaterThan(60), "一座地面站 + S 頻段：通報要等一個多小時");
             Assert.That(ev.Fire.Detection, Is.EqualTo(0.36).Within(1e-9));
             var r = Run(d);
@@ -53,7 +60,7 @@ namespace GoNoGo.Core.Tests
             var ev = Ev(d);
             Assert.That(ev.Orbit.EclipseMin, Is.EqualTo(35).Within(1), "下午軌道每圈約 35 分鐘地影");
             Assert.That(ev.Power.ActualDod, Is.GreaterThan(1.0));
-            Assert.That(Level(d, EnvTests.Thermal), Is.EqualTo(TestLevel.Fail), "熱真空測試先抓到");
+            Assert.That(Eclipse(d), Is.EqualTo("fail"), "電池撐不過一次地影");
             var r = Run(d);
             Assert.That(r.Launch.Outcome, Is.EqualTo(LaunchOutcome.DeadOnOrbit));
             Assert.That(r.Causes[0].Code, Is.EqualTo("dead_on_orbit"));
@@ -68,8 +75,8 @@ namespace GoNoGo.Core.Tests
             var ev = Ev(d);
             Assert.That(ev.AnyOver, Is.False, string.Join(", ", ev.Warnings.Select(w => w.Code)));
             Assert.That(ev.Fire.LatencyMin, Is.LessThanOrEqualTo(30));
-            Assert.That(Level(d, EnvTests.Vibration), Is.EqualTo(TestLevel.Pass));
-            Assert.That(Level(d, EnvTests.Thermal), Is.EqualTo(TestLevel.Pass));
+            Assert.That(Liftable(d));
+            Assert.That(Eclipse(d), Is.EqualTo("pass"));
             foreach (int seed in Enumerable.Range(1, 30))
             {
                 var r = Run(d, seed: seed);
@@ -89,7 +96,7 @@ namespace GoNoGo.Core.Tests
             Assert.That(Unmet(Run(WildfireCombos.Dd(), "director")), Is.EqualTo(new[] { "wf_lwir" }));
             Assert.That(Unmet(Run(WildfireCombos.F(), "director")), Does.Contain("wf_afternoon"));
             Assert.That(Unmet(Run(WildfireCombos.E(), "director")), Does.Contain("wf_reserve"));
-            Assert.That(Ev(WildfireCombos.C(), "director").Cost.BudgetMusd, Is.EqualTo(40), "本關任務主管難度預算倍率 ×1.0");
+            Assert.That(Ev(WildfireCombos.C(), "director").Cost.BudgetMusd, Is.EqualTo(40), "本關固定任務主管難度，預算 40");
         }
 
         [Test]
@@ -107,20 +114,20 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
-        public void E_LuxuryIsOverBudgetExceptForCadets()
+        public void E_LuxuryIsOverBudget()
         {
             var d = WildfireCombos.E();
             Assert.That(Ev(d)[ResourceId.Budget].Status, Is.EqualTo(ResourceStatus.Over));
-            Assert.That(Ev(d, "cadet")[ResourceId.Budget].Status, Is.Not.EqualTo(ResourceStatus.Over), "學員難度預算 ×1.5 放得下");
+            Assert.That(Ev(d, "cadet")[ResourceId.Budget].Status, Is.EqualTo(ResourceStatus.Over), "預算跟著關卡走，不再因難度變多");
             Assert.That(Ev(d).Fire.LatencyMin, Is.LessThan(Ev(WildfireCombos.C()).Fire.LatencyMin));
         }
 
         [Test]
         public void NearMisses()
         {
-            // C 的大電池換成 80 Wh：熱真空 WARN、可以發射，但電池很快耗損
+            // C 的大電池換成 80 Wh：撐得過地影、可以發射，但放電太深，電池很快耗損
             var c = WildfireCombos.CSmallBattery();
-            Assert.That(Level(c, EnvTests.Thermal), Is.EqualTo(TestLevel.Warn));
+            Assert.That(Eclipse(c), Is.EqualTo("warn"));
             Assert.That(Run(c).Launch.Success);
             Assert.That(Ev(c).Lifetime.Years, Is.LessThan(3));
             // D 只用一座地面站：最常見的「沒問通訊」

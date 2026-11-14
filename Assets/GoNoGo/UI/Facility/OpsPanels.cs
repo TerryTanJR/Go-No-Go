@@ -1,6 +1,8 @@
 using System.Linq;
 using GoNoGo.Core;
 using GoNoGo.Game;
+using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 namespace GoNoGo.UI
@@ -172,7 +174,7 @@ namespace GoNoGo.UI
             var e = s.Phase == SessionPhase.Ops ? M.CurrentEvent : null;
             var l = s.LastLaunch;
             var design = l?.Design ?? s.Reported;
-            var ev = Evaluator.EvaluateDesign(design, D);
+            var ev = Evaluator.EvaluateDesign(design, D, s.DifficultyId, false); // 讀數照這一局的難度
             var sample = e != null ? M.SampleAt(e.Day) : null;
             // 沒有事件時顯示正常讀數
             var readings = OpsTelemetry.For(_console, e, ev, design, D, sample);
@@ -226,54 +228,139 @@ namespace GoNoGo.UI
 
     public static class LobbyView
     {
+        /// <summary>可以開始了：每個人都按了準備（嚴格分工時兩邊都要有人）。</summary>
+        public static bool AllReady(SessionState s) =>
+            s.Players.Count > 0 && s.Players.All(p => p.Ready)
+            && (!s.StrictRoles || (s.Players.Any(p => p.Station == Station.Assembly) && s.Players.Any(p => p.Station == Station.Control)));
+
+        /// <summary>兩組並排：誰在哪一組、誰準備好了。</summary>
+        public static void Teams(VisualElement parent)
+        {
+            var s = GameSession.Mission.S;
+            var row = Ui.Row("lobby-teams").AddTo(parent);
+            foreach (var st in new[] { Station.Assembly, Station.Control })
+            {
+                string side = st == Station.Assembly ? "assembly" : "control";
+                var col = Ui.El("lobby-team", "lobby-team--" + side).AddTo(row);
+                Ui.Text(Loc.T("ui.area." + side), "lobby-team-title").AddTo(col);
+                bool any = false;
+                foreach (var p in s.Players)
+                {
+                    if (p.Station != st) continue;
+                    any = true;
+                    bool me = p.Id == GameSession.LocalPlayer;
+                    var r = Ui.Row("lobby-player").Cls("lobby-player--me", me).AddTo(col);
+                    Ui.Text((me ? "▶ " : "") + p.Look.Name, "lobby-pname").AddTo(r);
+                    Ui.Spacer().AddTo(r);
+                    Ui.Text(p.Ready ? "✔ " + Loc.T("ui.lobby.ready") : "…", "lobby-pstate", p.Ready ? "go" : "dim").AddTo(r);
+                }
+                if (!any) Ui.Text("—", "lobby-pname", "faint").AddTo(col);
+            }
+        }
+
+        /// <summary>牆上大螢幕（wall）和中央控制台面板（!wall）共用：房間碼、任務、兩組名單；面板多了分工設定和離開。</summary>
         public static void Build(VisualElement body, bool wall)
         {
             var m = GameSession.Mission;
             var link = GameSession.Link;
+            var s = m.S;
             var head = Ui.Row("lobby-head").AddTo(body);
             bool ip = System.Net.IPAddress.TryParse(link?.RoomCode ?? "", out _);
-            Ui.Text(Loc.T(ip ? "ui.lobby.ip" : "ui.lobby.code"), "small", "dim").AddTo(head);
-            Ui.Text(link?.RoomCode ?? "", "h2", "mono", "lobby-code").AddTo(head);
+            var codeBox = Ui.El().AddTo(head);
+            Ui.Text(Loc.T(ip ? "ui.lobby.ip" : "ui.lobby.code"), "small", "dim").AddTo(codeBox);
+            Ui.Text(link?.RoomCode ?? "", "lobby-code", "mono").AddTo(codeBox);
             Ui.Spacer().AddTo(head);
-            Ui.Text(Loc.T(m.Scenario.Name) + (m.IsHistorical ? "" : " · " + Loc.T(m.Difficulty.Name)), "h3").AddTo(head);   // 歷史關卡不分難度
+            var mis = Ui.El("lobby-mission").AddTo(head);
+            Ui.Text(Loc.T(m.Scenario.Name), "h2").AddTo(mis);
+            if (!m.IsHistorical) Ui.Text(Loc.T(m.Difficulty.Name), "small", "dim").AddTo(mis);   // 歷史關卡不分難度
 
-            var list = Ui.El("lobby-list").AddTo(body);
-            foreach (var p in m.S.Players)
-            {
-                var row = Ui.Row("lobby-player").AddTo(list);
-                Ui.Text((p.Id == GameSession.LocalPlayer ? "▶ " : "") + p.Look.Name, "h3").AddTo(row);
-                Ui.Spacer().AddTo(row);
-                if (!wall && p.Id == GameSession.LocalPlayer)
-                {
-                    Ui.Btn(Loc.T("ui.area.assembly"), () => GameSession.Send(CommandType.SetStation, "", 0), "chip").Cls("chip--on", p.Station == Station.Assembly).AddTo(row);
-                    Ui.Btn(Loc.T("ui.area.control"), () => GameSession.Send(CommandType.SetStation, "", 1), "chip").Cls("chip--on", p.Station == Station.Control).AddTo(row);
-                }
-                else Ui.Text(Loc.T(p.Station == Station.Assembly ? "ui.area.assembly" : "ui.area.control"), "small", "accent").AddTo(row);
-            }
-            Ui.Text(Loc.T("ui.lobby.split", ("n", m.S.Players.Count)), "small", "dim").AddTo(body);
+            Teams(body);
+            int ready = s.Players.Count(p => p.Ready);
+            Ui.Text(Loc.T("ui.lobby.ready_count", ("r", ready), ("n", s.Players.Count)), "lobby-count", LobbyView.AllReady(s) ? "go" : "dim").AddTo(body);
 
             // 嚴格分工：房主決定；開了之後組裝區不能用中控室的控制台，反過來也一樣，門也鎖上
             var strict = Ui.Row("lobby-strict").AddTo(body);
             var col = Ui.El().AddTo(strict);
             col.style.flexShrink = 1;
             Ui.Text(Loc.T("ui.lobby.strict"), "h3").AddTo(col);
-            Ui.Text(Loc.T("ui.lobby.strict_body"), "small", "dim").AddTo(col);
+            if (!wall) Ui.Text(Loc.T("ui.lobby.strict_body"), "small", "dim").AddTo(col);
             Ui.Spacer().AddTo(strict);
             if (!wall && GameSession.IsHost)
             {
-                Ui.Btn(Loc.T("ui.lobby.strict_off"), () => GameSession.Send(CommandType.SetStrict, "", 0), "chip").Cls("chip--on", !m.S.StrictRoles).AddTo(strict);
-                Ui.Btn(Loc.T("ui.lobby.strict_on"), () => GameSession.Send(CommandType.SetStrict, "", 1), "chip").Cls("chip--on", m.S.StrictRoles).AddTo(strict);
+                Ui.Btn(Loc.T("ui.lobby.strict_off"), () => GameSession.Send(CommandType.SetStrict, "", 0), "chip").Cls("chip--on", !s.StrictRoles).AddTo(strict);
+                Ui.Btn(Loc.T("ui.lobby.strict_on"), () => GameSession.Send(CommandType.SetStrict, "", 1), "chip").Cls("chip--on", s.StrictRoles).AddTo(strict);
             }
-            else Ui.Text(Loc.T(m.S.StrictRoles ? "ui.lobby.strict_on" : "ui.lobby.strict_off"), "h3", m.S.StrictRoles ? "tight" : "dim").AddTo(strict);
-            if (m.S.StrictRoles && !(m.S.Players.Any(p => p.Station == Station.Assembly) && m.S.Players.Any(p => p.Station == Station.Control)))
+            else Ui.Text(Loc.T(s.StrictRoles ? "ui.lobby.strict_on" : "ui.lobby.strict_off"), "h3", s.StrictRoles ? "tight" : "dim").AddTo(strict);
+            if (s.StrictRoles && !(s.Players.Any(p => p.Station == Station.Assembly) && s.Players.Any(p => p.Station == Station.Control)))
                 Ui.Text(Loc.T("err.strict_need_both"), "small", "tight").AddTo(body);
             if (wall) return;
             var actions = Ui.Row("modal-actions").AddTo(body);
             Ui.Btn(Loc.T("ui.lobby.leave"), () => GameSession.EndMission(), "btn-ghost").AddTo(actions);
             Ui.Spacer().AddTo(actions);
-            if (GameSession.IsHost)
-                Ui.Btn(Loc.T("ui.lobby.start"), () => { Sfx.Go(); GameSession.Send(CommandType.StartMission); }, "btn-go", "btn-big").AddTo(actions);
-            else Ui.Text(Loc.T("ui.lobby.waiting"), "small", "dim").AddTo(actions);
+            if (GameSession.IsHost && AllReady(s))
+                Ui.Btn(Loc.T("ui.lobby.start_btn"), () => { Sfx.Go(); GameSession.Send(CommandType.StartMission); }, "btn-go", "btn-big").AddTo(actions);
+        }
+
+        /// <summary>大廳牆上的隊伍名單：這一組是做什麼的、現在有誰、誰準備好了。</summary>
+        public static void TeamBoard(VisualElement body, Station station)
+        {
+            var m = GameSession.Mission;
+            string side = station == Station.Assembly ? "assembly" : "control";
+            body.AddToClassList("team-board");
+            body.AddToClassList("team-board--" + side);
+            Ui.Text(Loc.T("ui.lobby.team_" + side), "team-board-title").AddTo(body);
+            Ui.Text(Loc.T("ui.intro." + side + ".short"), "team-board-role").AddTo(body);
+            bool any = false;
+            foreach (var p in m.S.Players)
+            {
+                if (p.Station != station) continue;
+                any = true;
+                bool me = p.Id == GameSession.LocalPlayer;
+                var r = Ui.Row("team-board-name").Cls("team-board-name--me", me).AddTo(body);
+                Ui.Text((me ? "▶ " : "") + p.Look.Name, "team-board-pn").AddTo(r);
+                Ui.Spacer().AddTo(r);
+                Ui.Text(p.Ready ? "✔ " + Loc.T("ui.lobby.ready") : "…", "team-board-pn", p.Ready ? "go" : "dim").AddTo(r);
+            }
+            if (!any) Ui.Text(Loc.T("ui.lobby.team_empty"), "team-board-empty").AddTo(body);
+        }
+    }
+
+    /// <summary>全員準備好之後，房主會跳出這個：按 Enter 或點大按鈕開始任務（Esc = 再等等）。</summary>
+    public sealed class LobbyStartPanel : FacPanel
+    {
+        public override string Title => Loc.T("ui.lobby.allready.t");
+        public override string WideClass => "modal--wide";
+        public override bool CloseWithE => false;
+
+        VisualElement _btn;
+        float _t;
+
+        protected override void Build(VisualElement body)
+        {
+            var wrap = Ui.El("go-wrap").AddTo(body);
+            Ui.Text(Loc.T("ui.lobby.allready.t"), "go-title").AddTo(wrap);
+            LobbyView.Teams(wrap);
+            _btn = Ui.Btn(Loc.T("ui.lobby.start_btn"), Go, "btn-go", "btn-big", "go-btn").AddTo(wrap);
+            var keys = Ui.Row("go-keys").AddTo(wrap);
+            Ui.Text("Enter", "keycap").AddTo(keys);
+            Ui.Text(Loc.T("ui.lobby.start_btn"), "key-label").AddTo(keys);
+            Ui.Spacer().AddTo(keys);
+            Ui.Text("Esc", "keycap").AddTo(keys);
+            Ui.Text(Loc.T("ui.lobby.allready.wait"), "key-label").AddTo(keys);
+        }
+
+        void Go()
+        {
+            Sfx.Go();
+            GameSession.Send(CommandType.StartMission);
+        }
+
+        public override void Tick(float dt)
+        {
+            _t += dt;
+            if (_btn != null) _btn.style.scale = new Scale(Vector2.one * (1f + 0.035f * Mathf.Sin(_t * 4f)));
+            var kb = Keyboard.current;
+            if (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)) Go();
         }
     }
 }

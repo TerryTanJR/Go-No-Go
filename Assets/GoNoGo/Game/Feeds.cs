@@ -14,6 +14,8 @@ namespace GoNoGo.Game
         public static float AltitudeKm;
         public static float VelocityKms;
         public static float Throttle;
+        /// <summary>目前的播放倍率（HUD 顯示「加速播放 ×N」）。</summary>
+        public static float Speed = 1f;
         /// <summary>目前階段的字串鍵，例如 ui.launch.stage.maxq。</summary>
         public static string StageKey = "";
         /// <summary>整段動畫播完（或跳過），可以顯示結果。</summary>
@@ -23,7 +25,6 @@ namespace GoNoGo.Game
 
         /// <summary>播報（字串鍵）。</summary>
         public static event Action<string> Callout;
-        public static event Action SkipRequested;
 
         public static void Reset()
         {
@@ -31,18 +32,17 @@ namespace GoNoGo.Game
             AltitudeKm = 0;
             VelocityKms = 0;
             Throttle = 0;
+            Speed = 1f;
             StageKey = "ui.launch.stage.countdown";
             Finished = false;
         }
 
         public static void Say(string key) => Callout?.Invoke(key);
-        public static void RequestSkip() => SkipRequested?.Invoke();
 
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
             Callout = null;
-            SkipRequested = null;
             DirectorActive = false;
             Reset();
         }

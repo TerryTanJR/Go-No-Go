@@ -14,7 +14,7 @@ namespace GoNoGo.UI
     /// </summary>
     public sealed class MainMenuScreen : GameScreen
     {
-        enum Page { Root, Missions, Difficulty, Join, Settings, Avatar }
+        enum Page { Root, Missions, Join, Settings, Avatar }
 
         static Page _page = Page.Root;
         static bool _multi;
@@ -51,7 +51,6 @@ namespace GoNoGo.UI
             {
                 case Page.Root: RootMenu(left); break;
                 case Page.Missions: Missions(left); break;
-                case Page.Difficulty: Difficulty(left); break;
                 case Page.Join: Join(left); break;
                 case Page.Settings: Settings(left); break;
                 case Page.Avatar: AvatarEditor(left); break;
@@ -143,17 +142,16 @@ namespace GoNoGo.UI
                 Ui.Text(Loc.T(sc.Name), "h3", "scn-name").AddTo(card);
                 Ui.Text(Summary(Loc.T(sc.Briefing)), "small", "dim", "scn-desc").AddTo(card);
                 var stats = Ui.Row("scn-stats").AddTo(card);
-                Ui.Text(Fmt.Money(sc.BudgetMusd * (sc.Historical != null ? sc.Historical.BudgetCap : 1)), "mono", "small").AddTo(stats);
+                Ui.Text(Fmt.Money(GameData.Budget(sc)), "mono", "small").AddTo(stats);
                 Ui.Text("·", "faint", "small", "scn-dot").AddTo(stats);
                 Ui.Text(Fmt.Years(sc.TargetYears), "mono", "small").AddTo(stats);
-                card.RegisterCallback<ClickEvent>(_ =>
+                // 一關一個難度（採購機制 v2 §7）：卡片上直接標出來，點了就開始。歷史關卡不分難度，不標
+                if (sc.Historical == null)
                 {
-                    _scenario = sc.Id;
-                    // 歷史關卡不分難度（還原當年的條件）：跳過選難度，直接開始
-                    if (sc.Historical != null) { Start(sc.Historical.Difficulty); return; }
-                    Sfx.Click();
-                    Go(Page.Difficulty);
-                });
+                    Ui.Text("·", "faint", "small", "scn-dot").AddTo(stats);
+                    Ui.Text(Loc.T(D.DifficultyFor(sc).Name), "small", "accent").AddTo(stats);
+                }
+                card.RegisterCallback<ClickEvent>(_ => { _scenario = sc.Id; Start(null); });
                 card.RegisterCallback<PointerEnterEvent>(_ => Sfx.Hover());
             }
         }
@@ -166,35 +164,7 @@ namespace GoNoGo.UI
             return s.Length > 140 ? s.Substring(0, 137) + "…" : s;
         }
 
-        // ---------------- 選難度 ----------------
-
-        void Difficulty(VisualElement col)
-        {
-            Back(col, Page.Missions);
-            Ui.Text(Loc.T(D.Scenario(_scenario)?.Name), "eyebrow").AddTo(col);
-            Ui.Text(Loc.T("ui.menu.pick_difficulty"), "h2").AddTo(col);
-            string recommended = "";
-            var items = new System.Collections.Generic.List<(VisualElement, string)>();
-            foreach (var df in D.SelectableDifficulties)
-            {
-                var id = df.Id;
-                var b = Ui.Btn("", () => Start(id), "menu-item").AddTo(col);
-                b.Clear();
-                var head = Ui.Row().AddTo(b);
-                Ui.Text(Loc.T(df.Name), "h3").AddTo(head);
-                if (id == "cadet")
-                {
-                    Ui.Text(Loc.T("ui.menu.default"), "small", "accent", "menu-tag").AddTo(head);
-                    recommended = Loc.T(df.Description);
-                }
-                items.Add((b, Loc.T(df.Description)));
-            }
-            // 平常顯示建議難度的說明，指到哪個就換成哪個
-            DescLine(col, recommended);
-            foreach (var (b, d) in items) Describe(b, d);
-            if (_multi && !Multiplayer.Available) Ui.Text(Loc.T("ui.menu.no_net"), "small", "tight").AddTo(col);
-        }
-
+        /// <summary>開始任務。難度跟著關卡走：difficulty 傳 null 就用關卡的難度。</summary>
         void Start(string difficulty)
         {
             if (_busy) return;
@@ -259,7 +229,7 @@ namespace GoNoGo.UI
             Ui.Btn(Loc.T("ui.menu.lan_host"), () =>
             {
                 if (Multiplayer.HostDirect == null) { _error = "ui.menu.no_net"; Rebuild(); return; }
-                Connect(() => Multiplayer.HostDirect(_scenario ?? "earth_observation", "engineer", Done));
+                Connect(() => Multiplayer.HostDirect(_scenario ?? "earth_observation", null, Done));
             }).AddTo(row2);
         }
 

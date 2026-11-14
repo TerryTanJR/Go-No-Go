@@ -22,7 +22,7 @@ namespace GoNoGo.Core
             var c = data.Constants;
             var ev = new Evaluation();
             var scenario = data.Scenario(design.ScenarioId);
-            var diff = data.Difficulty(difficultyId) ?? data.Difficulties.FirstOrDefault() ?? new DifficultyDef();
+            var diff = data.Difficulty(difficultyId) ?? data.DefaultDifficulty ?? new DifficultyDef();
             ev.DesignErrors = GameDataLoader.ValidateDesign(data, design, "design");
 
             var orbit = data.Orbit(design.OrbitId);
@@ -121,7 +121,7 @@ namespace GoNoGo.Core
             m.WetKg = m.DryKg + m.PropellantKg;
             massContrib.Add(new Contribution("structure", m.StructureKg));
             if (m.PropellantKg > 0) massContrib.Add(new Contribution("propellant", m.PropellantKg));
-            m.OrbitReachable = launcher != null && orbit != null && launcher.CapacityKg.TryGetValue(orbit.Id, out var cap) && cap > 0;
+            m.OrbitReachable = orbit != null && GameData.Reaches(launcher, orbit.Id);
             m.LauncherCapacityKg = m.OrbitReachable ? launcher.CapacityKg[orbit.Id] : 0;
             AddResource(ev, ResourceId.Mass, m.WetKg, m.LauncherCapacityKg, "kg",
                 m.LauncherCapacityKg > 0 ? (m.LauncherCapacityKg - m.WetKg) / m.LauncherCapacityKg : -1, massContrib);
@@ -178,7 +178,7 @@ namespace GoNoGo.Core
                 costContrib.Add(new Contribution("procurement", design.ProcurementMusd));
             }
             co.TotalMusd = co.DevelopmentMusd + co.LaunchMusd + co.OpsTotalMusd;
-            co.BudgetMusd = (scenario?.BudgetMusd ?? 0) * GameData.BudgetMultiplier(scenario, diff) * (scenario?.Historical?.BudgetCap ?? 1.0);
+            co.BudgetMusd = GameData.Budget(scenario);
             AddResource(ev, ResourceId.Budget, co.TotalMusd, co.BudgetMusd, "M$",
                 co.BudgetMusd > 0 ? (co.BudgetMusd - co.TotalMusd) / co.BudgetMusd : -1, costContrib);
 
@@ -196,8 +196,7 @@ namespace GoNoGo.Core
                 longest = Math.Max(longest, launcher.LeadMonths);
             }
             timeContrib.Add(new Contribution("integration", c.IntegrationMonths));
-            if (design.ProcurementMonths > 0) timeContrib.Add(new Contribution("procurement", design.ProcurementMonths));
-            ev.ScheduleMonths = longest + c.IntegrationMonths + design.ProcurementMonths;
+            ev.ScheduleMonths = longest + c.IntegrationMonths;
             double deadline = scenario?.DeadlineMonths ?? 0;
             AddResource(ev, ResourceId.Time, ev.ScheduleMonths, deadline, "mo",
                 deadline > 0 ? (deadline - ev.ScheduleMonths) / deadline : -1, timeContrib);

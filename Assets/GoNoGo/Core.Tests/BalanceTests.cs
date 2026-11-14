@@ -101,18 +101,81 @@ namespace GoNoGo.Core.Tests
             Assert.That(ev.Data.ReturnFraction, Is.EqualTo(1.0).Within(1e-9), "黃燈不掉資料");
         }
 
-        [Test]
-        public void LunarScenarioIsWinnable()
+        static Design Lunar(string battery) => LunarWith(TestData.Eo(new[] { "inst_multispectral" },
+            "solar_deployable", battery, "ant_xband_hr", "gs_1", "obc_mass_memory", "adcs_compact", "prop_green", "shield_std",
+            "llo_100", "falcon9", 2));
+
+        static Design LunarWith(Design d) { d.ScenarioId = "lunar_mapping"; return d; }
+
+        /// <summary>
+        /// BUG-001：月球關卡每個難度都要有一組零件架上買得到、全部處室需求達成、至少拿 B 的設計。
+        /// 學員難度的零件架只到第 2 級，所以關卡另外開放 X 頻段高速天線（38 萬公里的下傳靠它）。
+        /// </summary>
+        [TestCase("cadet", "batt_medium")]
+        [TestCase("engineer", "batt_large")]
+        [TestCase("director", "batt_large")]
+        public void LunarScenarioIsWinnableOnEveryDifficulty(string diffId, string battery)
         {
-            var d = TestData.Eo(new[] { "inst_visible", "inst_thermal" },
-                "solar_deployable", "batt_large", "ant_xband_hr", "gs_1", "obc_mass_memory", "adcs_wheels", "prop_hydrazine", "shield_std",
-                "llo_100", "falcon9", 2);
-            d.ScenarioId = "lunar_mapping";
-            var ev = Evaluator.EvaluateDesign(d, _data);
+            var d = Lunar(battery);
+            var scenario = _data.Scenario("lunar_mapping");
+            var diff = _data.Difficulty(diffId);
+            var shelf = _data.ShelfFor(scenario, diff).Where(p => !p.Decoy).Select(p => p.Id).ToList();
+            foreach (var id in d.AllPartIds().Where(id => _data.Part(id).Category != PartCategory.GroundStation))
+                Assert.That(shelf, Does.Contain(id), $"{diffId} 的零件架買得到 {id}");
+
+            var ev = Evaluator.EvaluateDesign(d, _data, diffId, false);
             Assert.That(ev.AnyOver, Is.False, string.Join(", ", ev.Warnings.Select(w => w.Code)));
-            Assert.That(ev.Lifetime.Years, Is.GreaterThanOrEqualTo(2));
-            var reached = Runs(d).Where(r => r.ReachedOrbit).ToList();
-            Assert.That(reached.All(r => Passing(r.Score.Grade)), string.Join(" ", reached.Select(r => r.Score.Grade)));
+            var reached = new List<MissionResult>();
+            for (int seed = 1; seed <= 30; seed++)
+            {
+                var r = Simulator.SimulateMission(d, _data, seed, new PerfectDecisions(), new MissionContext
+                {
+                    DifficultyId = diffId,
+                    Requirements = Departments.Active(scenario, diff),
+                });
+                if (r.ReachedOrbit) reached.Add(r);
+            }
+            Assert.That(reached.Count, Is.GreaterThanOrEqualTo(27));
+            foreach (var r in reached)
+            {
+                Assert.That(r.Score.Requirements.Where(x => !x.Met).Select(x => x.Requirement.Id), Is.Empty, $"{diffId} seed {r.Seed}");
+                Assert.That(Passing(r.Score.Grade), r.Score.Grade);
+            }
+        }
+
+        /// <summary>月球開局設計和地球觀測一樣只有一個教得會的問題：下傳不夠，而且每個難度都有一鍵換高速天線的修正。</summary>
+        [TestCase("cadet")]
+        [TestCase("engineer")]
+        [TestCase("director")]
+        public void DefaultLunarDesignStartsWithOneFixableProblem(string diffId)
+        {
+            var start = SessionRules.NewSession(_data, "lunar_mapping", diffId, false, false).Bench;
+            var ev = Evaluator.EvaluateDesign(start, _data, diffId, true);
+            var over = ev.Resources.Values.Where(r => r.Status == ResourceStatus.Over).Select(r => r.Id).ToList();
+            Assert.That(over, Is.EqualTo(new[] { ResourceId.Comms }), "開局只有下傳超標");
+            var warn = ev.Warnings.Single(w => w.Code == "warn.downlink");
+            var fix = warn.Fixes.FirstOrDefault(f => f.ToId == "ant_xband_hr");
+            Assert.That(fix, Is.Not.Null, $"{diffId}：一鍵修正要提供高速天線");
+            Assert.That(Evaluator.EvaluateDesign(fix.ApplyTo(start), _data, diffId, false).AnyOver, Is.False, "換完天線就沒有超標");
+        }
+
+        /// <summary>
+        /// 營運天數要無條件進位：之前用 Math.Round，2 年 = 730.5 天被捨成 730 天（銀行家捨入），
+        /// 任務只跑 1.9986 年，「撐滿年數」永遠判定沒達成。
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        public void CompletedMissionLastsTheWholeTarget(int years)
+        {
+            var d = Lunar("batt_large");
+            d.MissionYears = years;
+            var r = Simulator.SimulateMission(d, _data, 1, new PerfectDecisions(), new MissionContext { DifficultyId = "engineer" });
+            Assert.That(r.ReachedOrbit);
+            Assert.That(r.EndReason, Is.EqualTo(EndReason.MissionComplete));
+            Assert.That(r.ActualYears, Is.GreaterThanOrEqualTo(years));
+            Assert.That(r.ActualYears, Is.LessThan(years + 1.0 / 365.25 + 1e-9), "最多只多跑不到一天");
         }
 
         [Test]

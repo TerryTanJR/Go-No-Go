@@ -24,6 +24,17 @@ namespace GoNoGo.Core
         static readonly string[] FireSites = { "forest", "grassland" };
         static readonly string[] FalseSites = { "desert", "glint" };
 
+        /// <summary>
+        /// 營運經費撐得了幾年：(預算 − 開發費 − 這次用的火箭) ÷ 每年營運費，可以有小數，小於 0 當成 0。
+        /// 沒有預算或沒有營運費時是無限大（不限制）。
+        /// </summary>
+        public static double FundedYears(Evaluation ev)
+        {
+            var co = ev.Cost;
+            if (co.BudgetMusd <= 0 || co.OpsPerYearMusd <= 0) return double.PositiveInfinity;
+            return Math.Max(0, (co.BudgetMusd - co.DevelopmentMusd - co.LaunchMusd) / co.OpsPerYearMusd);
+        }
+
         public static MissionResult SimulateMission(Design design, GameData data, int seed, IDecisionSource decisions) =>
             SimulateMission(design, data, seed, decisions, new MissionContext());
 
@@ -34,7 +45,7 @@ namespace GoNoGo.Core
         public static MissionPlan PlanMission(Design design, GameData data, int seed, string difficultyId)
         {
             var rng = new Random(seed);
-            var diff = data.Difficulty(difficultyId) ?? data.Difficulties.FirstOrDefault() ?? new DifficultyDef();
+            var diff = data.Difficulty(difficultyId) ?? data.DefaultDifficulty ?? new DifficultyDef();
             var plan = new MissionPlan { Seed = seed, LaunchRoll = rng.NextDouble(), LaunchRoll2 = rng.NextDouble() };
             if (diff.GuaranteedLaunch) { plan.LaunchRoll = 0; plan.LaunchRoll2 = 1; }
 
@@ -165,7 +176,11 @@ namespace GoNoGo.Core
             bool lower = result.Launch.Outcome == LaunchOutcome.LowerOrbit;
             double dragFactor = lower ? 2.0 : 1.0;
 
-            int targetDays = (int)Math.Round(result.TargetYears * 365.25);
+            // 無條件進位：Math.Round(730.5) 是 730（銀行家捨入），2 年任務只跑 1.9986 年，「撐滿年數」永遠判定沒達成
+            int targetDays = (int)Math.Ceiling(result.TargetYears * 365.25);
+            // 營運經費（採購機制 v2）：發射後剩下的錢付每年的營運費，錢用完的那一天任務結束
+            result.FundedYears = FundedYears(ev);
+            int fundedDays = result.FundedYears >= targetDays / 365.25 ? int.MaxValue : (int)Math.Floor(result.FundedYears * 365.25);
             double storageCap = ev.Data.StorageGb;
             double antennaHealth = 1.0;
             double prop = ev.Mass.PropellantKg, mass = ev.Mass.WetKg;
@@ -191,6 +206,7 @@ namespace GoNoGo.Core
 
             while (day < targetDays)
             {
+                if (day >= fundedDays) { result.EndReason = EndReason.Funding; break; }
                 while (queue.Count > 0 && queue.Peek().Day <= day)
                 {
                     var e = queue.Dequeue();

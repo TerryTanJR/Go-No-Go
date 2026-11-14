@@ -21,12 +21,12 @@ namespace GoNoGo.UI
             var r = M.Result;
             if (r == null)
             {
-                GameSession.Send(CommandType.RunTest);
                 GameSession.Send(CommandType.Launch);
                 r = M.Result;
             }
             var l = M.S.LastLaunch;
-            var ev = Evaluator.EvaluateDesign(l.Design, D);
+            // 用這一局的難度評估：預算倍率跟著難度（沒傳的話一律用預設難度的預算）
+            var ev = Evaluator.EvaluateDesign(l.Design, D, M.S.DifficultyId, false);
 
             TopBar(Loc.T(M.Scenario.Name), showLang: false); // 語言在 Tab 選單的基本設定
             var wrap = Ui.El("report-wrap").AddTo(Root);

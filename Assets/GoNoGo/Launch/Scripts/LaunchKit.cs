@@ -17,6 +17,10 @@ namespace GoNoGo.Launch
         public Material debris;
         [Tooltip("爬升時拖在火箭後面的排氣尾跡")]
         public Material trail;
+        [Tooltip("月球任務：月球表面（和營運畫面同一個材質）")]
+        public Material moon;
+        [Tooltip("月球任務：地月轉移俯瞰圖的軌道線與衛星光點（加法混合的柔和圓點）")]
+        public Material line;
 
         static LaunchKit _cached;
         public static LaunchKit Load()

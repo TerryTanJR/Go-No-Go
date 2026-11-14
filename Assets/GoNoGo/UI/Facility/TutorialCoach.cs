@@ -23,7 +23,7 @@ namespace GoNoGo.UI
             public string Target = "";
         }
 
-        // 順序照遊戲的核心：先問需求（電話、筆記板），再到組裝區採購、安裝、測試、看大螢幕，
+        // 順序照遊戲的核心：先問需求（電話、筆記板），再到組裝區採購、安裝、看大螢幕，
         // 回中控室到後排查型錄（價格與規格），最後發射。玩家一開始就站在中控室。
         static readonly Step[] Steps =
         {
@@ -34,7 +34,6 @@ namespace GoNoGo.UI
             new Step { Key = "procure", Phase = SessionPhase.Design, Done = s => s == "order", Target = "ProcureConsole" },
             new Step { Key = "pick", Phase = SessionPhase.Design, Done = s => s.StartsWith("pick:"), Target = "code" },
             new Step { Key = "install", Phase = SessionPhase.Design, Done = s => s == "install", Target = "IntegrationStand" },
-            new Step { Key = "test", Phase = SessionPhase.Design, Done = s => s == "test", Target = "TestConsole" },
             new Step { Key = "dashboard", Phase = SessionPhase.Design, Done = s => s == "open:dashboard" || s == "open:tablet", Target = "BayDashboard" },
             // 後排北座的手冊 2・電力（組裝區的完整手冊也算，裡面一樣翻得到第 2 章）
             new Step { Key = "manual", Phase = SessionPhase.Design, Done = s => s == "open:manual:power" || s == "open:bay_manual", Target = "Screen_manual-power" },

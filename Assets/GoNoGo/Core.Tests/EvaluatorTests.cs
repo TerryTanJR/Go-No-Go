@@ -87,7 +87,7 @@ namespace GoNoGo.Core.Tests
             double dev = c.BusBaseCostMusd + d.AllPartIds().Sum(id => _data.Part(id).CostMusd);
             double ops = (c.OpsBaseCostMusdPerYear + 2.1) * 3;
             Assert.That(ev.Cost.TotalMusd, Is.EqualTo(dev + 69.85 + ops).Within(1e-9));
-            Assert.That(ev[ResourceId.Budget].Capacity, Is.EqualTo(140));
+            Assert.That(ev[ResourceId.Budget].Capacity, Is.EqualTo(210), "地球觀測：預算跟著關卡走（原本 140 × 學員 1.5）");
         }
 
         [Test]

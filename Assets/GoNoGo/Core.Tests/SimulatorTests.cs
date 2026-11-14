@@ -320,7 +320,7 @@ namespace GoNoGo.Core.Tests
             Assert.That(Fingerprint(_data), Is.EqualTo(ExpectedFingerprint), "核心模擬結果變了：如果是刻意調整數值，請更新 ExpectedFingerprint 並在 Unity 裡比對");
         }
 
-        public const string ExpectedFingerprint = "92B23DD720C0BC75"; // 資料校正：晨昏 β 58°、700 km SSO 每站 11 次過境、地面站費用、Electron 價格、綠色推進劑 9.7 kg、LEO Δv 57、野火預算 40
+        public const string ExpectedFingerprint = "19F9E65FFF351256"; // 任務天數改成無條件進位：2 年任務跑滿 731 天，月球測繪分支
 
         public static string Fingerprint(GameData data)
         {

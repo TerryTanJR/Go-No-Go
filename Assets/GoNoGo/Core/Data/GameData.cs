@@ -40,6 +40,11 @@ namespace GoNoGo.Core
         public LauncherDef Launcher(string id) => id != null && _launchers.TryGetValue(id, out var l) ? l : null;
         public ScenarioDef Scenario(string id) => id != null && _scenarios.TryGetValue(id, out var s) ? s : null;
         public DifficultyDef Difficulty(string id) => id != null && _difficulties.TryGetValue(id, out var d) ? d : null;
+        /// <summary>
+        /// 沒指定難度時用的基準難度（工程師：預算倍率 1）。不照 difficulty.json 的順序取第一個：
+        /// 那個順序是選單的排列（由易到難），調整選單不應該改到評估和模擬的基準。
+        /// </summary>
+        public DifficultyDef DefaultDifficulty => Difficulty("engineer") ?? Difficulties.FirstOrDefault();
         public DepartmentDef Department(string id) => Departments.Find(x => x.Id == id);
 
         /// <summary>選單上可以選的難度（不含新手訓練專用的）。</summary>
@@ -75,12 +80,25 @@ namespace GoNoGo.Core
             : difficultyId != null && map.TryGetValue(difficultyId, out var v) ? v
             : map.TryGetValue("*", out var all) ? all : null;
 
-        /// <summary>這個關卡、這個難度的預算倍率。</summary>
-        public static double BudgetMultiplier(ScenarioDef s, DifficultyDef d)
+        /// <summary>這一關固定的難度（一關一個難度）。關卡沒寫就用基準難度。</summary>
+        public DifficultyDef DifficultyFor(ScenarioDef s) => Difficulty(s?.Difficulty) ?? DefaultDifficulty;
+
+        /// <summary>這一關的預算（M$）。難度倍率已經併進 budget_musd；歷史關卡再乘上當年的預算上限比例。</summary>
+        public static double Budget(ScenarioDef s) => (s?.BudgetMusd ?? 0) * (s?.Historical?.BudgetCap ?? 1.0);
+
+        /// <summary>這支火箭飛不飛得到這個軌道（運力表上有這個軌道、而且大於 0）。評估和採購上限用同一個判斷。</summary>
+        public static bool Reaches(LauncherDef l, string orbitId) =>
+            l != null && orbitId != null && l.CapacityKg.TryGetValue(orbitId, out var cap) && cap > 0;
+
+        /// <summary>
+        /// 採購上限預留的火箭：這一關允許的火箭裡，飛得到這個軌道的最便宜的一支（不看質量）。
+        /// 找不到就用允許的火箭裡最便宜的。
+        /// </summary>
+        public LauncherDef ReserveLauncher(ScenarioDef s, string orbitId)
         {
-            if (s?.Historical != null) return 1.0;   // 歷史關卡用當年的預算，不分難度
-            if (s != null && d != null && s.BudgetMultiplierOverride.TryGetValue(d.Id, out var m) && m > 0) return m;
-            return d?.BudgetMultiplier ?? 1.0;
+            var all = LaunchersFor(s).ToList();
+            return all.Where(l => Reaches(l, orbitId)).OrderBy(l => l.CostMusd).ThenBy(l => l.Id, StringComparer.Ordinal).FirstOrDefault()
+                ?? all.OrderBy(l => l.CostMusd).ThenBy(l => l.Id, StringComparer.Ordinal).FirstOrDefault();
         }
 
         /// <summary>這個關卡、這個難度會出現的營運事件。</summary>
@@ -232,6 +250,7 @@ namespace GoNoGo.Core
             {
                 string w = $"情境 {s.Id}";
                 Check(s.BudgetMusd > 0 && s.TargetYears > 0 && s.DeadlineMonths > 0, $"{w}：預算/年數/期限必須 > 0");
+                Check(string.IsNullOrEmpty(s.Difficulty) || (d.Difficulty(s.Difficulty) != null && !d.Difficulty(s.Difficulty).Hidden), $"{w}：未知難度 {s.Difficulty}");
                 foreach (var o in s.AllowedOrbits) Check(d.Orbit(o) != null, $"{w}：未知軌道 {o}");
                 foreach (var l in s.AllowedLaunchers) Check(d.Launcher(l) != null, $"{w}：未知火箭 {l}");
                 errors.AddRange(ValidateDesign(d, s.DefaultDesign, $"{w} 預設設計"));
@@ -260,7 +279,6 @@ namespace GoNoGo.Core
                 {
                     errors.AddRange(ValidateDesign(d, s.Historical.PresetDesign, $"{w} 歷史設計"));
                     Check(s.Historical.Sources.Count > 0, $"{w}：歷史關卡缺來源");
-                    Check(d.Difficulty(s.Historical.Difficulty) != null, $"{w}：歷史關卡的難度 {s.Historical.Difficulty} 不存在");
                 }
                 foreach (var m in s.ComparisonMissions) Check(d.Missions.Any(x => x.Id == m), $"{w}：未知對照任務 {m}");
                 foreach (var kv in s.Requirements)

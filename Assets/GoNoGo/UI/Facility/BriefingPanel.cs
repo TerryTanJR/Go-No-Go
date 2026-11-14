@@ -16,10 +16,15 @@ namespace GoNoGo.UI
     public sealed class BriefingPanel : FacPanel
     {
         public override string Title => Loc.T("ui.brief.title");
-        public override bool Closable => false;
+        // 單人的開場簡報一定要看完（按「開始任務」才進設計）；之後（多人、或回頭複習）隨時可以關
+        public override bool Closable => M.S.Phase != SessionPhase.Briefing;
         public override string WideClass => "modal--brief";
 
+        /// <summary>這個本機玩家這一局看過簡報了（之後再打開就直接顯示全文，不重新打字）。</summary>
+        static object _seenFor;
+
         List<string> _lines;
+        bool _init;
         int _shown;            // 已經講完的句數
         float _typed;          // 目前這句打到第幾個字
         float _wave;
@@ -33,6 +38,13 @@ namespace GoNoGo.UI
         {
             _lines ??= Speech();
             var sc = M.Scenario;
+            if (!_init)
+            {
+                _init = true;
+                bool review = ReferenceEquals(_seenFor, M) && M.S.Phase != SessionPhase.Briefing;
+                _seenFor = M;
+                if (review) { _shown = _lines.Count; _done = true; }
+            }
 
             var wrap = Ui.Row("brief-wrap").AddTo(body);
 
@@ -97,21 +109,33 @@ namespace GoNoGo.UI
             // 歷史關卡：簡報完直接照當年的設計發射，第一步不是打電話
             if (!M.IsHistorical) Ui.Text("☎", "brief-todo-icon").AddTo(todo);
             var tt = Ui.El("brief-todo-text").AddTo(todo);
-            Ui.Text(Loc.T("ui.brief.todo_title"), "eyebrow").AddTo(tt);
-            Ui.Text(Loc.T(M.IsHistorical ? "ui.brief.todo_history" : M.S.Multiplayer ? "ui.brief.todo_multi" : "ui.brief.todo_solo"), "body").AddTo(tt);
+            var me = M.S.Player(GameSession.LocalPlayer);
+            bool multi = M.S.Multiplayer && me != null && !M.IsHistorical;
+            // 多人：每個人只看到自己這一組的介紹（組裝區 / 中控室）；歷史關卡簡報完直接重演，第一步不是分組做事
+            string side = me != null && me.Station == Station.Assembly ? "assembly" : "control";
+            if (multi) Ui.Text(Loc.T("ui.intro." + side + ".t"), "eyebrow").AddTo(tt);
+            else Ui.Text(Loc.T("ui.brief.todo_title"), "eyebrow").AddTo(tt);
+            Ui.Text(Loc.T(M.IsHistorical ? "ui.brief.todo_history" : multi ? "ui.intro." + side : "ui.brief.todo_solo"), "body").AddTo(tt);
             if (M.IsHistorical)
             {
                 var dos = Ui.El("brief-dossier").AddTo(_foot);
                 Ui.Text(Loc.T("ui.brief.dossier"), "eyebrow").AddTo(dos);
                 Ui.Text(Loc.T(sc.Historical.Background), "body").AddTo(dos);
             }
+            if (M.S.Multiplayer) Ui.Text(Loc.T("ui.brief.review_note"), "small", "faint").AddTo(_foot);
             var row = Ui.Row("modal-actions").AddTo(_foot);
             Ui.Spacer().AddTo(row);
-            Ui.Btn(Loc.T(M.IsHistorical ? "ui.brief.launch_history" : "ui.brief.start"), () =>
+            if (M.S.Phase == SessionPhase.Briefing)
+                Ui.Btn(Loc.T(M.IsHistorical ? "ui.brief.launch_history" : "ui.brief.start"), () =>
+                {
+                    Sfx.Confirm();
+                    GameSession.Send(CommandType.BeginDesign);
+                }, "btn-primary", "btn-big").AddTo(row);
+            else
             {
-                Sfx.Confirm();
-                GameSession.Send(CommandType.BeginDesign);
-            }, "btn-primary", "btn-big").AddTo(row);
+                // 多人 / 複習：只關掉自己的簡報，不影響別人
+                Ui.Btn(Loc.T("ui.brief.back_to_work"), () => { Sfx.Confirm(); Close?.Invoke(); }, "btn-primary", "btn-big").AddTo(row);
+            }
 
             Redraw();
         }
@@ -125,7 +149,12 @@ namespace GoNoGo.UI
             var list = new List<string>();
             foreach (var l in Loc.T(key).Split('\n'))
                 if (!string.IsNullOrWhiteSpace(l)) list.Add(l.Trim());
-            list.Add(Loc.T(M.IsHistorical ? "ui.brief.close_history" : M.S.Multiplayer ? "ui.brief.close_multi" : "ui.brief.close_solo"));
+            // 多人：結尾那句依自己這一組不同（組裝組、中控組各自知道要做什麼）；歷史關卡是倒數開始
+            var me = M.S.Player(GameSession.LocalPlayer);
+            string close = "ui.brief.close_solo";
+            if (M.IsHistorical) close = "ui.brief.close_history";
+            else if (M.S.Multiplayer) close = me != null && me.Station == Station.Assembly ? "ui.brief.close_assembly" : "ui.brief.close_control";
+            list.Add(Loc.T(close));
             return list;
         }
 

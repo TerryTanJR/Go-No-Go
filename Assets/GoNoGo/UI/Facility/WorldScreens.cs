@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using GoNoGo.Core;
 using GoNoGo.Game;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -103,6 +104,12 @@ namespace GoNoGo.UI
                     break;
                 case "lobby":
                     LobbyView.Build(body, true);
+                    break;
+                case "team_assembly":
+                    LobbyView.TeamBoard(body, Station.Assembly);
+                    break;
+                case "team_control":
+                    LobbyView.TeamBoard(body, Station.Control);
                     break;
             }
         }

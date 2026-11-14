@@ -107,6 +107,8 @@ namespace GoNoGo.Game
         public static void Go() => I.Play("go", 0.45f);
         public static void NoGo() => I.Play("nogo", 0.4f);
         public static void Stamp() => I.Play("stamp", 0.8f);
+        /// <summary>火箭爆炸：一聲爆裂接很低的轟鳴，拖一段越來越悶的隆隆餘音（約 5 秒）。</summary>
+        public static void Explosion() => I.Play("explosion", 1f);
         public static void Tick() => I.Play("tick", 0.18f);
         public static void Whoosh() => I.Play("whoosh", 0.35f);
         /// <summary>拿起零件。</summary>
@@ -255,6 +257,25 @@ namespace GoNoGo.Game
                         float n = (float)(rnd.NextDouble() * 2 - 1);
                         lp += (n - lp) * 0.08f;
                         return (lp * 2.2f + Sine(70, t) * 0.8f) * Env(t, 0.002f, 0.35f);
+                    });
+                }
+                case "explosion":
+                {
+                    // 1. 開頭 60 ms 的寬頻爆裂；2. 低通噪音的主體，濾波慢慢關上（聲音越來越悶）；
+                    // 3. 從 55 Hz 往下掉到 28 Hz 的重低音。只有一聲，不加二次爆裂（聽起來太多段）。最後用 tanh 壓住，不會破音
+                    var rnd = new System.Random(23);
+                    float lp1 = 0, lp2 = 0, phase = 0;
+                    return Tone(id, 5.5f, t =>
+                    {
+                        float n = (float)(rnd.NextDouble() * 2 - 1);
+                        float crack = n * Env(t, 0.001f, 0.06f) * 1.2f;
+                        float cut = Mathf.Lerp(0.25f, 0.015f, Mathf.Clamp01(t / 2.5f));
+                        lp1 += (n - lp1) * cut;
+                        lp2 += (lp1 - lp2) * cut;
+                        float body = lp2 * 3.2f * Env(t, 0.01f, 3.8f);
+                        phase += 2f * Mathf.PI * Mathf.Lerp(55f, 28f, Mathf.Clamp01(t / 1.5f)) / Rate;
+                        float sub = Mathf.Sin(phase) * 0.9f * Env(t, 0.005f, 2.6f);
+                        return (float)System.Math.Tanh((crack + body + sub) * 1.4f) * 0.95f;
                     });
                 }
                 case "whoosh":

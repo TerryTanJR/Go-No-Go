@@ -231,6 +231,10 @@ namespace GoNoGo.EditorTools
 
             // ---- 營運 ----
             a.orbitLine = BuildUtil.Particle("M_OrbitLine", a.softDot, new Color(0.3f, 0.8f, 1f, 0.55f), true);
+            // 月球任務的發射演出（地月轉移、抵達月球）沿用營運畫面的月球與軌道線
+            kit.moon = a.moon;
+            kit.line = a.orbitLine;
+            EditorUtility.SetDirty(kit);
             a.linkLine = BuildUtil.Particle("M_LinkLine", a.softDot, new Color(0.35f, 1f, 0.55f, 0.9f), true);
             a.stationGlow = BuildUtil.Unlit("M_StationGlow", new Color(0.4f, 2.2f, 1.0f));
             a.storm = BuildUtil.Particle("M_Storm", a.softDot, new Color(1f, 0.7f, 0.3f, 0.8f), true);
