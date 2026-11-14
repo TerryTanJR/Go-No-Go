@@ -39,12 +39,13 @@ namespace GoNoGo.UI
         public static FacPanel Create(string id)
         {
             if (id != null && id.StartsWith("ops:")) return new OpsConsolePanel(id.Substring(4));
+            if (id != null && id.StartsWith("manual:")) return new ManualPanel(id.Substring(7));
             return id switch
             {
                 "briefing" => new BriefingPanel(),
                 "lobby" => new LobbyPanel(),
                 "dashboard" => new DashboardPanel(),
-                "manual" => new ManualPanel(),
+                "manual" => new ManualIndexPanel(),
                 "phone" => new PhonePanel(),
                 "notes" => new NotesPanel(),
                 "mission" => new MissionConsolePanel(),

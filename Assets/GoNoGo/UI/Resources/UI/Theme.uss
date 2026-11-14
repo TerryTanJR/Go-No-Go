@@ -857,14 +857,257 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .dash-parts { margin-top: 10px; }
 .dash-part-row { flex-direction: row; flex-wrap: wrap; margin-top: 4px; }
 
-/* 手冊 */
-.manual-cat { margin-top: 14px; margin-bottom: 4px; }
-.spec-table { border-width: 1px; border-color: var(--c-line); border-radius: 4px; }
-.spec-row { flex-direction: row; border-bottom-width: 1px; border-color: rgba(31, 53, 80, 0.6); }
-.spec-row--head { background-color: rgba(57, 198, 244, 0.08); }
-.spec-row--head .spec-cell { color: var(--c-dim); font-size: var(--fs-11); -unity-font-style: bold; }
-.spec-cell { flex-grow: 1; flex-basis: 0; padding: 4px 8px; font-size: var(--fs-13); }
+/* 手冊（ManualPanels.cs）：章節標題列、零件卡、規則卡、症狀表、步驟鏈。
+   參考解析度 1920×1080；手冊字多，用自己的寬面板（modal--manual）和較大的字級。 */
 .rule { margin-bottom: 12px; padding: 8px 10px; border-left-width: 2px; border-color: var(--c-line-hi); }
+.modal--manual { width: 1560px; max-width: 96%; max-height: 94%; padding: 20px 26px; }
+.modal--manual .modal-head .unity-label { font-size: var(--fs-16); }
+.modal--manual .small { font-size: var(--fs-16); }
+.modal--manual .body { font-size: var(--fs-19); color: #B9C9DC; }
+.modal--manual .h3 { font-size: var(--fs-22); }
+.modal--manual .h2 { font-size: var(--fs-34); letter-spacing: 3px; }
+.modal--manual .eyebrow { font-size: var(--fs-15); }
+.modal--manual .faint { color: #7890AC; }
+.man-scroll { flex-grow: 1; flex-shrink: 1; min-height: 240px; }
+.man-scroll .unity-scroll-view__content-container { padding-right: 12px; }
+
+/* 章節標題列 */
+.man-head { flex-direction: row; align-items: center; margin-bottom: 10px; }
+.man-head-text { margin-left: 18px; flex-shrink: 1; }
+.man-num {
+    min-width: 44px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: var(--c-accent);
+    background-color: var(--c-accent-dim);
+    color: var(--c-accent);
+    font-size: var(--fs-24);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    flex-shrink: 0;
+}
+.man-num--big { min-width: 76px; padding: 10px 14px; font-size: var(--fs-38); border-width: 2px; }
+.man-head-seat {
+    padding: 6px 12px;
+    border-radius: 14px;
+    border-width: 1px;
+    border-color: var(--c-line-hi);
+    color: var(--c-dim);
+    font-size: var(--fs-15);
+    flex-shrink: 0;
+}
+.man-intro {
+    margin: 4px 0 16px 0;
+    padding: 12px 16px;
+    border-radius: 6px;
+    background-color: rgba(57, 198, 244, 0.07);
+    border-left-width: 4px;
+    border-color: var(--c-accent);
+    color: var(--c-text);
+    font-size: var(--fs-19);
+}
+.man-sec { margin-top: 18px; margin-bottom: 10px; }
+.man-legend { margin-top: 8px; margin-bottom: 6px; }
+
+/* 導覽（組裝區的完整手冊） */
+.man-wrap { flex-direction: row; align-items: stretch; flex-grow: 1; flex-shrink: 1; }
+.man-nav { width: 250px; flex-shrink: 0; margin-right: 20px; padding-right: 14px; border-right-width: 1px; border-color: var(--c-line); }
+.man-nav-group { margin: 12px 0 8px 0; }
+.man-nav-item {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 6px;
+    padding: 10px 12px;
+    background-color: rgba(255, 255, 255, 0.02);
+    border-color: rgba(0, 0, 0, 0);
+    -unity-font-style: normal;
+}
+.man-nav-item--on, .man-nav-item--on:hover:enabled { background-color: var(--c-accent-dim); border-color: var(--c-accent); }
+.man-nav-num { width: 30px; color: var(--c-accent); font-size: var(--fs-18); -unity-font-style: bold; flex-shrink: 0; }
+.man-nav-name { font-size: var(--fs-18); }
+.man-main { flex-grow: 1; flex-shrink: 1; }
+
+/* 一類零件 */
+.man-section { margin-bottom: 20px; }
+.man-sec-head {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 8px 14px;
+    margin-bottom: 12px;
+    border-radius: 6px;
+    border-left-width: 4px;
+    border-color: var(--c-accent);
+    background-color: rgba(57, 198, 244, 0.05);
+}
+.man-sec-head .eyebrow { font-size: var(--fs-18); letter-spacing: 4px; }
+.man-sec-why { margin-left: 16px; font-size: var(--fs-17); }
+.man-cards { flex-direction: row; flex-wrap: wrap; }
+.man-card {
+    width: 32%;
+    margin: 0 1.3% 14px 0;
+    padding: 14px 16px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: var(--c-line);
+    border-top-width: 3px;
+    border-top-color: var(--c-line-hi);
+    background-color: rgba(255, 255, 255, 0.03);
+}
+.man-card--on { border-color: rgba(61, 220, 132, 0.6); border-top-color: var(--c-go); background-color: rgba(61, 220, 132, 0.07); }
+.man-card-top { flex-direction: row; align-items: center; }
+.man-card-name { margin-left: 10px; font-size: var(--fs-20); -unity-font-style: bold; flex-shrink: 1; }
+.man-code {
+    padding: 3px 10px;
+    border-radius: 4px;
+    background-color: rgba(230, 238, 248, 0.94);
+    color: #0B1424;
+    font-size: var(--fs-18);
+    -unity-font-style: bold;
+    flex-shrink: 0;
+}
+.man-badges { flex-direction: row; flex-wrap: wrap; margin-top: 6px; }
+.man-badge {
+    margin: 0 6px 4px 0;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: var(--c-line-hi);
+    font-size: var(--fs-14);
+    color: var(--c-dim);
+}
+.man-badge--on { border-color: var(--c-go); color: var(--c-go); background-color: rgba(61, 220, 132, 0.1); }
+.man-badge--warn { border-color: var(--c-tight); color: var(--c-tight); background-color: rgba(255, 181, 71, 0.1); }
+.modal--manual .man-func { margin-top: 4px; min-height: 44px; font-size: var(--fs-17); color: #A9BBD0; }
+.man-key { flex-direction: row; align-items: flex-end; margin-top: 10px; }
+.man-key-v { font-size: var(--fs-36); -unity-font-style: bold; color: var(--c-accent); }
+.modal--manual .man-key-k { margin-left: 10px; margin-bottom: 6px; font-size: var(--fs-16); }
+.man-stats { margin-top: 10px; padding-top: 8px; border-top-width: 1px; border-color: rgba(31, 53, 80, 0.7); }
+.man-stat { flex-direction: row; align-items: center; margin-top: 6px; }
+.man-stat-k { font-size: var(--fs-17); color: var(--c-dim); }
+.man-stat-v { font-size: var(--fs-18); color: var(--c-text); }
+.man-bar { height: 6px; margin-top: 4px; border-radius: 3px; background-color: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.man-bar--key { height: 8px; margin-top: 6px; border-radius: 4px; }
+.man-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
+.man-bar-fill--good { background-color: var(--c-accent); }
+.man-bar-fill--cost { background-color: #6A7E96; }
+
+/* 規則卡、事件卡、太空天氣卡（兩欄） */
+.man-rules { flex-direction: row; flex-wrap: wrap; }
+.man-rule {
+    width: 49%;
+    margin: 0 1% 14px 0;
+    padding: 14px 18px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-left-width: 4px;
+    border-color: var(--c-line);
+    border-left-color: var(--c-accent);
+    background-color: rgba(255, 255, 255, 0.03);
+}
+.man-rule-head { flex-direction: row; align-items: center; margin-bottom: 8px; }
+.man-rule-n { margin-right: 12px; color: var(--c-accent); font-size: var(--fs-24); -unity-font-style: bold; }
+.man-rule-check { flex-direction: row; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.man-chip {
+    margin: 2px 8px 2px 8px;
+    padding: 3px 12px;
+    border-radius: 14px;
+    border-width: 1px;
+    border-color: var(--c-line-hi);
+    background-color: rgba(57, 198, 244, 0.1);
+    font-size: var(--fs-16);
+    color: var(--c-text);
+}
+.man-chip--payload { border-color: #B58CFF; background-color: rgba(181, 140, 255, 0.16); }
+.man-chip--power { border-color: var(--c-tight); background-color: rgba(255, 181, 71, 0.16); }
+.man-chip--attitude { border-color: var(--c-accent); background-color: rgba(57, 198, 244, 0.16); }
+.man-chip--comms { border-color: var(--c-go); background-color: rgba(61, 220, 132, 0.16); }
+
+/* 首頁目錄 */
+.man-index { flex-direction: row; }
+.man-index-col { flex-grow: 1; flex-basis: 0; margin-right: 16px; }
+.man-index-card {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 8px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: var(--c-line);
+    background-color: rgba(255, 255, 255, 0.03);
+}
+.man-index-text { margin-left: 14px; flex-shrink: 1; }
+.man-index-seat { margin-left: 10px; flex-shrink: 0; }
+.man-lookup { flex-direction: row; flex-wrap: wrap; margin-top: 8px; }
+.man-lookup-row {
+    flex-direction: row;
+    align-items: center;
+    width: 32%;
+    margin: 0 1.3% 8px 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background-color: rgba(255, 255, 255, 0.035);
+}
+.man-lookup-name { margin-left: 10px; font-size: var(--fs-17); flex-shrink: 1; }
+
+/* 症狀對照表 */
+.man-matrix { border-width: 1px; border-color: var(--c-line); border-radius: 8px; overflow: hidden; }
+.man-mx-row { flex-direction: row; align-items: center; border-bottom-width: 1px; border-color: rgba(31, 53, 80, 0.7); min-height: 52px; }
+.man-mx-row--head { background-color: rgba(57, 198, 244, 0.1); min-height: 44px; }
+.man-mx-row--head .unity-label { color: var(--c-dim); font-size: var(--fs-16); -unity-font-style: bold; }
+.man-mx-event { width: 20%; padding: 8px 16px; -unity-font-style: bold; font-size: var(--fs-19); flex-shrink: 0; }
+.man-mx-cell { flex-grow: 1; flex-basis: 0; padding: 8px 8px; align-items: center; -unity-text-align: middle-center; }
+.man-mx-v { padding: 4px 12px; border-radius: 4px; font-size: var(--fs-17); -unity-font-style: bold; }
+.man-mx-v--up2 { color: var(--c-over); background-color: rgba(255, 77, 94, 0.16); }
+.man-mx-v--down, .man-mx-v--half { color: var(--c-tight); background-color: rgba(255, 181, 71, 0.14); }
+.man-mx-v--down2 { color: var(--c-over); background-color: rgba(255, 77, 94, 0.16); }
+.man-mx-v--fault { color: var(--c-over); background-color: rgba(255, 77, 94, 0.16); }
+.man-mx-v--alert { color: #B58CFF; background-color: rgba(181, 140, 255, 0.16); }
+
+/* 處置程序 */
+.man-consoles { flex-direction: row; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.man-proc {
+    margin-bottom: 14px;
+    padding: 14px 18px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-left-width: 4px;
+    border-color: var(--c-line);
+    border-left-color: var(--c-go);
+    background-color: rgba(255, 255, 255, 0.03);
+}
+.man-steps { flex-direction: row; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.man-step { flex-direction: row; align-items: center; padding: 10px 14px; border-radius: 8px; background-color: rgba(255, 255, 255, 0.05); }
+.man-step-n {
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    background-color: var(--c-go);
+    color: #03170B;
+    -unity-text-align: middle-center;
+    -unity-font-style: bold;
+    font-size: var(--fs-18);
+    flex-shrink: 0;
+}
+.man-step-text { margin-left: 12px; align-items: flex-start; }
+.man-step-name { font-size: var(--fs-19); -unity-font-style: bold; margin-bottom: 4px; }
+.man-step-text .man-chip { margin-left: 0; }
+.man-step-arrow { margin: 0 12px; color: var(--c-faint); font-size: var(--fs-24); }
+
+/* 太空天氣 */
+.man-storm--3 { border-left-color: var(--c-over); }
+.man-storm--2 { border-left-color: var(--c-tight); }
+.man-storm--1 { border-left-color: var(--c-go); }
+.man-pips { flex-direction: row; margin-right: 12px; }
+.man-pip { width: 10px; height: 18px; margin-right: 3px; border-radius: 2px; background-color: rgba(255, 255, 255, 0.1); }
+.man-storm--3 .man-pip--on { background-color: var(--c-over); }
+.man-storm--2 .man-pip--on { background-color: var(--c-tight); }
+.man-storm--1 .man-pip--on { background-color: var(--c-go); }
+.man-storm-meta { flex-direction: row; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.man-storm-meta > * { margin-right: 12px; }
+.man-storm-meta .man-chip { margin-left: 0; }
 
 /* 電話 */
 .phone-wrap { flex-direction: row; align-items: stretch; min-height: 380px; }

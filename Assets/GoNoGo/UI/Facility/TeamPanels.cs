@@ -132,24 +132,18 @@ namespace GoNoGo.UI
     public sealed class BayManualPanel : FacPanel
     {
         public override string Title => Loc.T("ui.baymanual.title");
-        public override string WideClass => "modal--wide";
+        public override string WideClass => "modal--manual";
 
         protected override void Build(VisualElement body)
         {
-            Ui.Text(Loc.T("ui.baymanual.intro"), "body", "tight").AddTo(body);
-            var sv = Scroll(body);
-            var parts = SessionRules.ShelfParts(D, M.S);
-            foreach (var cat in new[] { PartCategory.Instrument, PartCategory.Solar, PartCategory.Battery, PartCategory.Antenna, PartCategory.Computer, PartCategory.Adcs, PartCategory.Propulsion, PartCategory.Shielding })
-            {
-                Ui.Text(Loc.T("ui.cat." + cat), "eyebrow", "manual-cat").AddTo(sv);
-                Ui.Text(Loc.T("ui.baymanual.cat." + cat), "small", "dim").AddTo(sv);
-                var row = Ui.Row("dash-part-row").AddTo(sv);
-                foreach (var p in parts.Where(x => x.Category == cat))
-                    Ui.Text(p.Code + "  " + Loc.T(p.Name), "code-chip", "mono").AddTo(row);
-            }
-            var r = Ui.El("rule").AddTo(sv);
+            Ui.Text(Loc.T("ui.baymanual.intro"), "body", "tight", "man-intro").AddTo(body);
+            var sv = Scroll(body, "man-scroll");
+            var r = Ui.El("man-rule").AddTo(sv);
             Ui.Text(Loc.T("ui.manual.rule.instruments.t"), "h3").AddTo(r);
             Ui.Text(Loc.T("ui.baymanual.rules"), "body").AddTo(r);
+            // 同一套零件卡，只是沒有數字
+            foreach (var ch in ManualView.Chapters.Where(ManualView.IsParts))
+                foreach (var cat in ManualView.CategoriesOf(ch)) ManualView.PartsSection(sv, cat, false);
         }
     }
 

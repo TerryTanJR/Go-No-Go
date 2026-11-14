@@ -121,130 +121,7 @@ namespace GoNoGo.UI
         }
     }
 
-    // ======================================================================== 手冊
-
-    public sealed class ManualPanel : FacPanel
-    {
-        public override string Title => Loc.T("ui.manual.title");
-        public override string WideClass => "modal--wide";
-        static int _tab;
-
-        protected override void Build(VisualElement body)
-        {
-            Tabs(body, new[] { "ui.manual.tab.parts", "ui.manual.tab.rules", "ui.manual.tab.diagnose", "ui.manual.tab.procedures", "ui.manual.tab.donki" }, _tab, i => { _tab = i; Refresh(); });
-            ManualView.Build(Scroll(body), _tab);
-        }
-    }
-
-    /// <summary>手冊內容：零件規格表、組裝規則、異常判讀、處置手冊、DONKI 太陽風暴紀錄。</summary>
-    public static class ManualView
-    {
-        public static void Build(VisualElement parent, int tab)
-        {
-            var m = GameSession.Mission;
-            var data = GameSession.Data;
-            switch (tab)
-            {
-                case 0:
-                    var parts = SessionRules.ShelfParts(data, m.S);
-                    foreach (var cat in new[] { PartCategory.Instrument, PartCategory.Solar, PartCategory.Battery, PartCategory.Antenna, PartCategory.Computer, PartCategory.Adcs, PartCategory.Propulsion, PartCategory.Shielding })
-                    {
-                        Ui.Text(Loc.T("ui.cat." + cat), "eyebrow", "manual-cat").AddTo(parent);
-                        var table = Ui.El("spec-table").AddTo(parent);
-                        var head = Ui.Row("spec-row", "spec-row--head").AddTo(table);
-                        foreach (var h in Columns(cat)) Ui.Text(Loc.T(h), "spec-cell").AddTo(head);
-                        foreach (var p in parts.Where(x => x.Category == cat))
-                        {
-                            var row = Ui.Row("spec-row").AddTo(table);
-                            foreach (var v in Values(p)) Ui.Text(v, "spec-cell", "mono").AddTo(row);
-                        }
-                    }
-                    break;
-                case 1:
-                    foreach (var k in new[] { "power", "battery", "mass", "data", "comms", "budget", "lifetime", "instruments" })
-                    {
-                        var r = Ui.El("rule").AddTo(parent);
-                        Ui.Text(Loc.T("ui.manual.rule." + k + ".t"), "h3").AddTo(r);
-                        Ui.Text(Loc.T("ui.manual.rule." + k), "body").AddTo(r);
-                    }
-                    break;
-                case 2:
-                    Ui.Text(Loc.T("ui.manual.diagnose_intro"), "body").AddTo(parent);
-                    foreach (var k in OpsEvents.All)
-                    {
-                        var r = Ui.El("rule").AddTo(parent);
-                        Ui.Text(Loc.T("event.title." + OpsEvents.Key(k)), "h3").AddTo(r);
-                        Ui.Text(Loc.T("event.diag." + OpsEvents.Key(k)), "body").AddTo(r);
-                    }
-                    break;
-                case 3:
-                    Ui.Text(Loc.T("ui.manual.procedures_intro"), "body").AddTo(parent);
-                    foreach (var k in OpsEvents.All)
-                    {
-                        var r = Ui.El("rule").AddTo(parent);
-                        Ui.Text(Loc.T("event.title." + OpsEvents.Key(k)), "h3").AddTo(r);
-                        var steps = Procedures.Required(k);
-                        for (int i = 0; i < steps.Count; i++)
-                            Ui.Text($"{i + 1}. {Loc.T("ops.action." + steps[i])}  ·  {Loc.T("ops.console." + OpsConsoles.ConsoleOf(steps[i]))}", "body").AddTo(r);
-                    }
-                    break;
-                default:
-                    Ui.Text(Loc.T("ui.manual.donki_intro"), "body").AddTo(parent);
-                    foreach (var e in data.SpaceWeather.OrderByDescending(x => x.Severity))
-                    {
-                        var r = Ui.El("rule").AddTo(parent);
-                        Ui.Text(Loc.SpaceWeather(e.Id) + "  ·  " + Loc.T("ui.manual.severity", ("n", e.Severity)), "h3").AddTo(r);
-                        Ui.Text(Loc.T(e.Summary), "body").AddTo(r);
-                    }
-                    break;
-            }
-        }
-
-        static string[] Columns(string cat)
-        {
-            var common = new List<string> { "ui.spec.code", "ui.spec.name", "ui.spec.mass", "ui.spec.power", "ui.spec.cost" };
-            switch (cat)
-            {
-                case PartCategory.Instrument: common.AddRange(new[] { "ui.spec.data", "ui.spec.science" }); break;
-                case PartCategory.Solar: common.Add("ui.spec.array"); break;
-                case PartCategory.Battery: common.Add("ui.spec.battery"); break;
-                case PartCategory.Antenna: common.Add("ui.spec.downlink"); break;
-                case PartCategory.Computer: common.AddRange(new[] { "ui.spec.storage", "ui.spec.radiation" }); break;
-                case PartCategory.Adcs: common.Add("ui.spec.pointing"); break;
-                case PartCategory.Propulsion: common.Add("ui.spec.dv"); break;
-                case PartCategory.Shielding: common.Add("ui.spec.shield"); break;
-            }
-            common.Add("ui.spec.reliability");
-            return common.ToArray();
-        }
-
-        static IEnumerable<string> Values(PartDef p)
-        {
-            yield return p.Code;
-            yield return Loc.T(p.Name);
-            yield return Fmt.N(p.MassKg, 1) + " kg";
-            yield return Fmt.N(p.PowerW, 1) + " W";
-            yield return Fmt.Money(p.CostMusd);
-            switch (p.Category)
-            {
-                case PartCategory.Instrument:
-                    yield return Fmt.N(p.DataGbPerDay, 0) + " GB/d";
-                    yield return Fmt.N(p.ScienceValue);
-                    break;
-                case PartCategory.Solar: yield return Fmt.N(p.AreaM2 * GameSession.Data.Constants.SolarArrayWPerM2) + " W"; break;
-                case PartCategory.Battery: yield return Fmt.N(p.CapacityWh) + " Wh"; break;
-                case PartCategory.Antenna: yield return Fmt.N(p.DownlinkMbps) + " Mbps"; break;
-                case PartCategory.Computer:
-                    yield return Fmt.N(p.StorageGb) + " GB";
-                    yield return Fmt.N(p.RadToleranceKrad) + " krad";
-                    break;
-                case PartCategory.Adcs: yield return Fmt.N(p.PointingArcsec) + "″"; break;
-                case PartCategory.Propulsion: yield return p.PropellantKg > 0 ? Fmt.N(p.PropellantKg, 0) + " kg · " + Fmt.N(p.IspS) + " s" : "—"; break;
-                case PartCategory.Shielding: yield return "×" + Fmt.N(p.DoseFactor, 2); break;
-            }
-            yield return Fmt.Pct(p.ReliabilityPerYear) + (p.Redundant ? " R" : "");
-        }
-    }
+    // 工程手冊（ManualPanel、ManualIndexPanel、ManualView）在 ManualPanels.cs
 
     // ======================================================================== 電話
 
@@ -572,8 +449,8 @@ namespace GoNoGo.UI
             switch (_tab)
             {
                 case 0: DashboardView.Build(sv, false); break;
-                case 1: ManualView.Build(sv, 0); break;
-                case 2: ManualView.Build(sv, 1); break;
+                case 1: ManualView.BuildAllParts(sv); break;
+                case 2: ManualView.Build(sv, "rules"); break;
                 case 3: NotesView.Build(sv, true); break;
                 case 4: FailureBoardView.Build(sv); break;
                 default: TestView.Build(sv, false); break;

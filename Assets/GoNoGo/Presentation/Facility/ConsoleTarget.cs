@@ -29,6 +29,8 @@ namespace GoNoGo.Presentation
         {
             "report" or "test" or "bay_manual" => Station.Assembly,
             "dashboard" or "mission" or "phone" or "notes" or "launch" or "manual" => Station.Control,
+            // 後排的手冊各章（manual:payload…）也是中控室的
+            _ when panel != null && panel.StartsWith("manual:") => Station.Control,
             _ => null,
         };
 

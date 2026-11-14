@@ -455,6 +455,7 @@ namespace GoNoGo.EditorTools
             var glowGreen = BuildUtil.Lit("M_ConsoleGlowGreen", new Color(0.05f, 0.25f, 0.12f), 0f, 0.6f, emission: new Color(0.15f, 0.85f, 0.35f));
             var panelMat = BuildUtil.Lit("M_ConsolePanel", new Color(0.045f, 0.05f, 0.06f), 0.2f, 0.78f);
             char GroupOf(string station) => station == "ops_desk" ? 'F'
+                : station.StartsWith("manual-") ? 'B'
                 : station is "phone" or "notes" or "manual" or "mission" or "dashboard" ? 'D' : 'O';
             Material ScreenFor(char grp, int i) => grp switch
             {
@@ -471,6 +472,7 @@ namespace GoNoGo.EditorTools
                 : mn.StartsWith("M_Trim") ? art.trim
                 : mn.StartsWith("M_Console") ? art.consoleBody
                 : mn.StartsWith("M_Panel") ? panelMat
+                : mn.StartsWith("M_Paper") ? fm.paper
                 : mn.StartsWith("M_Floor") ? art.floorMatte
                 : art.wallDark;
 
@@ -545,6 +547,21 @@ namespace GoNoGo.EditorTools
                     ct.bodyKey = "ui.fac.ops_console_body";
                     ct.actionKey = "ui.hint.operate";
                     ct.phases = "ops";
+                }
+                else if (panel.StartsWith("manual:"))
+                {
+                    // 後排：工程手冊的一章
+                    string ch = panel.Substring(7);
+                    ct.titleKey = "ui.manual.ch." + ch;
+                    ct.bodyKey = "ui.manual.ch." + ch + "_body";
+                    ct.actionKey = "ui.hint.read";
+                }
+                else if (panel == "manual")
+                {
+                    // 前排設計組的手冊席：目錄與零件代號速查（各章在後排）
+                    ct.titleKey = "ui.fac.manual_index";
+                    ct.bodyKey = "ui.fac.manual_index_body";
+                    ct.actionKey = "ui.hint.read";
                 }
                 else
                 {

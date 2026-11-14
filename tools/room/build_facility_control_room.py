@@ -21,7 +21,8 @@ Unity 依物件名稱掛元件：
   Wall_<id>       影像牆的即時資訊螢幕（WorldScreen：dashboard、failures、notes）
   Deco_<組>_*     裝飾螢幕（程序貼圖）；組 = D 設計、F 總監、O 營運、B 後排、W 影像牆
   Deco_<組>_Top_<panel>  席位上方的第二台螢幕（標籤放在它上面）
-其他物件依材質名稱換成專案材質：M_Floor、M_Dark、M_Trim、M_Console、M_Panel、M_Glow、M_GlowAmber、M_GlowGreen、M_GlowRed。
+後排兩座各四席，是拆開的工程手冊（Screen_manual-<章>）。
+其他物件依材質名稱換成專案材質：M_Floor、M_Dark、M_Trim、M_Console、M_Panel、M_Paper、M_Glow、M_GlowAmber、M_GlowGreen、M_GlowRed。
 """
 import math
 import os
@@ -113,6 +114,7 @@ def materials():
     mat("M_GlowRed", (0.7, 0.08, 0.05), emission=(1.0, 0.12, 0.06), strength=6)
     mat("M_Screen", (0.02, 0.05, 0.08), emission=(0.15, 0.45, 0.75), strength=2)
     mat("M_Earth", (0.05, 0.1, 0.2), emission=(0.25, 0.5, 0.95), strength=3)
+    mat("M_Paper", (0.92, 0.9, 0.84), rough=0.8)
 
 
 def obj_from_bm(name, bm, materials_):
@@ -560,21 +562,55 @@ def launch_pedestal():
 # ---------------------------------------------------------------- 後排裝飾桌
 
 
+# 後排：工程手冊拆成八章，每席一章（由左到右 = 操作員面向影像牆時）。
+# 北座是零件規格（對應組裝區的四座零件架），南座是規則與營運用的章節。
+BACK = [
+    ("N", (180 - 44, 180 - 15), ["manual-payload", "manual-power", "manual-comms", "manual-avionics"]),
+    ("S", (180 + 15, 180 + 44), ["manual-rules", "manual-diagnose", "manual-procedures", "manual-donki"]),
+]
+
+
 def back_row():
     r = RC + 3.0
-    for tag, (b0, b1) in (("N", (180 - 44, 180 - 15)), ("S", (180 + 15, 180 + 44))):
+    for tag, (b0, b1), ids in BACK:
         sweep(f"BackPod{tag}", C, r, b0, b1, DESK, 0.0, segs=24)
         arc_box(f"BackUnder{tag}", C, r + 0.082, r + 0.1, b0 + 0.3, b1 - 0.3, 0.025, 0.1, "M_Glow")
-        n = 4
-        step = (b1 - b0) / n
-        for k in range(n):
+        arc_box(f"BackRail{tag}", C, r - 0.125, r - 0.105, b0 + 0.3, b1 - 0.3, 0.905, 0.935, "M_Glow")
+        step = (b1 - b0) / len(ids)
+        books = bmesh.new()
+        pages = bmesh.new()
+        for k, sid in enumerate(ids):
             a = b0 + step * (k + 0.5)
             out, right = frame(a)
-            up = tilted(out, 10)
+            # 一台主螢幕（按 E 打開該章）和上方一條章節標題條
+            w, h = 0.9, 0.52
             base = polar(C, r - 0.27, a)
-            for j, off in enumerate((-0.33, 0.33)):
-                mid = Vector((base.x, base.y, 1.24)) + right * off
-                monitor(f"Deco_B_{tag}{k}{j}", f"B{tag}{k}{j}", mid, right, up, 0.58, 0.36, "M_Glow")
+            mid = Vector((base.x, base.y, 0.97 + 0.07 + h / 2))
+            monitor(f"Screen_{sid}", sid, mid, right, tilted(out, 10), w, h, "M_Glow")
+            post = polar(C, r - 0.34, a)
+            oriented_box(f"Post_{sid}", Vector((post.x, post.y, 0.97 + 0.15)), right, Z, out, 0.07, 0.04, 0.3, "M_Console")
+            b2 = polar(C, r - 0.33, a)
+            mid2 = Vector((b2.x, b2.y, mid.z + h / 2 + 0.16))
+            monitor(f"Deco_B_Top_{sid}", sid + "_top", mid2, right, tilted(out, 15), 0.95, 0.13, "M_Glow")
+            # 桌緣發光條（準星對到時變亮）與席位之間的隔板
+            arc_box(f"Glow_{sid}", C, r + 0.425, r + 0.445, a - step / 2 + 0.45, a + step / 2 - 0.45, 0.735, 0.765, "M_Glow", segs=4)
+            if k > 0:
+                ab = b0 + step * k
+                arc_box(f"Divider_{sid}", C, r + 0.02, r + 0.38, ab - 0.12, ab + 0.12, 0.79, 0.86, "M_Console", segs=1)
+            # 斜桌面上攤著一本手冊（封面 + 紙頁）
+            dr = 0.2
+            p = polar(C, r + dr, a)
+            z = 0.79 + (0.40 - dr) / 0.40 * 0.08
+            back = (-out * 0.40 + Z * 0.08).normalized()
+            normal = back.cross(right).normalized()
+            if normal.z < 0:
+                normal = -normal
+            c = Vector((p.x, p.y, z)) + right * 0.28
+            add_obox(books, c + normal * 0.008, right, normal, back, 0.40, 0.27, 0.012)
+            for s in (-1, 1):
+                add_obox(pages, c + normal * 0.02 + right * s * 0.097, right, normal, back, 0.185, 0.25, 0.016)
+        obj_from_bm(f"BackBooks{tag}", solid(books), "M_Trim")
+        obj_from_bm(f"BackPages{tag}", solid(pages), "M_Paper")
 
 # ---------------------------------------------------------------- 預覽與匯出
 
