@@ -29,6 +29,11 @@ namespace GoNoGo.UI
         TutorialCoach _coach;
         WorldScreens _screens;
         PollBanner _poll;
+        Label _briefHint;
+        /// <summary>這一局本機已經自動打開過簡報（多人）；回到場景不再重開，要看按 B。</summary>
+        static object _briefedFor;
+        /// <summary>房主把「全員就緒」的開始視窗關掉了：準備狀態改變前不再自動跳出來。</summary>
+        bool _startDismissed;
 
         protected override void Build()
         {
@@ -54,6 +59,9 @@ namespace GoNoGo.UI
             _mic = Ui.Btn("", ToggleMic, "btn-small", "btn-ghost").AddTo(tr);
             // 方向鍵是用來走路的：不讓 UI 拿方向鍵移動焦點（滑鼠還是點得到）
             _mic.focusable = false;
+            // 任務簡報：隨時按 B 打開來複習（每個人各自看自己的）
+            _briefHint = Ui.Text(Loc.T("ui.brief.review_hint"), "small", "dim").AddTo(tr);
+            _briefHint.pickingMode = PickingMode.Ignore;
 
             // 中央：準星與進度環
             _crosshair = Ui.El("crosshair").AddTo(_hud);
@@ -112,6 +120,7 @@ namespace GoNoGo.UI
                 ClosePanel();
                 ShowPhasePanel();
             }
+            LobbyFlow();
             _panel?.Refresh();
             _opsBar.Refresh();
             _poll?.Refresh();
@@ -122,8 +131,36 @@ namespace GoNoGo.UI
         /// <summary>簡報、大廳：階段一開始就打開的面板。</summary>
         void ShowPhasePanel()
         {
+            // 大廳不自動擋畫面：玩家在大廳裡走動，用兩邊的按鈕選組、中間的按鈕開始（場景裡的互動物件 LobbyButton）
             if (M.S.Phase == SessionPhase.Briefing) OpenPanel("briefing", "");
-            else if (M.S.Phase == SessionPhase.Lobby) OpenPanel("lobby", "");
+            else if (M.S.Phase == SessionPhase.Design && M.S.Multiplayer && !ReferenceEquals(_briefedFor, M))
+            {
+                // 多人開始任務後：每個人各自看一次簡報（和隊友無關，不用等人）
+                _briefedFor = M;
+                OpenPanel("briefing", "");
+            }
+        }
+
+        /// <summary>大廳：全員準備好 → 房主跳出開始視窗；有人取消準備 → 收起來。</summary>
+        void LobbyFlow()
+        {
+            var s = M.S;
+            bool all = s.Phase == SessionPhase.Lobby && LobbyView.AllReady(s);
+            if (!all)
+            {
+                if (_panelId == "lobby_start") ClosePanel();
+                _startDismissed = false;
+                return;
+            }
+            if (GameSession.IsHost && _panel == null && !_startDismissed && !Hud.Paused) OpenPanel("lobby_start", "");
+        }
+
+        string LobbyHint()
+        {
+            var s = M.S;
+            var me = s.Player(GameSession.LocalPlayer);
+            if (LobbyView.AllReady(s)) return Loc.T(GameSession.IsHost ? "ui.lobby.hint_host" : "ui.lobby.hint_wait");
+            return Loc.T(me != null && me.Ready ? "ui.lobby.hint_ready" : "ui.lobby.hint");
         }
 
         void UpdatePhaseBar()
@@ -164,6 +201,7 @@ namespace GoNoGo.UI
         {
             if (_panel == null) return;
             _panel.Detach();
+            if (_panelId == "lobby_start") _startDismissed = true;
             _panel = null;
             _panelId = null;
             _modal.Clear();
@@ -202,6 +240,19 @@ namespace GoNoGo.UI
             // G / N：Go/No-Go 點名
             if (keys && _poll != null && _poll.CanVote && (kb.gKey.wasPressedThisFrame || kb.nKey.wasPressedThisFrame))
                 _poll.Vote(kb.gKey.wasPressedThisFrame);
+            // 大廳：全員準備好之後，房主按 Enter 直接開始
+            else if (keys && _panel == null && M.S.Phase == SessionPhase.Lobby && GameSession.IsHost && LobbyView.AllReady(M.S)
+                     && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame))
+            {
+                Sfx.Go();
+                GameSession.Send(CommandType.StartMission);
+            }
+            // B：任務簡報（隨時複習；開著就關掉）
+            else if (keys && kb.bKey.wasPressedThisFrame && M.S.Phase != SessionPhase.Lobby && M.S.Phase != SessionPhase.Launch)
+            {
+                if (_panelId == "briefing") { if (_panel.Closable) ClosePanel(); }
+                else if (_panel == null) OpenPanel("briefing", "");
+            }
             // M：自己的麥克風靜音
             else if (keys && kb.mKey.wasPressedThisFrame && Multiplayer.VoiceConnected)
                 ToggleMic();
@@ -215,6 +266,7 @@ namespace GoNoGo.UI
             else if (keys && kb.eKey.wasPressedThisFrame && _panel != null && _panel.Closable && _panel.CloseWithE && _openedFrame != Time.frameCount)
                 ClosePanel();
 
+            _briefHint.style.display = M.S.Phase == SessionPhase.Design && _panel == null ? DisplayStyle.Flex : DisplayStyle.None;
             _panel?.Tick(dt);
             _opsBar.Tick(dt);
             _poll?.Tick(dt);
@@ -273,8 +325,9 @@ namespace GoNoGo.UI
             _areaTime = Mathf.Max(0, _areaTime - dt);
             _area.style.opacity = Mathf.Clamp01(_areaTime / 0.5f);
             var held = M.S.HeldBy(GameSession.LocalPlayer);
-            _held.text = held != null ? Loc.T("ui.hud.holding", ("code", D.Part(held)?.Code ?? "")) : "";
-            _held.style.display = held != null && playing ? DisplayStyle.Flex : DisplayStyle.None;
+            bool lobby = M.S.Phase == SessionPhase.Lobby;
+            _held.text = held != null ? Loc.T("ui.hud.holding", ("code", D.Part(held)?.Code ?? "")) : lobby ? LobbyHint() : "";
+            _held.style.display = (held != null || lobby) && playing ? DisplayStyle.Flex : DisplayStyle.None;
 
             DrawLabels();
         }

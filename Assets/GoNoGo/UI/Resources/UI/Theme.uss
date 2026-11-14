@@ -1879,3 +1879,34 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .mlegend.faint .mlegend-item { color: #7890AC; }
 .mlegend.dim .mlegend-item { color: var(--c-dim); }
 .mchart-corner { margin-top: 2px; color: var(--ch); -unity-font-style: bold; }
+
+/* 大廳牆上的隊伍名單螢幕 */
+.team-board { flex-grow: 1; align-items: stretch; padding: 14px 18px; }
+.team-board-title { font-size: var(--fs-30); -unity-font-style: bold; letter-spacing: 3px; color: var(--c-text); }
+.team-board-role { font-size: var(--fs-16); white-space: normal; color: var(--c-dim); margin: 6px 0 14px 0; }
+.team-board-name { font-size: var(--fs-24); margin-top: 4px; padding: 6px 12px; border-radius: 4px; background-color: rgba(255, 255, 255, 0.06); color: var(--c-text); }
+.team-board-name--me { background-color: var(--c-accent-dim); border-width: 1px; border-color: var(--c-accent); }
+.team-board-empty { font-size: var(--fs-18); color: var(--c-faint); margin-top: 10px; }
+
+/* 大廳：兩組名單、全員就緒視窗 */
+.lobby-code { font-size: var(--fs-30); letter-spacing: 4px; color: var(--c-accent); -unity-font-style: bold; }
+.lobby-mission { align-items: flex-end; }
+.lobby-teams { flex-direction: row; margin-top: 14px; }
+.lobby-team { flex-grow: 1; flex-basis: 0; margin: 0 6px; padding: 10px 12px; border-radius: 6px; border-width: 1px; border-top-width: 4px; background-color: rgba(255, 255, 255, 0.04); }
+.lobby-team--assembly { border-color: #38C6F4; }
+.lobby-team--control { border-color: #FFA826; }
+.lobby-team-title { font-size: var(--fs-18); -unity-font-style: bold; letter-spacing: 2px; color: var(--c-text); margin-bottom: 6px; }
+.lobby-player { padding: 4px 8px; margin-top: 3px; border-radius: 4px; background-color: rgba(255, 255, 255, 0.05); }
+.lobby-player--me { background-color: var(--c-accent-dim); }
+.lobby-pname { font-size: var(--fs-16); color: var(--c-text); }
+.lobby-pstate { font-size: var(--fs-14); -unity-font-style: bold; letter-spacing: 1px; }
+.lobby-count { margin-top: 12px; -unity-text-align: middle-center; font-size: var(--fs-18); -unity-font-style: bold; letter-spacing: 3px; }
+.go-wrap { align-items: stretch; padding: 8px 4px; }
+.go-title { font-size: var(--fs-34); -unity-font-style: bold; letter-spacing: 8px; color: #6BFF9A; -unity-text-align: middle-center; margin-bottom: 10px; }
+.go-btn { margin-top: 20px; padding: 18px 12px; font-size: var(--fs-30); letter-spacing: 6px; border-width: 2px; border-color: #B8FFD0; }
+.go-keys { flex-direction: row; align-items: center; margin-top: 14px; }
+.go-keys .keycap { margin-left: 4px; }
+.team-board--assembly { border-top-width: 6px; border-color: #38C6F4; }
+.team-board--control { border-top-width: 6px; border-color: #FFA826; }
+.team-board-name { flex-direction: row; align-items: center; }
+.team-board-pn { font-size: var(--fs-24); color: var(--c-text); }

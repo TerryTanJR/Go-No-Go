@@ -44,6 +44,7 @@ namespace GoNoGo.UI
             {
                 "briefing" => new BriefingPanel(),
                 "lobby" => new LobbyPanel(),
+                "lobby_start" => new LobbyStartPanel(),
                 "dashboard" => new DashboardPanel(),
                 "goals" => new GoalsPanel(),
                 "procure" => new ProcurePanel(),
