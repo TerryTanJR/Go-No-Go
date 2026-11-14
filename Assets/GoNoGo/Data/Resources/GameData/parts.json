@@ -8,8 +8,8 @@
     "function": { "en": "Takes colour pictures of the ground in daylight.", "zh-TW": "白天拍地面的彩色照片" },
     "explainer": { "en": "A small digital camera like the one in your phone, but pointed at Earth. It only works in daylight, because it needs sunlight bouncing off the ground. Swarms of shoebox-sized satellites carry cameras like this to photograph the whole planet every day.", "zh-TW": "和手機裡的相機原理一樣，只是對著地球拍。它只在白天能用，因為要靠陽光從地面反射回來。有些公司用一大群鞋盒大小的衛星裝這種相機，每天把整個地球拍一遍。" },
     "description": {
-      "en": "A shoebox-sized colour camera, about 4-5 m per pixel. Light and cheap, but it only works in daylight and sees no more than your eyes do.",
-      "zh-TW": "鞋盒大小的彩色相機，每個像素約 4–5 公尺。輕又便宜，但只能在白天拍，看到的和肉眼差不多。"
+      "en": "A shoebox-sized colour camera, about 6-7 m per pixel from 700 km. Light and cheap, but it only works in daylight and sees no more than your eyes do.",
+      "zh-TW": "鞋盒大小的彩色相機，從 700 公里高拍，每個像素約 6–7 公尺。輕又便宜，但只能在白天拍，看到的和肉眼差不多。"
     },
     "mass_kg": 1.1,
     "power_w": 6.0,
@@ -18,7 +18,7 @@
     "reliability_per_year": 0.98,
     "data_gb_per_day": 33,
     "science_value": 20,
-    "resolution_m": 4.75,
+    "resolution_m": 6.65,
     "sunlit_only": true,
     "objective_match": { "earth_observation": 0.8, "carbon_monitoring": 0.2, "lunar_mapping": 0.9 },
     "model": "inst_visible",
@@ -27,7 +27,7 @@
     "source": {
       "title": "SatCatalog: Simera Sense TriScape100; Sensors 2023, 23(13):6192",
       "url": "https://www.satcatalog.com/component/triscape100/",
-      "note": "sourced: 1.1 kg, 6.0 W average; GSD 4.75 m at 500 km (sister model MultiScape100). derived: 33 GB/day = 61 Mbit/s x 72 min of imaging per day (5% duty cycle is an estimate). estimate: cost"
+      "note": "sourced: 1.1 kg, 6.0 W average; GSD 4.75 m at 500 km (sister model MultiScape100). derived: 6.65 m at 700 km (GSD scales with altitude; all imager resolutions in this file are quoted at 700 km so they compare fairly), 33 GB/day = 61 Mbit/s x 72 min of imaging per day (5% duty cycle is an estimate). estimate: cost"
     }
   },
   {
@@ -39,8 +39,8 @@
     "function": { "en": "Sees several colours of light, including near-infrared, to tell crops, water and soil apart.", "zh-TW": "分好幾種顏色的光拍照，分得出作物、水和土壤" },
     "explainer": { "en": "Instead of one colour photo, it takes several pictures at once through different filters, including near-infrared light our eyes cannot see. Healthy plants reflect near-infrared strongly, so farmers and foresters use it to spot crops in trouble. The Landsat satellites have done this for half a century.", "zh-TW": "它不是拍一張彩色照片，而是隔著不同的濾鏡同時拍好幾張，其中包括眼睛看不到的近紅外光。健康的植物會強烈反射近紅外光，所以農業和林業單位用它找出生病的作物。Landsat 系列衛星做這件事已經半個世紀了。" },
     "description": {
-      "en": "Seven colour bands from visible to near-infrared, 1.5 m pixels. Tells healthy crops from stressed ones and water from mud. Daylight only.",
-      "zh-TW": "從可見光到近紅外線共 7 個波段，像素 1.5 公尺。分得出健康和缺水的作物、清水和泥水。只能白天拍。"
+      "en": "Seven colour bands from visible to near-infrared, about 2 m pixels from 700 km. Tells healthy crops from stressed ones and water from mud. Daylight only.",
+      "zh-TW": "從可見光到近紅外線共 7 個波段，從 700 公里高拍像素約 2 公尺。分得出健康和缺水的作物、清水和泥水。只能白天拍。"
     },
     "mass_kg": 12.1,
     "power_w": 5.8,
@@ -49,7 +49,7 @@
     "reliability_per_year": 0.98,
     "data_gb_per_day": 41,
     "science_value": 40,
-    "resolution_m": 1.5,
+    "resolution_m": 2.1,
     "sunlit_only": true,
     "objective_match": { "earth_observation": 1.0, "carbon_monitoring": 0.4, "lunar_mapping": 0.8 },
     "model": "inst_multispectral",
@@ -58,7 +58,7 @@
     "source": {
       "title": "SatCatalog: Simera Sense MultiScape200 CIS",
       "url": "https://www.satcatalog.com/component/multiscape200/",
-      "note": "sourced: 12.1 kg dry, 5.8 W imaging, 7 VNIR bands, GSD 1.5 at 500 km. estimate: ~41 GB/day (10 km swath and 150 s of imaging per day assumed), cost"
+      "note": "sourced: 12.1 kg dry, 5.8 W imaging, 7 VNIR bands, GSD 1.5 at 500 km. derived: 2.1 m at 700 km. estimate: ~41 GB/day (10 km swath and 150 s of imaging per day assumed), cost"
     }
   },
   {
@@ -102,8 +102,8 @@
     "function": { "en": "Splits light into hundreds of colours to identify materials.", "zh-TW": "把光分成上百種顏色，辨認地面是什麼物質" },
     "explainer": { "en": "It splits light into hundreds of narrow colours, like a prism. Every material, from minerals to plastic to algae, leaves its own fingerprint in that rainbow, so scientists can tell what the ground is made of. The price is a flood of data.", "zh-TW": "它像稜鏡一樣，把光拆成上百種很窄的顏色。每種物質，從礦物、塑膠到藻類，在這道彩虹裡都有自己的指紋，科學家因此分得出地面是什麼做的。代價是資料量非常大。" },
     "description": {
-      "en": "239 narrow bands: a full spectrum for every 30 m pixel, enough to identify minerals and plant species. Heavy, power-hungry and a firehose of data.",
-      "zh-TW": "239 個窄波段：每個 30 公尺像素都有完整光譜，能辨認礦物和植物種類。又重又耗電，資料量像消防水管。"
+      "en": "239 narrow bands: a full spectrum for every pixel (about 34 m from 700 km), enough to identify minerals and plant species. Heavy, power-hungry and a firehose of data.",
+      "zh-TW": "239 個窄波段：每個像素（從 700 公里高約 34 公尺）都有完整光譜，能辨認礦物和植物種類。又重又耗電，資料量像消防水管。"
     },
     "mass_kg": 90,
     "power_w": 110,
@@ -112,7 +112,7 @@
     "reliability_per_year": 0.98,
     "data_gb_per_day": 80,
     "science_value": 80,
-    "resolution_m": 30,
+    "resolution_m": 34,
     "sunlit_only": true,
     "objective_match": { "earth_observation": 1.0, "carbon_monitoring": 0.7, "lunar_mapping": 0.7 },
     "model": "inst_hyperspectral",
@@ -121,7 +121,7 @@
     "source": {
       "title": "eoPortal: PRISMA (ASI)",
       "url": "https://www.eoportal.org/satellite-missions/prisma-hyperspectral",
-      "note": "sourced: instrument < 90 kg, < 110 W average, 30 m, 66 VNIR + 173 SWIR bands, 200,000 km2 per day. derived: 80 GB/day (12-bit depth assumed). estimate: cost (PRISMA's is not published), development time"
+      "note": "sourced: instrument < 90 kg, < 110 W average, 30 m from 615 km, 66 VNIR + 173 SWIR bands, 200,000 km2 per day. derived: 34 m at 700 km, 80 GB/day (12-bit depth assumed). estimate: cost (PRISMA's is not published), development time"
     }
   },
   {
@@ -183,7 +183,7 @@
     "source": {
       "title": "OCO launch press kit (NASA/JPL 2009); OCO Mishap Investigation summary",
       "url": "https://www.jpl.nasa.gov/news/press_kits/oco-launch.pdf",
-      "note": "sourced: instrument 135 kg; footprint 1.29 x 2.25 km; daily return 6.75 min at 150 Mbit/s = 7.6 GB/day (derived). estimate: 100 W, $110M so the whole mission totals about the $209M mishap-report figure"
+      "note": "sourced: instrument 135 kg; footprint 1.29 x 2.25 km; daily return 6.75 min at 150 Mbit/s = 7.6 GB/day (derived). estimate: 100 W, $110M so the spacecraft and instrument total about $209M (the loss figure in the mishap report, which appears to exclude the ~$70M Taurus XL launch). Adding the launch gives roughly the press kit's $273.4M total NASA investment used as the hist_oco budget"
     }
   },
 
@@ -371,10 +371,10 @@
     "name": { "en": "1 Ground Station (rented)", "zh-TW": "租用 1 座地面站" },
     "description": { "en": "One high-latitude antenna rented by the minute. Long gaps between contacts mean data waits on board.", "zh-TW": "按分鐘租用一座高緯度天線。兩次通聯間隔很長，資料要在衛星上排隊等。" },
     "stations": 1,
-    "ops_cost_musd_per_year": 0.6,
+    "ops_cost_musd_per_year": 0.71,
     "model": "",
     "mount": "",
-    "source": { "title": "AWS Ground Station pricing (AWS Price List API, 2026-09-11)", "url": "https://aws.amazon.com/ground-station/pricing/", "note": "sourced: wideband on-demand $22/min (Ohio, Oregon). derived: ~9 passes x 8 min x 365 days x $22 = $0.58M/yr" }
+    "source": { "title": "AWS Ground Station pricing (AWS Price List API, 2026-09-11)", "url": "https://aws.amazon.com/ground-station/pricing/", "note": "sourced: wideband on-demand $22/min (Ohio, Oregon). derived: 11 passes x 8 min x 365 days x $22 = $0.71M/yr (11 passes/day: the same high-latitude station assumption as orbits.json)" }
   },
   {
     "id": "gs_3",
@@ -383,10 +383,10 @@
     "name": { "en": "3 Ground Stations", "zh-TW": "3 座地面站" },
     "description": { "en": "Three stations spread in longitude: three times the contact time and much shorter waits.", "zh-TW": "經度分散的三座站：通聯時間三倍，等待時間短很多。" },
     "stations": 3,
-    "ops_cost_musd_per_year": 1.7,
+    "ops_cost_musd_per_year": 2.1,
     "model": "",
     "mount": "",
-    "source": { "title": "AWS Ground Station pricing (AWS Price List API, 2026-09-11)", "url": "https://aws.amazon.com/ground-station/pricing/", "note": "derived: 3 x $0.58M/yr" }
+    "source": { "title": "AWS Ground Station pricing (AWS Price List API, 2026-09-11)", "url": "https://aws.amazon.com/ground-station/pricing/", "note": "derived: 3 x $0.71M/yr" }
   },
   {
     "id": "gs_6",
@@ -395,10 +395,10 @@
     "name": { "en": "6 Stations incl. Polar", "zh-TW": "6 座地面站（含極區）" },
     "description": { "en": "A global network including a polar site that sees a polar orbiter on nearly every revolution.", "zh-TW": "包含極區站的全球網路，極軌衛星幾乎每一圈都看得到。" },
     "stations": 6,
-    "ops_cost_musd_per_year": 3.5,
+    "ops_cost_musd_per_year": 4.2,
     "model": "",
     "mount": "",
-    "source": { "title": "AWS Ground Station pricing; Wikipedia: Svalbard Satellite Station", "url": "https://en.wikipedia.org/wiki/Svalbard_Satellite_Station", "note": "sourced: SvalSat sees low polar orbiters on every revolution. derived: 6 x $0.58M/yr" }
+    "source": { "title": "AWS Ground Station pricing; Wikipedia: Svalbard Satellite Station", "url": "https://en.wikipedia.org/wiki/Svalbard_Satellite_Station", "note": "sourced: SvalSat sees low polar orbiters on every revolution. derived: 6 x $0.71M/yr" }
   },
 
   {
@@ -551,7 +551,7 @@
     "category": "propulsion",
     "tier": 2,
     "code": "T-2",
-    "name": { "en": "Green Monoprop System (10.7 kg)", "zh-TW": "綠色單組元推進（10.7 kg）" },
+    "name": { "en": "Green Monoprop System (9.7 kg)", "zh-TW": "綠色單組元推進（9.7 kg）" },
     "function": { "en": "A small engine and fuel tank to keep the orbit up.", "zh-TW": "小型引擎和燃料箱，用來維持軌道高度" },
     "explainer": { "en": "A small thruster burning a 'green' propellant that is much less toxic than traditional rocket fuel, so it is safer to load on the ground. Short burns now and then lift the orbit back up against air drag.", "zh-TW": "小型推進器，燒的是比傳統火箭燃料毒性低很多的「綠色」推進劑，在地面加注比較安全。偶爾點火一下，就能把被空氣拖低的軌道推回去。" },
     "description": { "en": "A small non-toxic propulsion module, as flown on SkySat. About 150 m/s for a microsatellite.", "zh-TW": "SkySat 用的小型低毒推進模組。微衛星大約可以有 150 m/s 的速度變化量。" },
@@ -559,12 +559,12 @@
     "power_w": 3,
     "cost_musd": 1.5,
     "dev_months": 12,
-    "propellant_kg": 10.7,
+    "propellant_kg": 9.7,
     "isp_s": 220,
     "model": "prop_tank_small",
     "mount": "internal",
     "color": "#EF5350",
-    "source": { "title": "NASA SST State-of-the-Art, ch. 4 Propulsion, Table 4-3 (ECAPS SkySat 1N HPGP)", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/in-space_propulsion", "note": "sourced: 22 kg wet, 21 kN*s total impulse, > 200 s; green monoprop 231-255 s. derived: propellant 21,000/(200 x 9.81) = 10.7 kg, dry 11.3 kg. estimate: Isp 220 s average, 3 W heaters, cost" }
+    "source": { "title": "NASA SST State-of-the-Art, ch. 4 Propulsion, Table 4-3 (ECAPS SkySat 1N HPGP)", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/in-space_propulsion", "note": "sourced: 22 kg wet, 21 kN*s total impulse, > 200 s; green monoprop 231-255 s. derived: propellant 21,000/(220 x 9.81) = 9.7 kg so the game's Isp reproduces the sourced total impulse; dry 11.3 kg (game wet mass 21.0 kg; the remaining ~1 kg of the sourced 22 kg is unusable residual propellant, not modelled). estimate: Isp 220 s average, 3 W heaters, cost" }
   },
   {
     "id": "prop_hydrazine",
@@ -662,7 +662,7 @@
     "reliability_per_year": 0.97,
     "data_gb_per_day": 5,
     "science_value": 30,
-    "resolution_m": 370,
+    "resolution_m": 500,
     "sunlit_only": false,
     "objective_match": { "wildfire": 1.0, "earth_observation": 0.4, "carbon_monitoring": 0, "lunar_mapping": 0 },
     "fire_detection": 0.6,
@@ -673,7 +673,7 @@
     "source": {
       "title": "eoPortal: BIROS (Bi-spectral InfraRed Optical System, DLR FireBIRD); Frauenberger et al., The DLR FireBIRD mission (2017)",
       "url": "https://www.eoportal.org/satellite-missions/biros",
-      "note": "sourced: FireBIRD hot-spot recognition camera, MWIR 3.4-4.2 um and LWIR 8.5-9.3 um channels, ~370 m ground pixels from ~515 km SSO; Wien's law puts an 800 K flame's peak at 3.6 um. estimate: 6 kg, 18 W, 5 GB/day, cost, x0.6 detection of new small fires"
+      "note": "sourced: FireBIRD hot-spot recognition camera, MWIR 3.4-4.2 um and LWIR 8.5-9.3 um channels, ~370 m ground pixels from ~515 km SSO; Wien's law puts an 800 K flame's peak at 3.6 um. derived: ~500 m at 700 km (370 x 700/515). estimate: 6 kg, 18 W, 5 GB/day, cost, x0.6 detection of new small fires"
     }
   },
   {
@@ -703,7 +703,7 @@
     "source": {
       "title": "eoPortal: BIROS (Bi-spectral InfraRed Optical System, DLR FireBIRD); Frauenberger et al., The DLR FireBIRD mission (2017)",
       "url": "https://www.eoportal.org/satellite-missions/biros",
-      "note": "sourced: FireBIRD MWIR/LWIR bands and detection approach. estimate: a cooled MWIR focal plane at ~160 m (between FireBIRD 370 m and the commercial 200 m class), 15 kg, 45 W with cryocooler, 25 GB/day, cost, x0.85 detection"
+      "note": "sourced: FireBIRD MWIR/LWIR bands and detection approach. estimate: a cooled MWIR focal plane at ~160 m from 700 km (finer than FireBIRD's ~500 m and the commercial 200 m class at the same altitude), 15 kg, 45 W with cryocooler, 25 GB/day, cost, x0.85 detection"
     }
   },
   {
@@ -713,8 +713,8 @@
     "code": "B-0",
     "name": { "en": "CubeSat Battery Pack (43 Wh)", "zh-TW": "立方衛星電池組（43 Wh）" },
     "function": { "en": "Stores a little power for Earth's shadow.", "zh-TW": "儲存一點電力，給衛星進到地球影子裡時用" },
-    "explainer": { "en": "A palm-sized pack of rechargeable lithium-ion cells, the kind used in CubeSats. In orbit without a shadow it is plenty; but every time the spacecraft passes behind Earth, everything runs on this little pack until the Sun comes back.", "zh-TW": "巴掌大的鋰電池組，立方衛星常用的那種。在照不到地球影子的軌道上綽綽有餘；但每次衛星繞到地球背後，所有東西都只能靠這一小包電撐到太陽再出現。" },
-    "description": { "en": "A four-cell CubeSat pack. Plenty for an orbit with no shadow; in a 35-minute shadow with a real payload it runs flat.", "zh-TW": "四顆電芯的立方衛星電池組。沒有地影的軌道綽綽有餘；帶著真正的酬載進 35 分鐘的地影就撐不住。" },
+    "explainer": { "en": "A palm-sized pack of rechargeable lithium-ion cells, the kind used in CubeSats. It is plenty for a tiny CubeSat; but every time the spacecraft passes behind Earth, everything runs on this little pack until the Sun comes back, and a microsatellite with a real payload empties it fast.", "zh-TW": "巴掌大的鋰電池組，立方衛星常用的那種。給小小的立方衛星用綽綽有餘；但每次衛星繞到地球背後，所有東西都只能靠這一小包電撐到太陽再出現，帶著真正酬載的微衛星很快就會把它用光。" },
+    "description": { "en": "A four-cell CubeSat pack. Fine for a CubeSat, but a microsatellite with a real payload drains it too deep even in the dawn-dusk orbit's 19-minute eclipse season, and a 35-minute shadow runs it flat.", "zh-TW": "四顆電芯的立方衛星電池組。立方衛星用剛好，但帶著真正酬載的微衛星，就算在晨昏軌道 19 分鐘的地影季也會放電太深；進 35 分鐘的地影就撐不住。" },
     "mass_kg": 0.26,
     "cost_musd": 0.01,
     "dev_months": 3,
@@ -936,7 +936,7 @@
     "model": "inst_laser_altimeter",
     "mount": "nadir",
     "color": "#A5D6A7",
-    "source": { "title": "Wikipedia: Lunar Reconnaissance Orbiter (LOLA)", "url": "https://en.wikipedia.org/wiki/Lunar_Reconnaissance_Orbiter", "note": "estimate: LOLA-class mass, power, data, ~5 m spot, cost" }
+    "source": { "title": "NASA GSFC: Lunar Orbiter Laser Altimeter (LOLA); Smith et al., The Lunar Orbiter Laser Altimeter Investigation on the LRO Mission, Space Sci. Rev. 150 (2010)", "url": "https://lola.gsfc.nasa.gov/", "note": "sourced: LOLA instrument 12.6 kg, 34 W, 5 m laser spots from the 50 km mapping orbit. estimate: data volume, cost" }
   },
   {
     "id": "solar_silicon",

@@ -75,3 +75,16 @@ Import notes:
 | NASA_Juno_GanymedeFlyby_RadioWaves.wav | WAV 16-bit 24 kHz mono, 49.0 s | 2,353,484 B | NASA "Sounds from Beyond", "Audio of Juno's Ganymede Flyby" (Juno Waves instrument sonification; NASA/JPL-Caltech/SwRI/Univ. of Iowa) | https://www.nasa.gov/wp-content/uploads/2024/05/e2-wave-ganymede-flyby-compressed.wav. Downmixed and resampled locally |
 
 All WAV excerpts were made with Python and numpy: 48 kHz audio passed through a windowed-sinc low-pass filter, decimated to 24 kHz, given fade-in/out, and peak-normalized to -1 dBFS.
+
+## Game data sources (`Data/Resources/GameData/`)
+
+Every number in the game data files has a `source` entry (title, URL and a note saying which values are sourced, derived or estimated). We use facts and figures only; no text or images are copied from these sites. The Space Apps rules ask teams to follow the terms of use of any non-US-government site they draw on, so the non-government sources are listed here:
+
+| Source | Terms | Used for |
+|---|---|---|
+| NASA, NOAA, SEC EDGAR (US government) | Public domain; credit the agency, no endorsement implied | Most values: orbits, power, propulsion, avionics (NASA SST State-of-the-Art), OCO / OCO-2 press kits, DONKI and NOAA SWPC space weather, Rocket Lab's launch revenue |
+| Wikipedia | CC BY-SA 4.0 (facts are not copyrightable; we credit the article) | Falcon 9 / Falcon Heavy / Electron flight records, the 13 decoy parts, Svalbard station |
+| eoPortal (ESA) | ESA terms; credit eoPortal | PRISMA, ICEYE, BIROS/FireBIRD, RADARSAT Constellation |
+| SatCatalog, GomSpace, Busek, AWS, SpaceX, ULA | Vendor datasheets and price lists, cited by name | Camera and battery specs, ground-station and launch prices, launch timelines |
+| Spaceflight Now, Universe Today, NASASpaceFlight, New Space Economy | News reporting, cited by name | Launch timelines, rideshare price, Transporter flights |
+| arXiv, MIT OCW, MDPI Sensors, J. Astron. Space Sci., SmallSat Conference | Open-access papers and course notes, cited by name | Eclipse and power formulas, station keeping, lunar orbit maintenance |

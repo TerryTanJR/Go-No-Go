@@ -31,7 +31,8 @@
   "science_year_scale": 1.0,
   "sources": {
     "earth_mu_km3_s2": { "title": "NASA NTRS: Introduction to Orbits (2021)", "url": "https://ntrs.nasa.gov/api/citations/20210016427/downloads/Introduction%20to%20Orbits%202021.pptx.pdf", "note": "sourced: standard gravitational parameter of Earth (km^3/s^2)" },
-    "moon_mu_km3_s2": { "title": "NASA NSSDCA Moon Fact Sheet", "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html", "note": "sourced: GM = 0.00490 x 10^6 km^3/s^2, mean radius 1737.4 km" },
+    "earth_radius_km": { "title": "NASA NSSDCA Earth Fact Sheet", "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html", "note": "sourced: equatorial radius 6378.137 km (WGS-84)" },
+    "moon_mu_km3_s2": { "title": "NASA/JPL Planetary Ephemerides DE440 (Park et al. 2021); NASA NSSDCA Moon Fact Sheet", "url": "https://ssd.jpl.nasa.gov/doc/de440_de441.html", "note": "sourced: GM = 4902.800066 km^3/s^2 from the JPL ephemeris (NSSDCA rounds it to 0.00490 x 10^6); mean radius 1737.4 km (NSSDCA)" },
     "period": { "title": "NASA Science: Orbits and Kepler's Laws", "url": "https://science.nasa.gov/solar-system/orbits-and-keplers-laws/", "note": "T = 2*pi*sqrt(a^3/mu)" },
     "eclipse": { "title": "arXiv 2007.03675, App. B Eq. 38-39 (Tradespace analysis of GNSS Space Segment Architectures)", "url": "https://arxiv.org/pdf/2007.03675", "note": "cylindrical shadow; beta-angle generalisation f = acos(sqrt(h^2+2Rh)/((R+h)cos beta))/pi" },
     "solar_array_w_per_m2": { "title": "NASA SST State-of-the-Art, ch. 3 Power, Table 3-1", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/power-subsystems/", "note": "derived: ~400 W/m2 triple-junction cell x 0.85 packing x 0.77 inherent degradation (SMAD Id) = 262 W/m2; cross-check OCO 900 W / 3.88 m2 = 232 W/m2 orbit average (OCO press kit)" },

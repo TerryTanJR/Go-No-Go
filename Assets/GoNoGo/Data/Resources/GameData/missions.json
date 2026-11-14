@@ -19,7 +19,7 @@
     "id": "prisma",
     "name": { "en": "PRISMA (Italian Space Agency)", "zh-TW": "PRISMA（義大利太空總署）" },
     "launch_year": 2019,
-    "mass_kg": 550,
+    "mass_kg": 830,
     "power_w": 350,
     "cost_musd": 150,
     "orbit": "615 km SSO",

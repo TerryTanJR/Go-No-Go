@@ -254,7 +254,7 @@
       "en": "Fire season is about to start. Design a satellite that spots wildfires while they are still small and tells the fire service within 30 minutes.",
       "zh-TW": "火災季即將開始。你們要設計一顆衛星，在野火剛燒起來時就發現它，並在 30 分鐘內通知消防單位。"
     },
-    "budget_musd": 37,
+    "budget_musd": 40,
     "target_years": 3,
     "deadline_months": 36,
     "max_instruments": 2,
@@ -379,8 +379,8 @@
         "inst_thermal"
       ],
       "parts": {
-        "solar": "solar_body",
-        "battery": "batt_cubesat",
+        "solar": "solar_deployable",
+        "battery": "batt_small",
         "antenna": "ant_sband",
         "groundstation": "gs_1",
         "computer": "obc_mass_memory",
@@ -400,7 +400,7 @@
         ],
         "parts": {
           "solar": "solar_deployable",
-          "battery": "batt_cubesat",
+          "battery": "batt_small",
           "antenna": "ant_sband",
           "groundstation": "gs_1",
           "computer": "obc_mass_memory",
@@ -437,7 +437,7 @@
         "inst_fire_mwir_hr",
         "solar_deployable",
         "solar_large",
-        "batt_cubesat",
+        "batt_small",
         "batt_medium",
         "ant_sband",
         "ant_xband",
@@ -600,8 +600,8 @@
             "zh-TW": "哪條軌道比較好？"
           },
           "answer": {
-            "en": "The dawn-dusk orbit sees the Sun almost all the time. Power is rock steady and a small battery is enough.",
-            "zh-TW": "晨昏軌道幾乎一直照到太陽，電力最穩，小電池就夠。"
+            "en": "The dawn-dusk orbit sees the Sun most of the year. Even in its eclipse season the shadow is only about 19 minutes, roughly half the afternoon orbit's, so a modest battery is enough.",
+            "zh-TW": "晨昏軌道一年大部分時間都照得到太陽。就算在地影季，每圈影子也只有大約 19 分鐘，差不多是下午軌道的一半，中小型電池就夠。"
           },
           "min_conflicts": 1
         },

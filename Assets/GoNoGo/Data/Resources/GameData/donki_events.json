@@ -109,7 +109,7 @@
     "type": "GST",
     "date": "2024-10-10",
     "class_type": "G4",
-    "kp_index": 8,
+    "kp_index": 8.67,
     "severity": 2,
     "link": "https://kauai.ccmc.gsfc.nasa.gov/DONKI/search/",
     "summary": { "en": "Severe storm after a fast CME; aurora across much of the northern hemisphere.", "zh-TW": "快速日冕巨量噴發後的強烈地磁暴；北半球大部分地區都看得到極光。" }

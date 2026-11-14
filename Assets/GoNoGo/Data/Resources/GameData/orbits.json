@@ -9,7 +9,7 @@
     "body": "earth",
     "altitude_km": 400,
     "beta_deg": 0,
-    "delta_v_per_year_ms": 50,
+    "delta_v_per_year_ms": 57,
     "natural_service_years": 1.5,
     "dose_krad_per_year": 0.2,
     "battery_dod": 0.3,
@@ -20,7 +20,7 @@
     "source": {
       "title": "U.S. Standard Atmosphere 1976 (NASA NTRS); Adell (NASA-JPL) total dose table; Knap et al. 2020 Table 6",
       "url": "https://ntrs.nasa.gov/citations/19770009539",
-      "note": "estimate: drag dv ~57 m/s/yr at moderate solar activity (a = 0.5 rho v^2 Cd A/m, A/m = 0.01), game value 50; ~1-2 yr natural decay without reboost; dose 0.2 krad/yr (below the 1 krad/yr generic LEO value because 400 km sits under most of the inner belt); DoD 10-40% LEO (sourced); 4 passes/day of ~6 min for a 51.6 deg orbit (estimate)"
+      "note": "derived: drag dv 57 m/s/yr at moderate solar activity (a = 0.5 rho v^2 Cd A/m, rho = 2.8e-12 kg/m3 from USSA 1976, Cd = 2.2, A/m = 0.01). estimate: A/m and solar activity;~1-2 yr natural decay without reboost; dose 0.2 krad/yr (below the 1 krad/yr generic LEO value because 400 km sits under most of the inner belt); DoD 10-40% LEO (sourced); 4 passes/day of ~6 min for a 51.6 deg orbit (estimate)"
     }
   },
   {
@@ -37,14 +37,14 @@
     "natural_service_years": 25,
     "dose_krad_per_year": 1.0,
     "battery_dod": 0.3,
-    "passes_per_day_per_station": 9,
+    "passes_per_day_per_station": 11,
     "pass_minutes": 8,
     "objective_match": { "earth_observation": 1.0, "carbon_monitoring": 1.0, "lunar_mapping": 0 },
     "color": "#81C784",
     "source": {
       "title": "OCO launch press kit (NASA/JPL 2009); Adell (NASA-JPL) total dose table",
       "url": "https://www.jpl.nasa.gov/news/press_kits/oco-launch.pdf",
-      "note": "sourced: 705 km, 98.2 deg, 99 min period, passes 5-12 min (game 8); dose 'Earth (LEO-1 year) 1 krad' behind 100 mil Al. estimate: dv ~2 m/s/yr (drag ~0.6 + inclination upkeep), beta 25 deg typical for a 10:30 node, 9 passes/day for a ~65 deg N station, decades of natural lifetime"
+      "note": "sourced: 705 km, 98.2 deg, 99 min period, passes 5-12 min (game 8); dose 'Earth (LEO-1 year) 1 krad' behind 100 mil Al. estimate: dv ~2 m/s/yr (drag ~0.6 + inclination upkeep), beta 25 deg typical for a 10:30 node, 11 of 14.6 daily passes seen by a high-latitude station (same assumption as the other 700 km SSOs), decades of natural lifetime"
     }
   },
   {
@@ -99,10 +99,10 @@
   {
     "id": "sso_dawn_dusk",
     "name": { "en": "Dawn-Dusk Sun-Synchronous Orbit (700 km)", "zh-TW": "晨昏太陽同步軌道（700 公里）" },
-    "description": { "en": "Rides the line between day and night, so the solar panels almost never see Earth's shadow. Power is easy, but it passes over at 6 am and 6 pm, when fires are small.", "zh-TW": "沿著日夜交界飛，太陽能板幾乎照不到地球的影子，電力最穩。但每天早上 6 點和傍晚 6 點經過，那時候火勢小。" },
+    "description": { "en": "Rides the line between day and night, so the panels see the Sun most of the year. Around one solstice there is an eclipse season with up to about 19 minutes of shadow per orbit, still much shorter than other orbits. It passes over at 6 am and 6 pm, when fires are small.", "zh-TW": "沿著日夜交界飛，一年中大部分時間太陽能板都照得到太陽。但在其中一個至日前後有一段「地影季」，每圈最多約 19 分鐘在影子裡，還是比其他軌道短很多。每天早上 6 點和傍晚 6 點經過，那時候火勢小。" },
     "body": "earth",
     "altitude_km": 700,
-    "beta_deg": 70,
+    "beta_deg": 58,
     "delta_v_per_year_ms": 2,
     "natural_service_years": 25,
     "dose_krad_per_year": 1.0,
@@ -114,7 +114,7 @@
     "source": {
       "title": "eoPortal: RADARSAT Constellation Mission (dawn-dusk SSO); Giglio et al., MODIS active fire diurnal cycle (Remote Sens. Environ. 2006)",
       "url": "https://www.eoportal.org/satellite-missions/rcm",
-      "note": "sourced: dawn-dusk SSO keeps |beta| near or above the ~64 deg no-eclipse angle at 700 km, so radar missions use it for continuous power; fire activity peaks in the early afternoon and is lowest around dawn. estimate: beta 70 deg worst case, x0.6 fire detection at 06:00/18:00 local time, 11 of 14.6 daily passes seen by a high-latitude polar station (SvalSat sees nearly every revolution)"
+      "note": "sourced: dawn-dusk SSO keeps |beta| near or above the ~64 deg no-eclipse angle at 700 km for most of the year, so radar missions use it for continuous power; fire activity peaks in the early afternoon and is lowest around dawn. derived: worst-case beta = 90 - 23.44 (solstice) - 8.19 (98.19 deg SSO inclination at 700 km) = 58.4 deg, below the 64.3 deg no-eclipse angle, so the battery must carry an 18.8 min shadow per 98.8 min orbit during the eclipse season (cylindrical shadow, same formula as the other orbits); the game sizes the battery for this worst case. estimate: x0.6 fire detection at 06:00/18:00 local time, 11 of 14.6 daily passes seen by a high-latitude polar station (SvalSat sees nearly every revolution)"
     }
   },
   {

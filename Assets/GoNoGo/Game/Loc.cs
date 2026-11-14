@@ -71,9 +71,18 @@ namespace GoNoGo.Game
             var e = D.SpaceWeather.Find(x => x.Id == id);
             if (e == null) return id;
             string kind = e.Type == "FLR" ? (IsZh ? $"{e.ClassType} 級閃焰" : $"{e.ClassType} flare")
-                : e.Type == "GST" ? (IsZh ? $"{e.ClassType} 地磁暴（Kp {e.KpIndex:0}）" : $"{e.ClassType} geomagnetic storm (Kp {e.KpIndex:0})")
+                : e.Type == "GST" ? (IsZh ? $"{e.ClassType} 地磁暴（Kp {Kp(e.KpIndex)}）" : $"{e.ClassType} geomagnetic storm (Kp {Kp(e.KpIndex)})")
                 : (IsZh ? "日冕巨量噴發" : "coronal mass ejection");
             return $"{kind}, {e.Date}";
+        }
+
+        /// <summary>Kp 以三分之一為單位：8.67 寫成 NOAA 的「9-」，8.33 寫成「8+」。</summary>
+        static string Kp(double kp)
+        {
+            int thirds = (int)System.Math.Round(kp * 3);
+            int whole = (thirds + 1) / 3;
+            int rest = thirds - whole * 3;
+            return whole + (rest > 0 ? "+" : rest < 0 ? "-" : "");
         }
 
         /// <summary>把 "part:xxx" 這類參照換成名稱。</summary>
