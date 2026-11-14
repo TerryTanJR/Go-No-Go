@@ -89,7 +89,7 @@ namespace GoNoGo.Core.Tests
             Assert.That(Unmet(Run(WildfireCombos.Dd(), "director")), Is.EqualTo(new[] { "wf_lwir" }));
             Assert.That(Unmet(Run(WildfireCombos.F(), "director")), Does.Contain("wf_afternoon"));
             Assert.That(Unmet(Run(WildfireCombos.E(), "director")), Does.Contain("wf_reserve"));
-            Assert.That(Ev(WildfireCombos.C(), "director").Cost.BudgetMusd, Is.EqualTo(37), "本關任務主管難度預算倍率 ×1.0");
+            Assert.That(Ev(WildfireCombos.C(), "director").Cost.BudgetMusd, Is.EqualTo(40), "本關任務主管難度預算倍率 ×1.0");
         }
 
         [Test]
@@ -97,7 +97,8 @@ namespace GoNoGo.Core.Tests
         {
             var d = WildfireCombos.F();
             var ev = Ev(d);
-            Assert.That(ev.Orbit.EclipseMin, Is.EqualTo(0));
+            Assert.That(ev.Orbit.EclipseMin, Is.EqualTo(19).Within(1), "晨昏軌道地影季最長約 19 分鐘（beta 58°）");
+            Assert.That(ev.Orbit.EclipseMin, Is.LessThan(Ev(WildfireCombos.C()).Orbit.EclipseMin / 1.5), "比下午軌道短很多");
             Assert.That(ev.AnyOver, Is.False);
             Assert.That(ev.Fire.Detection, Is.EqualTo(0.51).Within(1e-9));
             var r = Run(d);
@@ -253,16 +254,16 @@ namespace GoNoGo.Core.Tests
         public const string Mwir = "inst_fire_mwir", MwirHr = "inst_fire_mwir_hr", Lwir = "inst_thermal";
         public const string Dawn = "sso_dawn_dusk", Noon = "sso_1330", Ride = "falcon9_rideshare", Electron = "electron";
 
-        /// <summary>A 最省錢：發射沒問題，但單一地面站 + S 頻段讓通報太慢。</summary>
-        public static Design A() => D(new[] { Mwir }, "solar_body", "batt_cubesat", "ant_sband", "gs_1", Dawn, Ride);
+        /// <summary>A 最省錢：發射沒問題，但單一地面站 + S 頻段讓通報太慢。晨昏軌道的地影季每圈約 19 分鐘，要 80 Wh 電池。</summary>
+        public static Design A() => D(new[] { Mwir }, "solar_body", "batt_small", "ant_sband", "gs_1", Dawn, Ride);
         /// <summary>B 照任務主管：下午軌道，沒問工程部，小電池撐不過地影。</summary>
         public static Design B() => D(new[] { MwirHr }, "solar_deployable", "batt_cubesat", "ant_xband", "gs_3", Noon, Electron);
         /// <summary>C 平衡（能分辨假火點）。</summary>
         public static Design C() => D(new[] { Mwir, Lwir }, "solar_deployable", "batt_medium", "ant_xband", "gs_3", Noon, Electron);
         /// <summary>D 平衡（高解析）。</summary>
         public static Design Dd() => D(new[] { MwirHr }, "solar_deployable", "batt_medium", "ant_xband", "gs_3", Noon, Electron);
-        /// <summary>F 晨昏保守：工程部最滿意，偵測率低。</summary>
-        public static Design F() => D(new[] { MwirHr }, "solar_deployable", "batt_cubesat", "ant_xband", "gs_3", Dawn, Ride);
+        /// <summary>F 晨昏保守：工程部最滿意，偵測率低。高解析火點儀 45 W，19 分鐘地影要大電池。</summary>
+        public static Design F() => D(new[] { MwirHr }, "solar_deployable", "batt_medium", "ant_xband", "gs_3", Dawn, Ride);
         /// <summary>E 豪華版：性能最好但超預算。</summary>
         public static Design E() => D(new[] { MwirHr, Lwir }, "solar_large", "batt_medium", "ant_xband_hr", "gs_6", Noon, Electron);
 

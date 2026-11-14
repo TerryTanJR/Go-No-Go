@@ -320,7 +320,7 @@ namespace GoNoGo.Core.Tests
             Assert.That(Fingerprint(_data), Is.EqualTo(ExpectedFingerprint), "核心模擬結果變了：如果是刻意調整數值，請更新 ExpectedFingerprint 並在 Unity 裡比對");
         }
 
-        public const string ExpectedFingerprint = "6EDA0522793A0189"; // 加入野火偵測關卡；舊的三個情境不變。Unity 6000.6 Mono 尚未重新比對
+        public const string ExpectedFingerprint = "92B23DD720C0BC75"; // 資料校正：晨昏 β 58°、700 km SSO 每站 11 次過境、地面站費用、Electron 價格、綠色推進劑 9.7 kg、LEO Δv 57、野火預算 40
 
         public static string Fingerprint(GameData data)
         {

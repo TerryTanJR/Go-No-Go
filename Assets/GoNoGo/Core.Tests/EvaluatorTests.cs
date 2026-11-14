@@ -21,7 +21,7 @@ namespace GoNoGo.Core.Tests
             double dry = parts / (1 - _data.Constants.StructureFraction);
             Assert.That(ev.Mass.PartsKg, Is.EqualTo(parts).Within(1e-9));
             Assert.That(ev.Mass.DryKg, Is.EqualTo(dry).Within(1e-9));
-            Assert.That(ev.Mass.WetKg, Is.EqualTo(dry + 10.7).Within(1e-9));
+            Assert.That(ev.Mass.WetKg, Is.EqualTo(dry + 9.7).Within(1e-9));
             Assert.That(ev[ResourceId.Mass].Capacity, Is.EqualTo(150));
             Assert.That(ev[ResourceId.Mass].Margin, Is.EqualTo((150 - ev.Mass.WetKg) / 150).Within(1e-9));
         }
@@ -49,10 +49,10 @@ namespace GoNoGo.Core.Tests
         [Test]
         public void OcoDownlinkMatchesFormula()
         {
-            // 150 Mbit/s × (9 次 × 8 分鐘) × 60 / 8 / 1000 × 0.8 = 64.8 GB/天
+            // 150 Mbit/s × (11 次 × 8 分鐘) × 60 / 8 / 1000 × 0.8 = 79.2 GB/天
             var ev = Evaluator.EvaluateDesign(_data.Scenario("hist_oco").DefaultDesign, _data);
-            Assert.That(ev.Orbit.ContactMinPerDay, Is.EqualTo(72));
-            Assert.That(ev.Data.DownlinkGbPerDay, Is.EqualTo(64.8).Within(1e-9));
+            Assert.That(ev.Orbit.ContactMinPerDay, Is.EqualTo(88));
+            Assert.That(ev.Data.DownlinkGbPerDay, Is.EqualTo(79.2).Within(1e-9));
         }
 
         [Test]
@@ -61,20 +61,21 @@ namespace GoNoGo.Core.Tests
             var d = TestData.CheapSmallsat();
             d.Parts[PartCategory.GroundStation] = "gs_1";
             var ev = Evaluator.EvaluateDesign(d, _data);
-            double gap = 2.0 * 24.0 / 9.0;               // 9 次過境，最長空檔是平均的兩倍
+            double gap = 2.0 * 24.0 / 11.0;              // 11 次過境，最長空檔是平均的兩倍
             Assert.That(ev.Data.StorageNeededGb, Is.EqualTo(33 * gap / 24 * 1.5).Within(1e-9));
             Assert.That(ev.Data.StorageRawGb, Is.EqualTo(33 * gap / 24).Within(1e-9));
-            // 7.3 GB 存得下 8 GB，但低於含安全係數的 11 GB → 黃燈，不掉資料
-            Assert.That(ev[ResourceId.Data].Status, Is.EqualTo(ResourceStatus.Tight), "8 GB 存得下 5.3 小時的影像，但沒有安全餘裕");
+            // 6.0 GB 存得下 8 GB，但低於含安全係數的 9.0 GB → 黃燈，不掉資料
+            Assert.That(ev[ResourceId.Data].Status, Is.EqualTo(ResourceStatus.Tight), "8 GB 存得下 4.4 小時的影像，但沒有安全餘裕");
             Assert.That(ev.Warnings.Select(w => w.Code), Does.Contain("warn.storage_tight"));
             Assert.That(ev.Data.ReturnFraction, Is.EqualTo(1.0).Within(1e-9));
 
-            // 換成資料量更大的多光譜（41 GB/天 → 空檔 9.1 GB）就真的存不下：紅燈、會掉資料
-            d.Instruments[0] = "inst_multispectral";
+            // 換成資料量更大的高光譜（80 GB/天 → 空檔 14.5 GB）就真的存不下：紅燈、會掉資料
+            d.Instruments[0] = "inst_hyperspectral";
             ev = Evaluator.EvaluateDesign(d, _data);
-            Assert.That(ev[ResourceId.Data].Status, Is.EqualTo(ResourceStatus.Over), "8 GB 存不下 9.1 GB");
+            Assert.That(ev[ResourceId.Data].Status, Is.EqualTo(ResourceStatus.Over), "8 GB 存不下 14.5 GB");
             Assert.That(ev.Warnings.Select(w => w.Code), Does.Contain("warn.storage"));
-            Assert.That(ev.Data.ReturnFraction, Is.EqualTo(8 / (41 * gap / 24)).Within(1e-9));
+            double linkFrac = Math.Min(1, ev.Data.DownlinkGbPerDay / 80); // S 頻段 + 一座站也下傳不完
+            Assert.That(ev.Data.ReturnFraction, Is.EqualTo(linkFrac * 8 / (80 * gap / 24)).Within(1e-9));
         }
 
         [Test]
@@ -84,7 +85,7 @@ namespace GoNoGo.Core.Tests
             var ev = Evaluator.EvaluateDesign(d, _data);
             var c = _data.Constants;
             double dev = c.BusBaseCostMusd + d.AllPartIds().Sum(id => _data.Part(id).CostMusd);
-            double ops = (c.OpsBaseCostMusdPerYear + 1.7) * 3;
+            double ops = (c.OpsBaseCostMusdPerYear + 2.1) * 3;
             Assert.That(ev.Cost.TotalMusd, Is.EqualTo(dev + 69.85 + ops).Within(1e-9));
             Assert.That(ev[ResourceId.Budget].Capacity, Is.EqualTo(140));
         }
