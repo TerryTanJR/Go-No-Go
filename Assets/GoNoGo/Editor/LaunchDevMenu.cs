@@ -35,12 +35,11 @@ namespace GoNoGo.EditorTools
                 SceneManager.LoadScene(SceneFlow.Launch);
                 return;
             }
-            GameSession.StartSolo("earth_observation", "engineer", false, false);
+            GameSession.StartSolo("earth_observation", null, false, false);
             GameSession.Send(CommandType.BeginDesign);
             var s = GameSession.Mission.S;
             // 用展開式太陽能板：發射動畫最後要看得到翼板展開
             s.Bench.Parts[PartCategory.Solar] = "solar_deployable";
-            GameSession.Send(CommandType.RunTest);
             GameSession.Send(CommandType.Launch);
             ApplyOverrides(s.LastLaunch);
             // 換到設計階段時已經開始淡出換場景，那時要求換到發射場景會被忽略：等它換完再換一次

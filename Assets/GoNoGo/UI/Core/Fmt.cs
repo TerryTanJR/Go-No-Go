@@ -14,6 +14,9 @@ namespace GoNoGo.UI
 
         public static string Money(double musd) => musd >= 100 ? $"${musd.ToString("0", Inv)}M" : $"${musd.ToString("0.0", Inv)}M";
 
+        /// <summary>零件的價錢：很多零件不到 0.1 M$，要多兩位小數才看得出差別。</summary>
+        public static string PartMoney(double musd) => Math.Abs(musd) < 1 ? $"${musd.ToString("0.00", Inv)}M" : Money(musd);
+
         public static string Pct(double f) => (f * 100).ToString("0", Inv) + "%";
 
         public static string Unit(string unit)

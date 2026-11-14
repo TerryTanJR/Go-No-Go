@@ -203,7 +203,8 @@ namespace GoNoGo.Core.Tests
             "site.forest", "site.grassland", "site.desert", "site.glint",
             "event.fire.reported", "event.fire.partial", "event.fire.stuck",
             "event.false_fire.reported", "event.false_fire.flagged", "event.false_fire.ignored",
-            "err.owned", "err.not_owned", "err.cart_empty", "err.no_orders", "cause.success_latency", "suggest.fire_tradeoff",
+            "err.owned", "err.not_owned", "err.cart_empty", "err.order_over_cap", "err.request_pending", "err.no_request", "err.in_request",
+            "cause.funding_left", "cause.funding_out", "ui.restart.toast", "cause.success_latency", "suggest.fire_tradeoff",
         };
 
         [Test]

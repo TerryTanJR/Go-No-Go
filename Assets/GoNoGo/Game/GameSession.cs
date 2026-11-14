@@ -98,7 +98,7 @@ namespace GoNoGo.Game
         public static void EnsureMission()
         {
             if (HasMission) return;
-            StartSolo("earth_observation", "engineer", false, false);
+            StartSolo("earth_observation", null, false, false);
             Send(CommandType.BeginDesign);
         }
 

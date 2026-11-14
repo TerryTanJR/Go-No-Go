@@ -15,12 +15,11 @@ namespace GoNoGo.Core
         public string LauncherId { get; set; } = "";
         public int MissionYears { get; set; } = 3;
         /// <summary>
-        /// 採購的額外開銷（M$）：買了沒裝上去的零件、補單的急件費。由 SessionRules 依採購紀錄算好放進來，
-        /// 評估時加進預算。單純比較設計（測試、修正建議）時是 0。
+        /// 擁有但沒裝在船上的零件（M$）。錢只跟「買」有關、跟「裝」無關（採購機制 v2）：
+        /// 開發費 = 基本開發費 + 擁有的所有零件，所以拆下來的零件也要算。由 SessionRules 算好放進來，
+        /// 評估時加進開發費。單純比較設計（測試、修正建議）時是 0。
         /// </summary>
         public double ProcurementMusd { get; set; }
-        /// <summary>補單讓時程延後的月數。</summary>
-        public double ProcurementMonths { get; set; }
 
         public string Get(string category) =>
             Parts != null && Parts.TryGetValue(category, out var id) ? id : null;
@@ -34,7 +33,6 @@ namespace GoNoGo.Core
             LauncherId = LauncherId,
             MissionYears = MissionYears,
             ProcurementMusd = ProcurementMusd,
-            ProcurementMonths = ProcurementMonths,
         };
 
         /// <summary>所有選到的零件 id（儀器 + 各單選類別），依固定順序。</summary>

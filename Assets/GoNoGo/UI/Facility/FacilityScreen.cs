@@ -126,6 +126,48 @@ namespace GoNoGo.UI
             _poll?.Refresh();
             _screens?.MarkDirty();
             UpdatePhaseBar();
+            Notices();
+        }
+
+        // 發射失敗重來的提示要跨場景（失敗後從發射場景回來才看得到），所以記在靜態欄位，換一局就重算
+        static object _noticeMission;
+        static int _restartsShown;
+        int _requestsSeen = -1, _rejectedSeen = -1, _ordersSeen = -1;
+
+        /// <summary>狀態變化的提示：任務重來；多人時中控室收到採購單、組裝區的單被批准或退回。</summary>
+        void Notices()
+        {
+            var s = M.S;
+            if (!ReferenceEquals(_noticeMission, M)) { _noticeMission = M; _restartsShown = s.Restarts; }
+            if (s.Restarts > _restartsShown && s.Phase == SessionPhase.Design)
+            {
+                _restartsShown = s.Restarts;
+                Sfx.NoGo();
+                UIRoot.Toast(Loc.T("ui.restart.toast"));
+            }
+            var team = s.Player(GameSession.LocalPlayer)?.Station;
+            int rejected = s.Rejected?.Seq ?? 0;
+            if (s.Multiplayer && _requestsSeen >= 0)
+            {
+                if (s.Requests > _requestsSeen && s.Request != null && team == Station.Control)
+                {
+                    Sfx.Alert();
+                    UIRoot.Toast(Loc.T("ui.review.toast_new", ("n", s.Request.N)));
+                }
+                if (rejected != 0 && rejected != _rejectedSeen && team == Station.Assembly)
+                {
+                    Sfx.NoGo();
+                    UIRoot.Toast(Loc.T("ui.proc.rejected", ("n", s.Rejected.N)));
+                }
+                if (s.Orders.Count > _ordersSeen && s.Orders.Count > 0 && s.Orders[s.Orders.Count - 1].ApprovedBy != 0 && team == Station.Assembly)
+                {
+                    Sfx.Confirm();
+                    UIRoot.Toast(Loc.T("ui.proc.approved", ("n", s.Orders.Count)));
+                }
+            }
+            _requestsSeen = s.Requests;
+            _rejectedSeen = rejected;
+            _ordersSeen = s.Orders.Count;
         }
 
         /// <summary>簡報、大廳：階段一開始就打開的面板。</summary>

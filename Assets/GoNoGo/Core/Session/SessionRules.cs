@@ -15,11 +15,14 @@ namespace GoNoGo.Core
         // 營運
         Judge, Act, EndTurn, NextTurn,
         // 團隊合作（加在最後，舊的編號不變）
+        // RunTest（環境測試）已刪除，留著編號讓後面的不變
         SetStrict, RunTest, Vote,
         // 採購（組裝區）。中間空兩號給已刪除的發射播放速度、跳過發射，後面的編號不變
         CartAdd = Vote + 3, CartRemove, PlaceOrder,
         // 大廳（加在最後，舊的編號不變）
         SetReady,
+        // 採購審查（多人：組裝區送審、中控室批准或退回、組裝區撤回）
+        ApproveOrder, RejectOrder, WithdrawOrder,
     }
 
     /// <summary>
@@ -47,14 +50,15 @@ namespace GoNoGo.Core
 
         // ---------------------------------------------------------------- 開局
 
+        /// <summary>
+        /// 開一局。難度跟著關卡走（一關一個難度，見 docs/procurement_v2.md §7）：difficultyId 傳 null 就用關卡的難度；
+        /// 只有新手訓練（和測試）會指定別的難度。
+        /// </summary>
         public static SessionState NewSession(GameData data, string scenarioId, string difficultyId, bool tutorial, bool multiplayer)
         {
             var scenario = data.Scenario(scenarioId) ?? data.Scenarios[0];
-            var diff = data.Difficulty(difficultyId) ?? data.SelectableDifficulties.First();
-            var start = (scenario.Historical != null ? scenario.Historical.PresetDesign : GameData.DefaultDesign(scenario, diff.Id)).Clone();
-            start.ScenarioId = scenario.Id;
-            if (scenario.Historical == null)
-                foreach (var kv in diff.StartParts) start.Parts[kv.Key] = kv.Value;
+            var diff = data.Difficulty(difficultyId) ?? data.DifficultyFor(scenario);
+            var start = StartDesign(scenario, diff);
             return new SessionState
             {
                 ScenarioId = scenario.Id,
@@ -64,10 +68,24 @@ namespace GoNoGo.Core
                 Phase = multiplayer ? SessionPhase.Lobby : SessionPhase.Briefing,
                 Bench = start.Clone(),
                 Reported = start.Clone(),
-                // 開局設計上的零件是倉庫現成的
-                Owned = start.AllPartIds().Where(id => data.Part(id)?.Category != PartCategory.GroundStation).Distinct().ToList(),
+                Owned = StartOwned(data, start),
             };
         }
+
+        /// <summary>開局設計：關卡（或這個難度）的預設設計，再換上難度給的零件。歷史關卡用當年的設計。發射失敗重來也回到這裡。</summary>
+        public static Design StartDesign(ScenarioDef scenario, DifficultyDef diff)
+        {
+            var start = (scenario.Historical != null ? scenario.Historical.PresetDesign : GameData.DefaultDesign(scenario, diff.Id)).Clone();
+            start.ScenarioId = scenario.Id;
+            start.ProcurementMusd = 0;
+            if (scenario.Historical == null)
+                foreach (var kv in diff.StartParts) start.Parts[kv.Key] = kv.Value;
+            return start;
+        }
+
+        /// <summary>開局零件（不含地面站）。視為已經花掉的錢，拆下來不用也一樣算。</summary>
+        static List<string> StartOwned(GameData data, Design start) =>
+            start.AllPartIds().Where(id => data.Part(id)?.Category != PartCategory.GroundStation).Distinct().ToList();
 
         /// <summary>
         /// 任務年數上限 = 關卡目標年數 + 2。科學點數隨年數線性成長，不設上限的話「把年數調到壽命允許的最大值」永遠最好。
@@ -75,39 +93,51 @@ namespace GoNoGo.Core
         public static int MaxMissionYears(ScenarioDef scenario) =>
             Math.Max(1, (int)Math.Floor(scenario?.TargetYears ?? 8) + 2);
 
-        // ---------------------------------------------------------------- 採購
+        // ---------------------------------------------------------------- 採購（採購機制 v2：只用錢當代價，見 docs/procurement_v2.md）
 
-        /// <summary>這一局總共可以採購幾次：難度給的次數，個人模式多 1 次，每次發射失敗再給 1 次重建採購。</summary>
-        public static int OrderAllowance(SessionState s, GameData data) =>
-            s.Difficulty(data).Orders + (s.Multiplayer ? 0 : 1) + s.FailedLaunches;
+        /// <summary>多人而且不只一個人：組裝區送出的是採購單，要中控室批准才下單。</summary>
+        public static bool NeedsApproval(SessionState s) => s.Multiplayer && s.Players.Count > 1;
 
-        public static int OrdersLeft(SessionState s, GameData data) => Math.Max(0, OrderAllowance(s, data) - s.Orders.Count);
-
-        /// <summary>下一次採購的價格倍率：第 1 次原價，之後（補單）加急件費；重建採購不加。</summary>
-        public static double NextPriceFactor(SessionState s, GameData data) =>
-            s.Orders.Count == 0 || RebuildPending(s) ? 1.0 : 1.0 + s.Difficulty(data).RushFee;
-
-        /// <summary>發射失敗後還沒用掉的重建採購。</summary>
-        public static bool RebuildPending(SessionState s) => s.FailedLaunches > s.Orders.Count(o => o.Rebuild);
+        /// <summary>這些零件的價錢（重複的、已經擁有的不算）。</summary>
+        public static double PartsMusd(SessionState s, GameData data, IEnumerable<string> parts) =>
+            (parts ?? Enumerable.Empty<string>()).Distinct().Where(id => !s.Owned.Contains(id)).Sum(id => data.Part(id)?.CostMusd ?? 0);
 
         /// <summary>
-        /// 採購的額外開銷寫進整合台與中控室的設計：買了沒裝上去的零件全額、裝上去的只算急件費（原價已經算在設計裡）。
-        /// 補單（第 2 次以後、不含重建採購）每次讓時程延後。
+        /// 目前的開發費 = 基本開發費 + 擁有的所有零件（開局零件和買過的）。
+        /// 錢只跟「買」有關、跟「裝」無關：裝上、拆下、換來換去都不會改變。
         /// </summary>
+        public static double DevelopmentMusd(SessionState s, GameData data) =>
+            data.Constants.BusBaseCostMusd + s.Owned.Distinct().Sum(id => data.Part(id)?.CostMusd ?? 0);
+
+        public static double Budget(SessionState s, GameData data) => GameData.Budget(s.Scenario(data));
+
+        /// <summary>採購上限預留的火箭：這一關允許、飛得到目前軌道的最便宜火箭（不看質量）。</summary>
+        public static LauncherDef ReserveLauncher(SessionState s, GameData data) => data.ReserveLauncher(s.Scenario(data), s.Bench.OrbitId);
+
+        /// <summary>零件還能買多少：預算 − 目前的開發費 − 預留的火箭。可能是負的（中控室換了比較遠的軌道）。</summary>
+        public static double Headroom(SessionState s, GameData data) =>
+            Budget(s, data) - DevelopmentMusd(s, data) - (ReserveLauncher(s, data)?.CostMusd ?? 0);
+
+        /// <summary>
+        /// 營運經費撐得了幾年：用目前整合台上的火箭和地面站算（預算 − 開發費 − 火箭，再除以每年營運費）。
+        /// extraMusd = 還沒買的單（審查、購物車）會再花掉的錢。
+        /// </summary>
+        public static double FundedYears(SessionState s, GameData data, double extraMusd = 0)
+        {
+            var ev = Evaluator.EvaluateDesign(s.Bench, data, s.DifficultyId, false);
+            if (extraMusd != 0) ev.Cost.DevelopmentMusd += extraMusd;
+            return Simulator.FundedYears(ev);
+        }
+
+        /// <summary>下單條件：目前的開發費 + 這張單 + 預留的火箭 ≤ 預算。回傳 Ok 或 err.order_over_cap。</summary>
+        public static string CanOrder(SessionState s, GameData data, IEnumerable<string> parts) =>
+            PartsMusd(s, data, parts) > Headroom(s, data) + 1e-9 ? "err.order_over_cap" : Ok;
+
+        /// <summary>擁有但沒裝在船上的零件寫進整合台的設計，評估時算進開發費（開發費 = 基本 + 擁有的所有零件）。</summary>
         static void RefreshProcurement(SessionState s, GameData data)
         {
             var installed = new HashSet<string>(s.Bench.AllPartIds());
-            double extra = 0;
-            foreach (var o in s.Orders)
-                foreach (var id in o.Parts)
-                {
-                    var p = data.Part(id);
-                    if (p == null) continue;
-                    extra += p.CostMusd * o.PriceFactor - (installed.Contains(id) ? p.CostMusd : 0);
-                }
-            int rush = s.Orders.Count(o => o.N > 1 && !o.Rebuild);
-            s.Bench.ProcurementMusd = Math.Max(0, extra);
-            s.Bench.ProcurementMonths = rush * data.Constants.RushOrderMonths;
+            s.Bench.ProcurementMusd = s.Owned.Distinct().Where(id => !installed.Contains(id)).Sum(id => data.Part(id)?.CostMusd ?? 0);
         }
 
         static string CartChange(SessionState s, GameData data, string partId, bool add)
@@ -118,29 +148,94 @@ namespace GoNoGo.Core
             var part = data.Part(partId);
             if (part == null || part.Category == PartCategory.GroundStation) return "err.unknown";
             if (s.Owned.Contains(partId)) return "err.owned";
+            if (s.Request != null && s.Request.Parts.Contains(partId)) return "err.in_request";
             if (!ShelfParts(data, s).Any(p => p.Id == partId)) return "err.not_allowed";
             if (!s.Cart.Contains(partId)) s.Cart.Add(partId);
             return Ok;
         }
 
-        static string PlaceOrder(SessionState s, GameData data, int player)
+        static string OrderPhase(SessionState s, GameData data)
         {
             if (s.Phase != SessionPhase.Design && s.Phase != SessionPhase.Briefing) return "err.phase";
             if (s.DesignLocked(data)) return "err.locked";
+            return Ok;
+        }
+
+        /// <summary>
+        /// 按「下單」。個人模式：檢查上限，過了就立刻扣錢、零件上架。
+        /// 多人：送出採購單給中控室審查（不檢查上限，否則錯誤訊息會讓組裝區知道錢的狀況）。
+        /// </summary>
+        static string PlaceOrder(SessionState s, GameData data, int player)
+        {
+            var why = OrderPhase(s, data);
+            if (why != Ok) return why;
             if (s.Cart.Count == 0) return "err.cart_empty";
-            if (OrdersLeft(s, data) <= 0) return "err.no_orders";
-            bool rebuild = RebuildPending(s);
-            s.Orders.Add(new OrderRecord
+            if (NeedsApproval(s))
             {
-                N = s.Orders.Count + 1,
-                By = player,
-                Parts = new List<string>(s.Cart),
-                PriceFactor = NextPriceFactor(s, data),
-                Rebuild = rebuild,
-            });
-            foreach (var id in s.Cart) if (!s.Owned.Contains(id)) s.Owned.Add(id);
+                if (s.Request != null) return "err.request_pending";
+                s.Request = new OrderRequest { N = s.Orders.Count + 1, Seq = ++s.Requests, By = player, Parts = new List<string>(s.Cart) };
+                s.Rejected = null;
+                s.Cart.Clear();
+                return Ok;
+            }
+            why = CanOrder(s, data, s.Cart);
+            if (why != Ok) return why;
+            Buy(s, player, 0, s.Cart);
             s.Cart.Clear();
             return Ok;
+        }
+
+        /// <summary>中控室批准採購單：同樣檢查上限，過了才下單。</summary>
+        static string ApproveOrder(SessionState s, GameData data, int player)
+        {
+            var why = OrderPhase(s, data);
+            if (why != Ok) return why;
+            if (s.Request == null) return "err.no_request";
+            why = CanOrder(s, data, s.Request.Parts);
+            if (why != Ok) return why;
+            Buy(s, s.Request.By, player, s.Request.Parts);
+            s.Request = null;
+            return Ok;
+        }
+
+        /// <summary>中控室退回（reject = true）或組裝區撤回：單上的零件回到購物車，可以改了再送。</summary>
+        static string ReturnOrder(SessionState s, GameData data, bool reject)
+        {
+            var why = OrderPhase(s, data);
+            if (why != Ok) return why;
+            if (s.Request == null) return "err.no_request";
+            foreach (var id in s.Request.Parts)
+                if (!s.Owned.Contains(id) && !s.Cart.Contains(id)) s.Cart.Add(id);
+            s.Rejected = reject ? s.Request : null;
+            s.Request = null;
+            return Ok;
+        }
+
+        static void Buy(SessionState s, int by, int approvedBy, IEnumerable<string> parts)
+        {
+            var bought = parts.Distinct().Where(id => !s.Owned.Contains(id)).ToList();
+            if (bought.Count == 0) return;
+            s.Orders.Add(new OrderRecord { N = s.Orders.Count + 1, By = by, ApprovedBy = approvedBy, Parts = bought });
+            s.Owned.AddRange(bought);
+        }
+
+        /// <summary>
+        /// 發射失敗（沒入軌）：整局重來。預算、衛星、零件、採購、中控室的設定都回到開局；
+        /// 發射紀錄、電話問到的需求、玩家位置保留（評價要用第幾次才成功）。歷史關卡另外處理，不重來。
+        /// </summary>
+        static void ResetAfterFailure(SessionState s, GameData data)
+        {
+            var start = StartDesign(s.Scenario(data), s.Difficulty(data));
+            s.Bench = start.Clone();
+            s.Reported = start.Clone();
+            s.Owned = StartOwned(data, start);
+            s.Cart.Clear();
+            s.Orders.Clear();
+            s.Request = null;
+            s.Rejected = null;
+            s.Held.Clear();
+            s.Poll = null;
+            s.Restarts++;
         }
 
         public static ScenarioDef Scenario(this SessionState s, GameData data) => data.Scenario(s.ScenarioId);
@@ -200,13 +295,13 @@ namespace GoNoGo.Core
 
         /// <summary>組裝區的操作（嚴格分工時只有組裝區的人能做）。</summary>
         public static bool IsAssemblyCommand(CommandType t) =>
-            t == CommandType.Pick || t == CommandType.Drop || t == CommandType.Install || t == CommandType.Report || t == CommandType.RunTest
-            || t == CommandType.CartAdd || t == CommandType.CartRemove || t == CommandType.PlaceOrder;
+            t == CommandType.Pick || t == CommandType.Drop || t == CommandType.Install || t == CommandType.Report
+            || t == CommandType.CartAdd || t == CommandType.CartRemove || t == CommandType.PlaceOrder || t == CommandType.WithdrawOrder;
 
         /// <summary>中控室的操作（嚴格分工時只有中控室的人能做）。</summary>
         public static bool IsControlCommand(CommandType t) =>
             t == CommandType.SetOrbit || t == CommandType.SetLauncher || t == CommandType.SetGroundStation || t == CommandType.SetYears
-            || t == CommandType.Call || t == CommandType.Launch;
+            || t == CommandType.Call || t == CommandType.Launch || t == CommandType.ApproveOrder || t == CommandType.RejectOrder;
 
         /// <summary>嚴格分工是否正在限制（只有設計前後：簡報與設計階段；營運時全員都在中控室）。</summary>
         public static bool StrictNow(this SessionState s) =>
@@ -225,7 +320,7 @@ namespace GoNoGo.Core
 
         /// <summary>點名中不能改設計（要改就喊 NO-GO）。</summary>
         static bool ChangesDesign(CommandType t) =>
-            t == CommandType.Install || t == CommandType.Report || t == CommandType.RunTest || t == CommandType.PlaceOrder
+            t == CommandType.Install || t == CommandType.Report || t == CommandType.PlaceOrder || t == CommandType.ApproveOrder
             || t == CommandType.SetOrbit || t == CommandType.SetLauncher || t == CommandType.SetGroundStation || t == CommandType.SetYears;
 
         static string ApplyInner(SessionState s, GameData data, Command c)
@@ -293,6 +388,9 @@ namespace GoNoGo.Core
                 case CommandType.CartAdd: return CartChange(s, data, c.A, true);
                 case CommandType.CartRemove: return CartChange(s, data, c.A, false);
                 case CommandType.PlaceOrder: return PlaceOrder(s, data, c.Player);
+                case CommandType.ApproveOrder: return ApproveOrder(s, data, c.Player);
+                case CommandType.RejectOrder: return ReturnOrder(s, data, true);
+                case CommandType.WithdrawOrder: return ReturnOrder(s, data, false);
                 case CommandType.Drop:
                     if (!s.Held.Remove(c.Player)) return "err.nothing_held";
                     return Ok;
@@ -334,25 +432,13 @@ namespace GoNoGo.Core
                     return Ok;
                 case CommandType.Launch: return RequestLaunch(s, data, c.Player);
                 case CommandType.Vote: return Vote(s, data, c.Player, c.N == 1);
-                case CommandType.RunTest:
-                    if (s.Phase != SessionPhase.Design) return "err.phase";
-                    s.Tests.Add(new TestRecord
-                    {
-                        N = (s.LastTest?.N ?? 0) + 1,
-                        Hash = EnvTests.Hash(s.Bench),
-                        By = c.Player,
-                        Findings = EnvTests.Run(s.Bench, data, s.DifficultyId),
-                    });
-                    while (s.Tests.Count > 6) s.Tests.RemoveAt(0);
-                    return Ok;
                 case CommandType.FinishLaunch:
                     if (s.Phase != SessionPhase.Launch) return "err.phase";
-                    if (s.LastLaunch.Reached) StartOps(s, data);
-                    else
-                    {
-                        s.Phase = SessionPhase.Design;
-                        s.Held.Clear();
-                    }
+                    if (s.LastLaunch.Reached) { StartOps(s, data); return Ok; }
+                    s.Phase = SessionPhase.Design;
+                    s.Held.Clear();
+                    // 失敗重來（歷史關卡另外處理：保留設計，接著改）
+                    if (s.Scenario(data)?.Historical == null) ResetAfterFailure(s, data);
                     return Ok;
 
                 case CommandType.Judge:
@@ -447,8 +533,7 @@ namespace GoNoGo.Core
         {
             if (s.Phase != SessionPhase.Design) return "err.phase";
             if (s.Poll != null) return "err.poll_active";
-            // 環境測試：整合台上目前的設計一定要測過（結果好壞不擋，由團隊自己判斷）
-            if (!EnvTests.IsCurrent(s)) return s.LastTest == null ? "err.untested" : "err.retest";
+            // 系統不判斷設計好不好，結果交給發射模擬（採購機制 v2 拿掉了環境測試）
             return Ok;
         }
 
@@ -501,7 +586,10 @@ namespace GoNoGo.Core
             if (s.Phase != SessionPhase.Design) return "err.phase";
             var design = s.Bench.Clone();
             int failed = s.FailedLaunches;
+            // 種子由設計決定（同樣的設計結果一樣），再混入第幾次發射：
+            // 失敗重來後照原樣組回同一個設計，才不會一直擲出同一個失敗
             int seed = design.StableHash();
+            if (s.Launches.Count > 0) seed = unchecked(seed * 31 + s.Launches.Count);
             var r = Simulator.SimulateMission(design, data, seed, new NoDecisions(), Context(data, s, failed));
             s.Launches.Add(new LaunchRecord
             {
