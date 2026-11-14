@@ -294,3 +294,18 @@
 
 69. **Bash heredoc 內容有大量引號時出現 `unexpected EOF`（又發生一次）**
     - 解法：較長的修改一律先用 Write 寫成暫存資料夾裡的 Python 腳本，再用 `python -P -E script.py <專案路徑>` 執行；腳本先檢查每段原文在檔案裡恰好出現一次，否則中止，不會改到一半。
+
+### WebGL 建置
+
+70. **第一次 WebGL 建置花了約 15 分鐘**
+    - 原因：從 Windows 切到 WebGL 平台，所有貼圖、shader 都要用 WebGL 的格式重新匯入和編譯；之後 Editor 的目標平台就停在 WebGL。
+    - 解法：用 `unity command build run -- --target WebGL --output-path Builds/WebGL --confirm true`（先 `--dry-run true` 驗證），在背景每 20 秒查一次 `build status`。建置期間不改 .cs，避免 Player 建置讀到改到一半的程式碼。`Builds/` 已在 .gitignore。
+
+71. **WebGL 首次載入 33.6 MB，超過藍圖的 30 MB 目標**
+    - 原因：建置報告依資產加總（未壓縮 50 MB）：Landsat 8 模型網格 8.7 MB（.glb 是 Draco 壓縮的 780 KB，匯入後解成 25.6 萬個頂點）、中文字型 5.7 MB、地球日間貼圖 5.6 MB、煙霧序列圖 5.6 MB、Unity 啟動畫面 Logo 2.8 MB（Personal 授權不能拿掉）。
+    - 解法：建置腳本統一套用藍圖的發布設定（`BuildUtil.ApplyWebPublishSettings`）：Brotli、關掉 Decompression Fallback、Code Optimization = Disk Size with LTO、WebAssembly 2023、剝除沒用到的網格通道；大貼圖只對 WebGL 平台覆寫成 DXT Crunch（品質 80，煙霧 85），桌機版不變。結果：data 24.3 → 20.5 MB、wasm 9.2 → 8.4 MB，總計 **29.08 MB**，太空鏡頭擷圖比對看不出畫質差異。
+    - 還可以再省：Landsat 8 只在標題畫面以 0.55 單位大小出現，可以先在 Blender 減面到約 25%（約省 6 MB 未壓縮）。
+
+72. **建置時出現 3 個 `UAC1015` 警告：`RoomSnapshot` 的 Dictionary 欄位沒有 `[SerializeField]`**
+    - 原因：Unity 6.6 的序列化分析器開始檢查 Dictionary 欄位。這個類別是線上版用 Json.NET 寫進 Firebase 的，不走 Unity 序列化。
+    - 解法：加 `[UnityEngine.SerializeField]` 明確表態。**不能**用 `[NonSerialized]`：Json.NET 也會跳過有 `NonSerialized` 的欄位，線上版的成員、投票、選擇就同步不到了。第二次建置 0 警告。

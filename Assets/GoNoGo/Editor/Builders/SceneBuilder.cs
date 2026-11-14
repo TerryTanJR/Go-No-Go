@@ -37,6 +37,7 @@ namespace GoNoGo.EditorTools
             };
             EditorBuildSettings.scenes = paths.Select(p => new EditorBuildSettingsScene(p, true)).ToArray();
             SetWebGLDefaultQuality(1);
+            BuildUtil.ApplyWebPublishSettings();
             AssetDatabase.SaveAssets();
             EditorSceneManager.OpenScene(paths[0]);
             return "built " + string.Join(", ", paths);

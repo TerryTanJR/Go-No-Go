@@ -132,8 +132,34 @@ namespace GoNoGo.EditorTools
             ti.mipmapEnabled = true;
             ti.textureCompression = TextureImporterCompression.Compressed;
             ti.npotScale = TextureImporterNPOTScale.ToNearest;
+            if (!singleChannel) SetWebGLCrunch(ti, maxSize, ti.DoesSourceTextureHaveAlpha());
             ti.SaveAndReimport();
             return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
+        /// <summary>
+        /// WebGL 專用：DXT Crunch 壓縮。下載大小約是一般 DXT 的 1/3～1/4（藍圖目標首次載入 30 MB 以內）；
+        /// 桌機版維持原本的壓縮品質。
+        /// </summary>
+        public static void SetWebGLCrunch(TextureImporter ti, int maxSize, bool alpha, int quality = 80)
+        {
+            var ps = ti.GetPlatformTextureSettings("WebGL");
+            ps.overridden = true;
+            ps.maxTextureSize = maxSize;
+            ps.format = alpha ? TextureImporterFormat.DXT5Crunched : TextureImporterFormat.DXT1Crunched;
+            ps.compressionQuality = quality;
+            ti.SetPlatformTextureSettings(ps);
+        }
+
+        /// <summary>網頁版發布設定（藍圖「發布用設定」）：Brotli、不要解壓縮後備、程式碼以大小優先 + LTO、剝除沒用到的網格通道。</summary>
+        public static void ApplyWebPublishSettings()
+        {
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
+            PlayerSettings.WebGL.decompressionFallback = false;
+            PlayerSettings.WebGL.dataCaching = true;
+            PlayerSettings.stripUnusedMeshComponents = true;
+            PlayerSettings.WebGL.wasm2023 = true; // 藍圖：WebAssembly 2023（較新的瀏覽器）
+            EditorUserBuildSettings.SetPlatformSettings("WebGL", "CodeOptimization", "DiskSizeLTO");
         }
 
         // ---------------- 相機與後處理 ----------------

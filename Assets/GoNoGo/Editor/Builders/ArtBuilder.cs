@@ -205,6 +205,13 @@ namespace GoNoGo.EditorTools
             kit.interstage = BuildUtil.Lit("M_Rocket_Interstage", new Color(0.08f, 0.08f, 0.09f), 0.2f, 0.4f);
             kit.plume = BuildUtil.Material("M_Plume", "GoNoGo/Plume");
             kit.smoke = AssetDatabase.LoadAssetAtPath<Material>("Assets/GoNoGo/Launch/Experiments/M_Smoke_Billow.mat");
+            // 煙霧序列圖 2048² 是網頁版最大的貼圖之一：WebGL 用 Crunch
+            var smokeTi = (TextureImporter)AssetImporter.GetAtPath("Assets/GoNoGo/Launch/Experiments/Smoke_Billow_8x8.png");
+            if (smokeTi != null)
+            {
+                BuildUtil.SetWebGLCrunch(smokeTi, 2048, true, 85);
+                smokeTi.SaveAndReimport();
+            }
             kit.fireball = BuildUtil.Particle("M_Fireball", a.softDot, new Color(1f, 0.6f, 0.25f, 1f), true);
             kit.debris = BuildUtil.Particle("M_Debris", a.softDot, new Color(1f, 0.75f, 0.4f, 1f), true);
             // 尾跡貼圖：寬度方向（V）兩側柔和淡出，長度方向（U）帶一點雜訊讓煙看起來不是一條塑膠管

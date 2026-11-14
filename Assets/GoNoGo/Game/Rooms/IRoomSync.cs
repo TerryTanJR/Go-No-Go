@@ -31,11 +31,11 @@ namespace GoNoGo.Game.Rooms
         public int Seed;
         /// <summary>設計（Design.ToJson()）；任何角色修改都整份覆寫，用 ETag 避免互相覆蓋。</summary>
         public string DesignJson = "";
-        public Dictionary<string, RoomMember> Members = new Dictionary<string, RoomMember>();
+        [UnityEngine.SerializeField] public Dictionary<string, RoomMember> Members = new Dictionary<string, RoomMember>();
         /// <summary>角色 → "go" / "nogo:{reason}"。</summary>
-        public Dictionary<string, string> Votes = new Dictionary<string, string>();
+        [UnityEngine.SerializeField] public Dictionary<string, string> Votes = new Dictionary<string, string>();
         /// <summary>營運事件的選擇（事件 id → 選項），由指揮決定後寫入。</summary>
-        public Dictionary<string, string> Choices = new Dictionary<string, string>();
+        [UnityEngine.SerializeField] public Dictionary<string, string> Choices = new Dictionary<string, string>();
         public long UpdatedMs;
     }
 
