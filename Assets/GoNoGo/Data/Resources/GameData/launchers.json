@@ -71,21 +71,21 @@
     "flight": {
       "stages": 2,
       "ascent": [
-        { "id": "maxq", "t": 74 },
-        { "id": "meco", "t": 153 },
-        { "id": "stage_sep", "t": 156 },
-        { "id": "ses", "t": 163 },
-        { "id": "fairing", "t": 208 },
-        { "id": "seco", "t": 487 }
+        { "id": "maxq", "t": 70 },
+        { "id": "meco", "t": 140 },
+        { "id": "stage_sep", "t": 143 },
+        { "id": "ses", "t": 151 },
+        { "id": "fairing", "t": 182 },
+        { "id": "seco", "t": 497 }
       ],
       "orbits": {
         "leo_400": [
           { "id": "deploy", "t": 720 }
         ],
         "sso_700": [
-          { "id": "restart", "t": 3040 },
-          { "id": "seco2", "t": 3052 },
-          { "id": "deploy", "t": 3300 }
+          { "id": "restart", "t": 3012 },
+          { "id": "seco2", "t": 3016 },
+          { "id": "deploy", "t": 3224 }
         ],
         "geo": [
           { "id": "restart", "t": 1590 },
@@ -103,14 +103,19 @@
       },
       "sources": [
         {
+          "title": "Transporter-10 (Falcon 9 dedicated SSO rideshare, 2024-03-04): launch timeline",
+          "url": "https://www.spacelaunchschedule.com/launch/falcon-9-block-5-transporter-10-dedicated-sso-rideshare/",
+          "note": "sourced: Max-Q T+1:10, MECO T+2:20, stage separation T+2:23, second stage ignition T+2:31, fairing T+3:02, SECO-1 T+8:17, second-stage restart T+50:12, SECO-2 T+50:16, first payload deploy T+53:44. estimate: the same restart and deploy times for every SSO payload"
+        },
+        {
           "title": "Spaceflight Now: Timeline for Falcon 9 launch of Starlink satellites (2019)",
           "url": "https://spaceflightnow.com/2019/11/11/launch-timeline-for-falcon-9-launch-of-starlink-satellites/",
-          "note": "sourced: Max-Q T+1:14, MECO T+2:33, stage separation T+2:36, second stage ignition T+2:43"
+          "note": "earlier reference (2019), kept for comparison: Max-Q T+1:14, MECO T+2:33, stage separation T+2:36, second stage ignition T+2:43"
         },
         {
           "title": "Spaceflight Now: Timeline for Falcon 9's launch of the GPS 3 SV03 spacecraft (2020)",
           "url": "https://spaceflightnow.com/?p=46045",
-          "note": "sourced: fairing jettison T+3:28, SECO-1 T+8:07. estimate: post-SECO profiles per orbit (LEO direct ~T+12 min like Dragon cargo; SSO two-burn ~T+55 min; GTO ~T+32 min; lunar TLI ~T+48 min like IM-1, 2024)"
+          "note": "earlier reference (2020): fairing jettison T+3:28, SECO-1 T+8:07. estimate: post-SECO profiles for the other orbits (LEO direct ~T+12 min like Dragon cargo; GTO ~T+32 min; lunar TLI ~T+48 min like IM-1, 2024)"
         }
       ]
     }
@@ -138,23 +143,23 @@
     "flight": {
       "stages": 2,
       "ascent": [
-        { "id": "maxq", "t": 67 },
-        { "id": "booster_cutoff", "t": 150 },
-        { "id": "booster_sep", "t": 154 },
-        { "id": "meco", "t": 185 },
-        { "id": "stage_sep", "t": 188 },
-        { "id": "ses", "t": 195 },
-        { "id": "fairing", "t": 225 },
-        { "id": "seco", "t": 473 }
+        { "id": "maxq", "t": 69 },
+        { "id": "booster_cutoff", "t": 145 },
+        { "id": "booster_sep", "t": 148 },
+        { "id": "meco", "t": 235 },
+        { "id": "stage_sep", "t": 239 },
+        { "id": "ses", "t": 244 },
+        { "id": "fairing", "t": 264 },
+        { "id": "seco", "t": 506 }
       ],
       "orbits": {
         "leo_400": [
           { "id": "deploy", "t": 720 }
         ],
         "sso_700": [
-          { "id": "restart", "t": 3040 },
-          { "id": "seco2", "t": 3052 },
-          { "id": "deploy", "t": 3300 }
+          { "id": "restart", "t": 3012 },
+          { "id": "seco2", "t": 3016 },
+          { "id": "deploy", "t": 3224 }
         ],
         "geo": [
           { "id": "restart", "t": 1590 },
@@ -172,9 +177,9 @@
       },
       "sources": [
         {
-          "title": "Spaceflight Now: Launch timeline for Falcon Heavy's second flight (2019)",
-          "url": "https://spaceflightnow.com/2019/04/10/launch-timeline-for-falcon-heavys-second-flight/",
-          "note": "sourced: side booster cutoff T+2:30, booster separation T+2:34. Europa Clipper (2024): Max-Q T+1:07, SECO-1 T+7:53. estimate: center core MECO ~T+3:05, fairing ~T+3:45; post-SECO profiles as Falcon 9"
+          "title": "NASA Psyche blog: Key milestones for today's Psyche launch (Falcon Heavy, 2023-10-13)",
+          "url": "https://science.nasa.gov/blogs/psyche/2023/10/13/key-milestones-for-todays-psyche-launch",
+          "note": "sourced: Max-Q T+1:09, side booster cutoff T+2:25, booster separation T+2:28, center core MECO T+3:55, stage separation T+3:59, second stage ignition T+4:04, fairing T+4:24, SECO-1 T+8:26. estimate: post-SECO profiles as Falcon 9"
         }
       ]
     }
@@ -208,12 +213,12 @@
         { "id": "stage_sep", "t": 89 },
         { "id": "ses", "t": 90, "call": "ui.launch.call.stage_n_ignite" },
         { "id": "upper_cutoff", "t": 163, "call": "ui.launch.call.stage_n_burnout" },
-        { "id": "fairing", "t": 178 },
-        { "id": "upper_sep", "t": 181, "call": "ui.launch.call.stage_n_sep" },
-        { "id": "upper_ignite", "t": 183, "call": "ui.launch.call.stage_n_ignite" },
-        { "id": "upper_cutoff", "t": 256, "call": "ui.launch.call.stage_n_burnout" },
+        { "id": "upper_sep", "t": 165, "call": "ui.launch.call.stage_n_sep" },
+        { "id": "upper_ignite", "t": 166, "call": "ui.launch.call.stage_n_ignite" },
+        { "id": "fairing", "t": 177 },
+        { "id": "upper_cutoff", "t": 237, "call": "ui.launch.call.stage_n_burnout" },
         { "id": "upper_sep", "t": 320, "call": "ui.launch.call.stage_n_sep" },
-        { "id": "upper_ignite", "t": 708, "call": "ui.launch.call.stage_n_ignite" },
+        { "id": "upper_ignite", "t": 713, "call": "ui.launch.call.stage_n_ignite" },
         { "id": "seco", "t": 780 }
       ],
       "orbits": {
@@ -225,7 +230,7 @@
         {
           "title": "Universe Today: OCO press conference notes (2009); Spaceflight Now / NASA: Glory launch (2011)",
           "url": "https://www.universetoday.com/articles/oco-press-conference-notes-fairing-did-not-separate",
-          "note": "sourced: four solid stages (Castor 120 stage 0, Orion 50S XL, Orion 50 XL, Orion 38); stage 0 burns about 1 min 24 s and separates 5 s later; Glory's fairing should have separated at T+2:58; Glory planned separation T+13:05 after a 72 s final burn. estimate: Max-Q, intermediate stage burnout and separation times"
+          "note": "sourced: four solid stages (Castor 120 stage 0, Orion 50S XL, Orion 50 XL, Orion 38); stage 0 burns about 1 min 24 s and separates 5 s later; stage 1 burnout and stage 2 ignition about T+2:45 (Orbital, Glory); fairing separation scheduled at 176.98 s, after stage 2 ignition (NASA Glory mishap board summary, https://www.nasa.gov/pdf/728836main_T9_MIB_Public_Release_Summary.pdf); Glory planned separation T+13:05. derived: stage 2 burnout = ignition + 71 s (Orion 50 XL burn time), stage 3 ignition = 780 s - 67 s (Orion 38 burn time, Northrop Grumman Orion Motor Series). estimate: Max-Q, stage 2 separation"
         }
       ]
     }
@@ -299,55 +304,60 @@
       "ascent": [
         {
           "id": "maxq",
-          "t": 74
+          "t": 70
         },
         {
           "id": "meco",
-          "t": 153
+          "t": 140
         },
         {
           "id": "stage_sep",
-          "t": 156
+          "t": 143
         },
         {
           "id": "ses",
-          "t": 163
+          "t": 151
         },
         {
           "id": "fairing",
-          "t": 208
+          "t": 182
         },
         {
           "id": "seco",
-          "t": 487
+          "t": 497
         }
       ],
       "orbits": {
         "default": [
           {
             "id": "restart",
-            "t": 3040
+            "t": 3012
           },
           {
             "id": "seco2",
-            "t": 3052
+            "t": 3016
           },
           {
             "id": "deploy",
-            "t": 3300
+            "t": 3224
           }
         ]
       },
       "sources": [
         {
+          "title": "Transporter-10 (Falcon 9 dedicated SSO rideshare, 2024-03-04): launch timeline",
+          "url": "https://www.spacelaunchschedule.com/launch/falcon-9-block-5-transporter-10-dedicated-sso-rideshare/",
+          "note": "sourced: Max-Q T+1:10, MECO T+2:20, stage separation T+2:23, second stage ignition T+2:31, fairing T+3:02, SECO-1 T+8:17, second-stage restart T+50:12, SECO-2 T+50:16, first payload deploy T+53:44. estimate: the same restart and deploy times for every SSO payload"
+        },
+        {
           "title": "Spaceflight Now: Timeline for Falcon 9 launch of Starlink satellites (2019)",
           "url": "https://spaceflightnow.com/2019/11/11/launch-timeline-for-falcon-9-launch-of-starlink-satellites/",
-          "note": "sourced: Max-Q T+1:14, MECO T+2:33, stage separation T+2:36, second stage ignition T+2:43"
+          "note": "earlier reference (2019), kept for comparison: Max-Q T+1:14, MECO T+2:33, stage separation T+2:36, second stage ignition T+2:43"
         },
         {
           "title": "Spaceflight Now: Timeline for Falcon 9's launch of the GPS 3 SV03 spacecraft (2020)",
           "url": "https://spaceflightnow.com/?p=46045",
-          "note": "sourced: fairing jettison T+3:28, SECO-1 T+8:07. estimate: post-SECO profiles per orbit (LEO direct ~T+12 min like Dragon cargo; SSO two-burn ~T+55 min; GTO ~T+32 min; lunar TLI ~T+48 min like IM-1, 2024)"
+          "note": "earlier reference (2020): fairing jettison T+3:28, SECO-1 T+8:07. estimate: post-SECO profiles for the other orbits (LEO direct ~T+12 min like Dragon cargo; GTO ~T+32 min; lunar TLI ~T+48 min like IM-1, 2024)"
         }
       ]
     }

@@ -18,7 +18,7 @@ namespace GoNoGo.Core
 
     /// <summary>
     /// 一次發射的完整時間表與遙測：依火箭（launchers.json 的 flight）、目標軌道、發射結果組出來。
-    /// 時間是真實的任務時間（例如 Falcon 9 的一節關機在 T+2:33），演出可以用 1、5、10、50 倍播放。
+    /// 時間是真實的任務時間（例如 Falcon 9 的一節關機在 T+2:33），演出會自動加速，整段約 70 秒播完。
     /// <para>
     /// 事件 id：mach1、maxq、booster_cutoff、booster_sep（助推器）、meco、stage_sep（第一節）、ses（上節點火）、
     /// fairing、upper_cutoff、upper_sep、upper_ignite（多節火箭或踢昇級的下一節）、battery_swap（Electron）、
@@ -96,6 +96,8 @@ namespace GoNoGo.Core
                 // 飛行中異常：在最大動壓附近爆炸（真實的失敗時間各不相同，這裡選最常見的高負載點）
                 double at = (asc.FirstOrDefault(e => e.Id == "maxq")?.T ?? 60) + 4;
                 all.AddRange(asc.Where(e => e.T < at));
+                // 出事前幾秒先報「異常振動」（倍率在這裡降回原速），不是直接爆炸
+                all.Add(new TimelineEvent { Id = "anomaly_warn", T = at - 3 });
                 all.Add(new TimelineEvent { Id = "anomaly", T = at });
                 tl.End = at + 8;
             }
@@ -104,7 +106,13 @@ namespace GoNoGo.Core
                 // 速度不足（太重、到不了、整流罩沒分離）：每一節照常燒完，最後一節關機時速度還不夠，掉回大氣層
                 foreach (var e in asc)
                 {
-                    if (e.Id == "seco") { all.Add(new TimelineEvent { Id = "underspeed", T = e.T }); continue; }
+                    if (e.Id == "seco")
+                    {
+                        // 關機前先報「速度比預期低」
+                        all.Add(new TimelineEvent { Id = "underspeed_warn", T = e.T - 25 });
+                        all.Add(new TimelineEvent { Id = "underspeed", T = e.T });
+                        continue;
+                    }
                     if (e.Id == "fairing" && outcome == LaunchOutcome.FairingFailure) { all.Add(new TimelineEvent { Id = "fairing_fail", T = e.T }); continue; }
                     all.Add(e);
                 }
@@ -361,6 +369,8 @@ namespace GoNoGo.Core
                 case "seco": case "upper_cutoff": case "seco2": case "coast": return Cruise(t);
                 case "deploy": return "ui.launch.stage.deploy";
                 case "anomaly": case "underspeed": case "fairing_fail": return "ui.launch.stage.anomaly";
+                case "anomaly_warn": return "ui.launch.stage.ascent";
+                case "underspeed_warn": return Cruise(t);
                 case "eclipse": return "ui.launch.stage.eclipse";
                 case "signal_lost": return "ui.launch.stage.signal_lost";
             }

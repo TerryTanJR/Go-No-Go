@@ -63,7 +63,7 @@ namespace GoNoGo.Core.Tests
         public void RealEventTimesComeFromTheData()
         {
             var f9 = Tl("falcon9", "leo_400");
-            Assert.That(f9.First("meco").T, Is.EqualTo(153));
+            Assert.That(f9.First("meco").T, Is.EqualTo(140));
             Assert.That(f9.First("deploy").T, Is.EqualTo(720).Within(1), "直接入軌：約 12 分鐘");
             Assert.That(f9.Thrusting(f9.First("meco").T + 1), Is.False, "一節關機到二節點火之間沒有推力");
             Assert.That(f9.Thrusting(f9.First("ses").T + 1), Is.True);
@@ -93,14 +93,14 @@ namespace GoNoGo.Core.Tests
         public void TelemetryLooksLikeARealAscent()
         {
             var f9 = Tl("falcon9", "leo_400");
-            TestContext.WriteLine($"swap={f9.SwapT:0} alt30={f9.Altitude(30):0.0} alt60={f9.Altitude(60):0.0} v60={f9.Velocity(60):0.00} meco={f9.Altitude(153):0} v={f9.Velocity(153):0.00}");
+            TestContext.WriteLine($"swap={f9.SwapT:0} alt30={f9.Altitude(30):0.0} alt60={f9.Altitude(60):0.0} v60={f9.Velocity(60):0.00} meco={f9.Altitude(140):0} v={f9.Velocity(140):0.00}");
             Assert.That(f9.Altitude(10), Is.InRange(0.05, 0.6), "T+10 還在幾百公尺內");
             Assert.That(f9.Altitude(60), Is.InRange(5.0, 12.0));
-            Assert.That(f9.Velocity(153), Is.InRange(2.0, 2.6), "一節關機約 2.3 km/s");
-            Assert.That(f9.SwapT, Is.InRange(160.0, 200.0));
+            Assert.That(f9.Velocity(140), Is.InRange(2.0, 2.6), "一節關機約 2.3 km/s");
+            Assert.That(f9.SwapT, Is.InRange(150.0, 190.0)); // 二節點火後、拋整流罩前（Transporter-10：T+2:31、T+3:02）
             // 上升段速度不會倒退（滑行時持平）
             double prev = 0;
-            for (double t = 0; t < 487; t += 2) { var v = f9.Velocity(t); Assert.That(v, Is.GreaterThanOrEqualTo(prev - 0.03), "t=" + t); prev = v; }
+            for (double t = 0; t < 497; t += 2) { var v = f9.Velocity(t); Assert.That(v, Is.GreaterThanOrEqualTo(prev - 0.03), "t=" + t); prev = v; }
         }
 
         [Test]
@@ -131,9 +131,9 @@ namespace GoNoGo.Core.Tests
             Assert.That(slow.Velocity(slow.First("underspeed").T), Is.LessThan(7.0));
 
             var oco = Tl("taurus_xl", "sso_700", LaunchOutcome.FairingFailure, "launch.fairing");
-            Assert.That(oco.First("fairing_fail").T, Is.EqualTo(178));
+            Assert.That(oco.First("fairing_fail").T, Is.EqualTo(177));
             Assert.That(oco.First("fairing"), Is.Null);
-            Assert.That(oco.SwapT, Is.LessThan(178));
+            Assert.That(oco.SwapT, Is.LessThan(177));
 
             var dead = Tl("falcon9", "sso_700", LaunchOutcome.DeadOnOrbit, "launch.dead_on_orbit");
             Assert.That(dead.First("signal_lost").T, Is.GreaterThan(dead.First("deploy").T));

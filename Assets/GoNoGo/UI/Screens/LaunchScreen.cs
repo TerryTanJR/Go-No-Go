@@ -1,25 +1,21 @@
-using System.Collections.Generic;
+using System.Linq;
 using GoNoGo.Core;
 using GoNoGo.Game;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 namespace GoNoGo.UI
 {
     /// <summary>
-    /// 發射 HUD：倒數計時、遙測、播報紀錄、下一個事件、播放速度（×1／×5／×10／×50，鍵盤 1–4，大家共用）、
-    /// 跳過鈕，播完顯示結果。
+    /// 發射 HUD：倒數計時、遙測、下一個事件，播報在右下角淡入淡出，播完顯示結果。
+    /// 播放速度由 3D 導演自動決定（整段約 70 秒），不能跳過也不能調速。
     /// 畫面本身不決定結果——結果在按下發射時就由核心算好了（SessionState.LastLaunch），3D 只是演出來。
     /// </summary>
     public sealed class LaunchScreen : GameScreen
     {
-        Label _clock, _alt, _vel, _thr, _stage, _next;
-        VisualElement _log, _outcome, _speedRow;
-        Button _skip;
-        LaunchTimeline _tl;
-        int _speedShown = -1;
-        readonly List<string> _lines = new List<string>();
+        Label _clock, _alt, _vel, _thr, _stage, _next, _speed;
+        VisualElement _calls, _outcome;
+        LaunchTimeline _tl, _nominal;
         bool _shownOutcome;
         float _selfTimer;
 
@@ -34,29 +30,23 @@ namespace GoNoGo.UI
             var head = Ui.El("launch-head").AddTo(Root);
             Ui.Text(Loc.T("ui.launch.eyebrow") + " · " + Loc.Launcher(M.S.LastLaunch?.Design.LauncherId ?? ""), "eyebrow").AddTo(head);
             _clock = Ui.Text("T-00:00:10", "launch-clock", "mono").AddTo(head);
+            // 加速播放時在時鐘旁邊標出倍率：時鐘一下跳十幾分鐘、地球轉很快，不說明的話看起來像壞掉
+            _speed = Ui.Text("", "launch-speed", "mono").AddTo(head);
             _stage = Ui.Text("", "launch-stage").AddTo(head);
             _next = Ui.Text("", "launch-next", "mono").AddTo(head);
             var last = M.S.LastLaunch;
             _tl = last != null ? LaunchTimeline.Build(D, last.Design, last.Outcome, last.ReasonCode ?? "") : null;
+            // 「下一步」照成功的飛行顯示，出事前不先爆雷
+            _nominal = last != null ? LaunchTimeline.Build(D, last.Design, LaunchOutcome.Nominal, "launch.nominal") : null;
+
+            // 播報放在右下角（放在倒數下方會擋到火箭）
+            _calls = Ui.El("launch-calls").AddTo(Root);
 
             var tele = Ui.El("panel", "launch-tele").AddTo(Root);
             _alt = Row(tele, "ui.launch.alt", "km");
             _vel = Row(tele, "ui.launch.vel", "km/s");
             _thr = Row(tele, "ui.launch.thr", "%");
 
-            _log = Ui.El("launch-log").AddTo(Root);
-            foreach (var l in _lines) AddLine(l, false);
-
-            // 播放速度與跳過：升空後才有作用；多人時大家看同一個速度（存在共用的狀態裡）
-            var actions = Ui.Row("launch-actions").AddTo(Root);
-            Ui.Spacer().AddTo(actions);
-            var speed = Ui.El("launch-speed").AddTo(actions);
-            var srow = Ui.Row().AddTo(speed);
-            Ui.Text(Loc.T("ui.launch.speed"), "small", "dim", "launch-speed-k").AddTo(srow);
-            _speedRow = Ui.Row().AddTo(srow);
-            _speedShown = -1;
-            if (M.S.Multiplayer) Ui.Text(Loc.T("ui.launch.speed_shared"), "small", "faint").AddTo(speed);
-            _skip = Ui.Btn(Loc.T("ui.launch.skip"), Skip, "btn-ghost", "launch-skip").AddTo(actions);
 
             _outcome = Ui.El("launch-outcome").AddTo(Root);
             _outcome.style.display = DisplayStyle.None;
@@ -75,33 +65,6 @@ namespace GoNoGo.UI
             return v;
         }
 
-        static void SetSpeed(int x)
-        {
-            if (M.S.LaunchSpeed == x || LaunchFeed.Finished) return;
-            Sfx.Click();
-            GameSession.Send(CommandType.SetLaunchSpeed, "", x);
-        }
-
-        static void Skip()
-        {
-            if (M.S.LaunchSkipped || LaunchFeed.Finished) return;
-            Sfx.Click();
-            GameSession.Send(CommandType.SkipLaunch);
-        }
-
-        void DrawSpeed()
-        {
-            int now = M.S.LaunchSpeed;
-            if (now == _speedShown) return;
-            _speedShown = now;
-            _speedRow.Clear();
-            for (int i = 0; i < SessionRules.LaunchSpeeds.Length; i++)
-            {
-                int x = SessionRules.LaunchSpeeds[i];
-                Ui.Btn($"×{x}", () => SetSpeed(x), "chip", "mono").Cls("chip--on", x == now).AddTo(_speedRow).tooltip = (i + 1).ToString();
-            }
-        }
-
         /// <summary>播報字串鍵後面可以帶「#節數」（第 {n} 節點火）。</summary>
         static string CallText(string key)
         {
@@ -111,11 +74,12 @@ namespace GoNoGo.UI
             return Loc.T(key.Substring(0, hash), ("n", n));
         }
 
-        /// <summary>下一個事件（失敗的事件不先爆雷：速度不足顯示成關機、整流罩沒分離顯示成整流罩分離）。</summary>
+        /// <summary>下一個事件：照成功的飛行顯示（失敗不先爆雷），出事之後就不再顯示。</summary>
         string NextText(float t)
         {
-            if (_tl == null || t < 0 || LaunchFeed.Finished) return "";
-            var e = _tl.Next(t);
+            if (_tl == null || _nominal == null || t < 0 || LaunchFeed.Finished) return "";
+            if (_tl.Events.Any(f => f.T <= t && (f.Id == "anomaly" || f.Id == "underspeed" || f.Id == "fairing_fail"))) return "";
+            var e = _nominal.Next(t);
             if (e == null) return "";
             string id = e.Id == "underspeed" ? "seco" : e.Id == "fairing_fail" ? "fairing" : e.Id;
             if (id == "anomaly" || id == "eclipse" || id == "signal_lost") return "";
@@ -126,18 +90,17 @@ namespace GoNoGo.UI
             return Loc.T("ui.launch.next") + "  ·  " + name + "  ·  " + LaunchClock.Format(e.T) + "  (−" + left / 60 + ":" + (left % 60).ToString("00") + ")";
         }
 
+        const long CallHoldMs = 2600, CallFadeMs = 350; // 和 Theme.uss 的 .launch-call 淡入淡出時間一致
+        const int MaxCalls = 3;
+
+        /// <summary>播報在右下角淡入、停一下再淡出；加速時一次來好幾句就往下排，最多同時三句。</summary>
         void OnCallout(string key)
         {
-            _lines.Add(key);
-            AddLine(key, true);
-        }
-
-        void AddLine(string key, bool animate)
-        {
-            var l = Ui.Text(CallText(key), "launch-line", "fade-in").AddTo(_log);
-            if (animate) { Ui.AnimateIn(l, "fade-in--on"); Sfx.Tick(); }
-            else l.AddToClassList("fade-in--on");
-            while (_log.childCount > 6) _log.RemoveAt(0);
+            var l = Ui.Text(CallText(key).TrimEnd('。', '.'), "launch-call").AddTo(_calls); // 播報字幕不加句號
+            Ui.AnimateIn(l, "launch-call--on");
+            l.schedule.Execute(() => l.RemoveFromClassList("launch-call--on")).StartingIn(CallHoldMs);
+            l.schedule.Execute(() => l.RemoveFromHierarchy()).StartingIn(CallHoldMs + CallFadeMs);
+            while (_calls.childCount > MaxCalls) _calls.RemoveAt(0);
         }
 
         public override void Tick(float dt)
@@ -159,18 +122,9 @@ namespace GoNoGo.UI
             _thr.text = (LaunchFeed.Throttle * 100).ToString("0");
             _stage.text = string.IsNullOrEmpty(LaunchFeed.StageKey) ? "" : Loc.T(LaunchFeed.StageKey);
             _next.text = NextText(T);
-            // 這一局已經結束（例如多人時房主斷線、正要回主選單）：速度和跳過按鈕不用再畫
+            UpdateSpeed();
+            // 這一局已經結束（例如多人時房主斷線、正要回主選單）：結果卡片不用再畫
             if (!GameSession.HasMission) return;
-            DrawSpeed();
-            _skip.SetEnabled(!M.S.LaunchSkipped && !LaunchFeed.Finished);
-            var kb = Keyboard.current;
-            if (kb != null && !Hud.Paused && !UIRoot.IsTyping)
-            {
-                if (kb.digit1Key.wasPressedThisFrame) SetSpeed(SessionRules.LaunchSpeeds[0]);
-                else if (kb.digit2Key.wasPressedThisFrame) SetSpeed(SessionRules.LaunchSpeeds[1]);
-                else if (kb.digit3Key.wasPressedThisFrame) SetSpeed(SessionRules.LaunchSpeeds[2]);
-                else if (kb.digit4Key.wasPressedThisFrame) SetSpeed(SessionRules.LaunchSpeeds[3]);
-            }
 
             if (LaunchFeed.Finished && !_shownOutcome)
             {
@@ -179,11 +133,25 @@ namespace GoNoGo.UI
             }
         }
 
+        /// <summary>倍率取兩位有效數字（×47、×120、×890），數字才不會每一幀都在跳；接近原速時淡出。</summary>
+        void UpdateSpeed()
+        {
+            float x = LaunchFeed.Finished ? 1f : LaunchFeed.Speed;
+            bool on = x >= 1.5f;
+            _speed.EnableInClassList("launch-speed--on", on);
+            if (!on) return;
+            float mag = Mathf.Pow(10f, Mathf.Max(0f, Mathf.Floor(Mathf.Log10(x)) - 1f));
+            _speed.text = Loc.T("ui.launch.timelapse", ("x", Mathf.RoundToInt(Mathf.Round(x / mag) * mag)));
+        }
+
         void ShowOutcome(bool sound)
         {
             var l = M.S.LastLaunch;
             _outcome.Clear();
             _outcome.style.display = DisplayStyle.Flex;
+            // 背景慢慢壓暗再出卡片（結尾不要直接蓋上去）
+            if (sound) Ui.AnimateIn(_outcome, "launch-outcome--dim");
+            else _outcome.AddToClassList("launch-outcome--dim");
             var card = Ui.El("panel", "outcome-card", "fade-in").AddTo(_outcome);
             Ui.AnimateIn(card, "fade-in--on");
             bool ok = l != null && l.Reached;

@@ -134,10 +134,6 @@ namespace GoNoGo.Core
         /// <summary>上一次點名的結果（HUD 顯示 HOLD 的原因）。</summary>
         public GoPoll LastPoll { get; set; }
         public int Polls { get; set; }
-        /// <summary>發射演出的播放速度（1、5、10、50 倍），多人時大家一起。</summary>
-        public int LaunchSpeed { get; set; } = 1;
-        /// <summary>有人按了「略過」：直接看結果。</summary>
-        public bool LaunchSkipped { get; set; }
 
         /// <summary>營運：目前第幾回合、各事件的判斷與操作、這回合是否已結算。</summary>
         public int OpsTurn { get; set; }

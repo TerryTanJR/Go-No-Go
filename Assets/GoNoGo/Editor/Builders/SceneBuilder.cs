@@ -428,7 +428,7 @@ namespace GoNoGo.EditorTools
             var wt = BuildUtil.Group("WaterTower", pad);
             wt.localPosition = new Vector3(-150f, G, 120f);
             for (int i = 0; i < 4; i++)
-                Box("Leg" + i, wt, new Vector3(i % 2 == 0 ? -5 : 5, 25f, i < 2 ? -5 : 5), new Vector3(0.8f, 50f, 0.8f), art.towerSteel);
+                Box("Leg" + i, wt, new Vector3(i % 2 == 0 ? -5 : 5, 27f, i < 2 ? -5 : 5), new Vector3(0.8f, 54f, 0.8f), art.towerSteel); // 伸進球形水箱裡：柱子所在位置的球面比水箱底部高約 2.7 m
             BuildUtil.Prim(PrimitiveType.Sphere, "Tank", wt, new Vector3(0, 56f, 0), new Vector3(18f, 14f, 18f), art.wallPanel);
             // 遠方的組裝大樓
             Box("AssemblyBuilding", pad, new Vector3(-1700f, G + 80f, 2300f), new Vector3(160f, 160f, 200f), art.wallPanel);
@@ -460,16 +460,18 @@ namespace GoNoGo.EditorTools
             var env = space.gameObject.AddComponent<EnvironmentOverride>();
             env.skybox = art.starfield;
             env.fog = false;
-            const float R = 6000f, alt = 150f;
-            // 用高細分的球冠（只做看得到的那一塊）：整顆球 192 段在離地 150 單位時地平線看得到稜角。
+            // 離地 660（半徑的 11%）：地平線在水平以下 arccos(6000/6660) = 25.7°，和 700 km 軌道看到的一樣
+            const float R = 6000f, alt = 660f;
+            // 用高細分的球冠（只做看得到的那一塊）：整顆球 192 段在近距離看時地平線看得到稜角。
             // 火箭下方對準佛羅里達外海（北緯 26°、西經 74°），避開北極與經度 180° 的貼圖接縫。
             var site = GeoMath.LatLonToLocal(26f, -74f);
-            // 離地 150、地心往前偏 900：看得到的範圍離發射點最多約 21°（地平線 12.7° + 偏移 8.6°），做到 24° 就夠
-            var cap = SphereCap("EarthCap_Launch", site, 24f, 113, 256);
+            // 地心往前偏 900：看得到的範圍離發射點最多約 33°（地平線 25.7° + 偏移 7.7°），做到 38°
+            var cap = SphereCap("EarthCap_Launch", site, 38f, 180, 256);
             var faceUp = Quaternion.FromToRotation(site, Vector3.up);
             var earthCenter = new Vector3(0, -R - alt, 900f);
             MeshObj("Earth", space, cap, art.earth, earthCenter, R * 2f).transform.localRotation = faceUp;
-            MeshObj("Earth_Atmosphere", space, cap, art.atmosphere, earthCenter, R * 2f * 1.025f).transform.localRotation = faceUp;
+            // 大氣殼做薄（地球半徑的 1.2%）：從軌道上看，地球邊緣的藍光是貼著地表的一條細線
+            MeshObj("Earth_Atmosphere", space, cap, art.atmosphere, earthCenter, R * 2f * 1.012f).transform.localRotation = faceUp;
             var spaceAnchor = BuildUtil.Group("SpaceAnchor", space);
             Probe(space, Vector3.zero, new Vector3(600f, 600f, 600f), 1f);
             space.gameObject.SetActive(false);

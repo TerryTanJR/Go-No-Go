@@ -179,26 +179,6 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
-        public void LaunchSpeedAndSkipAreShared()
-        {
-            var s = Solo();
-            Assert.That(Try(s, CommandType.SetLaunchSpeed, 1, "", 10), Is.EqualTo("err.phase"));
-            Fly(s);
-            Assert.That(s.LaunchSpeed, Is.EqualTo(1));
-            Ok(s, Command.Of(CommandType.SetLaunchSpeed, 1, "", 10));
-            Assert.That(Try(s, CommandType.SetLaunchSpeed, 1, "", 7), Is.EqualTo("err.unknown"));
-            Ok(s, Command.Of(CommandType.SkipLaunch, 1));
-            Assert.That(s.LaunchSkipped, Is.True);
-            Ok(s, Command.Of(CommandType.FinishLaunch, 1));
-            if (s.Phase == SessionPhase.Design)
-            {
-                Fly(s);
-                Assert.That(s.LaunchSpeed, Is.EqualTo(1), "每次發射重設");
-                Assert.That(s.LaunchSkipped, Is.False);
-            }
-        }
-
-        [Test]
         public void PickInstallReportMovesPartsThroughTheBay()
         {
             var s = Solo();

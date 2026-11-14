@@ -15,9 +15,9 @@ namespace GoNoGo.Core
         // 營運
         Judge, Act, EndTurn, NextTurn,
         // 團隊合作（加在最後，舊的編號不變）
-        SetStrict, RunTest, Vote, SetLaunchSpeed, SkipLaunch,
-        // 採購（組裝區）
-        CartAdd, CartRemove, PlaceOrder,
+        SetStrict, RunTest, Vote,
+        // 採購（組裝區）。中間空兩號給已刪除的發射播放速度、跳過發射，後面的編號不變
+        CartAdd = Vote + 3, CartRemove, PlaceOrder,
         // 大廳（加在最後，舊的編號不變）
         SetReady,
     }
@@ -197,8 +197,6 @@ namespace GoNoGo.Core
 
         /// <summary>房主的玩家編號（多人時 = Netcode clientId 0 + 1；個人模式只有 1）。</summary>
         public const int HostPlayer = 1;
-        /// <summary>發射演出可以選的播放速度。</summary>
-        public static readonly int[] LaunchSpeeds = { 1, 5, 10, 50 };
 
         /// <summary>組裝區的操作（嚴格分工時只有組裝區的人能做）。</summary>
         public static bool IsAssemblyCommand(CommandType t) =>
@@ -346,15 +344,6 @@ namespace GoNoGo.Core
                         Findings = EnvTests.Run(s.Bench, data, s.DifficultyId),
                     });
                     while (s.Tests.Count > 6) s.Tests.RemoveAt(0);
-                    return Ok;
-                case CommandType.SetLaunchSpeed:
-                    if (s.Phase != SessionPhase.Launch) return "err.phase";
-                    if (Array.IndexOf(LaunchSpeeds, c.N) < 0) return "err.unknown";
-                    s.LaunchSpeed = c.N;
-                    return Ok;
-                case CommandType.SkipLaunch:
-                    if (s.Phase != SessionPhase.Launch) return "err.phase";
-                    s.LaunchSkipped = true;
                     return Ok;
                 case CommandType.FinishLaunch:
                     if (s.Phase != SessionPhase.Launch) return "err.phase";
@@ -510,8 +499,6 @@ namespace GoNoGo.Core
         static string Launch(SessionState s, GameData data)
         {
             if (s.Phase != SessionPhase.Design) return "err.phase";
-            s.LaunchSpeed = 1;
-            s.LaunchSkipped = false;
             var design = s.Bench.Clone();
             int failed = s.FailedLaunches;
             int seed = design.StableHash();
