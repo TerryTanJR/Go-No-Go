@@ -16,6 +16,7 @@ namespace GoNoGo.UI
         protected override void Build()
         {
             Sfx.SetAmbience(Sfx.Ambience.ControlRoom);
+            Sfx.SetMusic(Sfx.Music.Menu);
             GameSession.EnsureMission();
             var r = M.Result;
             if (r == null)
@@ -27,7 +28,7 @@ namespace GoNoGo.UI
             var l = M.S.LastLaunch;
             var ev = Evaluator.EvaluateDesign(l.Design, D);
 
-            TopBar(Loc.T(M.Scenario.Name));
+            TopBar(Loc.T(M.Scenario.Name), showLang: false); // 語言在 Tab 選單的基本設定
             var wrap = Ui.El("report-wrap").AddTo(Root);
 
             // ---- 左欄：印章、分數、處室需求 ----
@@ -146,7 +147,7 @@ namespace GoNoGo.UI
             }
 
             var actions = Ui.Row("report-actions").AddTo(Root);
-            Ui.Btn(Loc.T("ui.report.to_menu"), () => GameSession.EndMission(), "btn-ghost").AddTo(actions);
+            Ui.Btn(Loc.T("ui.report.to_menu"), () => GameSession.EndMission(), "btn-big").AddTo(actions);
             Ui.Spacer().AddTo(actions);
             if (!M.S.Multiplayer && !M.S.Tutorial)
             {

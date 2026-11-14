@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using GoNoGo.Core;
 using GoNoGo.Game;
+using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 namespace GoNoGo.UI
@@ -14,41 +16,170 @@ namespace GoNoGo.UI
     //   南座（在右）：5 設計規則、6 異常判讀、7 處置程序、8 太空天氣
     // 前排設計組的「manual」席是目錄：每章在哪一席、零件代號在第幾章。
 
-    /// <summary>後排一席 = 手冊的一章。chapter 為 null 時（組裝區、不嚴格分工）左邊有章節導覽，可以翻全部。</summary>
+    /// <summary>
+    /// 後排一席 = 手冊的一章，做成一本書：一頁一個主題，← → 或下方按鈕翻頁，翻頁時舊的那頁折向書脊。
+    /// 第一次打開時封面翻開。每章有自己的顏色（書脊、封面、標題、圖表），看一眼就知道翻到哪一章。
+    /// chapter 為 null 時（組裝區、不嚴格分工）上方有每章的書籤，可以翻全部，翻到一章最後一頁再往後就到下一章。
+    /// </summary>
     public sealed class ManualPanel : FacPanel
     {
+        const long FlipMs = 420;
+
         readonly string _fixed;
         static string _browse = ManualView.Chapters[0];
+        /// <summary>每章翻到第幾頁（關掉再打開還在同一頁）。</summary>
+        static readonly Dictionary<string, int> PageOf = new Dictionary<string, int>();
+
+        bool _opened;
+        // 等著播的翻頁：從哪一章第幾頁翻過來、方向（+1 往後、-1 往前）
+        string _fromCh;
+        int _fromPage = -1, _dir;
 
         public ManualPanel(string chapter = null) { _fixed = chapter; }
 
         public override string Title => _fixed != null ? Loc.T("ui.manual.ch." + _fixed) : Loc.T("ui.manual.title");
         public override string WideClass => "modal--manual";
 
+        string Ch => _fixed ?? _browse;
+        static int PageIn(string ch) => PageOf.TryGetValue(ch, out var p) ? p : 0;
+
         protected override void Build(VisualElement body)
         {
-            if (_fixed != null)
+            body.parent?.AddToClassList("modal--book");
+            string ch = Ch;
+            int count = ManualView.Pages(ch).Count;
+            int page = PageOf[ch] = Math.Clamp(PageIn(ch), 0, count - 1);
+
+            var book = Ui.El("book", "book--" + ch).AddTo(body);
+            if (_fixed == null)
             {
-                ManualView.Header(body, _fixed);
-                ManualView.Build(Scroll(body, "man-scroll"), _fixed);
+                var tabs = Ui.Row("book-tabs").AddTo(book);
+                foreach (var c in ManualView.Chapters)
+                {
+                    var cc = c;
+                    var t = Ui.Btn("", () => GoChapter(cc), "book-tab", "book--" + c).Cls("book-tab--on", c == ch).AddTo(tabs);
+                    t.Clear();
+                    Ui.Text(ManualView.Number(c).ToString(), "book-tab-num", "mono").AddTo(t);
+                    Ui.Text(Loc.T("ui.manual.name." + c), "book-tab-name").AddTo(t);
+                }
+            }
+
+            var spread = Ui.Row("book-spread").AddTo(book);
+            var spine = Ui.El("book-spine").AddTo(spread);
+            Ui.Text(ManualView.Number(ch).ToString(), "book-spine-num", "mono").AddTo(spine);
+            var sheet = Ui.El("book-sheet").AddTo(spread);
+            ManualView.PageHead(sheet, ch, _fixed != null);
+            var host = Ui.El("book-page").AddTo(sheet);
+
+            // 往前翻：底下先放舊的那頁，新的一頁從書脊翻出來蓋上；往後翻：底下是新頁，舊頁折向書脊
+            bool flip = _fromPage >= 0;
+            bool back = flip && _dir < 0;
+            var under = Scroll(host, "book-scroll");
+            under.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+            if (back) ManualView.RenderPage(under, _fromCh, _fromPage);
+            else ManualView.RenderPage(under, ch, page);
+            if (flip) Leaf(host, back ? ch : _fromCh, back ? page : _fromPage, back);
+            _fromPage = -1;
+
+            var foot = Ui.Row("book-foot").AddTo(sheet);
+            var prev = Ui.Btn("‹  " + Loc.T("ui.manual.prev"), () => Flip(-1), "book-turn").AddTo(foot);
+            prev.SetEnabled(page > 0 || (_fixed == null && Array.IndexOf(ManualView.Chapters, ch) > 0));
+            Ui.Spacer().AddTo(foot);
+            var dots = Ui.Row("book-dots").AddTo(foot);
+            for (int i = 0; i < count; i++) Ui.El("book-dot").Cls("book-dot--on", i == page).AddTo(dots);
+            Ui.Text(Loc.T("ui.manual.page", ("n", page + 1), ("total", count)), "book-pageno", "mono").AddTo(foot);
+            Ui.Spacer().AddTo(foot);
+            var next = Ui.Btn(Loc.T("ui.manual.next") + "  ›", () => Flip(1), "book-turn").AddTo(foot);
+            next.SetEnabled(page < count - 1 || (_fixed == null && Array.IndexOf(ManualView.Chapters, ch) < ManualView.Chapters.Length - 1));
+
+            if (!_opened)
+            {
+                _opened = true;
+                Cover(spread, ch);
+            }
+        }
+
+        /// <summary>翻頁的那一張紙：蓋在頁面上，以書脊（左邊）為軸縮成一條線，越翻越暗。</summary>
+        void Leaf(VisualElement host, string ch, int page, bool comingIn)
+        {
+            var leaf = Ui.El("book-leaf").AddTo(host);
+            leaf.pickingMode = PickingMode.Ignore;
+            var inner = Ui.El("book-leaf-inner").AddTo(leaf);
+            inner.pickingMode = PickingMode.Ignore;
+            ManualView.RenderPage(inner, ch, page);
+            Ui.El("book-leaf-shade").AddTo(leaf).pickingMode = PickingMode.Ignore;
+            if (comingIn)
+            {
+                leaf.AddToClassList("book-leaf--turned");
+                leaf.schedule.Execute(() => leaf.RemoveFromClassList("book-leaf--turned")).StartingIn(16);
+                // 翻完：重畫一次，底下換成新的一頁
+                leaf.schedule.Execute(() => { if (Body != null) Refresh(); }).StartingIn(FlipMs);
+            }
+            else
+            {
+                Ui.AnimateIn(leaf, "book-leaf--turned");
+                leaf.schedule.Execute(() => leaf.RemoveFromHierarchy()).StartingIn(FlipMs);
+            }
+        }
+
+        /// <summary>第一次打開：章節顏色的封面停一下，再往左翻開。</summary>
+        static void Cover(VisualElement spread, string ch)
+        {
+            var cover = Ui.El("book-cover").AddTo(spread);
+            cover.pickingMode = PickingMode.Ignore;
+            Ui.Text(Loc.T("ui.manual.title"), "book-cover-kicker").AddTo(cover);
+            Ui.Text(ManualView.Number(ch).ToString(), "book-cover-num", "mono").AddTo(cover);
+            Ui.Text(Loc.T("ui.manual.name." + ch), "book-cover-name").AddTo(cover);
+            cover.schedule.Execute(() => { Sfx.Page(); cover.AddToClassList("book-cover--open"); }).StartingIn(260);
+            cover.schedule.Execute(() => cover.RemoveFromHierarchy()).StartingIn(260 + 700);
+        }
+
+        void Flip(int dir)
+        {
+            string ch = Ch;
+            int count = ManualView.Pages(ch).Count;
+            int page = PageIn(ch), to = page + dir;
+            if (to >= 0 && to < count)
+            {
+                Turn(ch, page, dir);
+                PageOf[ch] = to;
+                Refresh();
                 return;
             }
-            var wrap = Ui.Row("man-wrap").AddTo(body);
-            var nav = Ui.El("man-nav").AddTo(wrap);
-            string group = null;
-            foreach (var ch in ManualView.Chapters)
-            {
-                string g = ManualView.IsParts(ch) ? "ui.manual.group.parts" : "ui.manual.group.ops";
-                if (g != group) { Ui.Text(Loc.T(g), "eyebrow", "man-nav-group").AddTo(nav); group = g; }
-                var c = ch;
-                var b = Ui.Btn("", () => { _browse = c; Sfx.Click(); Refresh(); }, "man-nav-item").Cls("man-nav-item--on", ch == _browse).AddTo(nav);
-                b.Clear();
-                Ui.Text(ManualView.Number(ch).ToString(), "man-nav-num", "mono").AddTo(b);
-                Ui.Text(Loc.T("ui.manual.name." + ch), "man-nav-name").AddTo(b);
-            }
-            var right = Ui.El("man-main").AddTo(wrap);
-            ManualView.Header(right, _browse, false);
-            ManualView.Build(Scroll(right, "man-scroll"), _browse);
+            // 翻過頭：瀏覽模式接到上一章的最後一頁／下一章的第一頁
+            if (_fixed != null) return;
+            int ci = Array.IndexOf(ManualView.Chapters, ch) + dir;
+            if (ci < 0 || ci >= ManualView.Chapters.Length) return;
+            var next = ManualView.Chapters[ci];
+            Turn(ch, page, dir);
+            PageOf[next] = dir > 0 ? 0 : ManualView.Pages(next).Count - 1;
+            _browse = next;
+            Refresh();
+        }
+
+        void GoChapter(string c)
+        {
+            if (c == _browse) return;
+            int dir = Array.IndexOf(ManualView.Chapters, c) > Array.IndexOf(ManualView.Chapters, _browse) ? 1 : -1;
+            Turn(_browse, PageIn(_browse), dir);
+            _browse = c;
+            Refresh();
+        }
+
+        void Turn(string ch, int page, int dir)
+        {
+            _fromCh = ch;
+            _fromPage = page;
+            _dir = dir;
+            Sfx.Page();
+        }
+
+        public override void Tick(float dt)
+        {
+            var kb = Keyboard.current;
+            if (kb == null || Body == null || UIRoot.IsTyping) return;
+            if (kb.rightArrowKey.wasPressedThisFrame || kb.dKey.wasPressedThisFrame || kb.pageDownKey.wasPressedThisFrame) Flip(1);
+            else if (kb.leftArrowKey.wasPressedThisFrame || kb.aKey.wasPressedThisFrame || kb.pageUpKey.wasPressedThisFrame) Flip(-1);
         }
     }
 
@@ -117,36 +248,142 @@ namespace GoNoGo.UI
             _ => new string[0],
         };
 
-        /// <summary>章節的標題列：大章號、章名、在哪一席，下面一段閱讀說明。</summary>
-        public static void Header(VisualElement parent, string ch, bool showSeat = true)
+        /// <summary>每章的顏色（書脊、封面、圖表），和 Theme.uss 的 .book--章 一致。</summary>
+        public static Color ChapterColor(string ch) => ch switch
         {
-            var head = Ui.Row("man-head").AddTo(parent);
-            Ui.Text(Number(ch).ToString(), "man-num", "man-num--big", "mono").AddTo(head);
-            var col = Ui.El("man-head-text").AddTo(head);
-            Ui.Text(Loc.T("ui.manual.chapter", ("n", Number(ch))), "eyebrow").AddTo(col);
-            Ui.Text(Loc.T("ui.manual.name." + ch), "h2").AddTo(col);
+            "payload" => new Color(0.71f, 0.55f, 1f),
+            "power" => new Color(1f, 0.72f, 0.28f),
+            "comms" => new Color(0.22f, 0.78f, 0.96f),
+            "avionics" => new Color(0.24f, 0.86f, 0.52f),
+            "rules" => new Color(0.42f, 0.62f, 1f),
+            "diagnose" => new Color(1f, 0.42f, 0.45f),
+            "procedures" => new Color(1f, 0.62f, 0.26f),
+            _ => new Color(0.95f, 0.41f, 0.88f),
+        };
+
+        /// <summary>書頁上方的一行：第幾章、章名、在後排哪一席。</summary>
+        public static void PageHead(VisualElement parent, string ch, bool showSeat)
+        {
+            var head = Ui.Row("book-head").AddTo(parent);
+            Ui.Text(Loc.T("ui.manual.chapter", ("n", Number(ch))), "eyebrow", "book-head-ch").AddTo(head);
+            Ui.Text(Loc.T("ui.manual.name." + ch), "book-head-name").AddTo(head);
             Ui.Spacer().AddTo(head);
             if (showSeat)
                 Ui.Text(Loc.T("ui.manual.side." + Side(ch)) + " · " + Loc.T("ui.manual.seat", ("n", Seat(ch))), "man-head-seat").AddTo(head);
-            Ui.Text(Loc.T("ui.manual.intro." + ch), "body", "man-intro").AddTo(parent);
         }
 
-        public static void Build(VisualElement parent, string ch)
+        /// <summary>書的一頁：第一頁前面多一段這一章怎麼讀。</summary>
+        public static void RenderPage(VisualElement parent, string ch, int page)
         {
+            var pages = Pages(ch);
+            page = Math.Clamp(page, 0, pages.Count - 1);
+            if (page == 0) Ui.Text(Loc.T("ui.manual.intro." + ch), "body", "man-intro").AddTo(parent);
+            pages[page](parent);
+        }
+
+        /// <summary>
+        /// 一章拆成幾頁：零件章第一頁是比較圖、之後一類零件一頁；規則四張一頁、快查表一頁；
+        /// 異常判讀先對照表再徵兆；太空天氣先時間軸、再六張一頁。
+        /// </summary>
+        public static List<Action<VisualElement>> Pages(string ch)
+        {
+            var pages = new List<Action<VisualElement>>();
             if (IsParts(ch))
             {
-                foreach (var cat in CategoriesOf(ch)) PartsSection(parent, cat, true);
-                if (ch == "comms") GroundStations(parent);
-                Ui.Text(Loc.T("ui.manual.bar_legend"), "small", "faint", "man-legend").AddTo(parent);
-                return;
+                pages.Add(p => Overview(p, ch));
+                foreach (var cat in CategoriesOf(ch))
+                {
+                    var c = cat;
+                    if (ShelfOf(c).Count == 0) continue;
+                    pages.Add(p => { PartsSection(p, c, true); Ui.Text(Loc.T("ui.manual.bar_legend"), "small", "faint", "man-legend").AddTo(p); });
+                }
+                if (ch == "comms") pages.Add(GroundStations);
+                return pages;
             }
             switch (ch)
             {
-                case "rules": Rules(parent); break;
-                case "diagnose": Diagnose(parent); break;
-                case "procedures": ProceduresView(parent); break;
-                default: Donki(parent); break;
+                case "rules":
+                    var rules = RuleItems();
+                    for (int i = 0; i < rules.Count; i += 4)
+                    {
+                        int from = i;
+                        pages.Add(p => RuleCards(p, rules, from, 4));
+                    }
+                    if (HasOrbits) pages.Add(QuickOrbits);
+                    if (HasLinkTables) pages.Add(QuickLinks);
+                    break;
+                case "diagnose":
+                    pages.Add(Matrix);
+                    pages.Add(Signs);
+                    break;
+                case "procedures":
+                    pages.Add(ProceduresView);
+                    break;
+                default:
+                    pages.Add(DonkiTimeline);
+                    int n = GameSession.Data.SpaceWeather.Count;
+                    for (int i = 0; i < n; i += 6)
+                    {
+                        int from = i;
+                        pages.Add(p => DonkiCards(p, from, 6));
+                    }
+                    break;
             }
+            return pages;
+        }
+
+        /// <summary>整章接在一起（平板的捲動版）。</summary>
+        public static void Build(VisualElement parent, string ch)
+        {
+            foreach (var page in Pages(ch)) page(parent);
+        }
+
+        static List<PartDef> ShelfOf(string cat) =>
+            SessionRules.ShelfParts(GameSession.Data, GameSession.Mission.S).Where(x => x.Category == cat).ToList();
+
+        // ---------------------------------------------------------------- 零件章第一頁：比較圖
+
+        /// <summary>每類零件一張散布圖：橫軸成本、縱軸這類的關鍵數值。船上裝的那個是綠點。</summary>
+        static void Overview(VisualElement parent, string ch)
+        {
+            Legend(parent, Loc.T("ui.manual.chart.intro"), "dim", "man-legend");
+            var row = Ui.Row("mchart-row").AddTo(parent);
+            var installed = new HashSet<string>(GameSession.Mission.S.Reported.AllPartIds());
+            var color = ChapterColor(ch);
+            foreach (var cat in CategoriesOf(ch))
+            {
+                var parts = ShelfOf(cat);
+                if (parts.Count == 0) continue;
+                var key = Stats(parts[0]).First();
+                var box = Ui.El("mchart-box").AddTo(row);
+                Ui.Text(Loc.T("ui.cat." + cat), "h3").AddTo(box);
+                string unit = KeyUnit(key);
+                var chart = new ScatterChart(Loc.T("ui.mspec.cost"), Loc.T("ui.mspec." + key.Key),
+                    v => v > 0 && v < 0.1f ? "$" + Fmt.N(v * 1000, 0) + "K" : Fmt.Money(v), v => Fmt.N(v, v < 10 ? 1 : 0) + unit, color);
+                foreach (var part in parts)
+                {
+                    var k = Stats(part).First();
+                    chart.AddPoint((float)part.CostMusd, (float)k.Raw, part.Code, installed.Contains(part.Id));
+                }
+                box.Add(chart);
+                Legend(box, Loc.T(key.Better ? "ui.manual.chart.up" : "ui.manual.chart.down", ("stat", Loc.T("ui.mspec." + key.Key))), "faint");
+                Ui.Text(Loc.T(key.Better ? "ui.manual.chart.corner_up" : "ui.manual.chart.corner_down"), "small", "mchart-corner").AddTo(box);
+            }
+        }
+
+        /// <summary>一排短標籤（字串用 | 分開），各自一塊、空間不夠整塊換行，不會在詞中間斷開。</summary>
+        static void Legend(VisualElement parent, string text, params string[] cls)
+        {
+            var row = Ui.Row("mlegend").AddTo(parent);
+            foreach (var c in cls) row.AddToClassList(c);
+            foreach (var part in text.Split('|')) Ui.Text(part.Trim(), "small", "mlegend-item").AddTo(row);
+        }
+
+        /// <summary>關鍵數值的單位（從格式化好的字串取空白後面那段）。</summary>
+        static string KeyUnit(Stat s)
+        {
+            int i = s.Value.LastIndexOf(' ');
+            return i > 0 ? " " + s.Value.Substring(i + 1) : "";
         }
 
         /// <summary>四章零件規格接在一起（平板用）。</summary>
@@ -185,7 +422,7 @@ namespace GoNoGo.UI
                 var card = Ui.El("man-card").Cls("man-card--on", numbers && installed.Contains(p.Id)).AddTo(grid);
                 var top = Ui.Row("man-card-top").AddTo(card);
                 Ui.Text(p.Code, "man-code", "mono").AddTo(top);
-                Ui.Text(Loc.T(p.Name), "man-card-name").AddTo(top);
+                Named(top, Loc.T(p.Name), "man-card-name");
                 var badges = Ui.Row("man-badges").AddTo(card);
                 if (numbers && installed.Contains(p.Id)) Badge(badges, "ui.manual.installed", "man-badge--on");
                 if (p.Redundant) Badge(badges, "ui.manual.redundant", null);
@@ -296,7 +533,7 @@ namespace GoNoGo.UI
             {
                 var card = Ui.El("man-card").AddTo(grid);
                 var top = Ui.Row("man-card-top").AddTo(card);
-                Ui.Text(Loc.T(g.Name), "man-card-name").AddTo(top);
+                Named(top, Loc.T(g.Name), "man-card-name");
                 var kf = Ui.Row("man-key").AddTo(card);
                 Ui.Text(Fmt.N(g.Stations), "man-key-v", "mono").AddTo(kf);
                 Ui.Text(Loc.T("ui.mspec.stations"), "small", "dim", "man-key-k").AddTo(kf);
@@ -324,11 +561,13 @@ namespace GoNoGo.UI
 
         static bool FireMission => GameSession.Mission?.Scenario?.FireAlert ?? false;
 
-        static void Rules(VisualElement parent)
+        static List<(string rule, string dash)> RuleItems() => (FireMission ? RuleList.Concat(FireRuleList) : RuleList).ToList();
+
+        static void RuleCards(VisualElement parent, List<(string rule, string dash)> rules, int from, int count)
         {
             var grid = Ui.El("man-rules").AddTo(parent);
-            int i = 0;
-            foreach (var (k, dash) in FireMission ? RuleList.Concat(FireRuleList) : RuleList)
+            int i = from;
+            foreach (var (k, dash) in rules.Skip(from).Take(count))
             {
                 var c = Ui.El("man-rule").AddTo(grid);
                 var head = Ui.Row("man-rule-head").AddTo(c);
@@ -339,7 +578,6 @@ namespace GoNoGo.UI
                 Ui.Text(Loc.T("ui.manual.check_on"), "small", "faint").AddTo(check);
                 Ui.Text(Loc.T(dash), "man-chip").AddTo(check);
             }
-            QuickTables(parent);
         }
 
         // ---------------------------------------------------------------- 快查表
@@ -348,18 +586,47 @@ namespace GoNoGo.UI
         /// 中控室試算用的快查表。儀表板（組裝區）只看得到船上現在的數字，換零件之前要靠這些表推算。
         /// 每張表只有一個變數；組合起來（例如這條軌道 × 這個負載要多大電池）留給玩家。
         /// </summary>
-        static void QuickTables(VisualElement parent)
+        static List<OrbitDef> Orbits => GameSession.Data.OrbitsFor(GameSession.Mission.Scenario).ToList();
+        static bool HasOrbits => Orbits.Count > 0;
+        static List<PartDef> Antennas => SessionRules.ShelfParts(GameSession.Data, GameSession.Mission.S).Where(p => p.Category == PartCategory.Antenna).OrderBy(p => p.Tier).ToList();
+        static List<OrbitDef> PassOrbits => Orbits.Where(o => o.ContactFraction <= 0).ToList();
+        static bool HasLinkTables => Antennas.Count > 0 && PassOrbits.Count > 0;
+
+        static double Period(OrbitDef o)
         {
-            var m = GameSession.Mission;
-            var data = GameSession.Data;
-            var k = data.Constants;
-            var orbits = data.OrbitsFor(m.Scenario).ToList();
-            if (orbits.Count == 0) return;
+            var k = GameSession.Data.Constants;
+            return OrbitMath.PeriodMinutes(o.AltitudeKm, o.Body == "moon" ? k.MoonRadiusKm : k.EarthRadiusKm, o.Body == "moon" ? k.MoonMuKm3S2 : k.EarthMuKm3S2);
+        }
+
+        static double EclipseFraction(OrbitDef o)
+        {
+            var k = GameSession.Data.Constants;
+            return OrbitMath.EclipseFraction(o.AltitudeKm, o.Body == "moon" ? k.MoonRadiusKm : k.EarthRadiusKm, o.BetaDeg);
+        }
+
+        static double Eclipse(OrbitDef o) => Period(o) * EclipseFraction(o);
+
+        /// <summary>快查表第一頁：每條軌道一個日照／地影圓環，下面是軌道表和電池表。</summary>
+        static void QuickOrbits(VisualElement parent)
+        {
+            var k = GameSession.Data.Constants;
+            var orbits = Orbits;
             Ui.Text(Loc.T("ui.manual.quick"), "eyebrow", "man-sec").AddTo(parent);
             Ui.Text(Loc.T("ui.manual.quick_hint"), "small", "dim").AddTo(parent);
 
-            double Period(OrbitDef o) => OrbitMath.PeriodMinutes(o.AltitudeKm, o.Body == "moon" ? k.MoonRadiusKm : k.EarthRadiusKm, o.Body == "moon" ? k.MoonMuKm3S2 : k.EarthMuKm3S2);
-            double Eclipse(OrbitDef o) => Period(o) * OrbitMath.EclipseFraction(o.AltitudeKm, o.Body == "moon" ? k.MoonRadiusKm : k.EarthRadiusKm, o.BetaDeg);
+            var rings = Ui.Row("mring-row").AddTo(parent);
+            foreach (var o in orbits)
+            {
+                var cell = Ui.El("mring-cell").AddTo(rings);
+                cell.Add(new OrbitRing((float)EclipseFraction(o), Fmt.N(Eclipse(o), 1), Loc.T("ui.manual.ring.eclipse")));
+                Named(cell, Loc.T(o.Name), "mring-name");
+                Ui.Text(Loc.T("ui.manual.ring.period", ("min", Fmt.N(Period(o)))), "small", "faint").AddTo(cell);
+            }
+            var legend = Ui.Row("mring-legend").AddTo(parent);
+            Ui.El("mring-swatch", "mring-swatch--sun").AddTo(legend);
+            Ui.Text(Loc.T("ui.manual.ring.sun"), "small", "dim").AddTo(legend);
+            Ui.El("mring-swatch", "mring-swatch--shadow").AddTo(legend);
+            Ui.Text(Loc.T("ui.manual.ring.shadow"), "small", "dim").AddTo(legend);
 
             // 1. 軌道：每圈多久、地影多長、每座地面站每天過站幾次
             var t1 = Table(parent, "ui.manual.q.orbits", new[] { "ui.manual.q.period", "ui.manual.q.eclipse", "ui.manual.q.passes" });
@@ -374,10 +641,17 @@ namespace GoNoGo.UI
                 double wh = 10 * Eclipse(o) / 60 / k.BatteryEfficiency;
                 TableRow(t2, Loc.T(o.Name), Fmt.N(wh, 1) + " Wh", Fmt.N(wh / o.BatteryDod, 1) + " Wh (" + Fmt.Pct(o.BatteryDod) + ")");
             }
+        }
 
+        /// <summary>快查表第二頁：天線每次過站能傳多少、野火關卡的地面站等待時間。</summary>
+        static void QuickLinks(VisualElement parent)
+        {
+            var m = GameSession.Mission;
+            var data = GameSession.Data;
+            var k = data.Constants;
+            var antennas = Antennas;
+            var passOrbits = PassOrbits;
             // 3. 天線：每次過站能傳多少資料（依軌道的過站時間）
-            var antennas = SessionRules.ShelfParts(data, m.S).Where(p => p.Category == PartCategory.Antenna).OrderBy(p => p.Tier).ToList();
-            var passOrbits = orbits.Where(o => o.ContactFraction <= 0).ToList();
             if (antennas.Count > 0 && passOrbits.Count > 0)
             {
                 var t3 = Table(parent, "ui.manual.q.downlink", passOrbits.Select(o => Loc.T(o.Name)).ToArray(), raw: true);
@@ -397,20 +671,36 @@ namespace GoNoGo.UI
             }
         }
 
+        /// <summary>
+        /// 名稱和括號裡的規格分兩行（「展開式太陽能翼」／「1.2 m²」），不會在括號中間斷行。
+        /// cls 掛在外框上，字級和顏色由兩行繼承；沒有括號就是一個 Label。
+        /// </summary>
+        static VisualElement Named(VisualElement parent, string full, params string[] cls)
+        {
+            int i = full.IndexOf('（');
+            if (i < 0) i = full.IndexOf(" (", StringComparison.Ordinal);
+            if (i <= 0) return Ui.Text(full, cls).AddTo(parent);
+            var box = Ui.El("named").AddTo(parent);
+            foreach (var c in cls) box.AddToClassList(c);
+            Ui.Text(full.Substring(0, i).Trim(), "named-main").AddTo(box);
+            Ui.Text(full.Substring(i).Trim().Trim('（', '）', '(', ')', ' '), "named-sub", "mono").AddTo(box);
+            return box;
+        }
+
         static VisualElement Table(VisualElement parent, string titleKey, string[] cols, bool raw = false)
         {
             var box = Ui.El("man-qt").AddTo(parent);
             Ui.Text(Loc.T(titleKey), "h3").AddTo(box);
             var head = Ui.Row("man-mx-row", "man-mx-row--head").AddTo(box);
             Ui.Text("", "man-mx-event").AddTo(head);
-            foreach (var c in cols) Ui.Text(raw ? c : Loc.T(c), "man-mx-cell").AddTo(head);
+            foreach (var c in cols) Named(head, raw ? c : Loc.T(c), "man-mx-cell");
             return box;
         }
 
         static void TableRow(VisualElement table, string name, params string[] cells)
         {
             var row = Ui.Row("man-mx-row").AddTo(table);
-            Ui.Text(name, "man-mx-event").AddTo(row);
+            Named(row, name, "man-mx-event");
             foreach (var c in cells) Ui.Text(c, "man-mx-cell", "mono").AddTo(row);
         }
 
@@ -420,7 +710,7 @@ namespace GoNoGo.UI
         // 最後兩欄（火點儀、長波熱紅外線）只在野火關卡顯示
         static readonly string[] Signals = { "radiation", "battery", "solar", "parts", "alert", "mwir", "lwir" };
         const int BaseSignals = 5;
-        static readonly Dictionary<EventKind, string[]> Matrix = new Dictionary<EventKind, string[]>
+        static readonly Dictionary<EventKind, string[]> SignMatrix = new Dictionary<EventKind, string[]>
         {
             { EventKind.SolarStorm, new[] { "up2", "", "down", "", "", "", "" } },
             { EventKind.PartFailure, new[] { "", "", "", "fault", "", "", "" } },
@@ -438,7 +728,7 @@ namespace GoNoGo.UI
             return OpsEvents.All.Where(k => !OpsEvents.IsFire(k)).ToList();
         }
 
-        static void Diagnose(VisualElement parent)
+        static void Matrix(VisualElement parent)
         {
             Ui.Text(Loc.T("ui.manual.matrix"), "eyebrow", "man-sec").AddTo(parent);
             var table = Ui.El("man-matrix").AddTo(parent);
@@ -451,7 +741,7 @@ namespace GoNoGo.UI
             {
                 var row = Ui.Row("man-mx-row").AddTo(table);
                 Ui.Text(Loc.T("event.title." + OpsEvents.Key(k)), "man-mx-event").AddTo(row);
-                var vals = Matrix.TryGetValue(k, out var v) ? v : new string[Signals.Length];
+                var vals = SignMatrix.TryGetValue(k, out var v) ? v : new string[Signals.Length];
                 foreach (var x in vals.Take(cols))
                 {
                     var cell = Ui.El("man-mx-cell").AddTo(row);
@@ -460,7 +750,11 @@ namespace GoNoGo.UI
                 }
             }
             Ui.Text(Loc.T("ui.manual.matrix_hint"), "small", "faint", "man-legend").AddTo(parent);
+        }
 
+        static void Signs(VisualElement parent)
+        {
+            var events = Events();
             Ui.Text(Loc.T("ui.manual.signs"), "eyebrow", "man-sec").AddTo(parent);
             var grid = Ui.El("man-rules").AddTo(parent);
             foreach (var k in events)
@@ -511,10 +805,27 @@ namespace GoNoGo.UI
 
         // ---------------------------------------------------------------- 太空天氣（DONKI）
 
-        static void Donki(VisualElement parent)
+        /// <summary>第一頁：照日期排的時間軸，長條高度是嚴重程度，顏色是類型。</summary>
+        static void DonkiTimeline(VisualElement parent)
+        {
+            Ui.Text(Loc.T("ui.manual.timeline"), "eyebrow", "man-sec").AddTo(parent);
+            var items = GameSession.Data.SpaceWeather.OrderBy(x => x.Date)
+                .Select(x => new StormTimeline.Item { Date = x.Date, Type = x.Type, Severity = x.Severity }).ToList();
+            parent.Add(new StormTimeline(items));
+            var legend = Ui.Row("mring-legend").AddTo(parent);
+            foreach (var t in new[] { "FLR", "CME", "GST" })
+            {
+                var sw = Ui.El("mring-swatch").AddTo(legend);
+                sw.style.backgroundColor = StormTimeline.TypeColor(t);
+                Ui.Text(Loc.T("ui.manual.sw." + t), "small", "dim").AddTo(legend);
+            }
+            Ui.Text(Loc.T("ui.manual.timeline_hint"), "small", "faint", "man-legend").AddTo(parent);
+        }
+
+        static void DonkiCards(VisualElement parent, int from, int count)
         {
             var grid = Ui.El("man-rules").AddTo(parent);
-            foreach (var e in GameSession.Data.SpaceWeather.OrderByDescending(x => x.Severity).ThenByDescending(x => x.Date))
+            foreach (var e in GameSession.Data.SpaceWeather.OrderByDescending(x => x.Severity).ThenByDescending(x => x.Date).Skip(from).Take(count))
             {
                 var c = Ui.El("man-rule", "man-storm", "man-storm--" + Math.Clamp(e.Severity, 1, 3)).AddTo(grid);
                 var head = Ui.Row("man-rule-head").AddTo(c);

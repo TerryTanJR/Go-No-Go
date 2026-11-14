@@ -15,7 +15,8 @@ namespace GoNoGo.Presentation
         public float idleSwing = 28f;
 
         AvatarRig _rig;
-        float _yaw = 180f, _drag, _pop, _t;
+        float _yaw = 180f, _drag, _vel, _swing = 1f, _pop, _t;
+        bool _dragging;
 
         void OnEnable()
         {
@@ -41,18 +42,42 @@ namespace GoNoGo.Presentation
         void Update()
         {
             var mouse = Mouse.current;
-            bool drag = mouse != null && mouse.leftButton.isPressed && mouse.position.ReadValue().x > Screen.width * 0.55f
-                        && (PointerHooks.OverUI == null || !PointerHooks.OverUI(mouse.position.ReadValue()));
-            // 拖曳時自由轉；放開後慢慢回到正面，左右輕輕擺
-            _t += Time.deltaTime;
-            if (drag) _drag += -mouse.delta.ReadValue().x * 0.4f;
-            else _drag = Mathf.LerpAngle(_drag, 0f, Time.deltaTime * 1.5f);
-            _yaw = 180f + Mathf.Sin(_t * 0.45f) * idleSwing + _drag;
+            float dt = Time.unscaledDeltaTime;
+            // 按下時就要在右半邊且不在 UI 上；之後不管滑鼠拖到哪都算拖曳，直到放開
+            if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+            {
+                var p = mouse.position.ReadValue();
+                _dragging = p.x > Screen.width * 0.55f && (PointerHooks.OverUI == null || !PointerHooks.OverUI(p));
+                _vel = 0f;
+            }
+            if (mouse == null || !mouse.leftButton.isPressed) _dragging = false;
+
+            _t += dt;
+            if (_dragging)
+            {
+                float d = -mouse.delta.ReadValue().x * 0.35f;
+                _drag += d;
+                _vel = Mathf.Lerp(_vel, d / Mathf.Max(dt, 1e-4f), 1f - Mathf.Exp(-20f * dt));
+            }
+            else
+            {
+                // 放開：先帶一點慣性，再順順地回正面（用最短方向，不會瞬間跳）
+                _drag += _vel * dt;
+                _vel *= Mathf.Exp(-5f * dt);
+                if (Mathf.Abs(_vel) < 5f)
+                {
+                    _drag = Mathf.Repeat(_drag + 180f, 360f) - 180f;
+                    _drag = Mathf.Lerp(_drag, 0f, 1f - Mathf.Exp(-2.5f * dt));
+                }
+            }
+            // 拖曳時暫停擺動（不然會跟手打架），放開後慢慢恢復
+            _swing = Mathf.Lerp(_swing, _dragging ? 0f : 1f, 1f - Mathf.Exp(-4f * dt));
+            _yaw = 180f + Mathf.Sin(_t * 0.45f) * idleSwing * _swing + _drag;
             transform.localRotation = Quaternion.Euler(0, _yaw, 0);
 
             if (_rig != null)
             {
-                _pop = Mathf.MoveTowards(_pop, 0, Time.deltaTime * 3f);
+                _pop = Mathf.MoveTowards(_pop, 0, dt * 3f);
                 float k = 1f + Mathf.Sin(_pop * Mathf.PI) * 0.08f;
                 _rig.transform.localScale = Vector3.one * scale * k;
             }

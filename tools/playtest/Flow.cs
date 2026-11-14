@@ -204,7 +204,7 @@ public static class Flow
         Hud.FirstPerson = true;
         pc.Teleport(new Vector3(stand.x, y + 0.05f, stand.z), Quaternion.LookRotation(-outward).eulerAngles.y);
         await Frames(4);
-        var eye = pc.transform.position + Vector3.up * 1.0f;
+        var eye = pc.Eye;
         var d = c - eye;
         float yaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;
         float pitch = -Mathf.Atan2(d.y, new Vector2(d.x, d.z).magnitude) * Mathf.Rad2Deg;

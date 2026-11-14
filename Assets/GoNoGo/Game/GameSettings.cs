@@ -10,7 +10,10 @@ namespace GoNoGo.Game
     public static class GameSettings
     {
         const string MouseKey = "gonogo.mouse";
-        const string TextKey = "gonogo.textscale";
+        // 字級基準放大過一次（舊的 115% 變成現在的 100%），換一個 key，舊 key 的值換算過來
+        const string TextKey = "gonogo.textscale.v2";
+        const string OldTextKey = "gonogo.textscale";
+        const float OldTextBase = 115f;
 
         public const float MinMouse = 0.3f, MaxMouse = 2.5f;
 
@@ -41,7 +44,7 @@ namespace GoNoGo.Game
         /// <summary>字體大小（百分比，只會是 <see cref="TextScales"/> 其中之一）。</summary>
         public static int TextScale
         {
-            get => _text ??= Snap(PlayerPrefs.GetInt(TextKey, DefaultTextScale));
+            get => _text ??= Snap(PlayerPrefs.GetInt(TextKey, Migrated()));
             set
             {
                 int v = Snap(value);
@@ -50,6 +53,13 @@ namespace GoNoGo.Game
                 PlayerPrefs.SetInt(TextKey, v);
                 TextScaleChanged?.Invoke();
             }
+        }
+
+        /// <summary>舊版存的字級換成新基準的百分比（舊 115% = 新 100%）；沒存過就是預設。</summary>
+        static int Migrated()
+        {
+            if (!PlayerPrefs.HasKey(OldTextKey)) return DefaultTextScale;
+            return Mathf.RoundToInt(PlayerPrefs.GetInt(OldTextKey, (int)OldTextBase) * 100f / OldTextBase);
         }
 
         /// <summary>USS class 名稱，例如 fs-115。</summary>

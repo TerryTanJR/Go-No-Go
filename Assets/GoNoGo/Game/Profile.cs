@@ -18,7 +18,7 @@ namespace GoNoGo.Game
             get
             {
                 if (_look != null) return _look;
-                _look = new AvatarLook { Name = "Astro", Suit = 0, Helmet = 0, Visor = 2, Accessory = 1 };
+                _look = new AvatarLook { Name = "Astro", Suit = 0, Helmet = 0, Visor = 0, Accessory = 0 };
                 var s = PlayerPrefs.GetString(Key, "");
                 if (!string.IsNullOrEmpty(s))
                 {
