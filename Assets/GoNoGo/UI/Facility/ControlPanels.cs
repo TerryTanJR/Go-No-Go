@@ -94,6 +94,8 @@ namespace GoNoGo.UI
                 Loc.T("ui.dash.limit." + ev.Lifetime.Limit.ToString().ToLowerInvariant()), colors ? (ev.Lifetime.Years + 1e-9 < d.MissionYears ? "over" : "go") : null);
             Row(grid, Loc.T("ui.dash.science"), Fmt.N(ev.SciencePerYear, 1) + " / yr", Loc.T("ui.dash.instruments", ("n", d.Instruments.Count)), null);
             Row(grid, Loc.T("ui.dash.return"), Fmt.Pct(ev.Data.ReturnFraction), "", colors ? (ev.Data.ReturnFraction < 0.9 ? "tight" : "go") : null);
+            // 環境測試（組裝區做的，測的是整合台上的設計）
+            TestView.Build(grid, true);
 
             if (!compact)
             {
@@ -445,18 +447,47 @@ namespace GoNoGo.UI
 
         protected override void Build(VisualElement body)
         {
+            var s = M.S;
+            bool poll = s.Multiplayer && s.Players.Count > 1;
             Ui.Text(Loc.T("ui.launchp.question"), "h2").AddTo(body);
             Ui.Text(Loc.T("ui.launchp.body"), "body").AddTo(body);
-            if (M.S.Reports == 0) Ui.Text(Loc.T("ui.launchp.no_report"), "small", "tight").AddTo(body);
+
+            // 發射前檢查：環境測試、回報、點名
+            var gate = Ui.El("launch-gate").AddTo(body);
+            var t = s.LastTest;
+            bool current = EnvTests.IsCurrent(s);
+            if (t == null) Gate(gate, "over", Loc.T("ui.launchp.test_none"));
+            else if (!current) Gate(gate, "tight", Loc.T("ui.launchp.test_stale", ("n", t.N)));
+            else
+            {
+                var worst = new[] { t.Worst(EnvTests.Vibration), t.Worst(EnvTests.Thermal) }.Max();
+                Gate(gate, TestView.LevelClass(worst), Loc.T("ui.launchp.test_ok", ("n", t.N),
+                    ("vib", TestView.LevelText(t.Worst(EnvTests.Vibration))), ("tv", TestView.LevelText(t.Worst(EnvTests.Thermal)))));
+                if (worst != TestLevel.Pass) Ui.Text(Loc.T("ui.launchp.test_warn"), "small", "tight").AddTo(gate);
+            }
+            if (s.Reports == 0) Gate(gate, "tight", Loc.T("ui.launchp.no_report"));
+            if (poll) Gate(gate, "dim", Loc.T("ui.launchp.poll_note", ("n", s.Players.Count)));
+
+            var why = SessionRules.CanLaunch(s);
             var row = Ui.Row("modal-actions").AddTo(body);
             Ui.Btn(Loc.T("ui.launchp.cancel"), () => Close(), "btn-ghost").AddTo(row);
             Ui.Spacer().AddTo(row);
-            Ui.Btn(Loc.T("ui.launchp.go"), () =>
+            if (why != SessionRules.Ok) Ui.Text(Loc.T(why), "small", "tight", "launch-why").AddTo(row);
+            var go = Ui.Btn(Loc.T(poll ? "ui.launchp.poll" : "ui.launchp.go"), () =>
             {
-                Sfx.Go();
+                if (poll) Sfx.Alert(); else Sfx.Go();
                 Hud.Signal("launch");
                 GameSession.Send(CommandType.Launch);
+                if (poll) Close();
             }, "btn-go", "btn-big").AddTo(row);
+            go.SetEnabled(why == SessionRules.Ok);
+        }
+
+        static void Gate(VisualElement parent, string cls, string text)
+        {
+            var r = Ui.Row("gate-row").AddTo(parent);
+            Ui.El("dash-lamp", "dash-lamp--" + (cls == "dim" ? "go" : cls)).AddTo(r);
+            Ui.Text(text, "body", cls == "dim" ? "dim" : cls).AddTo(r);
         }
     }
 
@@ -536,7 +567,7 @@ namespace GoNoGo.UI
 
         protected override void Build(VisualElement body)
         {
-            Tabs(body, new[] { "ui.tablet.dashboard", "ui.manual.tab.parts", "ui.manual.tab.rules", "ui.notes.title", "ui.fail.title" }, _tab, i => { _tab = i; Refresh(); });
+            Tabs(body, new[] { "ui.tablet.dashboard", "ui.manual.tab.parts", "ui.manual.tab.rules", "ui.notes.title", "ui.fail.title", "ui.test.short" }, _tab, i => { _tab = i; Refresh(); });
             var sv = Scroll(body);
             switch (_tab)
             {
@@ -544,7 +575,8 @@ namespace GoNoGo.UI
                 case 1: ManualView.Build(sv, 0); break;
                 case 2: ManualView.Build(sv, 1); break;
                 case 3: NotesView.Build(sv, true); break;
-                default: FailureBoardView.Build(sv); break;
+                case 4: FailureBoardView.Build(sv); break;
+                default: TestView.Build(sv, false); break;
             }
             Ui.Text(Loc.T("ui.tablet.readonly"), "small", "faint").AddTo(body);
         }

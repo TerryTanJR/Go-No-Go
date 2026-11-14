@@ -11,6 +11,8 @@ namespace GoNoGo.Core
         public double T { get; set; }
         /// <summary>播報的字串鍵。</summary>
         public string Call { get; set; } = "";
+        /// <summary>第幾節（播報「第 {n} 節點火」用；Taurus 從第 0 節算起）。</summary>
+        public int N { get; set; }
         public override string ToString() => $"{Id}@{T:0}";
     }
 
@@ -136,6 +138,13 @@ namespace GoNoGo.Core
                 else if (e.Id == "deploy") e.Call = orbitId == "geo" ? "ui.launch.call.deploy_gto" : orbitId == "llo_100" ? "ui.launch.call.deploy_lunar" : "ui.launch.call.deploy";
                 else if (e.Id == "end") e.Call = "";
                 else e.Call = "ui.launch.call." + e.Id;
+            }
+            // 節數：一節關機、分離是第 1 節（Taurus 是第 0 節），之後每次上節點火加一
+            int cur = all.Any(e => e.Call.Contains("stage0")) ? 0 : 1;
+            foreach (var e in all)
+            {
+                if (e.Id == "ses" || e.Id == "upper_ignite") cur++;
+                if (e.Id == "meco" || e.Id == "stage_sep" || e.Id == "ses" || e.Id.StartsWith("upper_") || e.Id == "seco") e.N = cur;
             }
             tl.Events.AddRange(all);
             tl.BuildTelemetry(orbitAltKm, outcome, reaches);

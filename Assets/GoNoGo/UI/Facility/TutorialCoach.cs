@@ -25,6 +25,7 @@ namespace GoNoGo.UI
             new Step { Key = "pick", Phase = SessionPhase.Design, Done = s => s.StartsWith("pick:") },
             new Step { Key = "install", Phase = SessionPhase.Design, Done = s => s == "install" },
             new Step { Key = "report", Phase = SessionPhase.Design, Done = s => s == "report" },
+            new Step { Key = "test", Phase = SessionPhase.Design, Done = s => s == "test" },
             new Step { Key = "dashboard", Phase = SessionPhase.Design, Done = s => s == "open:dashboard" || s == "open:tablet" },
             new Step { Key = "call", Phase = SessionPhase.Design, Done = s => s.StartsWith("call:") },
             new Step { Key = "launch", Phase = SessionPhase.Design, Done = s => s == "launch" },

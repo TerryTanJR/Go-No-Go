@@ -26,6 +26,9 @@ namespace GoNoGo.Presentation
         float _ringT = -1;
         Renderer _ringRenderer;
         SatPart _aimed;
+        int _testSeen = -1;
+        float _shakeT = -1;
+        Vector3 _rigPos;
 
         void Awake() => Instance = this;
         void OnDestroy() { if (Instance == this) Instance = null; }
@@ -38,6 +41,7 @@ namespace GoNoGo.Presentation
                 ringFx.gameObject.SetActive(false);
             }
             rig.PartAdded += OnPartAdded;
+            _rigPos = rig.transform.localPosition;
         }
 
         /// <summary>依狀態更新台上的船（FacilityDirector 在狀態改變時呼叫）。</summary>
@@ -45,6 +49,10 @@ namespace GoNoGo.Presentation
         {
             rig.Show(m.S.Bench, m.Data, m.BenchEval, animate);
             _ghostFor = null; // 船變了，預覽重算
+            // 新的環境測試：船在台上抖一陣（振動測試），最後一圈光環（熱真空）
+            int n = m.S.LastTest?.N ?? 0;
+            if (_testSeen >= 0 && n > _testSeen) { _shakeT = 0; Sfx.Whoosh(); }
+            _testSeen = n;
         }
 
         public float DistanceTo(Vector3 p)
@@ -138,6 +146,19 @@ namespace GoNoGo.Presentation
 
         void Update()
         {
+            if (_shakeT >= 0)
+            {
+                _shakeT += Time.deltaTime;
+                const float shake = 2.2f;
+                float k = _shakeT < shake ? Mathf.Sin(_shakeT / shake * Mathf.PI) : 0;
+                rig.transform.localPosition = _rigPos + new Vector3(Mathf.Sin(_shakeT * 71f), Mathf.Sin(_shakeT * 53f + 1.3f) * 0.6f, Mathf.Sin(_shakeT * 61f + 2.1f)) * 0.02f * k;
+                if (_shakeT >= shake && _shakeT - Time.deltaTime < shake && ringFx != null)
+                {
+                    ringFx.gameObject.SetActive(true);
+                    _ringT = 0;
+                }
+                if (_shakeT >= shake) { rig.transform.localPosition = _rigPos; _shakeT = -1; }
+            }
             if (_ghost != null)
             {
                 float a = 0.25f + 0.15f * Mathf.Sin(Time.time * 6f);

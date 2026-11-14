@@ -27,6 +27,7 @@ namespace GoNoGo.UI
         OpsBar _opsBar;
         TutorialCoach _coach;
         WorldScreens _screens;
+        PollBanner _poll;
 
         protected override void Build()
         {
@@ -70,6 +71,9 @@ namespace GoNoGo.UI
             _modal = Ui.El("modal-layer").AddTo(Root);
             _modal.style.display = DisplayStyle.None;
 
+            // 點名橫幅放在面板層上面：開著面板也看得到、按得到
+            _poll = new PollBanner(Root);
+
             if (M.S.Tutorial) _coach = new TutorialCoach(Root);
 
             On(() => Hud.PanelRequested += OpenPanel, () => Hud.PanelRequested -= OpenPanel);
@@ -107,6 +111,7 @@ namespace GoNoGo.UI
             }
             _panel?.Refresh();
             _opsBar.Refresh();
+            _poll?.Refresh();
             _screens?.MarkDirty();
             UpdatePhaseBar();
         }
@@ -192,8 +197,11 @@ namespace GoNoGo.UI
             // 選單開著、或正在輸入框打字（例如筆記）時，快捷鍵都不作用
             bool keys = kb != null && !Hud.Paused && !UIRoot.IsTyping;
 
+            // G / N：Go/No-Go 點名
+            if (keys && _poll != null && _poll.CanVote && (kb.gKey.wasPressedThisFrame || kb.nKey.wasPressedThisFrame))
+                _poll.Vote(kb.gKey.wasPressedThisFrame);
             // T：個人模式的平板（手冊、儀表板）
-            if (keys && kb.tKey.wasPressedThisFrame && !M.S.Multiplayer)
+            else if (keys && kb.tKey.wasPressedThisFrame && !M.S.Multiplayer)
             {
                 if (_panelId == "tablet") ClosePanel();
                 else if (_panel == null) OpenPanel("tablet", "");
@@ -204,6 +212,7 @@ namespace GoNoGo.UI
 
             _panel?.Tick(dt);
             _opsBar.Tick(dt);
+            _poll?.Tick(dt);
             _coach?.Tick(dt);
 
             bool playing = _panel == null && !Hud.Paused;

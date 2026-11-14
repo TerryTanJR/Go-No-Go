@@ -20,6 +20,7 @@ namespace GoNoGo.UI
             var r = M.Result;
             if (r == null)
             {
+                GameSession.Send(CommandType.RunTest);
                 GameSession.Send(CommandType.Launch);
                 r = M.Result;
             }

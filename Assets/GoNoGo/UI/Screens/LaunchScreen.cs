@@ -22,7 +22,7 @@ namespace GoNoGo.UI
         {
             Sfx.SetAmbience(Sfx.Ambience.None);
             GameSession.EnsureMission();
-            if (M.S.LastLaunch == null) GameSession.Send(CommandType.Launch);
+            if (M.S.LastLaunch == null) { GameSession.Send(CommandType.RunTest); GameSession.Send(CommandType.Launch); }
             if (!LaunchFeed.DirectorActive && _selfTimer == 0) LaunchFeed.Reset();
 
             var head = Ui.El("launch-head").AddTo(Root);

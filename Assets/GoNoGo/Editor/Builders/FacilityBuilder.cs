@@ -431,7 +431,11 @@ namespace GoNoGo.EditorTools
             // 回報台：把台上的設計送到中控室
             var rep = Console(art, fm, bay, "ReportConsole", new Vector3(4.2f, 0, -3.2f), -45f, "report", "ui.fac.report", "ui.fac.report_body", "design", art.consoleScreens[0], 1.3f);
             rep.actionKey = "ui.hint.report";
-            Console(art, fm, bay, "BayManual", new Vector3(8.2f, 0, 5.6f), 45f, "manual", "ui.fac.manual", "ui.fac.manual_body", "", fm.paper, 1.1f);
+            // 環境測試台（振動／熱真空）：和回報台對稱，在整合台的另一邊
+            var test = Console(art, fm, bay, "TestConsole", new Vector3(-4.2f, 0, -3.2f), 45f, "test", "ui.fac.test", "ui.fac.test_body", "design", art.consoleScreens[2], 1.3f);
+            test.actionKey = "ui.hint.test";
+            // 組裝區的手冊：嚴格分工時只有代號與用途（bay_manual）
+            Console(art, fm, bay, "BayManual", new Vector3(8.2f, 0, 5.6f), 45f, "bay_manual", "ui.fac.manual", "ui.fac.manual_body", "", fm.paper, 1.1f);
 
             // 東牆（門的南邊）：失敗原因看板
             var fb = WallScreen(art, fm, bay, "FailureBoard", "failures", new Vector3(BayX1 - 0.08f, 2.4f, -5.2f), 90f, new Vector2(3.4f, 2.1f), new Vector2Int(1024, 640));

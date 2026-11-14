@@ -9,7 +9,7 @@ namespace GoNoGo.Presentation
     /// </summary>
     public sealed class ConsoleTarget : Interactable
     {
-        [Tooltip("面板 id：dashboard、manual、phone、mission、launch、failures、ops_desk、ops:power…；report = 直接回報設計")]
+        [Tooltip("面板 id：dashboard、manual、bay_manual、test、phone、mission、launch、failures、ops_desk、ops:power…；report = 直接回報設計")]
         public string panel = "";
         public string titleKey = "";
         public string bodyKey = "";
@@ -20,6 +20,32 @@ namespace GoNoGo.Presentation
         public Renderer glow;
 
         MaterialPropertyBlock _mpb;
+
+        /// <summary>
+        /// 嚴格分工時這個控制台屬於哪一區（依面板 id）：回報台、測試台、組裝手冊是組裝區的；
+        /// 儀表板、軌道與火箭、電話、筆記、發射、中控室手冊是中控室的。失敗看板兩邊都能看。
+        /// </summary>
+        public static Station? StationOf(string panel) => panel switch
+        {
+            "report" or "test" or "bay_manual" => Station.Assembly,
+            "dashboard" or "mission" or "phone" or "notes" or "launch" or "manual" => Station.Control,
+            _ => null,
+        };
+
+        /// <summary>嚴格分工擋住本機玩家（回傳原因的字串鍵，沒擋 = null）。</summary>
+        public string StrictBlock
+        {
+            get
+            {
+                if (!GameSession.HasMission) return null;
+                var s = GameSession.Mission.S;
+                if (!s.StrictNow()) return null;
+                var need = StationOf(panel);
+                var me = s.Player(GameSession.LocalPlayer);
+                if (need == null || me == null || me.Station == need) return null;
+                return need == Station.Assembly ? "ui.hint.strict_assembly" : "ui.hint.strict_control";
+            }
+        }
 
         public bool AvailableNow
         {
@@ -34,7 +60,9 @@ namespace GoNoGo.Presentation
         public override HudTarget Describe(Interactor who)
         {
             var t = new HudTarget { Title = Loc.T(titleKey), Body = string.IsNullOrEmpty(bodyKey) ? "" : Loc.T(bodyKey) };
-            if (AvailableNow) t.Keys.Add(new KeyHint("E", Loc.T(actionKey)));
+            var block = StrictBlock;
+            if (block != null) { t.Subtitle = Loc.T(block); t.Color = "#FFB547"; }
+            else if (AvailableNow) t.Keys.Add(new KeyHint("E", Loc.T(actionKey)));
             else t.Subtitle = Loc.T("ui.hint.not_now");
             return t;
         }
@@ -42,6 +70,7 @@ namespace GoNoGo.Presentation
         public override void OnKey(Interactor who, char key)
         {
             if (key != 'E' || !AvailableNow) return;
+            if (StrictBlock != null) { Sfx.NoGo(); Hud.Toast(Loc.T(StrictBlock)); return; }
             if (panel == "report")
             {
                 GameSession.Send(CommandType.Report);

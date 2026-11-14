@@ -245,6 +245,22 @@ namespace GoNoGo.UI
                 else Ui.Text(Loc.T(p.Station == Station.Assembly ? "ui.area.assembly" : "ui.area.control"), "small", "accent").AddTo(row);
             }
             Ui.Text(Loc.T("ui.lobby.split", ("n", m.S.Players.Count)), "small", "dim").AddTo(body);
+
+            // 嚴格分工：房主決定；開了之後組裝區不能用中控室的控制台，反過來也一樣，門也鎖上
+            var strict = Ui.Row("lobby-strict").AddTo(body);
+            var col = Ui.El().AddTo(strict);
+            col.style.flexShrink = 1;
+            Ui.Text(Loc.T("ui.lobby.strict"), "h3").AddTo(col);
+            Ui.Text(Loc.T("ui.lobby.strict_body"), "small", "dim").AddTo(col);
+            Ui.Spacer().AddTo(strict);
+            if (!wall && GameSession.IsHost)
+            {
+                Ui.Btn(Loc.T("ui.lobby.strict_off"), () => GameSession.Send(CommandType.SetStrict, "", 0), "chip").Cls("chip--on", !m.S.StrictRoles).AddTo(strict);
+                Ui.Btn(Loc.T("ui.lobby.strict_on"), () => GameSession.Send(CommandType.SetStrict, "", 1), "chip").Cls("chip--on", m.S.StrictRoles).AddTo(strict);
+            }
+            else Ui.Text(Loc.T(m.S.StrictRoles ? "ui.lobby.strict_on" : "ui.lobby.strict_off"), "h3", m.S.StrictRoles ? "tight" : "dim").AddTo(strict);
+            if (m.S.StrictRoles && !(m.S.Players.Any(p => p.Station == Station.Assembly) && m.S.Players.Any(p => p.Station == Station.Control)))
+                Ui.Text(Loc.T("err.strict_need_both"), "small", "tight").AddTo(body);
             if (wall) return;
             var actions = Ui.Row("modal-actions").AddTo(body);
             Ui.Btn(Loc.T("ui.lobby.leave"), () => GameSession.EndMission(), "btn-ghost").AddTo(actions);
