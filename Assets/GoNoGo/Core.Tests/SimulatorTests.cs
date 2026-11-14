@@ -207,7 +207,11 @@ namespace GoNoGo.Core.Tests
         public void OpsScoreRewardsJudgementAndEachStep()
         {
             var d = TestData.Balanced();
-            int seed = Enumerable.Range(1, 200).First(s => Simulator.PlanMission(d, _data, s, "engineer").LaunchRoll < 0.9);
+            int seed = Enumerable.Range(1, 200).First(s =>
+            {
+                var pl = Simulator.PlanMission(d, _data, s, "engineer");
+                return pl.LaunchRoll < 0.9 && pl.Events.All(e => !OpsEvents.IsFire(e.Kind) && e.Kind != EventKind.Alien); // 野火和彩蛋的步驟數不同
+            });
             var ctx = new MissionContext { DifficultyId = "engineer" };
             double Ops(IDecisionSource src) => Simulator.SimulateMission(d, _data, seed, src, ctx).Score.Ops;
             Assert.That(Ops(new PerfectDecisions()), Is.EqualTo(100));
@@ -224,7 +228,7 @@ namespace GoNoGo.Core.Tests
             int seed = Enumerable.Range(1, 200).First(s =>
             {
                 var pl = Simulator.PlanMission(d, _data, s, "engineer");
-                return pl.LaunchRoll < 0.9 && pl.Events.All(e => e.Kind != EventKind.Alien); // 彩蛋事件的步驟不同，這個測試不要碰到
+                return pl.LaunchRoll < 0.9 && pl.Events.All(e => e.Kind != EventKind.Alien && !OpsEvents.IsFire(e.Kind)); // 彩蛋和野火事件的步驟不同，這個測試不要碰到
             });
             var ctx = new MissionContext { DifficultyId = "engineer" };
             // 判斷正確，但把所有非野火的操作都按下去：步驟一定做滿，多出來 7 個操作
@@ -347,7 +351,7 @@ namespace GoNoGo.Core.Tests
             Assert.That(Fingerprint(_data), Is.EqualTo(ExpectedFingerprint), "核心模擬結果變了：如果是刻意調整數值，請更新 ExpectedFingerprint 並在 Unity 裡比對");
         }
 
-        public const string ExpectedFingerprint = "19F9E65FFF351256"; // 任務天數改成無條件進位：2 年任務跑滿 731 天，月球測繪分支
+        public const string ExpectedFingerprint = "C7D74199B3F53284"; // 營運改 4 回合、各難度事件全開；先前：19F9E65FFF351256；任務天數改成無條件進位：2 年任務跑滿 731 天，月球測繪分支
 
         public static string Fingerprint(GameData data)
         {

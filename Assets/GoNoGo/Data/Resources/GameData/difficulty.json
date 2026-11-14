@@ -21,10 +21,14 @@
     "failure_detail": "advice",
     "free_first_failure": true,
     "event_reveal": true,
-    "turns": 6,
+    "turns": 4,
     "event_types": [
       "solar_storm",
-      "science_opportunity"
+      "part_failure",
+      "science_opportunity",
+      "power_anomaly",
+      "big_fire",
+      "false_fire"
     ],
     "turn_seconds": 0,
     "guaranteed_launch": false,
@@ -49,11 +53,14 @@
     "failure_detail": "chain",
     "free_first_failure": false,
     "event_reveal": false,
-    "turns": 6,
+    "turns": 4,
     "event_types": [
       "solar_storm",
       "part_failure",
-      "science_opportunity"
+      "science_opportunity",
+      "power_anomaly",
+      "big_fire",
+      "false_fire"
     ],
     "turn_seconds": 180,
     "guaranteed_launch": false,
@@ -78,12 +85,14 @@
     "failure_detail": "category",
     "free_first_failure": false,
     "event_reveal": false,
-    "turns": 6,
+    "turns": 4,
     "event_types": [
       "solar_storm",
       "part_failure",
       "science_opportunity",
-      "power_anomaly"
+      "power_anomaly",
+      "big_fire",
+      "false_fire"
     ],
     "turn_seconds": 90,
     "guaranteed_launch": false,

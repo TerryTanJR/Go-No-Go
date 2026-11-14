@@ -7,7 +7,7 @@ namespace GoNoGo.UI
 {
     /// <summary>
     /// 最後評價：評等印章、五項分數（科學、壽命、效率、處室需求、營運處置）、處室需求達成、
-    /// 每次發射的結果、營運每回合的判斷與處置、因果鏈與建議、對照真實任務。歷史關卡加上揭曉與 NASA 的真實解法。
+    /// 每次發射的結果、營運每回合的判斷與處置、對照真實任務。歷史關卡加上揭曉與 NASA 的真實解法。
     /// </summary>
     public sealed class ReportScreen : GameScreen
     {
@@ -71,31 +71,12 @@ namespace GoNoGo.UI
             int fails = SessionRules.FailedBeforeForScore(M.S, D);   // 歷史關卡的重演不算玩家的失敗
             Ui.Text(r.Score.FirstLaunchBonus ? Loc.T("ui.report.first_launch") : Loc.T("ui.report.redesigns", ("n", fails)), "small", r.Score.FirstLaunchBonus ? "go" : "dim", "first-call").AddTo(reqPanel);
 
-            // ---- 中欄：為什麼、營運、發射紀錄 ----
+            // ---- 中欄：營運、發射紀錄 ----
             var mid = Ui.El("report-col", "report-col--why").AddTo(wrap);
             var midScroll = new ScrollView(ScrollViewMode.Vertical).AddTo(mid);
             midScroll.AddToClassList("why-scroll");
             var mc = midScroll.contentContainer;
             if (M.IsHistorical && M.S.Launches.Count > 0) HistoryPanel(mc, r);
-
-            var why = Ui.Panel(mc, Loc.T("ui.report.why"), out _);
-            var chains = r.Causes.OrderByDescending(c => c.Impact).Take(4).ToList();
-            if (chains.Count == 0) Ui.Text(Loc.T("ui.report.no_causes"), "small", "dim").AddTo(why);
-            foreach (var c in chains)
-            {
-                var row = Ui.El("chain").Cls("chain--good", c.Positive).AddTo(why);
-                for (int i = 0; i < c.Steps.Count; i++)
-                {
-                    if (i > 0) Ui.Text("→", "chain-arrow").AddTo(row);
-                    Ui.Text(Loc.Cause(c.Steps[i]), "chain-step").AddTo(row);
-                }
-            }
-            if (!string.IsNullOrEmpty(r.SuggestionCode))
-            {
-                var sug = Ui.El("suggest").AddTo(why);
-                Ui.Text(Loc.T("ui.report.suggestion"), "eyebrow").AddTo(sug);
-                Ui.Text(Loc.T(r.SuggestionCode), "body").AddTo(sug);
-            }
 
             if (r.Events.Count > 0)
             {

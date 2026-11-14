@@ -65,6 +65,17 @@ namespace GoNoGo.Core
             if (pool.Count == 0) pool = new List<EventKind> { EventKind.SolarStorm, EventKind.ScienceOpportunity };
             if (failable.Count == 0) pool.Remove(EventKind.PartFailure);
             if (pool.Count == 0) pool.Add(EventKind.SolarStorm);
+            // 事件種類比回合數多時，先洗牌再排：每局抽到的是隨機的那幾種，不是固定前幾種。
+            // 用另一組亂數，才不會改動後面已經擲好的事件內容。
+            if (pool.Count > n)
+            {
+                var pr = new Random(seed ^ 0x3C9D17);
+                for (int i = pool.Count - 1; i > 0; i--)
+                {
+                    int j = pr.Next(i + 1);
+                    (pool[i], pool[j]) = (pool[j], pool[i]);
+                }
+            }
             var kinds = Enumerable.Range(0, n).Select(i => pool[i % pool.Count]).ToList();
             for (int i = kinds.Count - 1; i > 0; i--)
             {
@@ -72,7 +83,7 @@ namespace GoNoGo.Core
                 (kinds[i], kinds[j]) = (kinds[j], kinds[i]);
             }
 
-            // 彩蛋：小機率讓外星人取代一個「重複出現」的事件（不取代第一回合，也不會讓某種事件完全消失）。
+            // 彩蛋：小機率讓外星人取代第 2 回合之後的某一個事件（不取代第一回合；有重複出現的種類時優先取代重複的，才不會讓某種事件消失）。
             // 用另一組亂數，才不會改動上面已經擲好的事件。
             if (n >= 4)
             {
@@ -80,7 +91,8 @@ namespace GoNoGo.Core
                 if (ar.NextDouble() < OpsEvents.AlienChance)
                 {
                     var dup = Enumerable.Range(1, n - 1).Where(i => kinds.Count(k => k == kinds[i]) > 1).ToList();
-                    if (dup.Count > 0) kinds[dup[ar.Next(dup.Count)]] = EventKind.Alien;
+                    var cand = dup.Count > 0 ? dup : Enumerable.Range(1, n - 1).ToList();
+                    kinds[cand[ar.Next(cand.Count)]] = EventKind.Alien;
                 }
             }
 
