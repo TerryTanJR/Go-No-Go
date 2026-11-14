@@ -17,6 +17,10 @@ Shader "GoNoGo/Planet"
         _AtmoStrength ("Atmosphere rim", Range(0, 4)) = 1.4
         _Ambient ("Ambient", Range(0, 0.5)) = 0.03
         _Exposure ("Exposure", Range(0.2, 3)) = 1.15
+        // 取貼圖前先轉一下方向（3×3 旋轉矩陣的三列）：發射的太空段用它讓地面照軌道速度流過去。預設不轉
+        [HideInInspector] _TexRotX ("Texture rotation row X", Vector) = (1, 0, 0, 0)
+        [HideInInspector] _TexRotY ("Texture rotation row Y", Vector) = (0, 1, 0, 0)
+        [HideInInspector] _TexRotZ ("Texture rotation row Z", Vector) = (0, 0, 1, 0)
     }
     SubShader
     {
@@ -41,6 +45,7 @@ Shader "GoNoGo/Planet"
                 float _NightIntensity, _CloudOpacity, _CloudDrift, _SpecStrength;
                 float4 _AtmoColor;
                 float _AtmoStrength, _Ambient, _Exposure;
+                float4 _TexRotX, _TexRotY, _TexRotZ;
             CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; float3 normalOS : NORMAL; };
@@ -83,6 +88,7 @@ Shader "GoNoGo/Planet"
             half4 frag(Varyings i) : SV_Target
             {
                 float3 n = normalize(i.dirOS);
+                n = float3(dot(_TexRotX.xyz, n), dot(_TexRotY.xyz, n), dot(_TexRotZ.xyz, n));
                 float2 uv = LatLonUV(n);
                 float3 N = normalize(i.normalWS);
                 Light sun = GetMainLight();

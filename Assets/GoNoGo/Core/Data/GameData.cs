@@ -202,6 +202,12 @@ namespace GoNoGo.Core
                 foreach (var k in df.EventTypes) Check(OpsEvents.Parse(k) != null, $"難度 {df.Id}：未知事件 {k}");
                 Check(new[] { "checklist", "transcript", "none" }.Contains(df.NotesMode), $"難度 {df.Id}：未知筆記板模式 {df.NotesMode}");
                 Check(new[] { "advice", "chain", "category" }.Contains(df.FailureDetail), $"難度 {df.Id}：未知失敗說明 {df.FailureDetail}");
+                foreach (var kv in df.StartParts)
+                {
+                    var p = d.Part(kv.Value);
+                    Check(p != null && p.Category == kv.Key && PartCategory.Single.Contains(kv.Key), $"難度 {df.Id}：開局零件 {kv.Key} = {kv.Value} 無效");
+                    Check(p == null || p.Tier <= df.TiersPerCategory, $"難度 {df.Id}：開局零件 {kv.Value} 超過這個難度開放的等級");
+                }
             }
             foreach (var key in Departments.All.Select(Departments.Key))
             {

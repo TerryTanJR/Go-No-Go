@@ -108,6 +108,9 @@
       "power_anomaly"
     ],
     "turn_seconds": 0,
-    "guaranteed_launch": true
+    "guaranteed_launch": true,
+    "start_parts": {
+      "solar": "solar_deployable"
+    }
   }
 ]

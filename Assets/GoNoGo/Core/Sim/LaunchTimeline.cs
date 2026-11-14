@@ -71,7 +71,13 @@ namespace GoNoGo.Core
                 double last = prof.Ascent.Max(e => e.T);
                 post = post.Concat(new[] { new FlightEventDef { Id = "deploy", T = last + 240 } }).ToList();
             }
-            return Build(prof, post, orbit?.Id ?? d.OrbitId ?? "", orbit?.AltitudeKm ?? 500, outcome, reasonCode);
+            var tl = Build(prof, post, orbit?.Id ?? d.OrbitId ?? "", orbit?.AltitudeKm ?? 500, outcome, reasonCode);
+            // 機身貼片的太陽能板沒有東西要展開：分離播報改成「開始發電」
+            var solar = data.Part(d.Get(PartCategory.Solar));
+            if (solar != null && solar.Mount != "wing")
+                foreach (var e in tl.Events)
+                    if (e.Id == "deploy" && e.Call == "ui.launch.call.deploy") e.Call = "ui.launch.call.deploy_fixed";
+            return tl;
         }
 
         public static LaunchTimeline Build(FlightProfileDef prof, List<FlightEventDef> post, string orbitId, double orbitAltKm, LaunchOutcome outcome, string reasonCode)

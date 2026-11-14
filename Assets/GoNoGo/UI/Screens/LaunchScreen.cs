@@ -158,6 +158,8 @@ namespace GoNoGo.UI
             _thr.text = (LaunchFeed.Throttle * 100).ToString("0");
             _stage.text = string.IsNullOrEmpty(LaunchFeed.StageKey) ? "" : Loc.T(LaunchFeed.StageKey);
             _next.text = NextText(T);
+            // 這一局已經結束（例如多人時房主斷線、正要回主選單）：速度和跳過按鈕不用再畫
+            if (!GameSession.HasMission) return;
             DrawSpeed();
             _skip.SetEnabled(!M.S.LaunchSkipped && !LaunchFeed.Finished);
             var kb = Keyboard.current;

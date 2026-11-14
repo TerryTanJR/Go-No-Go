@@ -104,6 +104,20 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
+        public void DeployCallMatchesTheSolarArray()
+        {
+            var d = TestData.Balanced();
+            d.OrbitId = "sso_700";
+            d.Parts[PartCategory.Solar] = "solar_deployable";
+            Assert.That(LaunchTimeline.Build(_data, d, LaunchOutcome.Nominal, "launch.nominal").First("deploy").Call, Is.EqualTo("ui.launch.call.deploy"));
+            d.Parts[PartCategory.Solar] = "solar_body";
+            Assert.That(LaunchTimeline.Build(_data, d, LaunchOutcome.Nominal, "launch.nominal").First("deploy").Call, Is.EqualTo("ui.launch.call.deploy_fixed"), "機身貼片沒有東西要展開");
+            d.OrbitId = "geo";
+            d.LauncherId = "falcon9";
+            Assert.That(LaunchTimeline.Build(_data, d, LaunchOutcome.Nominal, "launch.nominal").First("deploy").Call, Is.EqualTo("ui.launch.call.deploy_gto"));
+        }
+
+        [Test]
         public void FailuresEndEarly()
         {
             var boom = Tl("falcon9", "leo_400", LaunchOutcome.Failure, "launch.anomaly");

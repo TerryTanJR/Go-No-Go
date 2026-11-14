@@ -102,12 +102,30 @@ namespace GoNoGo.Launch
         int _activeSeg;
         float _stageBottom, _focusBottom;
 
-        // 長焦鏡頭：自己算瞄準點與視角
+        // 長焦鏡頭：自己算瞄準點、視角和方向。
+        // 不用 Cinemachine 的 RotationComposer：它用 float 的 acos 算角度，視角縮到 0.1° 以下時，
+        // 每一幀該轉的角度（約 0.001°）會被算成 0，鏡頭停住、誤差累積到約 0.02° 才一次補上，
+        // 畫面上就是火箭沿著飛行方向前後抖（視角越窄抖越大；快轉時每幀都補，反而看不出來）。
         Transform _longFocus;
         Transform _upperFocus;
-        CinemachineRotationComposer _longAim;
         float _longFov0, _frameBase, _frameUpper;
+        Vector2 _longScreen = new Vector2(0f, 0.2f);
         Vector3 _transferOffset;
+        // 最大動壓之後切到「望遠追蹤」：鏡頭在火箭側面約 1.7 km、略低，跟著火箭走。
+        // 地面追蹤鏡頭固定不動的話，火箭往下游飛遠、姿態接近水平時，透視會讓它看起來像在往下栽
+        const float ChaseFov = 2.5f, ChaseLookUp = 10f;
+        float _chaseT = float.MaxValue;
+        bool _chase;
+        Vector3 _chaseOffset;
+
+        // 太空段的地球：貼圖照軌道角速度轉（v / (R + h)），看得出衛星在繞地球飛
+        const double EarthRadiusKm = 6371.0;
+        Renderer _earth;
+        MaterialPropertyBlock _earthMpb;
+        float _earthDeg;
+        static readonly int TexRotX = Shader.PropertyToID("_TexRotX");
+        static readonly int TexRotY = Shader.PropertyToID("_TexRotY");
+        static readonly int TexRotZ = Shader.PropertyToID("_TexRotZ");
 
         // 鏡頭切換：同一時間只有一個混合，太空段每隔一段時間換角度
         CinemachineCamera _cam;
@@ -181,6 +199,8 @@ namespace GoNoGo.Launch
             _sepT = (float)(_tl.First("stage_sep")?.T ?? _mecoT + 3);
             _sesT = (float)(_tl.First("ses")?.T ?? _sepT + 4);
             _pitchEnd = _swapT < 1e5f ? _swapT : _sesT + 8f;
+            // 最大動壓過後 10 秒切到望遠追蹤（一節關機前至少 15 秒，分離整段都在同一個鏡頭裡）
+            _chaseT = Mathf.Clamp((float)(_tl.First("maxq")?.T ?? 70) + 10f, 45f, Mathf.Max(45f, Mathf.Min(_mecoT, _swapT) - 15f));
             // 畫面速度在 35 秒內縮到 0.1：火箭在畫面上的高度長得慢，長焦鏡頭才不會一直往頭頂仰
             _scaleEnd = Mathf.Clamp(_mecoT - 8f, 25f, 35f);
             _skipHandled = false; // 進場景之前就按了跳過的話，第一幀的 Update 會處理
@@ -219,6 +239,9 @@ namespace GoNoGo.Launch
 
             SetupFlightAzimuth();
             SetupLongCam();
+            var earthT = spaceSet != null ? spaceSet.transform.Find("Earth") : null;
+            _earth = earthT != null ? earthT.GetComponent<Renderer>() : null;
+            _earthMpb = new MaterialPropertyBlock();
 
             sun.transform.rotation = Quaternion.Euler(padSunEuler);
             if (spaceSet != null) spaceSet.SetActive(false);
@@ -300,7 +323,9 @@ namespace GoNoGo.Launch
         void SetupLongCam()
         {
             if (camLong == null) return;
-            _longAim = camLong.GetComponent<CinemachineRotationComposer>();
+            // 構圖沿用場景裡設定的位置（火箭底部在畫面中央偏下），方向改由 UpdateLongCam 自己算
+            var aim = camLong.GetComponent<CinemachineRotationComposer>();
+            if (aim != null) { _longScreen = aim.Composition.ScreenPosition; Destroy(aim); }
             _longFov0 = camLong.Lens.FieldOfView;
             float d0 = Vector3.Distance(camLong.transform.position, rocketAnchor.position);
             _frameBase = 2f * d0 * Mathf.Tan(_longFov0 * 0.5f * Mathf.Deg2Rad);
@@ -343,8 +368,10 @@ namespace GoNoGo.Launch
             float fit = inner * 0.75f / Mathf.Max(0.01f, Mathf.Max(b.size.x, b.size.z));
             _payload.transform.localScale = Vector3.one * Mathf.Min(1f, fit);
             _payload.transform.localPosition = new Vector3(0, b.size.y * 0.5f * Mathf.Min(1f, fit), 0);
-            // 太陽能板發射時收起來
-            _solar = _payload.GetComponentsInChildren<SatPart>().Where(p => p.category == PartCategory.Solar).ToArray();
+            // 展開式太陽能翼發射時收起來，分離後才展開；機身貼片本來就貼在機身上，不動
+            var solarDef = data.Part(_design.Get(PartCategory.Solar));
+            bool wings = solarDef != null && solarDef.Mount == "wing";
+            _solar = wings ? _payload.GetComponentsInChildren<SatPart>().Where(p => p.category == PartCategory.Solar).ToArray() : Array.Empty<SatPart>();
             foreach (var p in _solar) p.transform.localScale = new Vector3(0.12f, 1f, 1f);
         }
 
@@ -381,6 +408,7 @@ namespace GoNoGo.Launch
                 var ev = e;
                 list.Add(new Cue((float)e.T, () => OnEvent(ev)));
             }
+            if (_chaseT < Mathf.Min(_mecoT, _swapT)) list.Add(new Cue(_chaseT, StartChase));
             if (_swapT < 1e5f) list.Add(new Cue(_swapT, GoToSpace));
             _cues.Clear();
             _cues.AddRange(list.OrderBy(c => c.t)); // OrderBy 是穩定排序：同時間的照加入順序
@@ -620,6 +648,25 @@ namespace GoNoGo.Launch
             _camSince = 0f;
             _blendDur = 0f;
             _camHold = 0.6f;
+        }
+
+        /// <summary>
+        /// 切到望遠追蹤：鏡頭放到火箭飛行方向的側面（原本地面鏡頭那一側）、略低，之後跟著瞄準點平移。
+        /// 視線和飛行方向垂直，畫面上看到的就是火箭真正的姿態：往右上爬升、慢慢轉平。
+        /// </summary>
+        void StartChase()
+        {
+            if (camLong == null || _exploded || _inSpace) return;
+            var heading = _yaw * Vector3.forward;
+            var side = Vector3.ProjectOnPlane(camLong.transform.position - _longFocus.position, Vector3.up);
+            side = Vector3.ProjectOnPlane(side, heading);
+            side = side.sqrMagnitude > 1f ? side.normalized : -_yawRight;
+            float dist = Mathf.Max(300f, _frameBase * 0.5f / Mathf.Tan(ChaseFov * 0.5f * Mathf.Deg2Rad));
+            float up = ChaseLookUp * Mathf.Deg2Rad;
+            _chaseOffset = side * dist * Mathf.Cos(up) - Vector3.up * dist * Mathf.Sin(up);
+            _chase = true;
+            camLong.PreviousStateIsValid = false;
+            UpdateLongCam();
         }
 
         void SetUpperThrust(bool on)
@@ -870,9 +917,10 @@ namespace GoNoGo.Launch
             if (!_inSpace) UpdateSky();
             else FadeInStars(dt);
 
-            // ---- 太空段：上節在畫面裡不動，分離出去的東西往後飄 ----
+            // ---- 太空段：上節在畫面裡不動，分離出去的東西往後飄、地球在下面轉 ----
             if (_inSpace)
             {
+                SpinEarth(dt);
                 bool burning = UpperOn;
                 var up = _rocket.root.up;
                 foreach (var d in _drift)
@@ -952,6 +1000,7 @@ namespace GoNoGo.Launch
         void UpdateCams(float real)
         {
             _camSince += real;
+            ApplyEarth();
             if (_upperFocus != null && _rocket != null)
             {
                 _focusBottom = Mathf.Lerp(_focusBottom, _stageBottom, 1f - Mathf.Exp(-real * 1.5f));
@@ -986,6 +1035,7 @@ namespace GoNoGo.Launch
             {
                 focus = _rocket.root.position;
                 frame = _frameBase;
+                if (_chase) camLong.transform.position = focus + _chaseOffset;
             }
             else
             {
@@ -994,6 +1044,7 @@ namespace GoNoGo.Launch
                 float w = Ease(_sesT + 0.8f, _sesT + 3.2f, _T);
                 focus = Vector3.Lerp(bottom, _rocket.upperStage.position, w);
                 frame = Mathf.Lerp(Mathf.Max(_frameBase, Vector3.Distance(tip, bottom) * 1.75f), _frameUpper, w);
+                if (_chase) camLong.transform.position = focus + _chaseOffset;
             }
             _longFocus.position = focus;
             float dist = Mathf.Max(1f, Vector3.Distance(camLong.transform.position, focus));
@@ -1006,11 +1057,47 @@ namespace GoNoGo.Launch
                 lens.FarClipPlane = Mathf.Max(12000f, dist * 2f);
             }
             camLong.Lens = lens;
-            if (_longAim != null)
-            {
-                float d = _inSpace ? 0f : 0.25f * Mathf.Clamp01(camLong.Lens.FieldOfView / Mathf.Max(0.01f, _longFov0)) * (1f - Ease(_mecoT - 1f, _sepT, _T));
-                _longAim.Damping = new Vector2(d, d);
-            }
+            AimLongCam(focus, lens.FieldOfView);
+        }
+
+        /// <summary>
+        /// 長焦鏡頭的方向：直接由「鏡頭 → 瞄準點」的向量算（不經過角度），再依構圖把瞄準點放到畫面中央偏下。
+        /// 不做阻尼：火箭的路徑本身就是平滑的，阻尼在幀時間不穩時反而會讓落後量忽大忽小。
+        /// </summary>
+        void AimLongCam(Vector3 focus, float vfov)
+        {
+            var dir = focus - camLong.transform.position;
+            if (dir.sqrMagnitude < 1e-6f) return;
+            var outCam = brain != null ? brain.OutputCamera : null;
+            float aspect = outCam != null ? outCam.aspect : 16f / 9f;
+            float hfov = Camera.VerticalToHorizontalFieldOfView(vfov, aspect);
+            // ScreenPosition：0 是中央，±0.5 是邊緣，正 Y 往下。瞄準點要在下方，鏡頭就往上抬
+            camLong.transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up)
+                * Quaternion.Euler(-_longScreen.y * vfov, -_longScreen.x * hfov, 0f);
+        }
+
+        /// <summary>太空段的地球照軌道角速度轉：地面往飛行的反方向流過去（雲、陸地跟著動，晨昏線不動）。</summary>
+        void SpinEarth(float dt)
+        {
+            if (_earth == null || _tl == null) return;
+            double t = Math.Max(0.0, _T);
+            double v = _tl.Velocity(t), h = Math.Max(0.0, _tl.Altitude(t));
+            _earthDeg += (float)(v / (EarthRadiusKm + h) * (180.0 / Math.PI)) * dt;
+        }
+
+        void ApplyEarth()
+        {
+            if (_earth == null || !_inSpace) return;
+            // 整顆地球繞「軌道法線」（太空場景的右方）轉 -θ：上方的地面往後（-前方）走。
+            // 球冠的網格不動，只轉取貼圖的方向：看得到的那一塊永遠是高細分的，不會轉出邊界
+            var m = _earth.transform.rotation;
+            var spin = Quaternion.AngleAxis(-_earthDeg, spaceSet.transform.right);
+            var tex = Matrix4x4.Rotate(Quaternion.Inverse(m) * Quaternion.Inverse(spin) * m);
+            _earth.GetPropertyBlock(_earthMpb);
+            _earthMpb.SetVector(TexRotX, tex.GetRow(0));
+            _earthMpb.SetVector(TexRotY, tex.GetRow(1));
+            _earthMpb.SetVector(TexRotZ, tex.GetRow(2));
+            _earth.SetPropertyBlock(_earthMpb);
         }
 
         /// <summary>升空的聲音：越飛越遠越小聲（真實的追蹤攝影，一兩分鐘後就聽不到了）。</summary>

@@ -664,6 +664,7 @@
   "ui.launch.call.stage_n_ignite": { "en": "Stage {n} ignition.", "zh-TW": "第 {n} 節點火。" },
   "ui.launch.call.stage_n_burnout": { "en": "Stage {n} burnout.", "zh-TW": "第 {n} 節燃燒完畢。" },
   "ui.launch.call.stage_n_sep": { "en": "Stage {n} separation.", "zh-TW": "第 {n} 節分離。" },
+  "ui.launch.call.deploy_fixed": { "en": "Spacecraft separation. Body-mounted solar cells are in the Sun.", "zh-TW": "衛星分離，機身上的太陽能板開始照到陽光發電。" },
   "ui.launch.call.deploy_gto": { "en": "Spacecraft separation in geosynchronous transfer orbit.", "zh-TW": "衛星在地球同步轉移軌道分離。" },
   "ui.launch.call.deploy_lunar": { "en": "Spacecraft separation. On its way to the Moon.", "zh-TW": "衛星分離，往月球前進。" },
   "ui.launch.speed": { "en": "SPEED", "zh-TW": "播放速度" },

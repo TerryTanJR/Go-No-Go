@@ -324,6 +324,22 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
+        public void TutorialStartsWithFoldOutSolarWingsAndKeepsItsLesson()
+        {
+            var s = SessionRules.NewSession(_data, "earth_observation", "tutorial", true, false);
+            Assert.That(s.Bench.Get(PartCategory.Solar), Is.EqualTo("solar_deployable"), "新手訓練的衛星要有展開式太陽能翼（發射動畫看得到展開）");
+            Assert.That(s.Reported.Get(PartCategory.Solar), Is.EqualTo("solar_deployable"));
+            var ev = Evaluator.EvaluateDesign(s.Bench, _data);
+            var over = ev.Resources.Values.Where(r => r.Status == ResourceStatus.Over).Select(r => r.Id).ToList();
+            Assert.That(over, Is.EqualTo(new[] { ResourceId.Data }), "教學重點不變：只有儲存一個紅燈");
+            Assert.That(EnvTests.Run(s.Bench, _data, "tutorial").Any(f => f.Level == TestLevel.Fail), Is.False);
+            // 其他難度、歷史關卡不受影響
+            Assert.That(SessionRules.NewSession(_data, "earth_observation", "engineer", false, false).Bench.Get(PartCategory.Solar), Is.EqualTo("solar_body"));
+            Assert.That(SessionRules.NewSession(_data, "hist_oco", "tutorial", true, false).Bench.Get(PartCategory.Solar),
+                Is.EqualTo(_data.Scenario("hist_oco").Historical.PresetDesign.Get(PartCategory.Solar)));
+        }
+
+        [Test]
         public void HistoricalDesignIsLockedUntilTheReplay()
         {
             var s = Solo("hist_oco");

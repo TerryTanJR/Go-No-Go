@@ -49,6 +49,8 @@ namespace GoNoGo.Core
             var diff = data.Difficulty(difficultyId) ?? data.SelectableDifficulties.First();
             var start = (scenario.Historical != null ? scenario.Historical.PresetDesign : scenario.DefaultDesign).Clone();
             start.ScenarioId = scenario.Id;
+            if (scenario.Historical == null)
+                foreach (var kv in diff.StartParts) start.Parts[kv.Key] = kv.Value;
             return new SessionState
             {
                 ScenarioId = scenario.Id,

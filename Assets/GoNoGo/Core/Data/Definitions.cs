@@ -287,6 +287,8 @@ namespace GoNoGo.Core
         public int TurnSeconds { get; set; }
         /// <summary>發射一定成功（新手訓練）。</summary>
         public bool GuaranteedLaunch { get; set; }
+        /// <summary>開局時換掉情境預設設計的零件（類別 → 零件 id）。歷史關卡不套用（當年的設計不能改）。</summary>
+        public Dictionary<string, string> StartParts { get; set; } = new Dictionary<string, string>();
     }
 
     /// <summary>NASA DONKI 的歷史太空天氣事件（賽前抓的快照）。</summary>
