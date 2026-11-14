@@ -406,6 +406,7 @@
       | 範圍 | 四人連線為必備賣點 | 單人版完成；線上房間只有骨架，未啟用 | 使用者指示先做個人版，四人連線先不做，但檔案與端點保留 | 記錄（使用者指示） |
       | 發射 | 一條 Timeline，約 20 秒 | 程式提示表（`LaunchDirector`），約 56 秒，長焦一鏡到底拍完各段分離；天空依高度變黑；倒數對齊錄音；5 種結果 | 5 種結局用 Timeline 要做 5 條或大量條件軌；「略過」用小步長快轉同一份清單最簡單（第 42 條）。時間拉長是因為使用者要求分離過程要完整呈現、背景要逐漸變黑、倒數要對上聲音（第 77–83 條） | 記錄 |
       | 太空船 | NASA .glb 或 sand3d | 程式生成（`SatelliteBuilder`），外型跟著零件選擇改變；NASA .glb 只用在標題畫面的 Landsat 8 | 見下方「為什麼不用 NASA .glb」 | 補記 |
+      | Blender | sand3d 或 blender-skills 二選一做 3D 模型 | 只用來做發射台煙霧：Blender MCP 驅動 Mantaflow 模擬 → EEVEE 逐格算圖 → 8×8 序列圖，三組地面煙霧都用它；模型不用 Blender 做 | 體積煙霧用 Unity 粒子很難做得像，預先模擬再算成序列圖最省效能（第 16–24 條） | 記錄 |
       | 火箭 | 依等級切換尺寸 | 程式生成 5 種（`RocketBuilder`） | NASA 3D Resources 的火箭是 Saturn V、Atlas、Jupiter-C，沒有遊戲裡的 5 種；發射動畫需要可以分開的各節、兩半整流罩、助推器、引擎火焰掛點 | 補記（`RocketBuilder` 註解有寫「比例取自公開規格、不用公司塗裝」） |
       | 多語 | Unity Localization 套件 | 自寫 `Loc` + `strings.json`（323 個 key） | 核心（No Engine References）也要用同一份字串：測試檢查「核心會產生的每個代碼都有中英文」，而 Unity 外的 .NET 測試讀不到 Unity Localization 的資料表 | 補記 |
       | UI 動畫 | DOTween 或 PrimeTween | 不用外掛，USS transition + 自寫補間 | 見下方「為什麼不用 DOTween」 | 補記 |
@@ -433,3 +434,12 @@
       - 藍圖保留原本章節，內文改成描述現況；沒做的部分標〔未實作〕；
       - 新增「附錄：重現規格」，放公式、資料表、發射時間軸、鏡頭與火箭參數、場景與後處理數值、驗證指令。
     - 以後改了機制或數值，要同一個 commit 一起改藍圖附錄。藍圖的 PDF 版沒有自動產生，要另外手動匯出。
+
+86. **更新藍圖時把 Blender 煙霧寫成「實驗中、正式發射未使用」，其實三組地面煙霧都在用**
+    - 原因：
+      - 煙霧序列圖和材質放在 `Launch/Experiments/`，資料夾名稱看起來像沒在用。
+      - 我照代理的摘要寫，沒有回頭查 `ArtBuilder` 把 `M_Smoke_Billow` 指定給 `LaunchKit.smoke`、`SceneBuilder` 用它建三組地面煙霧。
+    - 解法：
+      - 藍圖改正四個地方：修訂表、發射特效、美術資源、可用工具。另外在專案結構註明「Experiments/ 正式發射也在用」，附錄 C 補上煙霧材質。
+      - 本檔第 85 條的修正表也補上 Blender 這一列。
+    - 教訓：判斷「有沒有用到」要查引用（材質、GUID 被誰載入），不能看資料夾名稱。之後可以考慮把序列圖搬出 `Experiments/`。
