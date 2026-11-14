@@ -84,6 +84,12 @@ namespace GoNoGo.Launch
         float _camK;                  // 太空鏡頭距離倍率（小火箭鏡頭靠近一點）
         float _deployK;               // 展開鏡頭距離倍率：看衛星展開後多寬，不是看火箭多大
         float _payloadSpan;           // 衛星展開後的寬度（公尺，已含縮放）
+        // 拋整流罩後鏡頭推近衛星：火箭是真實尺寸，Falcon 9 的整流罩 5.2 × 13 m，1 m 的衛星照火箭大小取景只剩一個點
+        float _payloadSize;           // 衛星收起來時最長的一邊（公尺，已含縮放）
+        float _payloadZoomK = 1f;     // 推近後的鏡頭距離 / 原本的距離（≤ 1）
+        float _payloadZoom;           // 0 = 看整節上節，1 = 推近到衛星
+        CinemachineFollow _spaceFollow, _sideFollowBase;
+        Vector3 _spaceOff0, _sideOff0;
         readonly List<Cue> _cues = new List<Cue>();
         int _nextCue;
         LaunchOutcome _outcome;
@@ -244,6 +250,7 @@ namespace GoNoGo.Launch
             ScaleCamFollow(camDeploy, _deployK);
 
             SetupFlightAzimuth();
+            SetupPayloadZoom();
             SetupLongCam();
             var earthT = spaceSet != null ? spaceSet.transform.Find("Earth") : null;
             _earth = earthT != null ? earthT.GetComponent<Renderer>() : null;
@@ -379,9 +386,49 @@ namespace GoNoGo.Launch
             foreach (var r in rs) b.Encapsulate(r.bounds);
             float inner = Mathf.Min(_rocket.diameter, _rocket.fairingRadius * 2f);
             float fit = Mathf.Min(1f, inner * 0.75f / Mathf.Max(0.01f, Mathf.Max(b.size.x, b.size.z)));
+            // 共乘：玩家的衛星裝在整疊共乘衛星的最上面
+            float baseY = _rocket.rideshare ? RideshareStack.Build(_rocket.payloadMount, _rocket.fairingRadius) : 0f;
             _payload.transform.localScale = Vector3.one * fit;
-            _payload.transform.localPosition = new Vector3(0, b.size.y * 0.5f * fit, 0);
+            _payload.transform.localPosition = new Vector3(0, baseY + b.size.y * 0.5f * fit, 0);
             _payloadSpan = openW * fit;
+            _payloadSize = Mathf.Max(b.size.x, b.size.y, b.size.z) * fit;
+        }
+
+        /// <summary>
+        /// 太空鏡頭原本照火箭高度取景（k = 火箭高度 / 70 m）。拋整流罩之後改看衛星：
+        /// 推近到「衛星最長邊 × 固定倍數」的距離，大火箭裡的小衛星也看得清楚；火箭和衛星本身都維持真實比例。
+        /// </summary>
+        void SetupPayloadZoom()
+        {
+            _spaceFollow = camSpace != null ? camSpace.GetComponent<CinemachineFollow>() : null;
+            _sideFollowBase = camSide != null ? camSide.GetComponent<CinemachineFollow>() : null;
+            if (_spaceFollow != null) _spaceOff0 = _spaceFollow.FollowOffset;
+            if (_sideFollowBase != null) _sideOff0 = _sideFollowBase.FollowOffset;
+            float current = _camK * 1.7f;                              // 太空鏡頭目前的距離倍率
+            float target = Mathf.Max(0.35f, _payloadSize * 0.32f);     // 衛星大約佔畫面高度的 1/6，畫面下方還看得到上節
+            _payloadZoomK = Mathf.Clamp(target / Mathf.Max(0.01f, current), 0.15f, 1f);
+        }
+
+        /// <summary>拋整流罩後慢慢推近衛星（真實時間 3 秒，快轉時也看得到推近）。</summary>
+        void UpdatePayloadZoom(float real)
+        {
+            if (_payload == null || _falling || _deployed) return;
+            if (!_fairingOpen) return;
+            _payloadZoom = Mathf.MoveTowards(_payloadZoom, 1f, real / 3f);
+            float s = Mathf.SmoothStep(0f, 1f, _payloadZoom);
+            float m = Mathf.Lerp(1f, _payloadZoomK, s);
+            if (_spaceFollow != null) _spaceFollow.FollowOffset = _spaceOff0 * m;
+            if (_sideFollowBase != null) _sideFollowBase.FollowOffset = _sideOff0 * m;
+            // 瞄準點移到衛星中心稍微下面一點，畫面下方留一點火箭上節（共乘時是下面那一疊）
+            var sat = _payload.transform.position - _rocket.root.up * (_payloadSize * 0.25f);
+            _upperFocus.position = Vector3.Lerp(_upperFocus.position, sat, s);
+        }
+
+        /// <summary>失效翻滾的鏡頭要看整節上節：把推近還原。</summary>
+        void ResetPayloadZoom()
+        {
+            if (_spaceFollow != null) _spaceFollow.FollowOffset = _spaceOff0;
+            if (_sideFollowBase != null) _sideFollowBase.FollowOffset = _sideOff0;
         }
 
         static float Width(GameObject g)
@@ -729,6 +776,7 @@ namespace GoNoGo.Launch
             _fallPivotLocal = _rocket.root.InverseTransformPoint(center);
 
             // 鏡頭改追上節中心的固定點，並往後拉，讓整節翻滾都留在畫面裡、地球一直在下方
+            ResetPayloadZoom();
             if (camSide != null)
             {
                 _fallFocus = new GameObject("FallFocus").transform;
@@ -1024,9 +1072,16 @@ namespace GoNoGo.Launch
                 _focusBottom = Mathf.Lerp(_focusBottom, _stageBottom, 1f - Mathf.Exp(-real * 1.5f));
                 float top = _rocket.height - _firstLen;
                 _upperFocus.position = _rocket.upperStage.TransformPoint(new Vector3(0, _focusBottom + (top - _focusBottom) * 0.45f, 0));
+                UpdatePayloadZoom(real);
             }
             UpdateLongCam();
             if (!_inSpace || _deployed || _falling || _skipping) return;
+            // 拋整流罩後到衛星分離：只用側面鏡頭。後方鏡頭推近後是從上節屁股往前看，箭體會擋住衛星
+            if (_fairingOpen && _payload != null)
+            {
+                if (_cam != camSide && camSide != null && Blend(camSide, 2.5f)) _camHold = CamCycle;
+                return;
+            }
             if (_camHold > 0f) { _camHold -= real; return; }
             if (_cam == camLong) { Blend(camSpace, 3.5f, true); _camHold = CamCycle; return; }
             // 長時間燃燒、滑行：每隔一段時間換角度（側面看得到分離、後方看得到地球）

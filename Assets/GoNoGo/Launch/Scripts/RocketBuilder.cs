@@ -26,6 +26,8 @@ namespace GoNoGo.Launch
         public float diameter;
         public float fairingBase;
         public float fairingRadius;
+        /// <summary>共乘（Transporter）：整流罩裡除了玩家的衛星，還有一整疊別人的衛星。</summary>
+        public bool rideshare;
     }
 
     /// <summary>
@@ -41,6 +43,7 @@ namespace GoNoGo.Launch
             public float[] upperSegs;
             public int engines;
             public string body; // white / black / teal
+            public bool rideshare;
         }
 
         static Spec SpecFor(string id)
@@ -54,6 +57,7 @@ namespace GoNoGo.Launch
                 case "taurus_xl": return new Spec { height = 31.5f, diameter = 2.35f, fairingD = 1.6f, fairingLen = 5.1f, upperSegs = new[] { 8.9f, 3.1f, 1.6f }, engines = 1, body = "white" };
                 // Delta II 7320（OCO-2 用的構型）：三支 GEM-40 固體助推器
                 case "delta_ii": return new Spec { height = 38.9f, diameter = 2.44f, fairingD = 2.9f, fairingLen = 8.5f, upperLen = 6f, engines = 1, boosters = 3, boosterLen = 12.8f, boosterD = 1.0f, body = "teal" };
+                case "falcon9_rideshare": return new Spec { height = 70f, diameter = 3.66f, fairingD = 5.2f, fairingLen = 13f, upperLen = 12.6f, engines = 9, body = "white", rideshare = true };
                 default: return new Spec { height = 70f, diameter = 3.66f, fairingD = 5.2f, fairingLen = 13f, upperLen = 12.6f, engines = 9, body = "white" }; // falcon9
             }
         }
@@ -61,7 +65,7 @@ namespace GoNoGo.Launch
         public static RocketParts Build(string launcherId, LaunchKit kit, Transform parent)
         {
             var sp = SpecFor(launcherId);
-            var p = new RocketParts { height = sp.height, diameter = sp.diameter };
+            var p = new RocketParts { height = sp.height, diameter = sp.diameter, rideshare = sp.rideshare };
             var root = new GameObject("Rocket_" + launcherId).transform;
             root.SetParent(parent, false);
             p.root = root;
@@ -145,7 +149,9 @@ namespace GoNoGo.Launch
             p.payloadMount = new GameObject("PayloadMount").transform;
             p.payloadMount.SetParent(p.upperStage, false);
             p.payloadMount.localPosition = new Vector3(0, fBase + 0.3f, 0);
-            if (fr > ur + 0.05f) Cone(p.upperStage, new Vector3(0, fBase - 0.6f, 0), ur, fr, 0.6f, bodyMat); // 擴張段
+            // 擴張段：整流罩比上節粗時（Falcon 9 是 3.66 → 5.2 m）做成斜的轉接段，太短的話看起來像一片圓盤
+            float flare = Mathf.Max(0.6f, (fr - ur) * 1.6f);
+            if (fr > ur + 0.05f) Cone(p.upperStage, new Vector3(0, fBase - flare, 0), ur, fr, flare, bodyMat);
             p.fairingLeft = Half(p.upperStage, fBase, fr, sp.fairingLen, kit.paintWhite, true);
             p.fairingRight = Half(p.upperStage, fBase, fr, sp.fairingLen, kit.paintWhite, false);
 
@@ -185,7 +191,10 @@ namespace GoNoGo.Launch
         {
             var go = Obj(parent, "cyl", CylMesh, mat);
             go.transform.localPosition = center;
-            go.transform.localScale = new Vector3(radius * 2, height / 2, radius * 2);
+            // 照網格實際大小縮放：Resources.GetBuiltinResource 拿到的 Cylinder.fbx 直徑是 2（不是 CreatePrimitive 的 1），
+            // 寫死「直徑 1」的話每一節都會粗一倍（Falcon 9 變成 7.3 m，比 5.2 m 的整流罩還粗）
+            var m = CylMesh.bounds.size;
+            go.transform.localScale = new Vector3(radius * 2 / m.x, height / m.y, radius * 2 / m.z);
             return go;
         }
 

@@ -468,8 +468,8 @@ namespace GoNoGo.Presentation
             var go = Prim(parent, "cyl", CylinderMesh, mat);
             go.transform.localPosition = center;
             go.transform.localRotation = Quaternion.FromToRotation(Vector3.up, axis);
-            // Unity 圓柱高 2、直徑 1
-            go.transform.localScale = new Vector3(radius * 2, height / 2, radius * 2);
+            // 照網格實際大小縮放：Resources.GetBuiltinResource 拿到的 Cylinder.fbx 直徑是 2、高 2（不是 CreatePrimitive 的直徑 1）
+            go.transform.localScale = CylScale(radius * 2, height);
             return go;
         }
 
@@ -491,11 +491,18 @@ namespace GoNoGo.Presentation
             // 饋源與支架
             var feed = Prim(go.transform, "feed", CylinderMesh, feedMat);
             feed.transform.localPosition = new Vector3(0, 0.9f, 0);
-            feed.transform.localScale = new Vector3(0.12f, 0.9f, 0.12f);
+            feed.transform.localScale = CylScale(0.12f, 1.8f);
         }
 
         static Mesh CubeMesh => _cube ??= Resources.GetBuiltinResource<Mesh>("Cube.fbx");
         static Mesh CylinderMesh => _cylinder ??= Resources.GetBuiltinResource<Mesh>("Cylinder.fbx");
+
+        /// <summary>讓內建圓柱變成指定的直徑與高度（公尺）。</summary>
+        static Vector3 CylScale(float diameter, float height)
+        {
+            var m = CylinderMesh.bounds.size;
+            return new Vector3(diameter / m.x, height / m.y, diameter / m.z);
+        }
 
         /// <summary>單位圓錐：底面半徑 1 在 y=0，尖端 y=1（用來當噴嘴，開口朝 -Y 所以翻過來用）。</summary>
         static Mesh ConeMesh => _cone ??= MakeCone(24);
