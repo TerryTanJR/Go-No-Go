@@ -14,6 +14,7 @@
     "decoy_categories": ["instrument"],
     "dashboard_colors": true,
     "dashboard_basic": true,
+    "next_step_guide": true,
     "notes_mode": "checklist",
     "requirement_conflicts": 0,
     "failure_detail": "advice",

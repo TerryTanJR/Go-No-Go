@@ -320,6 +320,8 @@ namespace GoNoGo.Core
         /// 經費也不拆零件／發射／營運細項。
         /// </summary>
         public bool DashboardBasic { get; set; }
+        /// <summary>左上角顯示「下一步」並在場景裡標出要去哪裡（學員；新手訓練有自己的步驟，不用這個）。</summary>
+        public bool NextStepGuide { get; set; }
         /// <summary>筆記板：checklist（整理成發射條件清單）、transcript（記下對話原文）、none（不自動記錄）。</summary>
         public string NotesMode { get; set; } = "transcript";
         /// <summary>開放到第幾組互相衝突的處室需求。</summary>
