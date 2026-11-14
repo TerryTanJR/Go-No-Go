@@ -79,14 +79,10 @@ namespace GoNoGo.Presentation
             }
             else d.Parts[part.Category] = partId;
 
-            // 用和台上一樣的縮放、位置組出整艘船，只留這個零件那一組
+            // 組出裝上之後的整艘船，用和台上同一套縮放與對位（FitModel），只留這個零件那一組：
+            // 預覽就是零件裝上去之後會在的位置與大小（船身會依質量變大、整艘再縮進展示範圍，不能沿用台上現在的縮放）
             var tmp = SatelliteBuilder.Build(d, m.Data, Evaluator.EvaluateDesign(d, m.Data), rig.transform);
-            var model = rig.Model;
-            if (model != null)
-            {
-                tmp.transform.localScale = model.localScale;
-                tmp.transform.position = model.position;
-            }
+            rig.FitModel(tmp);
             Transform keep = null;
             foreach (var sp in tmp.GetComponentsInChildren<SatPart>())
                 if (sp.partId == partId && sp.category == part.Category) { keep = sp.transform; break; }

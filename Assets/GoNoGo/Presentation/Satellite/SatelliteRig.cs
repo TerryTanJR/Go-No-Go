@@ -46,14 +46,7 @@ namespace GoNoGo.Presentation
             _model = SatelliteBuilder.Build(design, data, ev, transform);
             _parts = _model.GetComponentsInChildren<SatPart>(true);
 
-            // 縮放到展示尺寸，並讓模型中心對齊這個物件
-            var b = ComputeBounds(_model);
-            float longest = Mathf.Max(b.size.x, b.size.y, b.size.z);
-            float k = longest * fixedScale > maxSize ? maxSize / longest : fixedScale;
-            _model.transform.localScale = Vector3.one * k;
-            b = ComputeBounds(_model);
-            var anchor = bottomAnchor ? new Vector3(b.center.x, b.min.y, b.center.z) : b.center;
-            _model.transform.position += transform.position - anchor;
+            FitModel(_model);
             ModelBounds = ComputeBounds(_model);
 
             if (pickable)
@@ -72,13 +65,30 @@ namespace GoNoGo.Presentation
                 now.Add(key);
                 if (animate && !first && !_lastParts.Contains(key) && p.Renderers.Length > 0)
                 {
+                    // 先通知（安裝特效要用零件完整大小時的位置），再縮小開始彈入；
+                    // 順序反過來的話零件已經縮成一個點，火花會出現在船中心
+                    PartAdded?.Invoke(p);
                     p.transform.localScale = Vector3.one * 0.01f;
                     _pops.Add((p.transform, Time.time));
-                    PartAdded?.Invoke(p);
                 }
             }
             _lastParts.Clear();
             _lastParts.UnionWith(now);
+        }
+
+        /// <summary>
+        /// 縮放到展示尺寸，並讓模型中心（或底部）對齊這個物件。台上的船和安裝預覽共用這一段，
+        /// 預覽才會和裝上去之後的大小、位置一模一樣。
+        /// </summary>
+        public void FitModel(GameObject model)
+        {
+            var b = ComputeBounds(model);
+            float longest = Mathf.Max(b.size.x, b.size.y, b.size.z);
+            float k = longest * fixedScale > maxSize ? maxSize / longest : fixedScale;
+            model.transform.localScale = Vector3.one * k;
+            b = ComputeBounds(model);
+            var anchor = bottomAnchor ? new Vector3(b.center.x, b.min.y, b.center.z) : b.center;
+            model.transform.position += transform.position - anchor;
         }
 
         public static Bounds ComputeBounds(GameObject go)
