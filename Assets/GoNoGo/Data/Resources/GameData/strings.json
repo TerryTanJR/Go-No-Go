@@ -650,6 +650,7 @@
   "ui.launch.call.stage_sep": { "en": "Stage separation confirmed.", "zh-TW": "確認節間分離。" },
   "ui.launch.call.seco": { "en": "Second engine cutoff. We are in a parking orbit.", "zh-TW": "二節關機，進入停泊軌道。" },
   "ui.launch.call.coast": { "en": "Coasting to the next burn.", "zh-TW": "滑行中，等待下一次點火。" },
+  "ui.launch.call.coast_deploy": { "en": "Coasting in orbit, standing by for spacecraft separation.", "zh-TW": "入軌滑行中，準備衛星分離。" },
   "ui.launch.call.restart": { "en": "Second stage relight.", "zh-TW": "二節再次點火。" },
   "ui.launch.call.seco2": { "en": "Second engine cutoff.", "zh-TW": "二節第二次關機。" },
   "ui.launch.call.upper_cutoff": { "en": "Upper stage cutoff.", "zh-TW": "上節關機。" },

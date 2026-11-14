@@ -259,7 +259,9 @@ namespace GoNoGo.EditorTools
                 var imp = (AudioImporter)AssetImporter.GetAtPath(A + f);
                 if (imp == null) continue;
                 var s = imp.defaultSampleSettings;
-                s.loadType = AudioClipLoadType.CompressedInMemory;
+                // 倒數錄音解壓縮放在記憶體（約 3 MB）：播放位置要準到幾十毫秒，畫面上的數字才會和念的同步；
+                // 壓縮在記憶體裡的 Vorbis 跳到指定位置、回報播放位置都不夠準
+                s.loadType = f.Contains("CountdownNet") ? AudioClipLoadType.DecompressOnLoad : AudioClipLoadType.CompressedInMemory;
                 s.compressionFormat = AudioCompressionFormat.Vorbis;
                 // 22.05 kHz、品質 0.45：低頻的轟鳴和無線電語音聽不出差別，WebGL 省約 3 MB，守住 30 MB 預算。
                 // （Unity 6.6 的 SetOverrideSampleSettings 對每個平台名稱都回傳 false，所以直接改預設值）

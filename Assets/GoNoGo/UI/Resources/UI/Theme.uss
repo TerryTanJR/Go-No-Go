@@ -1061,3 +1061,8 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .launch-why { flex-shrink: 1; margin-right: 12px; white-space: normal; max-width: 300px; }
 .lobby-strict { flex-direction: row; align-items: center; margin-top: 12px; padding: 10px 0; border-top-width: 1px; border-color: var(--c-line); }
 .lobby-strict > .chip { margin-left: 6px; }
+.launch-next { font-size: var(--fs-14); color: var(--c-dim); margin-top: 6px; letter-spacing: 1px; }
+.launch-speed { align-items: flex-end; margin-right: 16px; }
+.launch-speed-k { margin-right: 8px; }
+.launch-speed .chip { margin-left: 4px; min-width: 52px; -unity-text-align: middle-center; }
+.launch-skip { align-self: flex-start; }

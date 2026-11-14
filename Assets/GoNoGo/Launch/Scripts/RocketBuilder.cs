@@ -13,6 +13,14 @@ namespace GoNoGo.Launch
         public Transform payloadMount;
         public readonly List<Renderer> firstStagePlumes = new List<Renderer>();
         public readonly List<Renderer> upperPlumes = new List<Renderer>();
+        /// <summary>
+        /// 上面的節中途會丟掉的部分（由下往上；最後一節不算）：Taurus XL 的第 1、2 節、Electron 的第二節（踢昇級在上面）。
+        /// 一般的兩節火箭是空的。每一節有自己的尾焰。
+        /// </summary>
+        public readonly List<Transform> upperSegments = new List<Transform>();
+        public readonly List<Renderer> segmentPlumes = new List<Renderer>();
+        /// <summary>每一節（含最後一節）的底部高度（upperStage 區域座標），最後一個是整流罩底部。</summary>
+        public readonly List<float> segmentBase = new List<float>();
         public Transform firstStageNozzles;
         public float height;
         public float diameter;
@@ -29,6 +37,8 @@ namespace GoNoGo.Launch
         struct Spec
         {
             public float height, diameter, fairingD, fairingLen, upperLen, boosters, boosterLen, boosterD;
+            /// <summary>上面各節的長度（由下往上，最後一個是帶著衛星的那一節）；null = 只有一節（upperLen）。</summary>
+            public float[] upperSegs;
             public int engines;
             public string body; // white / black / teal
         }
@@ -37,10 +47,13 @@ namespace GoNoGo.Launch
         {
             switch (id)
             {
-                case "electron": return new Spec { height = 18f, diameter = 1.2f, fairingD = 1.2f, fairingLen = 2.5f, upperLen = 2.4f, engines = 9, body = "black" };
+                // 第二節 2.4 m，上面是 0.45 m 的踢昇級（Curie 引擎），裝在整流罩底部
+                case "electron": return new Spec { height = 18f, diameter = 1.2f, fairingD = 1.2f, fairingLen = 2.5f, upperSegs = new[] { 2.4f, 0.45f }, engines = 9, body = "black" };
                 case "falcon_heavy": return new Spec { height = 70f, diameter = 3.66f, fairingD = 5.2f, fairingLen = 13f, upperLen = 12.6f, engines = 9, boosters = 2, boosterLen = 44f, boosterD = 3.66f, body = "white" };
-                case "taurus_xl": return new Spec { height = 31.5f, diameter = 2.35f, fairingD = 1.6f, fairingLen = 5.1f, upperLen = 6f, engines = 1, body = "white" };
-                case "delta_ii": return new Spec { height = 38.9f, diameter = 2.44f, fairingD = 2.9f, fairingLen = 8.5f, upperLen = 6f, engines = 1, boosters = 9, boosterLen = 13f, boosterD = 1.0f, body = "teal" };
+                // 四節固體火箭：第 0 節 Castor 120，上面是 Orion 50SXLG、Orion 50XLG、Orion 38（直徑比第 0 節細）
+                case "taurus_xl": return new Spec { height = 31.5f, diameter = 2.35f, fairingD = 1.6f, fairingLen = 5.1f, upperSegs = new[] { 8.9f, 3.1f, 1.6f }, engines = 1, body = "white" };
+                // Delta II 7320（OCO-2 用的構型）：三支 GEM-40 固體助推器
+                case "delta_ii": return new Spec { height = 38.9f, diameter = 2.44f, fairingD = 2.9f, fairingLen = 8.5f, upperLen = 6f, engines = 1, boosters = 3, boosterLen = 12.8f, boosterD = 1.0f, body = "teal" };
                 default: return new Spec { height = 70f, diameter = 3.66f, fairingD = 5.2f, fairingLen = 13f, upperLen = 12.6f, engines = 9, body = "white" }; // falcon9
             }
         }
@@ -55,14 +68,20 @@ namespace GoNoGo.Launch
 
             var bodyMat = sp.body == "black" ? kit.paintBlack : sp.body == "teal" ? kit.paintTeal : kit.paintWhite;
             float r = sp.diameter / 2f;
-            float firstLen = sp.height - sp.upperLen - sp.fairingLen;
+            var segs = sp.upperSegs ?? new[] { sp.upperLen };
+            float upperLen = 0;
+            foreach (var l in segs) upperLen += l;
+            float firstLen = sp.height - upperLen - sp.fairingLen;
+            // 上面的節不比整流罩粗（Taurus 的上節只有 1.3 m 粗）
+            float ur = Mathf.Min(r, sp.fairingD / 2f);
 
             // ---- 第一節 ----
             p.firstStage = new GameObject("FirstStage").transform;
             p.firstStage.SetParent(root, false);
             Cyl(p.firstStage, new Vector3(0, firstLen / 2, 0), r, firstLen, bodyMat);
-            // 段間環
-            Cyl(p.firstStage, new Vector3(0, firstLen - 0.6f, 0), r * 1.01f, 1.2f, kit.interstage);
+            // 段間環（上節比較細的話做成往上收的錐形）
+            if (ur < r - 0.05f) Cone(p.firstStage, new Vector3(0, firstLen - 1.2f, 0), r, ur, 1.2f, kit.interstage);
+            else Cyl(p.firstStage, new Vector3(0, firstLen - 0.6f, 0), r * 1.01f, 1.2f, kit.interstage);
             // 引擎段與噴嘴
             p.firstStageNozzles = new GameObject("Engines").transform;
             p.firstStageNozzles.SetParent(p.firstStage, false);
@@ -96,24 +115,43 @@ namespace GoNoGo.Launch
             p.upperStage = new GameObject("UpperStage").transform;
             p.upperStage.SetParent(root, false);
             p.upperStage.localPosition = new Vector3(0, firstLen, 0);
-            Cyl(p.upperStage, new Vector3(0, sp.upperLen / 2, 0), r, sp.upperLen, bodyMat);
-            var mvac = Nozzle(p.upperStage, new Vector3(0, -r * 0.5f, 0), r * 0.55f, r * 1.2f, kit.metal);
-            p.upperPlumes.Add(Plume(p.upperStage, new Vector3(0, -r * 1.1f, 0), r * 0.6f, kit.plume));
+            float y = 0;
+            for (int i = 0; i < segs.Length; i++)
+            {
+                bool last = i == segs.Length - 1;
+                float len = segs[i];
+                // 越上面越細一點（多節固體火箭）；踢昇級是一個扁平的圓盤
+                float sr = segs.Length > 1 ? ur * (last && len < 1f ? 0.8f : 1f - 0.08f * i) : ur;
+                var seg = new GameObject(last ? "FinalStage" : "UpperSegment" + i).transform;
+                seg.SetParent(p.upperStage, false);
+                seg.localPosition = new Vector3(0, y, 0);
+                Cyl(seg, new Vector3(0, len / 2, 0), sr, len, last && len < 1f ? kit.metal : bodyMat);
+                if (!last) Cyl(seg, new Vector3(0, len - 0.25f, 0), sr * 1.01f, 0.5f, kit.interstage);
+                float nr = len < 1f ? sr * 0.35f : sr * 0.55f;
+                Nozzle(seg, new Vector3(0, -nr * 0.9f, 0), nr, nr * 2.2f, kit.metal);
+                var plume = Plume(seg, new Vector3(0, -nr * 2f, 0), nr * 1.1f, kit.plume);
+                p.segmentBase.Add(y);
+                if (last) p.upperPlumes.Add(plume);
+                else { p.upperSegments.Add(seg); p.segmentPlumes.Add(plume); }
+                y += len;
+            }
 
             // ---- 整流罩（兩半，可以分開） ----
             float fr = sp.fairingD / 2f;
             p.fairingRadius = fr;
-            float fBase = sp.upperLen;
+            float fBase = upperLen;
+            p.segmentBase.Add(fBase);
             p.fairingBase = firstLen + fBase;
             p.payloadMount = new GameObject("PayloadMount").transform;
             p.payloadMount.SetParent(p.upperStage, false);
             p.payloadMount.localPosition = new Vector3(0, fBase + 0.3f, 0);
-            if (fr > r + 0.05f) Cone(p.upperStage, new Vector3(0, fBase - 0.6f, 0), r, fr, 0.6f, bodyMat); // 擴張段
+            if (fr > ur + 0.05f) Cone(p.upperStage, new Vector3(0, fBase - 0.6f, 0), ur, fr, 0.6f, bodyMat); // 擴張段
             p.fairingLeft = Half(p.upperStage, fBase, fr, sp.fairingLen, kit.paintWhite, true);
             p.fairingRight = Half(p.upperStage, fBase, fr, sp.fairingLen, kit.paintWhite, false);
 
             foreach (var pr in p.firstStagePlumes) pr.enabled = false;
             foreach (var pr in p.upperPlumes) pr.enabled = false;
+            foreach (var pr in p.segmentPlumes) pr.enabled = false;
             return p;
         }
 

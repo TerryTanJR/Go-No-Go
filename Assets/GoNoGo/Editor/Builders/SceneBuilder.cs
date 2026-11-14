@@ -501,7 +501,9 @@ namespace GoNoGo.EditorTools
             // 從塔的斜後方低角度仰拍箭身中段（導演依火箭高度設定瞄準點）；鏡頭太貼近箭身時整個畫面只剩一根白柱子
             var camTower = VCam("CM_Tower", cams, new Vector3(-16f, 14f, 24f), 46f, 0.2f, 6000f, new Vector2(0f, 0.1f), 0.12f, noise);
             // 長焦追蹤：瞄準點是火箭底部，所以放在畫面中線偏下，箭身和尾跡才都在畫面裡；阻尼太大火箭會加速衝出畫面上緣
-            var camLong = VCam("CM_Long", cams, new Vector3(-950f, G + 4f, -1350f), 6.5f, 1f, 12000f, new Vector2(0f, 0.2f), 0.25f, noise);
+            // 放在 4 km 外（真實的追蹤攝影機在好幾公里外）：發射時間是真實的，火箭會飛到幾十公里高，
+            // 鏡頭太近的話一直往頭頂仰，透視會讓火箭看起來像在往下掉。視角跟著距離收窄，開頭的構圖不變
+            var camLong = VCam("CM_Long", cams, new Vector3(-2280f, G + 4f, -3240f), 2.7f, 1f, 12000f, new Vector2(0f, 0.2f), 0.25f, noise);
             // 側後方要拉開一點：第一節有 44 m 長，鏡頭太靠近軸線會被箭身擋住
             var camSpace = VCam("CM_Space", cams, new Vector3(0, 20000f, -22f), 42f, 0.3f, 30000f, new Vector2(0f, -0.05f), 0.3f, null, new Vector3(15f, 6f, -20f));
             var camSide = VCam("CM_Side", cams, new Vector3(28f, 20000f, 6f), 36f, 0.3f, 30000f, new Vector2(0.1f, 0f), 0.4f, null, new Vector3(30f, 4.5f, 8f));

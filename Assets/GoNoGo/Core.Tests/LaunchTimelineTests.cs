@@ -80,11 +80,27 @@ namespace GoNoGo.Core.Tests
             Assert.That(taurus.Stages, Is.EqualTo(4));
             Assert.That(taurus.Events.Count(e => e.Id == "upper_sep"), Is.EqualTo(2));
             Assert.That(taurus.Events.Count(e => e.Id == "upper_ignite") + 1, Is.EqualTo(3), "上面三節各點火一次");
+            var lastSep = taurus.Events.Last(e => e.Id == "upper_sep");
+            Assert.That(taurus.StageKey(lastSep.T + 60), Is.EqualTo("ui.launch.stage.coast"), "節間分離後長時間滑行要顯示「滑行」");
 
             // Electron：二節關機後由踢昇級做最後一次點火
             var e1 = Tl("electron", "sso_700");
             Assert.That(e1.First("upper_ignite").Call, Is.EqualTo("ui.launch.call.kick_ignite"));
             Assert.That(e1.Thrusting(1900), Is.True);
+        }
+
+        [Test]
+        public void TelemetryLooksLikeARealAscent()
+        {
+            var f9 = Tl("falcon9", "leo_400");
+            TestContext.WriteLine($"swap={f9.SwapT:0} alt30={f9.Altitude(30):0.0} alt60={f9.Altitude(60):0.0} v60={f9.Velocity(60):0.00} meco={f9.Altitude(153):0} v={f9.Velocity(153):0.00}");
+            Assert.That(f9.Altitude(10), Is.InRange(0.05, 0.6), "T+10 還在幾百公尺內");
+            Assert.That(f9.Altitude(60), Is.InRange(5.0, 12.0));
+            Assert.That(f9.Velocity(153), Is.InRange(2.0, 2.6), "一節關機約 2.3 km/s");
+            Assert.That(f9.SwapT, Is.InRange(160.0, 200.0));
+            // 上升段速度不會倒退（滑行時持平）
+            double prev = 0;
+            for (double t = 0; t < 487; t += 2) { var v = f9.Velocity(t); Assert.That(v, Is.GreaterThanOrEqualTo(prev - 0.03), "t=" + t); prev = v; }
         }
 
         [Test]

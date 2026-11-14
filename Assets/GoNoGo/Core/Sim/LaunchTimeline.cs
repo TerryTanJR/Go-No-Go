@@ -39,6 +39,8 @@ namespace GoNoGo.Core
         readonly List<double> _kt = new List<double>();
         readonly List<double> _ka = new List<double>();
         readonly List<double> _kv = new List<double>();
+        readonly List<double> _ma = new List<double>();
+        readonly List<double> _mv = new List<double>();
         readonly List<(double t, bool on)> _thrust = new List<(double, bool)>();
 
         const double Mu = 398600.4418, Re = 6371.0;
@@ -123,7 +125,8 @@ namespace GoNoGo.Core
             {
                 if (!IsCutoff(all[i].Id)) continue;
                 var next = all.Skip(i + 1).FirstOrDefault(e => IsIgnition(e.Id) || e.Id == "deploy");
-                if (next != null && next.T - all[i].T > 60) coasts.Add(new TimelineEvent { Id = "coast", T = all[i].T + 4 });
+                if (next != null && next.T - all[i].T > 60)
+                    coasts.Add(new TimelineEvent { Id = "coast", T = all[i].T + 4, Call = next.Id == "deploy" ? "ui.launch.call.coast_deploy" : "" });
             }
             all.AddRange(coasts);
             all.Add(new TimelineEvent { Id = "end", T = tl.End });
@@ -148,6 +151,8 @@ namespace GoNoGo.Core
             }
             tl.Events.AddRange(all);
             tl.BuildTelemetry(orbitAltKm, outcome, reaches);
+            tl.BuildTangents(tl._ka, tl._ma);
+            tl.BuildTangents(tl._kv, tl._mv);
             tl.BuildThrust();
 
             // 換到太空場景：高度到 80 km（天空幾乎全黑）、第二節點火至少 6 秒、拋整流罩前 10 秒
@@ -205,7 +210,12 @@ namespace GoNoGo.Core
 
             Key(0, 0, 0);
             var maxq = First("maxq");
-            if (maxq != null && maxq.T < tMeco) Key(maxq.T, 12, 0.45);
+            if (maxq != null && maxq.T < tMeco)
+            {
+                // 最大動壓之前大致是等加速度：速度和時間成正比、高度和時間平方成正比
+                foreach (var f in new[] { 0.15, 0.35, 0.6 }) Key(maxq.T * f, 12 * f * f, 0.45 * f);
+                Key(maxq.T, 12, 0.45);
+            }
             Key(tMeco, altMeco, vMeco);
             if (ses != null) Key(ses.T, altSes, vMeco - 0.02 * (ses.T - tMeco) / 10);
 
@@ -276,20 +286,40 @@ namespace GoNoGo.Core
             return on;
         }
 
-        public double Altitude(double t) => Interp(_ka, t);
-        public double Velocity(double t) => Interp(_kv, t);
+        public double Altitude(double t) => Interp(_ka, _ma, t);
+        public double Velocity(double t) => Interp(_kv, _mv, t);
 
-        double Interp(List<double> ys, double t)
+        /// <summary>
+        /// 單調三次插值（Fritsch–Butland）：曲線平滑、不會在關鍵點停頓（逐段 smoothstep 每到一個點速度就歸零），
+        /// 也不會超過兩端的值（高度不會先衝過頭再掉回來）。
+        /// </summary>
+        double Interp(List<double> ys, List<double> ms, double t)
         {
-            if (_kt.Count == 0 || t <= _kt[0]) return ys.Count > 0 ? ys[0] : 0;
-            for (int i = 1; i < _kt.Count; i++)
-                if (t <= _kt[i])
-                {
-                    double f = (t - _kt[i - 1]) / Math.Max(1e-6, _kt[i] - _kt[i - 1]);
-                    f = f * f * (3 - 2 * f);
-                    return ys[i - 1] + (ys[i] - ys[i - 1]) * f;
-                }
-            return ys[ys.Count - 1];
+            int n = _kt.Count;
+            if (n == 0) return 0;
+            if (t <= _kt[0]) return ys[0];
+            if (t >= _kt[n - 1]) return ys[n - 1];
+            int lo = 0, hi = n - 1;
+            while (hi - lo > 1) { int mid = (lo + hi) / 2; if (_kt[mid] < t) lo = mid; else hi = mid; }
+            double h = Math.Max(1e-6, _kt[hi] - _kt[lo]);
+            double f = (t - _kt[lo]) / h, f2 = f * f, f3 = f2 * f;
+            return (2 * f3 - 3 * f2 + 1) * ys[lo] + (f3 - 2 * f2 + f) * h * ms[lo] + (-2 * f3 + 3 * f2) * ys[hi] + (f3 - f2) * h * ms[hi];
+        }
+
+        void BuildTangents(List<double> ys, List<double> ms)
+        {
+            ms.Clear();
+            int n = _kt.Count;
+            var d = new double[Math.Max(0, n - 1)];
+            for (int i = 0; i < n - 1; i++) d[i] = (ys[i + 1] - ys[i]) / Math.Max(1e-6, _kt[i + 1] - _kt[i]);
+            for (int i = 0; i < n; i++)
+            {
+                if (n < 2) { ms.Add(0); continue; }
+                if (i == 0) { ms.Add(d[0]); continue; }
+                if (i == n - 1) { ms.Add(d[n - 2]); continue; }
+                double a = d[i - 1], b = d[i];
+                ms.Add(a * b <= 0 ? 0 : 2 * a * b / (a + b));
+            }
         }
 
         /// <summary>高度第一次到達 km 的時間（二分搜尋；到不了就回傳 SECO）。</summary>
@@ -318,11 +348,11 @@ namespace GoNoGo.Core
             {
                 case "maxq": return since < 12 ? "ui.launch.stage.maxq" : "ui.launch.stage.ascent";
                 case "mach1": case "booster_cutoff": case "booster_sep": return "ui.launch.stage.ascent";
-                case "meco": case "stage_sep": case "upper_sep": return "ui.launch.stage.staging";
-                case "fairing": return since < 10 ? "ui.launch.stage.fairing" : "ui.launch.stage.upper_burn";
-                case "ses": case "upper_ignite": case "restart": case "battery_swap": return "ui.launch.stage.upper_burn";
-                case "seco": case "upper_cutoff": case "seco2": case "coast":
-                    return Thrusting(t) ? "ui.launch.stage.upper_burn" : Events.Any(e => e.T > t && IsIgnition(e.Id)) ? "ui.launch.stage.coast" : "ui.launch.stage.orbit";
+                case "meco": case "stage_sep": case "upper_sep": return since < 12 ? "ui.launch.stage.staging" : Cruise(t);
+                case "fairing": return since < 10 ? "ui.launch.stage.fairing" : Thrusting(t) ? "ui.launch.stage.upper_burn" : "ui.launch.stage.coast";
+                case "ses": case "upper_ignite": case "restart": return "ui.launch.stage.upper_burn";
+                case "battery_swap": return Thrusting(t) ? "ui.launch.stage.upper_burn" : "ui.launch.stage.coast";
+                case "seco": case "upper_cutoff": case "seco2": case "coast": return Cruise(t);
                 case "deploy": return "ui.launch.stage.deploy";
                 case "anomaly": case "underspeed": case "fairing_fail": return "ui.launch.stage.anomaly";
                 case "eclipse": return "ui.launch.stage.eclipse";
@@ -330,6 +360,9 @@ namespace GoNoGo.Core
             }
             return "ui.launch.stage.ascent";
         }
+
+        /// <summary>沒有新事件時：在燒就是上節燃燒，後面還有點火就是滑行，否則已入軌。</summary>
+        string Cruise(double t) => Thrusting(t) ? "ui.launch.stage.upper_burn" : Events.Any(e => e.T > t && IsIgnition(e.Id)) ? "ui.launch.stage.coast" : "ui.launch.stage.orbit";
 
         static double Clamp(double v, double lo, double hi) => v < lo ? lo : v > hi ? hi : v;
         static double Lerp(double a, double b, double f) => a + (b - a) * Clamp(f, 0, 1);

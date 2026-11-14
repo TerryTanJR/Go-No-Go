@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using GoNoGo.Core;
 using GoNoGo.Game;
 using GoNoGo.Presentation;
@@ -9,14 +10,19 @@ using UnityEngine;
 namespace GoNoGo.Launch
 {
     /// <summary>
-    /// 發射導演：用一張「提示表」（幾秒做什麼）演出整段發射，結果在按下發射時就由核心決定好了。
-    /// 五種結果（正常、低軌、整流罩故障、異常爆炸、速度不足）共用前半段，後半段分支。
-    /// 沒有用 Timeline 是因為分支：五條 Timeline 會重複大部分內容，提示表只要一份。
-    /// 鏡頭全部是 Cinemachine 相機，切換用優先權，混合由 Brain 處理。
+    /// 發射導演：照真實的飛行時間表（<see cref="LaunchTimeline"/>，來自 launchers.json 的 flight）演出整段發射。
+    /// 結果在按下發射時就由核心決定好了；時間表依火箭、軌道、結果組出事件（一節關機、節間分離、拋整流罩、
+    /// 多節火箭的每一次點火與分離、滑行、再點火、衛星分離）。任務時間是真的（Falcon 9 約 12 分鐘、
+    /// Delta II 的 OCO-2 約 56 分鐘），所以升空後可以 1、5、10、50 倍播放（大家共用，存在 SessionState）。
     /// <para>
-    /// 爬升段是一個連續的長焦追蹤鏡頭：天空隨高度變黑、星星浮現，助推器分離、主引擎關機、節間分離、
-    /// 第二節點火都在同一個鏡頭裡發生。天空全黑之後才換到太空場景，換的那一格鏡頭構圖一模一樣（同方向、同大小），
-    /// 再慢慢移到上節後方，地球從畫面下方出現。
+    /// 爬升段是一個連續的長焦追蹤鏡頭：天空隨（遙測的）高度變黑，助推器分離、主引擎關機、節間分離、
+    /// 第二節點火都在同一個鏡頭裡發生。畫面上的移動速度是真實速度乘一個比例（升空時 1，之後縮小），
+    /// 長焦鏡頭才追得上。天空全黑之後換到太空場景，換的那一格構圖一模一樣；太空段火箭在畫面裡不動
+    /// （姿態在換場前就轉好了），分離出去的東西往後飄走，鏡頭不會跟著晃。
+    /// </para>
+    /// <para>
+    /// 倒數跟著錄音走：錄音真的開始播之後才開始倒數，之後任務時間直接由錄音位置換算（不設門檻），
+    /// 畫面上的數字一定和念的數字一致。
     /// </para>
     /// </summary>
     public sealed class LaunchDirector : MonoBehaviour
@@ -48,37 +54,33 @@ namespace GoNoGo.Launch
         public AudioSource countdown, roar, rumble;
 
         const float StartT = -12f;
-        // 爬升段的時間表（秒，T+）。動畫時間是壓縮過的，遙測顯示的是真實量級
-        const float BoosterSepT = 13f;   // 有助推器的火箭才有
-        const float MecoT = 18f;         // 主引擎關機
-        const float SepT = 19f;          // 節間分離
-        const float IgnT = 20.5f;        // 第二節點火
-        const float SwapT = 24f;         // 天空已全黑：換到太空場景
-        const float FairingT = 31f;
-        const float UpperSpeed = 30f;    // 太空段上節的畫面速度（m/s）
         const float TransferFov = 50f;   // 換場那一格的視角：太窄的話鏡頭得放到幾公里外，會鑽進地球
         const float CallLead = 0.08f;    // 倒數數字從開口到聽得出來的延遲
+        const float MaxSubStep = 0.25f;  // 快轉時一幀拆成幾小步，事件和分離動作才不會跳過
+        const float SceneScaleMin = 0.1f; // 爬升後段畫面速度 = 真實速度 × 0.1（長焦鏡頭追得上、浮點精度夠）
+        const float CamCycle = 14f;      // 太空段鏡頭輪替（真實秒）
+        const float SegmentPush = 1.2f;  // 太空中分離出去的東西往後飄的速度（m/s）
+        const float StackAccel = 1.5f;   // 上節燃燒時，分離物相對上節往後加速（m/s²，畫面用）
 
         RocketParts _rocket;
+        LaunchTimeline _tl;
         TrailRenderer _trail;
         GameObject _payload;
+        SatPart[] _solar = Array.Empty<SatPart>();
         Transform _firstStageFree;
         float _T;
-        float _pathAlt;     // 發射台段飛過的距離（公尺）：尾焰在稀薄空氣裡變長
-        float _pathVel;
-        float _accel;       // 目前的加速度（m/s²）：分離出去的物體依它算相對運動
-        bool _inSpace, _exploded, _fairingOpen, _deployed, _falling, _skipping, _done;
+        float _pathAlt;     // 發射台段飛過的距離（公尺）
+        float _sceneVel;    // 發射台段畫面上的速度（m/s）
+        float _accel;       // 目前畫面上的加速度：分離出去的物體依它算相對運動
+        bool _inSpace, _exploded, _fairingOpen, _deployed, _falling, _skipping, _done, _skipHandled;
         float _deployT, _fairingT, _fallT;
-        float _fallAlt, _fallVel;
         Vector3 _fallPivotLocal;      // 上節中心（root 的區域座標）：翻滾繞這一點，不繞火箭底部
         CinemachineFollow _sideFollow;
         bool _fairingFree;            // 整流罩打開後脫離箭體，各自往外飄
         Vector3 _fairingVelL, _fairingVelR;
-        Transform _fallFocus;         // 不跟著翻滾的追蹤點：鏡頭跟著它，畫面的上下才不會跟著箭體甩
+        Transform _fallFocus;         // 不跟著翻滾的追蹤點
         Vector3 _sideOffset0;
         float _shake;
-        float _endT;
-        float _orbitAltKm;
         float _camK;                  // 太空鏡頭距離倍率（小火箭鏡頭靠近一點）
         readonly List<Cue> _cues = new List<Cue>();
         int _nextCue;
@@ -86,33 +88,43 @@ namespace GoNoGo.Launch
         Design _design;
         string _reason;
 
-        // 飛行方位：垂直於長焦鏡頭的視線，火箭在畫面裡由左往右轉向，分離過程看得到側面
+        // 時間表上的幾個關鍵時間
+        float _swapT, _pitchEnd, _scaleEnd, _mecoT, _sepT, _sesT;
+
+        // 飛行方位：垂直於長焦鏡頭的視線，火箭在畫面裡由左往右轉向
         Quaternion _yaw;
         Vector3 _yawRight;
         float _rollDeg;
         float _firstLen;              // 上節底部在 root 上的高度
-        Vector3 _upperPos;            // 太空段：上節底部的世界座標（俯仰繞這一點轉）
+        Vector3 _upperPos;            // 太空段：上節底部的世界座標
 
-        // 長焦鏡頭：自己算瞄準點與視角（像真的追蹤攝影師一樣邊追邊變焦）
+        // 多節上節：目前在燒（或下一個要燒）的是第幾節；最下面還接著的節的底部高度（鏡頭瞄準用）
+        int _activeSeg;
+        float _stageBottom, _focusBottom;
+
+        // 長焦鏡頭：自己算瞄準點與視角
         Transform _longFocus;
-        Transform _upperFocus;        // 上節＋整流罩的中段：太空鏡頭瞄準這裡，整流罩分離時兩半都在畫面裡
+        Transform _upperFocus;
         CinemachineRotationComposer _longAim;
         float _longFov0, _frameBase, _frameUpper;
         Vector3 _transferOffset;
 
-        // 分離出去的助推器、第一節
-        // 用「相對火箭」的位置與速度來算：它們跟火箭走同一條彎曲的重力轉向路徑，只有相對運動。
-        // 如果給它們一個固定的世界速度，火箭轉向時兩者的方向差（每秒幾度 × 200 m/s）會在幾秒內拉開上百公尺，
-        // 小火箭的畫面裡上節直接被甩出去
+        // 鏡頭切換：同一時間只有一個混合，太空段每隔一段時間換角度
+        CinemachineCamera _cam;
+        float _camSince, _blendDur, _camHold;
+
+        /// <summary>分離出去的助推器、第一節（發射台段，用相對火箭的位置與速度算）、太空中丟掉的上節。</summary>
         sealed class FreeBody
         {
             public Transform t;
             public Vector3 rel, relV;
-            public float keep;        // 保留火箭加速度的比例：相對運動慢一點，分離過程才看得完整
+            public float keep;        // 保留火箭加速度的比例
             public Vector3 axis;
             public float spin;
+            public float age;
         }
         readonly List<FreeBody> _free = new List<FreeBody>();
+        readonly List<FreeBody> _drift = new List<FreeBody>();
 
         // 天空變黑
         Material _skyInst, _starsInst, _starsShared;
@@ -125,8 +137,11 @@ namespace GoNoGo.Launch
         float _padProbe0;
 
         // 倒數錄音
+        enum Sync { Off, Waiting, Locked }
         float[] _calls;
-        bool _audioClock;
+        Sync _sync;
+        float _syncWait, _audio0;
+        float _roar0 = 1f, _rumble0 = 0.8f;
 
         struct Cue
         {
@@ -146,7 +161,6 @@ namespace GoNoGo.Launch
         void OnDestroy()
         {
             LaunchFeed.DirectorActive = false;
-            LaunchFeed.SkipRequested -= Skip;
             if (_skyInst != null) Destroy(_skyInst);
             if (_starsInst != null) Destroy(_starsInst);
         }
@@ -160,14 +174,22 @@ namespace GoNoGo.Launch
             _design = launch.Design;
             _outcome = launch.Outcome;
             _reason = launch.ReasonCode ?? "";
-            var orbit = m.Data.Orbit(_design.OrbitId);
-            _orbitAltKm = (float)Math.Min(orbit?.AltitudeKm ?? 500, 1200);
+
+            _tl = LaunchTimeline.Build(m.Data, _design, _outcome, _reason);
+            _swapT = _tl.SwapT < 1e6 ? (float)_tl.SwapT : float.MaxValue;
+            _mecoT = (float)(_tl.First("meco")?.T ?? 150);
+            _sepT = (float)(_tl.First("stage_sep")?.T ?? _mecoT + 3);
+            _sesT = (float)(_tl.First("ses")?.T ?? _sepT + 4);
+            _pitchEnd = _swapT < 1e5f ? _swapT : _sesT + 8f;
+            // 畫面速度在 35 秒內縮到 0.1：火箭在畫面上的高度長得慢，長焦鏡頭才不會一直往頭頂仰
+            _scaleEnd = Mathf.Clamp(_mecoT - 8f, 25f, 35f);
+            _skipHandled = false; // 進場景之前就按了跳過的話，第一幀的 Update 會處理
 
             var kit = LaunchKit.Load();
             _rocket = RocketBuilder.Build(_design.LauncherId, kit, rocketAnchor);
             _firstLen = _rocket.upperStage.localPosition.y;
-            // 整流罩沿上節的 X 軸分成兩半，而太空側面鏡頭正好在 +X 那一側：其中一半會直直飛向鏡頭、擋住整個畫面。
-            // 上節繞自己的軸轉 90°，兩半改成在畫面上下方向分開；衛星反向轉回來，展開鏡頭看到的方向不變
+            // 整流罩沿上節的 X 軸分成兩半，而太空側面鏡頭正好在 +X 那一側：上節繞自己的軸轉 90°，
+            // 兩半改成在畫面上下方向分開；衛星反向轉回來，展開鏡頭看到的方向不變
             _rocket.upperStage.localRotation = Quaternion.Euler(0f, 90f, 0f);
             _rocket.payloadMount.localRotation = Quaternion.Euler(0f, -90f, 0f);
             BuildPayload(m.Data);
@@ -185,14 +207,11 @@ namespace GoNoGo.Launch
             float k = _rocket.height / 70f;
             if (padScaled != null) padScaled.localScale = Vector3.one * Mathf.Clamp(k * 1.05f, 0.3f, 1f);
             ScaleCamOffset(camWide, Mathf.Max(0.45f, k));
-            // 長焦鏡頭在 1.6 km 外：18 m 的 Electron 只剩幾個像素，用更窄的視角補回來
             if (camLong != null) camLong.Lens.FieldOfView *= Mathf.Clamp(k * 1.3f, 0.4f, 1f);
-            // 塔邊鏡頭瞄準箭身中段，而不是底部
             var towerAim = camTower != null ? camTower.GetComponent<CinemachineRotationComposer>() : null;
             if (towerAim != null) towerAim.TargetOffset = new Vector3(0, _rocket.height * 0.35f, 0);
             ScaleCamOffset(camTower, k);
             ScaleCamOffset(camEngine, k);
-            // 太空段要看得到整個上節、地球和分離出去的東西：比貼身追蹤再拉遠一些
             ScaleCamFollow(camSpace, Mathf.Max(0.35f, k) * 1.7f);
             ScaleCamFollow(camSide, Mathf.Max(0.35f, k) * 1.7f);
             _camK = Mathf.Max(0.35f, k);
@@ -210,18 +229,52 @@ namespace GoNoGo.Launch
 
             BuildCues();
             _T = StartT;
+            LaunchFeed.T = _T;
             Cut(camWide);
-            LaunchFeed.SkipRequested += Skip;
-            if (countdown != null && countdown.clip != null)
+            if (roar != null) _roar0 = roar.volume;
+            if (rumble != null) _rumble0 = rumble.volume;
+            SetupCountdownAudio();
+        }
+
+        /// <summary>
+        /// 倒數錄音：等音檔真的載入、真的開始播，才開始倒數（瀏覽器解碼或載入慢的時候，數字不會先跑掉）。
+        /// </summary>
+        void SetupCountdownAudio()
+        {
+            _sync = Sync.Off;
+            if (countdown == null || countdown.clip == null) return;
+            var bank = AudioBank.Load();
+            _calls = bank != null && bank.countdownCalls != null && bank.countdownCalls.Length >= 2 ? bank.countdownCalls : null;
+            // 從 T−12 對應的錄音位置開始播：念「十」的那一刻剛好是 T−10
+            _audio0 = Mathf.Clamp(_calls != null ? (float)LaunchClock.AudioFromT(StartT, _calls, CallLead) : 42.5f, 0, countdown.clip.length - 1);
+            if (countdown.clip.loadState != AudioDataLoadState.Loaded) countdown.clip.LoadAudioData();
+            _sync = Sync.Waiting;
+            _syncWait = 0;
+        }
+
+        /// <summary>還在等錄音開始的話回傳 true（時鐘停在 T−12）。</summary>
+        bool WaitForCountdownAudio(float realDt)
+        {
+            if (_sync != Sync.Waiting) return false;
+            _syncWait += realDt;
+            var clip = countdown.clip;
+            if (!countdown.isPlaying && clip.loadState == AudioDataLoadState.Loaded)
             {
-                var bank = AudioBank.Load();
-                _calls = bank != null && bank.countdownCalls != null && bank.countdownCalls.Length >= 2 ? bank.countdownCalls : null;
-                // 從 T−12 對應的錄音位置開始播：念「十」的那一刻剛好是 T−10
-                double start = _calls != null ? LaunchClock.AudioFromT(StartT, _calls, CallLead) : 42.5;
-                countdown.time = Mathf.Clamp((float)start, 0, countdown.clip.length - 1);
+                countdown.time = _audio0;
                 countdown.Play();
-                _audioClock = _calls != null;
             }
+            if (countdown.isPlaying && countdown.time > _audio0 + 0.01f)
+            {
+                _sync = _calls != null ? Sync.Locked : Sync.Off;
+                return false;
+            }
+            // 三秒都沒聲音（沒有音效裝置、載入失敗）：不等了，照實際時間倒數
+            if (_syncWait > 3f || clip.loadState == AudioDataLoadState.Failed)
+            {
+                _sync = Sync.Off;
+                return false;
+            }
+            return true;
         }
 
         /// <summary>
@@ -249,10 +302,8 @@ namespace GoNoGo.Launch
             if (camLong == null) return;
             _longAim = camLong.GetComponent<CinemachineRotationComposer>();
             _longFov0 = camLong.Lens.FieldOfView;
-            // 一開始的取景高度（公尺）：之後距離變遠就把視角收窄，火箭在畫面裡維持一樣大
             float d0 = Vector3.Distance(camLong.transform.position, rocketAnchor.position);
             _frameBase = 2f * d0 * Mathf.Tan(_longFov0 * 0.5f * Mathf.Deg2Rad);
-            // 分離後只追上節：上節＋整流罩佔畫面約 1/3
             _frameUpper = Mathf.Max((_rocket.height - _firstLen) * 3.2f, 12f);
         }
 
@@ -283,17 +334,18 @@ namespace GoNoGo.Launch
         void BuildPayload(GameData data)
         {
             _payload = SatelliteBuilder.Build(_design, data, Evaluator.EvaluateDesign(_design, data), _rocket.payloadMount);
-            // 縮到整流罩裝得下：直徑 0.8 × 罩寬
+            // 縮到整流罩裝得下（Taurus 的整流罩比第一節細）
             var rs = _payload.GetComponentsInChildren<Renderer>();
             if (rs.Length == 0) return;
             var b = rs[0].bounds;
             foreach (var r in rs) b.Encapsulate(r.bounds);
-            float fit = _rocket.diameter * 0.75f / Mathf.Max(0.01f, Mathf.Max(b.size.x, b.size.z));
+            float inner = Mathf.Min(_rocket.diameter, _rocket.fairingRadius * 2f);
+            float fit = inner * 0.75f / Mathf.Max(0.01f, Mathf.Max(b.size.x, b.size.z));
             _payload.transform.localScale = Vector3.one * Mathf.Min(1f, fit);
             _payload.transform.localPosition = new Vector3(0, b.size.y * 0.5f * Mathf.Min(1f, fit), 0);
             // 太陽能板發射時收起來
-            foreach (var p in _payload.GetComponentsInChildren<SatPart>())
-                if (p.category == PartCategory.Solar) p.transform.localScale = new Vector3(0.12f, 1f, 1f);
+            _solar = _payload.GetComponentsInChildren<SatPart>().Where(p => p.category == PartCategory.Solar).ToArray();
+            foreach (var p in _solar) p.transform.localScale = new Vector3(0.12f, 1f, 1f);
         }
 
         static void ScaleCamOffset(CinemachineCamera cam, float k)
@@ -314,102 +366,83 @@ namespace GoNoGo.Launch
 
         void BuildCues()
         {
+            var list = new List<Cue>
+            {
+                new Cue(-10f, () => Say("ui.launch.call.go")),
+                new Cue(-4.5f, () => Cut(camEngine)),
+                new Cue(-3f, Ignition),
+                new Cue(0f, Liftoff),
+                new Cue(0.6f, () => Cut(camTower)),
+                new Cue(3.5f, () => Say("ui.launch.call.tower")),
+                new Cue(5.5f, () => { Blend(camLong, 1.2f); Say("ui.launch.call.pitch"); }),
+            };
+            foreach (var e in _tl.Events)
+            {
+                var ev = e;
+                list.Add(new Cue((float)e.T, () => OnEvent(ev)));
+            }
+            if (_swapT < 1e5f) list.Add(new Cue(_swapT, GoToSpace));
             _cues.Clear();
-            _cues.Add(new Cue(-10f, () => Say("ui.launch.call.go")));
-            _cues.Add(new Cue(-4.5f, () => Cut(camEngine)));
-            _cues.Add(new Cue(-3f, Ignition));
-            _cues.Add(new Cue(0f, Liftoff));
-            _cues.Add(new Cue(0.6f, () => Cut(camTower)));
-            _cues.Add(new Cue(3.5f, () => Say("ui.launch.call.tower")));
-            _cues.Add(new Cue(5.5f, () => { Blend(camLong, 1.2f); Say("ui.launch.call.pitch"); }));
-
-            bool anomaly = _outcome == LaunchOutcome.Failure && _reason == "launch.anomaly";
-            if (anomaly)
-            {
-                _cues.Add(new Cue(10f, Explode));
-                _cues.Add(new Cue(11.2f, () => Say("ui.launch.call.anomaly")));
-                _endT = 16f;
-                _cues.Add(new Cue(_endT, Finish));
-                return;
-            }
-
-            _cues.Add(new Cue(10f, () => { Stage("ui.launch.stage.maxq"); Say("ui.launch.call.maxq"); }));
-            if (HasBoosters) _cues.Add(new Cue(BoosterSepT, BoosterSeparation));
-            _cues.Add(new Cue(MecoT, Meco));
-            _cues.Add(new Cue(SepT, StageSeparation));
-            _cues.Add(new Cue(IgnT, SecondStageIgnition));
-            _cues.Add(new Cue(SwapT, GoToSpace));
-            // 換場後從「仰望上節」慢慢移到上節後上方：地球從畫面下方出現
-            _cues.Add(new Cue(SwapT + 0.6f, () => Blend(camSpace, 3.5f)));
-            _cues.Add(new Cue(FairingT - 3f, () => Blend(camSide, 2.5f)));
-
-            switch (_outcome)
-            {
-                case LaunchOutcome.FairingFailure:
-                    _cues.Add(new Cue(FairingT, () => { Stage("ui.launch.stage.fairing"); Say("ui.launch.call.fairing_fail"); Sfx.Alert(); }));
-                    _cues.Add(new Cue(FairingT + 4f, () => { Stage("ui.launch.stage.anomaly"); Say("ui.launch.call.underspeed"); StartFall(); }));
-                    _endT = FairingT + 10f;
-                    break;
-                case LaunchOutcome.Failure: // 太重或到不了：上節燒完還是速度不足
-                    _cues.Add(new Cue(FairingT, OpenFairing));
-                    _cues.Add(new Cue(FairingT + 3f, () => { Stage("ui.launch.stage.anomaly"); Say("ui.launch.call.underspeed"); StartFall(); }));
-                    _endT = FairingT + 9f;
-                    break;
-                default:
-                    _cues.Add(new Cue(FairingT, OpenFairing));
-                    _cues.Add(new Cue(FairingT + 4.5f, () =>
-                    {
-                        Stage("ui.launch.stage.orbit");
-                        Say(_outcome == LaunchOutcome.LowerOrbit ? "ui.launch.call.lower" : "ui.launch.call.orbit");
-                        SetUpperThrust(false);
-                    }));
-                    _cues.Add(new Cue(FairingT + 6.5f, Deploy));
-                    _endT = FairingT + 13f;
-                    if (_outcome == LaunchOutcome.DeadOnOrbit)
-                    {
-                        // 入軌後失效：太陽能板展開後進入地影，訊號中斷
-                        _cues.Add(new Cue(FairingT + 12f, () => { Stage("ui.launch.stage.eclipse"); Say("ui.launch.call.eclipse"); StartCoroutine(EnterEclipse()); }));
-                        _cues.Add(new Cue(FairingT + 15.5f, () => { Stage("ui.launch.stage.signal_lost"); Say("ui.launch.call.signal_lost"); Sfx.Alert(); }));
-                        _endT = FairingT + 19f;
-                    }
-                    break;
-            }
-            _cues.Add(new Cue(_endT, Finish));
+            _cues.AddRange(list.OrderBy(c => c.t)); // OrderBy 是穩定排序：同時間的照加入順序
         }
 
-        bool HasBoosters
+        void OnEvent(TimelineEvent e)
         {
-            get
+            switch (e.Id)
             {
-                foreach (Transform c in _rocket.firstStage) if (c.name.StartsWith("Booster")) return true;
-                return false;
+                case "booster_cutoff": BoosterCutoff(); break;
+                case "booster_sep": BoosterSeparation(); break;
+                case "meco": Meco(); break;
+                case "stage_sep": StageSeparation(); break;
+                case "ses": _activeSeg = 0; SetUpperThrust(true); break;
+                case "fairing": OpenFairing(); break;
+                case "fairing_fail": if (!_skipping) Sfx.Alert(); break;
+                case "upper_cutoff": case "seco": case "seco2": SetUpperThrust(false); break;
+                case "upper_sep": DropSegment(); break;
+                case "upper_ignite": case "restart": SetUpperThrust(true); break;
+                case "deploy": Deploy(); break;
+                case "eclipse": StartCoroutine(EnterEclipse()); break;
+                case "signal_lost": if (!_skipping) Sfx.Alert(); break;
+                case "underspeed": StartFall(); break;
+                case "anomaly": Explode(); break;
+                case "end": Finish(); break;
             }
+            if (!string.IsNullOrEmpty(e.Call)) Say(e.N > 0 ? e.Call + "#" + e.N : e.Call);
         }
 
         void Say(string key) { if (!_skipping) LaunchFeed.Say(key); }
-        static void Stage(string key) => LaunchFeed.StageKey = key;
 
         void Cut(CinemachineCamera cam) => Activate(cam, 0f);
-        void Blend(CinemachineCamera cam, float seconds) => Activate(cam, seconds);
+
+        /// <summary>混合到另一個鏡頭。上一個混合還沒結束就不換（兩個混合疊在一起，畫面會被拉扯）。</summary>
+        bool Blend(CinemachineCamera cam, float seconds, bool force = false)
+        {
+            if (!force && !_skipping && _camSince < _blendDur) return false;
+            Activate(cam, seconds);
+            return true;
+        }
 
         void Activate(CinemachineCamera cam, float blend)
         {
             if (cam == null) return;
+            if (_skipping) blend = 0f;
             if (brain != null)
-                brain.DefaultBlend = blend <= 0f || _skipping
+                brain.DefaultBlend = blend <= 0f
                     ? new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.Cut, 0f)
                     : new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, blend);
             cam.Prioritize();
+            _cam = cam;
+            _camSince = 0f;
+            _blendDur = blend;
         }
 
         // ---------------- 事件 ----------------
 
         void Ignition()
         {
-            Stage("ui.launch.stage.ignition");
-            Say("ui.launch.call.ignition");
             foreach (var pr in _rocket.firstStagePlumes) pr.enabled = true;
             foreach (var ps in padSmoke) if (ps != null) { var em = ps.emission; em.enabled = true; ps.Play(); }
+            Say("ui.launch.call.ignition");
             if (!_skipping && roar != null && roar.clip != null)
             {
                 var bank = AudioBank.Load();
@@ -421,7 +454,6 @@ namespace GoNoGo.Launch
         void Liftoff()
         {
             StartTrail();
-            Stage("ui.launch.stage.ascent");
             Say("ui.launch.call.liftoff");
             if (!_skipping && rumble != null && rumble.clip != null) rumble.Play();
         }
@@ -456,29 +488,41 @@ namespace GoNoGo.Launch
         void Explode()
         {
             _exploded = true;
-            Stage("ui.launch.stage.anomaly");
             var at = _rocket.root.position + _rocket.root.up * _rocket.height * 0.5f;
             if (fireball != null) { fireball.transform.position = at; fireball.Play(); }
             if (debris != null) { debris.transform.position = at; debris.Play(); }
             if (flashLight != null) { flashLight.transform.position = at; flashLight.intensity = 400f; flashLight.range = _rocket.height * 6f; }
             foreach (var r in _rocket.root.GetComponentsInChildren<Renderer>()) r.enabled = false;
-            // 尾跡停在爆炸點，留在空中慢慢散掉（不要跟著隱藏）
             if (_trail != null) { _trail.emitting = false; _trail.enabled = true; }
             if (engineLight != null) engineLight.intensity = 0;
+            if (roar != null) roar.Stop();
             _shake = 3f;
             if (!_skipping) Sfx.Stamp();
         }
 
-        /// <summary>助推器分離：熄火、往外推開、頂端往外倒，慢慢落到後面（長焦鏡頭裡看得到整個過程）。</summary>
+        List<Transform> Boosters()
+        {
+            var list = new List<Transform>();
+            if (_rocket.firstStage == null) return list;
+            foreach (Transform c in _rocket.firstStage) if (c.name.StartsWith("Booster")) list.Add(c);
+            return list;
+        }
+
+        /// <summary>助推器燃燒完畢（Delta II 的 GEM-40、Falcon Heavy 的側核心）：只有它們的尾焰熄掉。</summary>
+        void BoosterCutoff()
+        {
+            foreach (var b in Boosters())
+                foreach (var pr in _rocket.firstStagePlumes)
+                    if (pr != null && pr.transform.IsChildOf(b)) pr.enabled = false;
+        }
+
+        /// <summary>助推器分離：往外推開、頂端往外倒，慢慢落到後面（長焦鏡頭裡看得到整個過程）。</summary>
         void BoosterSeparation()
         {
-            Say("ui.launch.call.boostersep");
+            BoosterCutoff();
             var up = _rocket.root.up;
-            var boosters = new List<Transform>();
-            foreach (Transform c in _rocket.firstStage) if (c.name.StartsWith("Booster")) boosters.Add(c);
-            foreach (var b in boosters)
+            foreach (var b in Boosters())
             {
-                foreach (var pr in _rocket.firstStagePlumes) if (pr != null && pr.transform.IsChildOf(b)) pr.enabled = false;
                 var outward = Vector3.ProjectOnPlane(b.position - _rocket.root.position, up).normalized;
                 b.SetParent(rocketAnchor, true);
                 _free.Add(new FreeBody
@@ -486,8 +530,8 @@ namespace GoNoGo.Launch
                     t = b,
                     rel = b.position - _rocket.root.position,
                     relV = outward * _rocket.diameter * 1.2f,
-                    keep = 0.55f,
-                    axis = Vector3.Cross(up, outward), // 繞這個軸轉正角度：頂端往外倒
+                    keep = 0.4f,
+                    axis = Vector3.Cross(up, outward),
                     spin = 9f,
                 });
             }
@@ -496,18 +540,14 @@ namespace GoNoGo.Launch
 
         void Meco()
         {
-            Stage("ui.launch.stage.staging");
-            Say("ui.launch.call.meco");
             foreach (var pr in _rocket.firstStagePlumes) if (pr != null) pr.enabled = false;
             if (_trail != null) _trail.emitting = false;
             if (engineLight != null) engineLight.intensity = 0;
-            if (!_skipping && roar != null) roar.volume *= 0.35f;
         }
 
         /// <summary>節間分離：第一節被推開一點，先一起滑行；第二節點火後才真正拉開距離。</summary>
         void StageSeparation()
         {
-            Say("ui.launch.call.stagesep");
             var up = _rocket.root.up;
             _firstStageFree = _rocket.firstStage;
             _firstStageFree.SetParent(rocketAnchor, true);
@@ -515,25 +555,42 @@ namespace GoNoGo.Launch
             if (!_skipping) Sfx.Whoosh();
         }
 
-        void SecondStageIgnition()
+        /// <summary>多節火箭丟掉燒完的那一節（Taurus 的第 1、2 節、Electron 的第二節）。</summary>
+        void DropSegment()
         {
-            Say("ui.launch.call.ses");
-            SetUpperThrust(true);
+            if (_activeSeg >= _rocket.upperSegments.Count) return;
+            var seg = _rocket.upperSegments[_activeSeg];
+            _rocket.segmentPlumes[_activeSeg].enabled = false;
+            var up = _rocket.root.up;
+            if (_inSpace)
+            {
+                seg.SetParent(spaceAnchor, true);
+                _drift.Add(new FreeBody { t = seg, relV = -up * SegmentPush + _rocket.root.right * 0.15f, axis = _rocket.root.right, spin = 4f });
+                // 分離是看點：換到側面鏡頭（上一個混合還沒結束就不換）
+                if (!_deployed && !_falling && _cam != camSide && Blend(camSide, 2.5f)) _camHold = 8f;
+            }
+            else
+            {
+                seg.SetParent(rocketAnchor, true);
+                _free.Add(new FreeBody { t = seg, rel = seg.position - _rocket.root.position, relV = -up * 2f, keep = 0f, axis = _rocket.root.right, spin = 3f });
+            }
+            _activeSeg++;
+            _stageBottom = _activeSeg < _rocket.segmentBase.Count ? _rocket.segmentBase[_activeSeg] : 0f;
+            if (!_skipping) Sfx.Whoosh();
         }
 
         /// <summary>
-        /// 換到太空場景。天空這時已經全黑、星星也亮了（兩邊的天空一樣），
+        /// 換到太空場景。天空這時已經全黑（兩邊的天空一樣），姿態也已經轉到 80°，
         /// 長焦鏡頭換成「同方向、同大小」的近距離位置，所以畫面看起來是同一個鏡頭。
         /// </summary>
         void GoToSpace()
         {
             _inSpace = true;
-            // 換場前先記下鏡頭相對上節的方向
             var dir = camLong != null ? (camLong.transform.position - _rocket.upperStage.position).normalized : -_rocket.root.forward;
             float dist = _frameUpper * 0.5f / Mathf.Tan(TransferFov * 0.5f * Mathf.Deg2Rad);
             _transferOffset = dir * dist;
 
-            // 火箭等一下會瞬間移動 2 萬公尺：尾跡要先清掉，否則會畫出一條橫跨天空的直線
+            // 火箭等一下會瞬間移動上萬公尺：尾跡要先清掉，否則會畫出一條橫跨天空的直線
             if (_trail != null) { _trail.emitting = false; _trail.Clear(); _trail.enabled = false; }
             foreach (var fb in _free) if (fb.t != null) fb.t.gameObject.SetActive(false);
             _free.Clear();
@@ -542,35 +599,52 @@ namespace GoNoGo.Launch
             foreach (var ps in padSmoke) if (ps != null) ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             ApplyDarkness(1f);
             if (spaceSet != null) spaceSet.SetActive(true);
-            // EnvironmentOverride 會換上原本的星空（全亮）：改回執行期複本，從 0 慢慢亮起來
             if (_starsInst != null) RenderSettings.skybox = _starsInst;
             _starsT = 0f;
 
-            // 世界方向不變；上節放在原本太空鏡頭調好的位置（root 在錨點、俯仰 80° 時的上節位置）
-            var rot = _rocket.root.rotation;
+            // 世界方向不變（換場前已經轉到 80°）；上節放在原本太空鏡頭調好的位置
+            var rot = FlightRotation(_pitchEnd);
             _rocket.root.SetParent(spaceAnchor, false);
             _rocket.root.rotation = rot;
             _upperPos = spaceAnchor.TransformPoint(Quaternion.Euler(80f, 0, 0) * new Vector3(0, _firstLen, 0));
             _rocket.root.position = _upperPos - rot * new Vector3(0, _firstLen, 0);
             if (engineLight != null) engineLight.intensity = 0;
-            // 火箭瞬間移動了約 2 萬公尺：所有鏡頭的阻尼狀態都要作廢，否則鏡頭會從發射台一路「飛」上來
             foreach (var cam in new[] { camLong, camSpace, camSide, camDeploy })
                 if (cam != null) cam.PreviousStateIsValid = false;
             UpdateLongCam();
-            if (!_skipping && countdown != null) countdown.Stop();
+            if (countdown != null) countdown.Stop();
+            if (roar != null) roar.Stop();
+            if (rumble != null) rumble.Stop();
+            // 長焦鏡頭在換場那一格接手，停 0.6 秒再慢慢移到上節後方
+            _cam = camLong;
+            _camSince = 0f;
+            _blendDur = 0f;
+            _camHold = 0.6f;
         }
 
         void SetUpperThrust(bool on)
         {
-            foreach (var pr in _rocket.upperPlumes) pr.enabled = on;
+            bool final = _activeSeg >= _rocket.upperSegments.Count;
+            for (int i = 0; i < _rocket.segmentPlumes.Count; i++) _rocket.segmentPlumes[i].enabled = on && i == _activeSeg;
+            foreach (var pr in _rocket.upperPlumes) pr.enabled = on && final;
+        }
+
+        bool UpperOn
+        {
+            get
+            {
+                if (_rocket == null) return false;
+                foreach (var pr in _rocket.segmentPlumes) if (pr.enabled) return true;
+                foreach (var pr in _rocket.upperPlumes) if (pr.enabled) return true;
+                return false;
+            }
         }
 
         void OpenFairing()
         {
-            Stage("ui.launch.stage.fairing");
-            Say("ui.launch.call.fairing");
             _fairingOpen = true;
             _fairingT = _T;
+            if (_inSpace && !_deployed && !_falling && _cam != camSide && Blend(camSide, 2.5f)) _camHold = 8f;
             if (!_skipping) Sfx.Whoosh();
         }
 
@@ -578,11 +652,8 @@ namespace GoNoGo.Launch
         {
             _falling = true;
             _fallT = _T;
-            _fallAlt = LaunchFeed.AltitudeKm;
-            _fallVel = LaunchFeed.VelocityKms;
             SetUpperThrust(false);
 
-            // 以上節的幾何中心當翻滾支點；繞 root 底部轉的話上節會甩出一個 40 m 的大弧，鏡頭追不上
             Bounds b = default; bool any = false;
             foreach (var r in _rocket.upperStage.GetComponentsInChildren<Renderer>())
             {
@@ -592,7 +663,7 @@ namespace GoNoGo.Launch
             var center = any ? b.center : _rocket.upperStage.position;
             _fallPivotLocal = _rocket.root.InverseTransformPoint(center);
 
-            // 鏡頭改追上節中心的固定點，並在三秒內往後拉，讓整節翻滾都留在畫面裡、地球一直在下方
+            // 鏡頭改追上節中心的固定點，並往後拉，讓整節翻滾都留在畫面裡、地球一直在下方
             if (camSide != null)
             {
                 _fallFocus = new GameObject("FallFocus").transform;
@@ -601,6 +672,7 @@ namespace GoNoGo.Launch
                 camSide.Target.TrackingTarget = _fallFocus;
                 _sideFollow = camSide.GetComponent<CinemachineFollow>();
                 if (_sideFollow != null) _sideOffset0 = _sideFollow.FollowOffset;
+                if (_cam != camSide) Blend(camSide, 2f, true);
             }
         }
 
@@ -618,25 +690,21 @@ namespace GoNoGo.Launch
 
         void Deploy()
         {
-            Stage("ui.launch.stage.deploy");
-            Say("ui.launch.call.deploy");
             _deployed = true;
             _deployT = _T;
-            if (_payload != null)
-            {
-                _payload.transform.SetParent(spaceAnchor, true);
-            }
-            // 硬切的同時把已經飄走的整流罩收掉：它們往外飄的路徑會穿過展開鏡頭，擋住半個畫面
+            if (_payload != null) _payload.transform.SetParent(spaceAnchor, true);
+            // 已經飄走的整流罩和丟掉的節收掉：它們的路徑會穿過展開鏡頭
             if (_fairingFree)
             {
                 _rocket.fairingLeft.gameObject.SetActive(false);
                 _rocket.fairingRight.gameObject.SetActive(false);
             }
-            // 上節同時退到展開鏡頭後方（鏡頭在衛星後方 5.5×k）：硬切看不出瞬移，畫面就像分離已經完成
+            foreach (var d in _drift) if (d.t != null) d.t.gameObject.SetActive(false);
+            _drift.Clear();
+            // 上節同時退到展開鏡頭後方：硬切看不出瞬移，畫面就像分離已經完成
             var back = _rocket.root.up * (6f + 8f * _camK);
             _upperPos -= back;
             _rocket.root.position -= back;
-            // 直接切：從側面鏡頭混合過來時，鏡頭路徑會擦過上節箭體，有一秒整個畫面被箭身擋住
             Cut(camDeploy);
             if (!_skipping) Sfx.Confirm();
         }
@@ -648,16 +716,17 @@ namespace GoNoGo.Launch
             LaunchFeed.Finished = true;
         }
 
+        /// <summary>跳過：用小步長快轉到結尾，讓所有分離、展開都正確發生（不播聲音、不播報）。</summary>
         void Skip()
         {
             if (_done) return;
             _skipping = true;
+            _sync = Sync.Off;
             if (countdown != null) countdown.Stop();
             if (roar != null) roar.Stop();
             if (rumble != null) rumble.Stop();
-            // 用小步長快轉到結尾，讓所有分離、展開都正確發生
             int guard = 0;
-            while (!_done && guard++ < 4000) Step(0.02f);
+            while (!_done && guard++ < 40000) Step(_T < _swapT + 5f ? 0.25f : 1f);
             _skipping = false;
         }
 
@@ -665,23 +734,47 @@ namespace GoNoGo.Launch
 
         void Update()
         {
+            float real = Time.deltaTime;
+            var s = GameSession.HasMission ? GameSession.Mission.S : null;
+            if (s != null && s.LaunchSkipped && !_skipHandled)
+            {
+                _skipHandled = true;
+                Skip();
+            }
             if (_done)
             {
-                Animate(Time.deltaTime);
+                Animate(real);
+                UpdateCams(real);
                 return;
             }
-            Step(Time.deltaTime);
+            if (WaitForCountdownAudio(Time.unscaledDeltaTime))
+            {
+                LaunchFeed.T = _T;
+                UpdateCams(real);
+                return;
+            }
+            // 升空後才能快轉（倒數跟著錄音）；一幀拆成小步，事件照順序發生
+            float speed = _T >= 0f && s != null ? Mathf.Max(1, s.LaunchSpeed) : 1f;
+            float todo = real * speed;
+            while (todo > 1e-5f && !_done)
+            {
+                float st = Mathf.Min(todo, MaxSubStep);
+                Step(st);
+                todo -= st;
+            }
+            UpdateCams(real);
+            UpdateAudio();
         }
 
         void Step(float dt)
         {
             float prev = _T;
             _T += dt;
-            // 倒數期間時間跟著錄音走：數字在念出來的那一刻跳（錄音停住或差太多就改回用實際時間）
-            if (_audioClock && !_skipping && _T < 1f && countdown != null && countdown.isPlaying)
+            // 倒數期間時間直接由錄音位置換算（不設門檻、只往前走）：數字一定在念出來的那一刻跳
+            if (!_skipping && _calls != null && _sync != Sync.Off && _T < 1f && countdown != null && countdown.isPlaying)
             {
                 float at = (float)LaunchClock.TFromAudio(countdown.time, _calls, CallLead);
-                if (Mathf.Abs(at - _T) < 1.5f) _T = Mathf.Max(prev, at);
+                _T = Mathf.Max(prev, at);
             }
             LaunchFeed.T = _T;
             while (_nextCue < _cues.Count && _cues[_nextCue].t <= _T)
@@ -696,27 +789,42 @@ namespace GoNoGo.Launch
         static float Ease(float a, float b, float x) => Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(a, b, x));
 
         /// <summary>
-        /// 整段飛行的姿態：塔邊鏡頭之後先滾轉到飛行方位，再逐漸俯仰（重力轉向），換場時約 62°，太空中轉到 80°。
-        /// 最後等於「太空場景的方位 × Euler(80, 0, 0)」，跟原本調好的太空鏡頭一致。
+        /// 整段飛行的姿態：塔邊鏡頭之後先滾轉到飛行方位，再逐漸俯仰（重力轉向），換場那一刻剛好 80°，
+        /// 等於「太空場景的方位 × Euler(80, 0, 0)」。換場之後不再轉（轉動中的長焦和跟拍鏡頭會晃）。
         /// </summary>
         Quaternion FlightRotation(float t)
         {
             float roll = Ease(5.5f, 10f, t) * _rollDeg;
-            float pitch = 62f * Ease(4f, SwapT, t) + 18f * Ease(SwapT, SwapT + 5f, t);
+            // 重力轉向：俯仰起步快、後面慢慢收（指數）和 smoothstep 各半；Falcon 9 一分鐘約 30°、一節關機約 75°
+            float span = Mathf.Max(1f, _pitchEnd - 6f), x = Mathf.Clamp(t - 6f, 0f, span), tau = 0.6f * span;
+            float expo = (1f - Mathf.Exp(-x / tau)) / (1f - Mathf.Exp(-span / tau));
+            float pitch = 80f * (0.5f * Ease(6f, _pitchEnd, t) + 0.5f * expo);
             return Quaternion.AngleAxis(pitch, _yawRight) * Quaternion.AngleAxis(roll, Vector3.up);
+        }
+
+        /// <summary>畫面速度 / 真實速度：升空時 1（看得出火箭有多大），之後縮小到 0.1，長焦鏡頭才追得上。</summary>
+        float SceneScale(float t) => Mathf.Lerp(1f, SceneScaleMin, Ease(4f, _scaleEnd, t));
+
+        float Throttle(float t)
+        {
+            if (_exploded) return 0f;
+            if (t < -3f) return 0f;
+            if (t < 0f) return Mathf.SmoothStep(0, 1, (t + 3f) / 1.5f);
+            return _tl.Thrusting(t) ? 1f : 0f;
         }
 
         void Animate(float dt)
         {
             float t = _T;
-            // ---- 發射台段：火箭往上加速、轉向 ----
+            // ---- 發射台段：火箭照真實速度（乘比例）往上飛、轉向 ----
             if (!_inSpace && !_exploded && t > 0)
             {
-                _accel = t < MecoT ? Mathf.Lerp(4f, 14f, Mathf.Clamp01(t / 14f)) : t < IgnT ? 0f : 8f;
-                _pathVel += _accel * dt;
-                _pathAlt += _pathVel * dt;
+                float v = (float)_tl.Velocity(t) * 1000f * SceneScale(t);
+                _accel = dt > 1e-5f ? Mathf.Max(0f, (v - _sceneVel) / dt) : 0f;
+                _sceneVel = v;
+                _pathAlt += v * dt;
                 _rocket.root.rotation = FlightRotation(t);
-                _rocket.root.position += _rocket.root.up * _pathVel * dt;
+                _rocket.root.position += _rocket.root.up * v * dt;
                 // 分離出去的物體：只保留一部分火箭的加速度，所以慢慢落後
                 foreach (var fb in _free)
                 {
@@ -728,25 +836,25 @@ namespace GoNoGo.Launch
             }
 
             // ---- 推力、尾焰、火光 ----
-            float throttle = t < -3f ? 0f : t < 0f ? Mathf.SmoothStep(0, 1, (t + 3f) / 1.5f) : 1f;
-            if (_exploded || _inSpace || t >= MecoT) throttle = 0f;
-            LaunchFeed.Throttle = _inSpace || t >= MecoT ? (UpperOn ? 1f : 0f) : throttle;
+            float throttle = _inSpace ? 0f : Throttle(t);
+            bool firstOn = !_inSpace && !_exploded && _firstStageFree == null && t < _mecoT + 0.01f;
             float flicker = 0.85f + 0.15f * Mathf.PerlinNoise(Time.time * 18f, 0.3f);
+            // 空氣越稀薄尾焰越寬越長
+            float thin = Mathf.Clamp01(LaunchFeed.AltitudeKm / 40f);
             foreach (var pr in _rocket.firstStagePlumes)
             {
                 if (pr == null || !pr.enabled) continue;
-                var s = pr.transform.localScale;
-                float len = Mathf.Lerp(0.2f, 1f, throttle) * (1f + Mathf.Clamp01(_pathAlt / 1500f) * 1.5f);
-                pr.transform.localScale = new Vector3(s.x, s.x * 9f * len * flicker, s.z);
-                // 用 MaterialPropertyBlock：直接改 sharedMaterial 會在 Editor 裡改到材質資產本身
+                var sc = pr.transform.localScale;
+                float len = Mathf.Lerp(0.2f, 1f, firstOn ? throttle : 0f) * (1f + thin * 1.8f);
+                pr.transform.localScale = new Vector3(sc.x, sc.x * 9f * len * flicker, sc.z);
                 pr.GetPropertyBlock(_mpb);
                 _mpb.SetFloat(ThrottleId, throttle);
                 pr.SetPropertyBlock(_mpb);
             }
-            if (engineLight != null && !_inSpace && !_exploded && t < MecoT)
+            if (engineLight != null && firstOn)
             {
                 engineLight.transform.position = _rocket.root.position - _rocket.root.up * 2f;
-                engineLight.intensity = throttle * 900f * flicker * Mathf.Max(0.3f, _rocket.height / 70f);
+                engineLight.intensity = throttle * 900f * flicker * Mathf.Max(0.3f, _rocket.height / 70f) * (1f - thin);
                 engineLight.range = _rocket.height * 3f;
             }
             if (flashLight != null && flashLight.intensity > 0) flashLight.intensity = Mathf.Max(0, flashLight.intensity - dt * 300f);
@@ -759,36 +867,37 @@ namespace GoNoGo.Launch
                 em.rateOverTimeMultiplier = throttle * Mathf.Clamp01(1f - (t - 6f) / 8f) * 70f;
             }
 
-            if (!_inSpace) UpdateSky(dt);
+            if (!_inSpace) UpdateSky();
             else FadeInStars(dt);
 
-            // ---- 太空段 ----
+            // ---- 太空段：上節在畫面裡不動，分離出去的東西往後飄 ----
             if (_inSpace)
             {
-                var stageMove = Vector3.zero;
-                if (!_falling)
+                bool burning = UpperOn;
+                var up = _rocket.root.up;
+                foreach (var d in _drift)
                 {
-                    // 繼續俯仰到 80°，繞上節底部轉（第一節已經沒了）
-                    if (UpperOn) stageMove = _rocket.root.up * UpperSpeed * dt;
-                    _upperPos += stageMove;
-                    var rot = FlightRotation(t);
-                    _rocket.root.rotation = rot;
-                    _rocket.root.position = _upperPos - rot * new Vector3(0, _firstLen, 0);
+                    if (d.t == null) continue;
+                    if (burning) d.relV -= up * StackAccel * dt;
+                    d.t.position += d.relV * dt;
+                    d.t.Rotate(d.axis, d.spin * dt, Space.World);
+                    d.age += dt;
+                    if (d.age > 120f) d.t.gameObject.SetActive(false);
                 }
                 if (_fairingFree)
                 {
-                    // 兩半保有箭體原本的速度（只是上節還在加速，所以慢慢落後）：不然一脫離就以 30 m/s 往後飛出畫面
-                    _rocket.fairingLeft.position += _fairingVelL * dt + stageMove * 0.9f;
-                    _rocket.fairingRight.position += _fairingVelR * dt + stageMove * 0.9f;
+                    if (burning) { _fairingVelL -= up * StackAccel * dt; _fairingVelR -= up * StackAccel * dt; }
+                    _rocket.fairingLeft.position += _fairingVelL * dt;
+                    _rocket.fairingRight.position += _fairingVelR * dt;
                     _rocket.fairingLeft.Rotate(Vector3.forward, 14f * dt, Space.Self);
                     _rocket.fairingRight.Rotate(Vector3.forward, -14f * dt, Space.Self);
+                    if (t - _fairingT > 90f) { _rocket.fairingLeft.gameObject.SetActive(false); _rocket.fairingRight.gameObject.SetActive(false); }
                 }
                 else if (_fairingOpen && t - _fairingT >= 2.5f)
                 {
                     // 打開完成：兩半脫離上節（不然上節翻滾時會把它們一起甩到鏡頭前），保持往外的速度
                     _fairingFree = true;
                     float sp = _rocket.fairingRadius * 1.4f;
-                    var up = _rocket.root.up;
                     _fairingVelL = Vector3.ProjectOnPlane(_rocket.fairingLeft.position - _rocket.upperStage.position, up).normalized * sp - up * sp * 0.3f;
                     _fairingVelR = Vector3.ProjectOnPlane(_rocket.fairingRight.position - _rocket.upperStage.position, up).normalized * sp - up * sp * 0.3f;
                     _rocket.fairingLeft.SetParent(spaceAnchor, true);
@@ -800,7 +909,6 @@ namespace GoNoGo.Launch
                     float ang = f * f * 75f;
                     _rocket.fairingLeft.localRotation = Quaternion.Euler(0, 0, ang);
                     _rocket.fairingRight.localRotation = Quaternion.Euler(0, 0, -ang);
-                    // 兩半繞底部鉸鏈往外倒，同時往外飄開
                     float fr = _rocket.fairingRadius;
                     float drift = f * f * 2.5f * fr;
                     _rocket.fairingLeft.localPosition = new Vector3(-fr - drift, _rocket.fairingLeft.localPosition.y, 0);
@@ -812,7 +920,7 @@ namespace GoNoGo.Launch
                     float f = t - _fallT;
                     var pivot = _rocket.root.TransformPoint(_fallPivotLocal);
                     _rocket.root.RotateAround(pivot, _rocket.root.right, 9f * dt);
-                    _rocket.root.position += Vector3.down * f * 2f * dt;
+                    _rocket.root.position += Vector3.down * Mathf.Min(f, 12f) * 1.5f * dt;
                     if (_fallFocus != null) _fallFocus.position = _rocket.root.TransformPoint(_fallPivotLocal);
                     if (_sideFollow != null)
                         _sideFollow.FollowOffset = _sideOffset0 * Mathf.Lerp(1f, 1.2f, Mathf.SmoothStep(0f, 1f, f / 3f));
@@ -821,39 +929,51 @@ namespace GoNoGo.Launch
                 {
                     _payload.transform.position += _rocket.root.up * 1.2f * dt;
                     _payload.transform.Rotate(Vector3.up, 4f * dt, Space.Self);
-                    foreach (var p in _payload.GetComponentsInChildren<SatPart>())
-                        if (p.category == PartCategory.Solar)
-                        {
-                            float e = Mathf.SmoothStep(0.12f, 1f, Mathf.Clamp01((t - _deployT - 1f) / 3f));
-                            p.transform.localScale = new Vector3(e, 1f, 1f);
-                        }
+                    float e = Mathf.SmoothStep(0.12f, 1f, Mathf.Clamp01((t - _deployT - 1f) / 3f));
+                    foreach (var p in _solar) if (p != null) p.transform.localScale = new Vector3(e, 1f, 1f);
                 }
             }
 
-            if (_upperFocus != null)
-                _upperFocus.position = _rocket.upperStage.position + _rocket.upperStage.up * (_rocket.height - _firstLen) * 0.45f;
-            UpdateLongCam();
-
-            // ---- 鏡頭震動 ----
+            // ---- 鏡頭震動：只有點火到升空後 20 秒（長焦變焦之後的晃動會被放大成「火箭在抖」） ----
             float want = 0f;
-            if (!_inSpace && t > -3f) want = throttle * Mathf.Lerp(2.2f, 0.6f, Mathf.Clamp01(t / 10f));
+            if (!_inSpace && t > -3f && t < 20f) want = throttle * Mathf.Lerp(2.2f, 0.6f, Mathf.Clamp01(t / 10f)) * Mathf.Clamp01((20f - t) / 6f);
             _shake = Mathf.Max(want, _shake - dt * 1.2f);
             foreach (var cam in new[] { camWide, camEngine, camTower, camLong })
             {
                 if (cam == null) continue;
                 var n = cam.GetComponent<CinemachineBasicMultiChannelPerlin>();
-                // 長焦變焦後視角很窄，同樣的晃動角度在畫面上會被放大：依視角比例縮小
-                if (n != null) n.AmplitudeGain = _shake * (cam == camLong ? 0.35f * Mathf.Clamp01(cam.Lens.FieldOfView / Mathf.Max(0.01f, _longFov0)) : 1f);
+                if (n == null) continue;
+                // 長焦的視角很窄，同樣的晃動角度在畫面上會被放大：依視角比例縮小
+                n.AmplitudeGain = _inSpace ? 0f : _shake * (cam == camLong ? 0.35f * Mathf.Clamp01(cam.Lens.FieldOfView / Mathf.Max(0.01f, _longFov0)) : 1f);
             }
+        }
+
+        /// <summary>鏡頭：瞄準點、長焦變焦、太空段的鏡頭輪替（用真實時間，快轉時也不會一直切）。</summary>
+        void UpdateCams(float real)
+        {
+            _camSince += real;
+            if (_upperFocus != null && _rocket != null)
+            {
+                _focusBottom = Mathf.Lerp(_focusBottom, _stageBottom, 1f - Mathf.Exp(-real * 1.5f));
+                float top = _rocket.height - _firstLen;
+                _upperFocus.position = _rocket.upperStage.TransformPoint(new Vector3(0, _focusBottom + (top - _focusBottom) * 0.45f, 0));
+            }
+            UpdateLongCam();
+            if (!_inSpace || _deployed || _falling || _skipping) return;
+            if (_camHold > 0f) { _camHold -= real; return; }
+            if (_cam == camLong) { Blend(camSpace, 3.5f, true); _camHold = CamCycle; return; }
+            // 長時間燃燒、滑行：每隔一段時間換角度（側面看得到分離、後方看得到地球）
+            if (Blend(_cam == camSpace ? camSide : camSpace, 3f)) _camHold = CamCycle;
         }
 
         /// <summary>
         /// 長焦追蹤鏡頭的瞄準點與變焦。分離前瞄準火箭底部；分離後先把兩節都框進來，
-        /// 第二節點火後轉去追上節並推近。太空段鏡頭跟著上節移動，維持換場那一格的方向與距離。
+        /// 第二節點火後轉去追上節並推近。太空段鏡頭跟著上節，維持換場那一格的方向與距離。
+        /// 近剪裁面跟著距離往外推：火箭飛到幾十公里外時，深度緩衝的精度才夠（WebGL 沒有反向深度）。
         /// </summary>
         void UpdateLongCam()
         {
-            if (camLong == null || _longFocus == null) return;
+            if (camLong == null || _longFocus == null || _rocket == null) return;
             Vector3 focus;
             float frame;
             if (_inSpace)
@@ -871,30 +991,43 @@ namespace GoNoGo.Launch
             {
                 var tip = _rocket.root.position + _rocket.root.up * _rocket.height;
                 var bottom = _firstStageFree.position;
-                float w = Ease(IgnT + 0.8f, IgnT + 3.2f, _T);
+                float w = Ease(_sesT + 0.8f, _sesT + 3.2f, _T);
                 focus = Vector3.Lerp(bottom, _rocket.upperStage.position, w);
-                // 瞄準點在畫面中線偏下（0.2），上方有 70% 的畫面：兩節的總長要放得下
                 frame = Mathf.Lerp(Mathf.Max(_frameBase, Vector3.Distance(tip, bottom) * 1.75f), _frameUpper, w);
             }
             _longFocus.position = focus;
             float dist = Mathf.Max(1f, Vector3.Distance(camLong.transform.position, focus));
-            camLong.Lens.FieldOfView = Mathf.Clamp(2f * Mathf.Atan(frame * 0.5f / dist) * Mathf.Rad2Deg, 0.05f, 90f);
+            var lens = camLong.Lens;
+            lens.FieldOfView = Mathf.Clamp(2f * Mathf.Atan(frame * 0.5f / dist) * Mathf.Rad2Deg, 0.03f, 90f);
+            if (_inSpace) { lens.NearClipPlane = 0.3f; lens.FarClipPlane = 30000f; }
+            else
+            {
+                lens.NearClipPlane = Mathf.Lerp(1f, Mathf.Max(1f, dist * 0.25f), Ease(25f, 45f, _T));
+                lens.FarClipPlane = Mathf.Max(12000f, dist * 2f);
+            }
+            camLong.Lens = lens;
             if (_longAim != null)
             {
-                // 視角越窄，旋轉阻尼造成的落後在畫面上越明顯；分離之後完全不留阻尼
-                float d = _inSpace ? 0f : 0.25f * Mathf.Clamp01(camLong.Lens.FieldOfView / Mathf.Max(0.01f, _longFov0)) * (1f - Ease(MecoT - 1f, SepT, _T));
+                float d = _inSpace ? 0f : 0.25f * Mathf.Clamp01(camLong.Lens.FieldOfView / Mathf.Max(0.01f, _longFov0)) * (1f - Ease(_mecoT - 1f, _sepT, _T));
                 _longAim.Damping = new Vector2(d, d);
             }
         }
 
-        /// <summary>天空隨（顯示的）高度變黑：大氣變薄、霧散掉、陽光從黃昏暖色變成太空的白光，最後星星浮現。</summary>
-        void UpdateSky(float dt)
+        /// <summary>升空的聲音：越飛越遠越小聲（真實的追蹤攝影，一兩分鐘後就聽不到了）。</summary>
+        void UpdateAudio()
+        {
+            if (_skipping || _inSpace) return;
+            float t = _T;
+            if (roar != null) roar.volume = _roar0 * (1f - Ease(30f, 100f, t)) * (_exploded ? 0f : 1f);
+            if (rumble != null) rumble.volume = _rumble0 * (1f - Ease(60f, 140f, t));
+        }
+
+        /// <summary>天空隨（遙測的）高度變黑：大氣變薄、霧散掉、陽光從黃昏暖色變成太空的白光。</summary>
+        void UpdateSky()
         {
             float dark = Ease(3f, 75f, LaunchFeed.AltitudeKm);
             ApplyDarkness(dark);
-            // 天空幾乎全黑時換成星空，但亮度先保持 0：程序星空的星點大小是角度，長焦（視角 1～2°）下
-            // 每顆星會被放大成一團模糊的光斑；真實的追蹤攝影也拍不到星星（曝光是對著明亮的火箭）。
-            // 換到太空、鏡頭拉開之後才讓星星亮起來
+            // 天空幾乎全黑時換成星空，但亮度先保持 0：長焦下星點會被放大成光斑，換到太空、鏡頭拉開之後才亮
             if (dark > 0.97f && _starsShared != null && _starsInst == null)
             {
                 _starsInst = new Material(_starsShared) { name = _starsShared.name + " (runtime)" };
@@ -935,53 +1068,20 @@ namespace GoNoGo.Launch
             if (_padProbe != null) _padProbe.intensity = Mathf.Lerp(_padProbe0, 0.15f, dark);
         }
 
-        bool UpperOn => _rocket != null && _rocket.upperPlumes.Count > 0 && _rocket.upperPlumes[0].enabled;
-
         static readonly int ThrottleId = Shader.PropertyToID("_Throttle");
         // MaterialPropertyBlock 不能在欄位初始化時建立（Unity 不允許在建構子裡建立引擎物件），在 Awake 建
         MaterialPropertyBlock _mpb;
 
-        // 遙測曲線（顯示用的真實量級；動畫時間有壓縮）。MECO 約 65 km、2.3 km/s（Falcon 9 的量級），
-        // 滑行時速度略降，第二節點火後再加速；最後一點依結局改成目標軌道高度或次軌道頂點
-        static readonly float[] TelT = { 0f, 4f, 8f, 12f, 16f, MecoT, IgnT, SwapT, FairingT, FairingT + 4.5f };
-        static readonly float[] TelAlt = { 0f, 0.4f, 2.5f, 9f, 38f, 62f, 72f, 95f, 125f, 0f };
-        static readonly float[] TelVel = { 0f, 0.06f, 0.24f, 0.55f, 1.5f, 2.3f, 2.2f, 2.9f, 4.2f, 7.6f };
-
+        /// <summary>遙測與階段：全部來自時間表（真實的高度、速度）。</summary>
         void UpdateTelemetry()
         {
             float t = _T;
+            LaunchFeed.StageKey = _tl.StageKey(t);
+            LaunchFeed.Throttle = _exploded ? 0f : t < 0f ? Throttle(t) : (_tl.Thrusting(t) ? 1f : 0f);
             if (t <= 0) { LaunchFeed.AltitudeKm = 0; LaunchFeed.VelocityKms = 0; return; }
             if (_exploded) { LaunchFeed.VelocityKms = Mathf.Max(0, LaunchFeed.VelocityKms - 0.02f); return; }
-            bool reaches = _outcome == LaunchOutcome.Nominal || _outcome == LaunchOutcome.LowerOrbit || _outcome == LaunchOutcome.DeadOnOrbit;
-            // 失敗的飛行只到次軌道頂點（約 150 km），不能先爬到目標軌道高度再掉下來
-            TelAlt[TelAlt.Length - 1] = !reaches ? 150f
-                : _outcome == LaunchOutcome.LowerOrbit ? _orbitAltKm * 0.8f : Mathf.Max(160f, _orbitAltKm);
-            float alt = Interp(TelT, TelAlt, t), vel = Interp(TelT, TelVel, t);
-            if (_falling)
-            {
-                // 跟影格率無關：從開始下墜那一刻的數值往下算；水平速度還在，往下掉時速度略增
-                float f = t - _fallT;
-                alt = Mathf.Max(0f, _fallAlt - 1.6f * f * f);
-                vel = _fallVel + 0.04f * f;
-            }
-            else if (!reaches && t > FairingT)
-            {
-                vel = Mathf.Min(vel, 6.4f);
-            }
-            LaunchFeed.AltitudeKm = alt;
-            LaunchFeed.VelocityKms = vel;
-        }
-
-        static float Interp(float[] xs, float[] ys, float x)
-        {
-            if (x <= xs[0]) return ys[0];
-            for (int i = 1; i < xs.Length; i++)
-                if (x <= xs[i])
-                {
-                    float f = (x - xs[i - 1]) / (xs[i] - xs[i - 1]);
-                    return Mathf.Lerp(ys[i - 1], ys[i], Mathf.SmoothStep(0, 1, f));
-                }
-            return ys[ys.Length - 1];
+            LaunchFeed.AltitudeKm = (float)_tl.Altitude(t);
+            LaunchFeed.VelocityKms = (float)_tl.Velocity(t);
         }
     }
 }
