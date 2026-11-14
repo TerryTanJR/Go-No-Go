@@ -32,11 +32,8 @@ namespace GoNoGo.EditorTools
             const string E = "Assets/GoNoGo/Art/Textures/Earth/";
             var day = BuildUtil.ConfigureTexture(E + "earth_day_bmng_topo_bathy_200407_5400x2700.jpg", 4096);
             var night = BuildUtil.ConfigureTexture(E + "earth_night_blackmarble_2016_3600x1800.jpg", 2048);
-            var clouds = BuildUtil.ConfigureTexture(E + "earth_clouds_svs4439_4096x2048.jpg", 2048, false, TextureWrapMode.Repeat, true);
-            // 雲只讀紅色通道：WebGL 用灰階的 DXT1 Crunch（R8 經 Brotli 約 1.8 MB → 約 0.3 MB），守住 30 MB 預算
-            var cloudsTi = (TextureImporter)AssetImporter.GetAtPath(E + "earth_clouds_svs4439_4096x2048.jpg");
-            BuildUtil.SetWebGLCrunch(cloudsTi, 2048, false);
-            cloudsTi.SaveAndReimport();
+            // 雲：shader 只讀 .r，但用一般貼圖類型，WebGL 才能用 DXT1 Crunch（單通道類型不支援 Crunch；R8 經 Brotli 約 1.8 MB → 約 0.3 MB）
+            var clouds = BuildUtil.ConfigureTexture(E + "earth_clouds_svs4439_4096x2048.jpg", 2048, false, TextureWrapMode.Repeat);
             var water = BuildUtil.ConfigureTexture(E + "earth_water_mask_5400x2700.png", 1024, false, TextureWrapMode.Repeat, true);
             var moonTex = BuildUtil.ConfigureTexture("Assets/GoNoGo/Art/Textures/Moon/moon_lroc_color_svs4720_2048x1024.jpg", 2048);
             // 地形圖目前沒有用到，限制大小避免浪費匯入時間
