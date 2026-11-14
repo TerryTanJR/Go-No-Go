@@ -520,7 +520,11 @@ namespace GoNoGo.UI
 
         protected override void Build(VisualElement body)
         {
-            Tabs(body, new[] { "ui.tablet.dashboard", "ui.goals.title", "ui.manual.tab.parts", "ui.manual.tab.rules", "ui.notes.title", "ui.fail.title" }, _tab, i => { _tab = i; Refresh(); });
+            // 失敗原因：第一次發射失敗才出現這一頁（Reveal）
+            var keys = new List<string> { "ui.tablet.dashboard", "ui.goals.title", "ui.manual.tab.parts", "ui.manual.tab.rules", "ui.notes.title" };
+            if (Reveal.Failures) keys.Add("ui.fail.title");
+            if (_tab >= keys.Count) _tab = 0;
+            Tabs(body, keys.ToArray(), _tab, i => { _tab = i; Refresh(); });
             var sv = Scroll(body);
             switch (_tab)
             {

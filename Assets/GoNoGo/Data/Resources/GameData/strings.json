@@ -347,6 +347,8 @@
   "ui.hint.holding": { "en": "In your hands: walk to the stand to install", "zh-TW": "拿在手上：走到整合台旁邊安裝" },
   "ui.hint.hands_full": { "en": "Your hands are full", "zh-TW": "手上已經有東西了" },
   "ui.hint.not_now": { "en": "Not available right now", "zh-TW": "現在不能用" },
+  "ui.hint.locked_ops": { "en": "Opens during operations", "zh-TW": "營運階段開放" },
+  "ui.hint.locked_failures": { "en": "Shows up after a failed launch", "zh-TW": "發射失敗後才有資料" },
   "ui.fac.close": { "en": "Close", "zh-TW": "關閉" },
   "ui.fac.stand": { "en": "INTEGRATION STAND", "zh-TW": "整合台" },
   "ui.fac.stand_body": { "en": "The spacecraft you are building. Bring a part here and hold V to install it.", "zh-TW": "正在組裝的太空船。把零件拿到這裡，長按 V 安裝。" },
