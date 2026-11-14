@@ -52,7 +52,7 @@ namespace GoNoGo.UI
             {
                 var me = Ui.El("menu-me").AddTo(Root);
                 Ui.Text(Profile.Look.Name, "h2").AddTo(me);
-                Ui.Btn(Loc.T("ui.menu.edit_avatar"), OpenAvatar, "btn-ghost").AddTo(me);
+                Ui.Btn(Loc.T("ui.menu.edit_avatar"), OpenAvatar, "btn-primary", "btn-big").AddTo(me);
             }
             if (!string.IsNullOrEmpty(_error)) Ui.Text(Loc.T(_error), "small", "over", "menu-error").AddTo(left);
         }

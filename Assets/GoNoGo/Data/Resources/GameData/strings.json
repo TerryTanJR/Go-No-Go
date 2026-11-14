@@ -300,7 +300,7 @@
   "ui.avatar.helmet.2": { "en": "Round", "zh-TW": "小圓頭" },
   "ui.avatar.visor": { "en": "Visor", "zh-TW": "面罩" },
   "ui.avatar.accessory": { "en": "Extra", "zh-TW": "配件" },
-  "ui.avatar.acc.0": { "en": "None", "zh-TW": "沒有" },
+  "ui.avatar.acc.0": { "en": "None", "zh-TW": "無" },
   "ui.avatar.acc.1": { "en": "Backpack", "zh-TW": "背包" },
   "ui.avatar.acc.2": { "en": "Antenna", "zh-TW": "天線" },
   "ui.avatar.acc.3": { "en": "Shoulder pads", "zh-TW": "肩章" },
