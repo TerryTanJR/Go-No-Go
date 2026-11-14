@@ -11,6 +11,10 @@ namespace GoNoGo.UI
     /// 新手訓練：左上角的任務追蹤，平常只有一行「3/13 打一通電話」；換步驟時展開說明 8 秒，按 H 可以再展開或收起。
     /// 目標物件上方有標記和距離（不在畫面裡時貼在畫面邊緣），不必靠文字找位置。
     /// 做到了（收到 <see cref="Hud.Signal"/>）就打勾、換下一步。步驟跨場景保留（發射畫面回來後接著做營運的步驟）。
+    /// <para>
+    /// guide 模式（學員難度的一般局）：同一個框和標記，但不照固定步驟打勾，每半秒問 <see cref="MissionGuide"/> 現在該做什麼，
+    /// 下一步變了才展開說明。
+    /// </para>
     /// </summary>
     public sealed class TutorialCoach : IDisposable
     {
@@ -55,10 +59,16 @@ namespace GoNoGo.UI
         Transform _target;
         float _findIn;
 
+        readonly bool _guide;
+        MissionGuide.Step? _now;
+        float _guideIn;
+
         /// <param name="parent">提示框放在這裡（左上角那一欄）。</param>
         /// <param name="markerLayer">標記畫在這層（整個畫面）。</param>
-        public TutorialCoach(VisualElement parent, VisualElement markerLayer)
+        /// <param name="guide">學員難度的一般局：依狀態給下一步（見類別說明）。</param>
+        public TutorialCoach(VisualElement parent, VisualElement markerLayer, bool guide = false)
         {
+            _guide = guide;
             if (!ReferenceEquals(_mission, GameSession.Mission))
             {
                 _mission = GameSession.Mission;
@@ -108,6 +118,7 @@ namespace GoNoGo.UI
 
         void OnSignal(string what)
         {
+            if (_guide) return;
             if (_step >= Steps.Length || _advanceIn >= 0) return;
             if (!Steps[_step].Done(what)) return;
             Sfx.Confirm();
@@ -119,6 +130,11 @@ namespace GoNoGo.UI
         /// <param name="visible">沒開面板、沒開選單：開著時整個收起來，不要蓋到面板。</param>
         public void Tick(float dt, bool visible)
         {
+            if (_guide)
+            {
+                UpdateGuide(dt);
+                visible &= _now != null;
+            }
             _box.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
             var kb = Keyboard.current;
             if (visible && kb != null && kb.hKey.wasPressedThisFrame && !UIRoot.IsTyping)
@@ -144,8 +160,30 @@ namespace GoNoGo.UI
 
         bool Expanded => _pinned || _expandFor > 0;
 
+        /// <summary>guide 模式：每半秒重新判斷；換了一步就展開說明、換標記，同一步只更新說明裡的數字。</summary>
+        void UpdateGuide(float dt)
+        {
+            _guideIn -= dt;
+            if (_guideIn > 0) return;
+            _guideIn = 0.5f;
+            var next = MissionGuide.Next();
+            if (next == null) { _now = null; return; }
+            var n = next.Value;
+            bool changed = _now == null || _now.Value.Key != n.Key;
+            _now = n;
+            _body.text = n.Body;
+            if (!changed) return;
+            _target = null;
+            _findIn = 0;
+            _pinned = false;
+            _expandFor = ExpandSeconds;
+            _count.text = Loc.T("ui.guide.next");
+            _title.text = Loc.T("ui.guide." + n.Key + ".t");
+        }
+
         void Show()
         {
+            if (_guide) { _now = null; _guideIn = 0; return; }
             _target = null;
             _findIn = 0;
             _pinned = false;
@@ -210,14 +248,15 @@ namespace GoNoGo.UI
 
         Vector3? TargetPos(float dt)
         {
-            if (_step >= Steps.Length || string.IsNullOrEmpty(Steps[_step].Target)) return null;
-            if (Steps[_step].Target == "code") return PartOnRack();
+            string name = _guide ? _now?.Target : _step < Steps.Length ? Steps[_step].Target : null;
+            if (string.IsNullOrEmpty(name)) return null;
+            if (name == "code") return PartOnRack();
             if (_target == null)
             {
                 _findIn -= dt;
                 if (_findIn > 0) return null;
                 _findIn = 0.5f;
-                var go = GameObject.Find(Steps[_step].Target);
+                var go = GameObject.Find(name);
                 if (go == null) return null;
                 _target = go.transform;
             }

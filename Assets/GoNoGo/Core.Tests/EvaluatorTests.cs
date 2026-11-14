@@ -26,6 +26,24 @@ namespace GoNoGo.Core.Tests
             Assert.That(ev[ResourceId.Mass].Margin, Is.EqualTo((150 - ev.Mass.WetKg) / 150).Within(1e-9));
         }
 
+        /// <summary>趕不上發射期限才扣效率分（每晚一個月 10 分），準時的不受影響。</summary>
+        [Test]
+        public void LateScheduleCostsEfficiencyOnlyWhenPastTheDeadline()
+        {
+            var d = TestData.Balanced();
+            var onTime = Evaluator.EvaluateDesign(d, _data);
+            double slack = onTime[ResourceId.Time].Capacity - onTime[ResourceId.Time].Used;
+            Assert.That(slack, Is.GreaterThan(1), "預設設計要比期限早");
+
+            d.CallMonths = slack - 0.5;
+            Assert.That(Scoring.EfficiencyScore(Evaluator.EvaluateDesign(d, _data)), Is.EqualTo(Scoring.EfficiencyScore(onTime)).Within(1e-9), "還沒超過期限");
+
+            d.CallMonths = slack + 2;
+            var late = Evaluator.EvaluateDesign(d, _data);
+            Assert.That(late[ResourceId.Time].Status, Is.EqualTo(ResourceStatus.Over));
+            Assert.That(Scoring.EfficiencyScore(late), Is.EqualTo(System.Math.Max(0, Scoring.EfficiencyScore(onTime) - 2 * Scoring.LatePenaltyPerMonth)).Within(1e-9));
+        }
+
         [Test]
         public void SolarArraySizingFollowsSmad()
         {

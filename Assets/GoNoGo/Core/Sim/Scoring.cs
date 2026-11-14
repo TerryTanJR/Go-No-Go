@@ -164,8 +164,14 @@ namespace GoNoGo.Core
             double marginScore = designMargin < 0.10 ? 50 + designMargin * 500
                 : designMargin <= 0.50 ? 100
                 : 100 - (designMargin - 0.50) * 80;
-            return Clamp(0.6 * Clamp(budgetScore) + 0.4 * Clamp(marginScore));
+            // 趕不上發射期限：每晚一個月扣 10 分（準時的不受影響）
+            var t = ev[ResourceId.Time];
+            double late = t.Capacity > 0 ? Math.Max(0, t.Used - t.Capacity) : 0;
+            return Clamp(0.6 * Clamp(budgetScore) + 0.4 * Clamp(marginScore) - LatePenaltyPerMonth * late);
         }
+
+        /// <summary>時程每超過發射期限一個月，效率分扣多少。</summary>
+        public const double LatePenaltyPerMonth = 10;
 
         static double Clamp(double v) => Math.Max(0, Math.Min(100, v));
     }

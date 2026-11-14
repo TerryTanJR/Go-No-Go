@@ -1228,6 +1228,10 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .dash-k { width: 180px; color: var(--c-dim); font-size: var(--fs-15); }
 .dash-v { font-size: var(--fs-16); color: var(--c-text); width: 300px; flex-shrink: 0; }
 .dash-x { flex-grow: 1; -unity-text-align: middle-right; }
+/* 有燈號時（學員）：正常的列變淡，吃緊、超出的列加底色，一眼看得出要處理哪一項 */
+.dash-row--ok { opacity: 0.45; }
+.dash-row--tight { background-color: rgba(255, 181, 71, 0.10); }
+.dash-row--over { background-color: rgba(255, 77, 94, 0.14); }
 .dash-parts { margin-top: 10px; }
 .dash-part-row { flex-direction: row; flex-wrap: wrap; margin-top: 4px; }
 
@@ -1484,6 +1488,10 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .man-storm-meta .man-chip { margin-left: 0; }
 
 /* 電話 */
+/* 電話上方：問需求要花時程（每題多少、已花多少、時程剩多少） */
+.phone-cost { margin-bottom: 12px; padding: 8px 14px; border-left-width: 3px; border-color: var(--c-tight); background-color: rgba(255, 181, 71, 0.10); border-radius: 4px; }
+.phone-cost--late { border-color: var(--c-over); background-color: rgba(255, 77, 94, 0.12); }
+.phone-cost-rule { font-size: var(--fs-16); color: var(--c-tight); -unity-font-style: bold; white-space: normal; }
 .phone-wrap { flex-direction: row; align-items: stretch; min-height: 380px; }
 .phone-list { width: 260px; margin-right: 16px; }
 .phone-dept {
@@ -1511,6 +1519,18 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     white-space: normal;
 }
 .phone-q--asked { color: var(--c-dim); }
+.phone-q-row { flex-direction: row; align-items: center; flex-grow: 1; }
+.phone-q-text { white-space: normal; flex-shrink: 1; }
+/* 題目分組：需求（黃色左框，在上）、建議（淡，在下） */
+.phone-group { margin-bottom: 10px; padding-left: 10px; border-left-width: 3px; border-color: rgba(0, 0, 0, 0); }
+.phone-group--req { border-color: var(--c-tight); }
+.phone-group--tips { border-color: var(--c-line); opacity: 0.8; }
+.phone-group-title { font-size: var(--fs-13); -unity-font-style: bold; letter-spacing: 1px; margin-bottom: 6px; color: var(--c-dim); }
+.phone-group--req .phone-group-title { color: var(--c-tight); }
+.phone-q-done { font-size: var(--fs-13); color: var(--c-dim); margin-left: 8px; }
+.phone-q-cost { font-size: var(--fs-13); color: var(--c-tight); margin-left: 8px; }
+/* 處室列表：還有需求沒問到 */
+.phone-pending { margin-top: 2px; font-size: var(--fs-12); color: var(--c-tight); -unity-font-style: bold; }
 .phone-q--on, .phone-q--on:hover:enabled { border-color: var(--c-accent); background-color: var(--c-accent-dim); color: var(--c-text); }
 .phone-answer {
     min-height: 90px;
