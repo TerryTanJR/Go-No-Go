@@ -187,7 +187,6 @@ namespace GoNoGo.Core
         /// <summary>軌道 id → 運力（kg）。沒有的軌道代表到不了。</summary>
         public Dictionary<string, double> CapacityKg { get; set; } = new Dictionary<string, double>();
         public double CostMusd { get; set; }
-        public double Reliability { get; set; }
         public double FairingDiameterM { get; set; }
         public double LeadMonths { get; set; }
         /// <summary>歷史火箭只在歷史任務關卡出現。</summary>
@@ -315,6 +314,15 @@ namespace GoNoGo.Core
         public List<string> DecoyCategories { get; set; } = new List<string>();
         /// <summary>儀表板加上紅黃綠（學員）。</summary>
         public bool DashboardColors { get; set; }
+        /// <summary>
+        /// 儀表板、任務目標只列會判定成敗的項目（學員、新手訓練）：不列地影、科學值、資料回傳、偵測率這些參考數字，
+        /// 經費也不拆零件／發射／營運細項。
+        /// </summary>
+        public bool DashboardBasic { get; set; }
+        /// <summary>左上角顯示「下一步」並在場景裡標出要去哪裡（學員；新手訓練有自己的步驟，不用這個）。</summary>
+        public bool NextStepGuide { get; set; }
+        /// <summary>電話上會帶出需求的題目標「需求」（學員、新手訓練），看這一關實際有沒有那條需求。</summary>
+        public bool RequirementTags { get; set; }
         /// <summary>筆記板：checklist（整理成發射條件清單）、transcript（記下對話原文）、none（不自動記錄）。</summary>
         public string NotesMode { get; set; } = "transcript";
         /// <summary>開放到第幾組互相衝突的處室需求。</summary>
@@ -426,6 +434,8 @@ namespace GoNoGo.Core
         public double BusBaseCostMusd { get; set; } = 8;
         public double OpsBaseCostMusdPerYear { get; set; } = 1.5;
         public double IntegrationMonths { get; set; } = 8;
+        /// <summary>每問一個新問題花掉的時程（月）：問需求不是免費的，要挑著問。</summary>
+        public double CallMonths { get; set; } = 0.5;
         public double LinkEfficiency { get; set; } = 0.8;
         /// <summary>過境分布不均：最長空檔 = 平均空檔 × 這個倍數。</summary>
         public double ContactGapFactor { get; set; } = 2.0;

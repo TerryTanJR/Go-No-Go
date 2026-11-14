@@ -196,7 +196,8 @@ namespace GoNoGo.Core
                 longest = Math.Max(longest, launcher.LeadMonths);
             }
             timeContrib.Add(new Contribution("integration", c.IntegrationMonths));
-            ev.ScheduleMonths = longest + c.IntegrationMonths;
+            if (design.CallMonths > 0) timeContrib.Add(new Contribution("calls", design.CallMonths));
+            ev.ScheduleMonths = longest + c.IntegrationMonths + design.CallMonths;
             double deadline = scenario?.DeadlineMonths ?? 0;
             AddResource(ev, ResourceId.Time, ev.ScheduleMonths, deadline, "mo",
                 deadline > 0 ? (deadline - ev.ScheduleMonths) / deadline : -1, timeContrib);

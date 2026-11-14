@@ -202,6 +202,8 @@ namespace GoNoGo.UI
     /// <summary>
     /// 中控室的任務目標與預算：進度、問到的需求（目標值），以及錢和時程。
     /// 船上的物理數字（電力、質量、延遲…）在組裝區的大螢幕上，這裡看不到，要問組裝區。
+    /// 列的寫法和儀表板一樣（DashboardView.Row）：學員難度正常的列變淡、有問題的寫差多少，經費也不拆細項；
+    /// 「營運撐得了幾年」只在不夠時才列出來。
     /// </summary>
     public static class GoalsView
     {
@@ -212,6 +214,7 @@ namespace GoNoGo.UI
             var ev = m.Dashboard;
             var s = m.S;
             bool colors = m.Difficulty.DashboardColors;
+            bool basic = m.Difficulty.DashboardBasic;
 
             // 多人：組裝區送來的採購單放在最上面，中控室一打開就看得到批准／退回，不用往下捲
             VisualElement right = body;
@@ -231,26 +234,27 @@ namespace GoNoGo.UI
             // 錢：開銷對預算。採購機制 v2：開發費 = 基本開發費 + 擁有的所有零件（開局零件和買過的），裝不裝都一樣
             var head = Ui.Row("dash-head").AddTo(right);
             Ui.Text(Loc.T("ui.goals.money"), "eyebrow", "dash-sec").AddTo(head);
-            Ui.Spacer().AddTo(head);
-            if (!compact) Ui.Text(Loc.Orbit(s.Reported.OrbitId) + " · " + Loc.Launcher(s.Reported.LauncherId) + " · " + Fmt.Years(s.Reported.MissionYears), "small", "dim").AddTo(head);
             var grid = Ui.El("dash-grid").AddTo(right);
             var b = ev[ResourceId.Budget];
-            Row(grid, Loc.T("res.budget"), Fmt.Resource(b), Fmt.Pct(b.Margin), colors ? Status(b.Status) : null);
+            Row(grid, Loc.T("res.budget"), Fmt.Resource(b), colors ? DashboardView.Gap(b) : Fmt.Pct(b.Margin), colors ? Status(b.Status) : null);
             var co = ev.Cost;
-            Row(grid, Loc.T("ui.goals.dev"), Fmt.PartMoney(co.DevelopmentMusd), Loc.T("ui.goals.dev_x"), null);
-            Row(grid, Loc.T("ui.goals.launch"), Fmt.Money(co.LaunchMusd), Loc.Launcher(s.Reported.LauncherId), null);
-            Row(grid, Loc.T("ui.goals.ops"), Fmt.Money(co.OpsTotalMusd), Fmt.Money(co.OpsPerYearMusd) + "/yr", null);
+            if (!basic)
+            {
+                Row(grid, Loc.T("ui.goals.dev"), Fmt.PartMoney(co.DevelopmentMusd), Loc.T("ui.goals.dev_x"), null);
+                Row(grid, Loc.T("ui.goals.launch"), Fmt.Money(co.LaunchMusd), Loc.Launcher(s.Reported.LauncherId), null);
+                Row(grid, Loc.T("ui.goals.ops"), Fmt.Money(co.OpsTotalMusd), Fmt.Money(co.OpsPerYearMusd) + "/yr", null);
+            }
             // 零件還能買多少：預算 − 已花 − 預留的火箭（飛得到目前軌道的最便宜一支）
             double room = SessionRules.Headroom(s, data);
             Row(grid, Loc.T("ui.goals.room"), Fmt.PartMoney(room), Loc.T("ui.goals.room_x", ("rocket", Loc.Launcher(SessionRules.ReserveLauncher(s, data)?.Id ?? ""))),
                 room > 0.005 ? null : "over");
-            // 營運經費撐得了幾年（用目前選的火箭和地面站）：不夠的話任務會提前結束
+            // 營運經費撐得了幾年（用目前選的火箭和地面站）：不夠的話任務會提前結束；夠的時候不列
             double funded = SessionRules.FundedYears(s, data);
             int years = s.Reported.MissionYears;
-            Row(grid, Loc.T("ui.goals.funded"), funded >= 99 ? "—" : Fmt.Years(funded), Loc.T("ui.goals.funded_x", ("years", years)),
-                funded >= years ? null : funded <= 0 ? "over" : "tight");
+            if (funded < years)
+                Row(grid, Loc.T("ui.goals.funded"), Fmt.Years(funded), Loc.T("ui.goals.funded_x", ("years", years)), funded <= 0 ? "over" : "tight");
             var t = ev[ResourceId.Time];
-            Row(grid, Loc.T("res.time"), Fmt.Resource(t), Fmt.Pct(t.Margin), colors ? Status(t.Status) : null);
+            Row(grid, Loc.T("res.time"), Fmt.Resource(t), colors ? DashboardView.Gap(t) : Fmt.Pct(t.Margin), colors ? Status(t.Status) : null);
 
             // 採購紀錄：每一單買了什麼、花多少（價格只在中控室看得到）
             if (s.Orders.Count > 0)
@@ -295,8 +299,8 @@ namespace GoNoGo.UI
                 Loc.T("ui.goals.room_x", ("rocket", Loc.Launcher(SessionRules.ReserveLauncher(s, data)?.Id ?? ""))), ok ? null : "over");
             double years = SessionRules.FundedYears(s, data, cost);
             int target = s.Reported.MissionYears;
-            Row(grid, Loc.T("ui.review.funded"), years >= 99 ? "—" : Fmt.Years(years), Loc.T("ui.goals.funded_x", ("years", target)),
-                years >= target ? null : years <= 0 ? "over" : "tight");
+            if (years < target)
+                Row(grid, Loc.T("ui.review.funded"), Fmt.Years(years), Loc.T("ui.goals.funded_x", ("years", target)), years <= 0 ? "over" : "tight");
             if (compact)
             {
                 Ui.Text(Loc.T("ui.review.go_console"), "small", "tight").AddTo(parent);
@@ -312,16 +316,8 @@ namespace GoNoGo.UI
             ap.SetEnabled(ok && open);
         }
 
-        static string Status(ResourceStatus st) => st == ResourceStatus.Over ? "over" : st == ResourceStatus.Tight ? "tight" : "go";
+        static string Status(ResourceStatus st) => DashboardView.Status(st);
 
-        static void Row(VisualElement parent, string name, string value, string extra, string cls)
-        {
-            // 每列都留燈號的位置、數值欄固定寬度：數字才會對齊成一欄
-            var r = Ui.Row("dash-row").AddTo(parent);
-            Ui.El("dash-lamp", "dash-lamp--" + (cls ?? "none")).AddTo(r);
-            Ui.Text(name, "dash-k").AddTo(r);
-            Ui.Text(value, "mono", "dash-v", cls).AddTo(r);
-            Ui.Text(extra, "small", "dim", "dash-x", "mono").AddTo(r);
-        }
+        static void Row(VisualElement parent, string name, string value, string extra, string cls) => DashboardView.Row(parent, name, value, extra, cls);
     }
 }

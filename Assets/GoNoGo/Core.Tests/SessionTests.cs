@@ -110,6 +110,44 @@ namespace GoNoGo.Core.Tests
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch), "剩下的人都喊 GO 了");
         }
 
+        /// <summary>每問一個新問題花掉時程；同一題再問不算，評估的時程跟著變長。</summary>
+        [Test]
+        public void EachNewQuestionCostsScheduleTime()
+        {
+            var s = Solo();
+            double before = Evaluator.EvaluateDesign(s.Reported, _data)[ResourceId.Time].Used;
+            var dep = _data.Departments[0];
+            Ok(s, Command.Of(CommandType.Call, 1, dep.Id, 0));
+            Ok(s, Command.Of(CommandType.Call, 1, dep.Id, 0));
+            Ok(s, Command.Of(CommandType.Call, 1, dep.Id, 1));
+            Assert.That(s.Reported.CallMonths, Is.EqualTo(2 * _data.Constants.CallMonths), "兩個不同的問題，重問不算");
+            double after = Evaluator.EvaluateDesign(s.Reported, _data)[ResourceId.Time].Used;
+            Assert.That(after - before, Is.EqualTo(2 * _data.Constants.CallMonths).Within(1e-9));
+        }
+
+        /// <summary>
+        /// 電話的「需求」標籤與問到幾條：看這一關、這個難度實際有效的需求。
+        /// 地球觀測的指定儀器（熱紅外）是衝突需求，學員難度沒開放，所以那一題在學員不算需求題。
+        /// </summary>
+        [Test]
+        public void RequirementQuestionsDependOnScenarioAndDifficulty()
+        {
+            DialogueLine Line(string dep, string id) => _data.Lines(_data.Scenario("earth_observation"), _data.Department(dep)).First(l => l.Id == id);
+            var cadet = Solo("earth_observation", "cadet");
+            var engineer = Solo("earth_observation", "engineer");
+            Assert.That(Dialogue.Revealed(_data, cadet, "science", Line("science", "instrument")), Is.Empty);
+            Assert.That(Dialogue.Revealed(_data, engineer, "science", Line("science", "instrument")), Is.Not.Empty);
+            Assert.That(Dialogue.Revealed(_data, cadet, "comms", Line("comms", "storage")), Is.Empty, "建議題不是需求題");
+
+            var heard = Dialogue.Heard(_data, cadet);
+            Assert.That(Dialogue.Unheard(_data, cadet, "comms", heard), Is.EqualTo(1));
+            int lineIndex = _data.Lines(_data.Scenario("earth_observation"), _data.Department("comms")).FindIndex(l => l.Id == "return");
+            Ok(cadet, Command.Of(CommandType.Call, 1, "comms", lineIndex));
+            heard = Dialogue.Heard(_data, cadet);
+            Assert.That(Dialogue.Unheard(_data, cadet, "comms", heard), Is.EqualTo(0));
+            Assert.That(heard.Count, Is.EqualTo(1));
+        }
+
         [Test]
         public void HostAloneCannotStartAMultiplayerMission()
         {

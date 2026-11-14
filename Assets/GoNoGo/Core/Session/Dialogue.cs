@@ -30,6 +30,27 @@ namespace GoNoGo.Core
                 .Select(a => a.Requirement).ToList();
         }
 
+        /// <summary>已經從電話問到的需求 id（不管筆記模式；同一條只算一次）。</summary>
+        public static HashSet<string> Heard(GameData data, SessionState s)
+        {
+            var heard = new HashSet<string>();
+            foreach (var c in s.Calls)
+            {
+                var line = data.Lines(s.Scenario(data), data.Department(c.Department)).FirstOrDefault(l => l.Id == c.LineId);
+                if (line == null) continue;
+                foreach (var r in Revealed(data, s, c.Department, line)) heard.Add(r.Id);
+            }
+            return heard;
+        }
+
+        /// <summary>這個處室還沒問到的需求有幾條（這個情境、這個難度有效的）。</summary>
+        public static int Unheard(GameData data, SessionState s, string department, HashSet<string> heard)
+        {
+            var dep = Departments.Parse(department);
+            if (dep == null) return 0;
+            return Departments.Active(s.Scenario(data), s.Difficulty(data)).Count(a => a.Department == dep.Value && !heard.Contains(a.Requirement.Id));
+        }
+
         public static string Answer(GameData data, SessionState s, string department, DialogueLine line, Evaluation reported, string lang)
         {
             var reqs = Revealed(data, s, department, line);

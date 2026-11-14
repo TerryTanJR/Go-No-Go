@@ -86,6 +86,8 @@ namespace GoNoGo.UI
             switch (e.Screen.id)
             {
                 case "failures":
+                    // 還沒失敗過：整塊螢幕保持暗的，不放標題（Reveal）
+                    if (!Reveal.Failures) break;
                     Ui.Text(Loc.T("ui.fail.title"), "eyebrow", "wscreen-title").AddTo(body);
                     FailureBoardView.Build(body);
                     break;

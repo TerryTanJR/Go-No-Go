@@ -55,9 +55,8 @@ namespace GoNoGo.Core
                         new CauseStep("cause.launch_overweight"), lost));
                     break;
                 case LaunchOutcome.Failure:
-                    chains.Add(Chain("launch_anomaly", 100,
-                        new CauseStep("cause.launch_reliability", ("launcher", L), ("rel", Pct(r.Launch.Reliability))),
-                        new CauseStep("cause.launch_anomaly"), lost));
+                    // 飛行中異常：正常遊戲不會發生（火箭不會隨機爆炸），只有開發選單指定結果時會出現
+                    chains.Add(Chain("launch_anomaly", 100, new CauseStep("cause.launch_anomaly"), lost));
                     break;
                 case LaunchOutcome.FairingFailure:
                     chains.Add(Chain("fairing", 100,
@@ -261,7 +260,6 @@ namespace GoNoGo.Core
                 {
                     case "launch_unreachable": return "suggest.launcher_reach";
                     case "launch_overweight": return "suggest.mass";
-                    case "launch_anomaly": return "suggest.launcher";
                     case "fairing": return "suggest.history_launcher";
                     case "dead_on_orbit": return "suggest.battery_eclipse";
                     case "power_anomaly": return "suggest.power_procedure";

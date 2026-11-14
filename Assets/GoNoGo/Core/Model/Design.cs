@@ -20,6 +20,11 @@ namespace GoNoGo.Core
         /// 評估時加進開發費。單純比較設計（測試、修正建議）時是 0。
         /// </summary>
         public double ProcurementMusd { get; set; }
+        /// <summary>
+        /// 打電話問需求花掉的時程（月）：每問一個新問題 <see cref="Constants.CallMonths"/>。由 SessionRules 算好放進來，
+        /// 評估時加進時程。單純比較設計時是 0。
+        /// </summary>
+        public double CallMonths { get; set; }
 
         public string Get(string category) =>
             Parts != null && Parts.TryGetValue(category, out var id) ? id : null;
@@ -33,6 +38,7 @@ namespace GoNoGo.Core
             LauncherId = LauncherId,
             MissionYears = MissionYears,
             ProcurementMusd = ProcurementMusd,
+            CallMonths = CallMonths,
         };
 
         /// <summary>所有選到的零件 id（儀器 + 各單選類別），依固定順序。</summary>

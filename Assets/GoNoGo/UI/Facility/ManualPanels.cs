@@ -42,10 +42,13 @@ namespace GoNoGo.UI
 
         string Ch => _fixed ?? _browse;
         static int PageIn(string ch) => PageOf.TryGetValue(ch, out var p) ? p : 0;
+        /// <summary>瀏覽模式翻得到的章：營運才用的章節到營運階段才出現（Reveal）。</summary>
+        static string[] Open => ManualView.Chapters.Where(Reveal.Chapter).ToArray();
 
         protected override void Build(VisualElement body)
         {
             body.parent?.AddToClassList("modal--book");
+            if (_fixed == null && !Reveal.Chapter(_browse)) _browse = Open[0];
             string ch = Ch;
             int count = ManualView.Pages(ch).Count;
             int page = PageOf[ch] = Math.Clamp(PageIn(ch), 0, count - 1);
@@ -54,7 +57,7 @@ namespace GoNoGo.UI
             if (_fixed == null)
             {
                 var tabs = Ui.Row("book-tabs").AddTo(book);
-                foreach (var c in ManualView.Chapters)
+                foreach (var c in Open)
                 {
                     var cc = c;
                     var t = Ui.Btn("", () => GoChapter(cc), "book-tab", "book--" + c).Cls("book-tab--on", c == ch).AddTo(tabs);
@@ -83,14 +86,14 @@ namespace GoNoGo.UI
 
             var foot = Ui.Row("book-foot").AddTo(sheet);
             var prev = Ui.Btn("‹  " + Loc.T("ui.manual.prev"), () => Flip(-1), "book-turn").AddTo(foot);
-            prev.SetEnabled(page > 0 || (_fixed == null && Array.IndexOf(ManualView.Chapters, ch) > 0));
+            prev.SetEnabled(page > 0 || (_fixed == null && Array.IndexOf(Open, ch) > 0));
             Ui.Spacer().AddTo(foot);
             var dots = Ui.Row("book-dots").AddTo(foot);
             for (int i = 0; i < count; i++) Ui.El("book-dot").Cls("book-dot--on", i == page).AddTo(dots);
             Ui.Text(Loc.T("ui.manual.page", ("n", page + 1), ("total", count)), "book-pageno", "mono").AddTo(foot);
             Ui.Spacer().AddTo(foot);
             var next = Ui.Btn(Loc.T("ui.manual.next") + "  ›", () => Flip(1), "book-turn").AddTo(foot);
-            next.SetEnabled(page < count - 1 || (_fixed == null && Array.IndexOf(ManualView.Chapters, ch) < ManualView.Chapters.Length - 1));
+            next.SetEnabled(page < count - 1 || (_fixed == null && Array.IndexOf(Open, ch) < Open.Length - 1));
 
             if (!_opened)
             {
@@ -148,9 +151,10 @@ namespace GoNoGo.UI
             }
             // 翻過頭：瀏覽模式接到上一章的最後一頁／下一章的第一頁
             if (_fixed != null) return;
-            int ci = Array.IndexOf(ManualView.Chapters, ch) + dir;
-            if (ci < 0 || ci >= ManualView.Chapters.Length) return;
-            var next = ManualView.Chapters[ci];
+            var open = Open;
+            int ci = Array.IndexOf(open, ch) + dir;
+            if (ci < 0 || ci >= open.Length) return;
+            var next = open[ci];
             Turn(ch, page, dir);
             PageOf[next] = dir > 0 ? 0 : ManualView.Pages(next).Count - 1;
             _browse = next;
@@ -201,12 +205,15 @@ namespace GoNoGo.UI
                 foreach (var ch in ManualView.Chapters.Where(c => ManualView.Side(c) == side))
                 {
                     var card = Ui.Row("man-index-card").AddTo(col);
+                    // 還沒開放的章（營運才用的）照樣列出來，讓人知道之後會有，但整張調淡、不寫席位
+                    var lockKey = Reveal.ChapterLock(ch);
+                    if (lockKey != null) card.style.opacity = 0.45f;
                     Ui.Text(ManualView.Number(ch).ToString(), "man-num", "mono").AddTo(card);
                     var t = Ui.El("man-index-text").AddTo(card);
                     Ui.Text(Loc.T("ui.manual.name." + ch), "h3").AddTo(t);
                     Ui.Text(Loc.T("ui.manual.ch." + ch + "_body"), "small", "dim").AddTo(t);
                     Ui.Spacer().AddTo(card);
-                    Ui.Text(Loc.T("ui.manual.seat", ("n", ManualView.Seat(ch))), "small", "faint", "man-index-seat").AddTo(card);
+                    Ui.Text(lockKey != null ? Loc.T(lockKey) : Loc.T("ui.manual.seat", ("n", ManualView.Seat(ch))), "small", "faint", "man-index-seat").AddTo(card);
                 }
             }
 

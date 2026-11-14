@@ -20,7 +20,8 @@ namespace GoNoGo.UI
 
     /// <summary>
     /// 組裝區的大螢幕：整合台上這艘船「現在」的物理數字（質量、電力、資料、地影、壽命…）。
-    /// 不顯示目標、錢和時程（那些在中控室的任務目標與預算），也不能試算別的零件。學員難度加上紅黃綠。
+    /// 不顯示目標、錢和時程（那些在中控室的任務目標與預算），也不能試算別的零件。
+    /// 學員難度加上紅黃綠：正常的列變淡、不列百分比，吃緊和超出的列標出來並寫差多少；也不列地影、科學值這些參考數字。
     /// </summary>
     public static class DashboardView
     {
@@ -29,6 +30,7 @@ namespace GoNoGo.UI
             var m = GameSession.Mission;
             var ev = m.Dashboard;
             bool colors = m.Difficulty.DashboardColors;
+            bool basic = m.Difficulty.DashboardBasic;
             var d = m.S.Reported;
             var data = GameSession.Data;
 
@@ -44,17 +46,22 @@ namespace GoNoGo.UI
             foreach (ResourceId id in new[] { ResourceId.Mass, ResourceId.Power, ResourceId.Data, ResourceId.Comms })
             {
                 var r = ev[id];
-                Row(grid, Loc.T("res." + id.ToString().ToLowerInvariant()), Fmt.Resource(r), Fmt.Pct(r.Margin), colors ? Status(r.Status) : null);
+                Row(grid, Loc.T("res." + id.ToString().ToLowerInvariant()), Fmt.Resource(r), colors ? Gap(r) : Fmt.Pct(r.Margin), colors ? Status(r.Status) : null);
             }
             // 電池：放電深度（> 100% 代表撐不過一次地影）
             var p = ev.Power;
             Row(grid, Loc.T("ui.dash.battery"), Fmt.N(p.BatteryWh) + " Wh / " + Fmt.N(p.EclipseEnergyWh / System.Math.Max(1e-6, data.Constants.BatteryEfficiency)) + " Wh",
-                Loc.T("ui.dash.dod", ("pct", Fmt.Pct(p.ActualDod))), colors ? (p.ActualDod > 1 ? "over" : p.ActualDod > p.AllowedDod ? "tight" : "go") : null);
-            Row(grid, Loc.T("ui.dash.eclipse"), Fmt.N(ev.Orbit.EclipseMin, 1) + " min", Fmt.N(ev.Orbit.PeriodMin, 0) + " min/orbit", null);
+                p.ActualDod > 1 && colors ? Loc.T("ui.dash.battery_short") : Loc.T("ui.dash.dod", ("pct", Fmt.Pct(p.ActualDod))),
+                colors ? (p.ActualDod > 1 ? "over" : p.ActualDod > p.AllowedDod ? "tight" : "go") : null);
+            if (!basic) Row(grid, Loc.T("ui.dash.eclipse"), Fmt.N(ev.Orbit.EclipseMin, 1) + " min", Fmt.N(ev.Orbit.PeriodMin, 0) + " min/orbit", null);
+            bool shortLife = ev.Lifetime.Years + 1e-9 < d.MissionYears;
             Row(grid, Loc.T("ui.dash.lifetime"), Fmt.Years(ev.Lifetime.Years) + " / " + Fmt.Years(d.MissionYears),
-                Loc.T("ui.dash.limit." + ev.Lifetime.Limit.ToString().ToLowerInvariant()), colors ? (ev.Lifetime.Years + 1e-9 < d.MissionYears ? "over" : "go") : null);
-            Row(grid, Loc.T("ui.dash.science"), Fmt.N(ev.SciencePerYear, 1) + " / yr", Loc.T("ui.dash.instruments", ("n", d.Instruments.Count)), null);
-            Row(grid, Loc.T("ui.dash.return"), Fmt.Pct(ev.Data.ReturnFraction), "", colors ? (ev.Data.ReturnFraction < 0.9 ? "tight" : "go") : null);
+                Loc.T("ui.dash.limit." + ev.Lifetime.Limit.ToString().ToLowerInvariant()), colors ? (shortLife ? "over" : "go") : null);
+            if (!basic)
+            {
+                Row(grid, Loc.T("ui.dash.science"), Fmt.N(ev.SciencePerYear, 1) + " / yr", Loc.T("ui.dash.instruments", ("n", d.Instruments.Count)), null);
+                Row(grid, Loc.T("ui.dash.return"), Fmt.Pct(ev.Data.ReturnFraction), "", colors ? (ev.Data.ReturnFraction < 0.9 ? "tight" : "go") : null);
+            }
             // 野火關卡：通報延遲（學員：≤ 時限綠、≤ 1.5 倍黃、超過紅）與偵測率
             var sc = m.Scenario;
             if (sc != null && sc.LatencyLimitMin > 0)
@@ -65,8 +72,9 @@ namespace GoNoGo.UI
                 Row(grid, Loc.T("ui.dash.latency"), Fmt.N(f.LatencyMin, 1) + " min",
                     Loc.T("ui.dash.latency_x", ("wait", Fmt.N(f.WaitMin)), ("down", Fmt.N(f.DownlinkMin, 1)), ("ground", Fmt.N(f.ProcessingMin))),
                     colors ? (f.LatencyMin <= lim ? "go" : f.LatencyMin <= lim * 1.5 ? "tight" : "over") : null);
-                Row(grid, Loc.T("ui.dash.detection"), Fmt.Pct(f.Detection),
-                    Loc.T("ui.dash.detection_x", ("inst", Fmt.Pct(f.InstrumentDetection)), ("orbit", "×" + Fmt.N(f.OrbitFactor, 1))), null);
+                if (!basic)
+                    Row(grid, Loc.T("ui.dash.detection"), Fmt.Pct(f.Detection),
+                        Loc.T("ui.dash.detection_x", ("inst", Fmt.Pct(f.InstrumentDetection)), ("orbit", "×" + Fmt.N(f.OrbitFactor, 1))), null);
             }
 
             if (!compact)
@@ -80,16 +88,37 @@ namespace GoNoGo.UI
             }
         }
 
-        static string Status(ResourceStatus s) => s == ResourceStatus.Over ? "over" : s == ResourceStatus.Tight ? "tight" : "go";
+        public static string Status(ResourceStatus s) => s == ResourceStatus.Over ? "over" : s == ResourceStatus.Tight ? "tight" : "go";
 
-        static void Row(VisualElement parent, string name, string value, string extra, string cls)
+        /// <summary>
+        /// 有燈號時的說明欄，正常的不寫（列本身會變淡）。用量比容量大：質量、電力、錢、時程寫「超出多少」，
+        /// 儲存、下傳是容量不夠，寫「還差多少」；用量沒超過但餘裕小：寫「只剩多少」。
+        /// 儲存的黃燈是容量比含安全係數的需求小，這時用量已經比容量大，所以不能只看燈號。
+        /// </summary>
+        public static string Gap(ResourceReport r)
+        {
+            if (r.Status == ResourceStatus.Ok) return "";
+            double v = System.Math.Abs(r.Capacity - r.Used);
+            bool storage = r.Id == ResourceId.Data || r.Id == ResourceId.Comms;
+            string amount = (r.Id == ResourceId.Budget ? Fmt.Money(v) : Fmt.N(v, storage ? 1 : 0) + " " + Fmt.Unit(r.Unit)).Trim();
+            string key = r.Used <= r.Capacity ? "ui.dash.gap_left" : storage ? "ui.dash.gap_short" : "ui.dash.gap_over";
+            return Loc.T(key, ("v", amount));
+        }
+
+        /// <summary>
+        /// 一列：燈號、名稱、數值、說明。燈號是 go（正常）的列變淡、不寫說明；tight、over 的列加底色。
+        /// 沒有燈號的列（cls == null）照原樣。
+        /// </summary>
+        public static void Row(VisualElement parent, string name, string value, string extra, string cls)
         {
             // 每列都留燈號的位置、數值欄固定寬度：數字才會對齊成一欄
             var r = Ui.Row("dash-row").AddTo(parent);
+            if (cls == "go") { r.AddToClassList("dash-row--ok"); extra = ""; }
+            else if (cls == "tight" || cls == "over") r.AddToClassList("dash-row--" + cls);
             Ui.El("dash-lamp", "dash-lamp--" + (cls ?? "none")).AddTo(r);
             Ui.Text(name, "dash-k").AddTo(r);
             Ui.Text(value, "mono", "dash-v", cls).AddTo(r);
-            Ui.Text(extra, "small", "dim", "dash-x", "mono").AddTo(r);
+            Ui.Text(extra, "small", cls == "tight" || cls == "over" ? cls : "dim", "dash-x", "mono").AddTo(r);
         }
     }
 
@@ -109,6 +138,22 @@ namespace GoNoGo.UI
 
         protected override void Build(VisualElement body)
         {
+            // 問需求要花時程：最上面寫清楚每題多少、已經花了多少、時程還剩多少
+            double per = D.Constants.CallMonths;
+            var t = M.Dashboard[ResourceId.Time];
+            bool late = t.Capacity > 0 && t.Used > t.Capacity;
+            var cost = Ui.El("phone-cost").Cls("phone-cost--late", late).AddTo(body);
+            Ui.Text(Loc.T("ui.phone.cost", ("m", Fmt.N(per, 1))), "phone-cost-rule").AddTo(cost);
+            Ui.Text(Loc.T("ui.phone.cost_used", ("used", Fmt.N(SessionRules.CallMonths(M.S, D), 1)), ("now", Fmt.N(t.Used, 1)), ("deadline", Fmt.N(t.Capacity, 0)))
+                    + (late ? "　" + Loc.T("ui.phone.late") : ""), "small", late ? "over" : "dim").AddTo(cost);
+
+            // 需求問到幾條、哪個處室還有沒問到的（任務主管難度要自己記，不顯示）
+            bool track = M.Difficulty.NotesMode != "none";
+            bool tags = M.Difficulty.RequirementTags;
+            var heard = Dialogue.Heard(D, M.S);
+            int total = Departments.Active(M.Scenario, M.Difficulty).Count;
+            if (track) Ui.Text(Loc.T("ui.phone.req_count", ("n", heard.Count), ("total", total)), "small", heard.Count >= total ? "go" : "tight").AddTo(cost);
+
             var wrap = Ui.Row("phone-wrap").AddTo(body);
             var left = Ui.El("phone-list").AddTo(wrap);
             foreach (var dep in D.Departments)
@@ -124,6 +169,7 @@ namespace GoNoGo.UI
                 int asked = M.S.Calls.Count(x => x.Department == d.Id);
                 int open = D.Lines(M.Scenario, d).Count(l => GameData.LineOpen(l, M.Difficulty));
                 if (asked > 0) Ui.Text(Loc.T("ui.phone.asked", ("n", asked), ("total", open)), "small", "faint").AddTo(col);
+                if (track && Dialogue.Unheard(D, M.S, d.Id, heard) > 0) Ui.Text(Loc.T("ui.phone.pending"), "phone-pending").AddTo(col);
             }
 
             var right = Ui.El("phone-call").AddTo(wrap);
@@ -138,14 +184,18 @@ namespace GoNoGo.UI
             var qs = Ui.El("phone-qs").AddTo(right);
             // 關卡可以有自己的對話；有些題目要到某個難度才問得到（索引照完整清單，房主那邊才對得上）
             var lines = D.Lines(M.Scenario, dep2);
-            for (int i = 0; i < lines.Count; i++)
+            var shown = Enumerable.Range(0, lines.Count).Where(i => GameData.LineOpen(lines[i], M.Difficulty)).ToList();
+            // 題目分兩組：需求（回答列入評分）在上、建議在下。學員照這一關實際有沒有那條需求分；
+            // 工程師照題目的類型分（這類題目可能有需求，回答也可能是「沒有硬性規定」）；任務主管不分，自己判斷
+            if (track)
             {
-                int k = i;
-                var line = lines[i];
-                if (!GameData.LineOpen(line, M.Difficulty)) continue;
-                bool asked = M.S.Calls.Any(x => x.Department == dep2.Id && x.LineId == line.Id);
-                Ui.Btn(Loc.T(line.Question), () => Ask(k), "phone-q").Cls("phone-q--on", k == _line).Cls("phone-q--asked", asked).AddTo(qs);
+                bool IsReq(int i) => tags ? Dialogue.Revealed(D, M.S, dep2.Id, lines[i]).Count > 0 : lines[i].Reveals.Count > 0;
+                var req = shown.Where(IsReq).ToList();
+                var tips = shown.Where(i => !IsReq(i)).ToList();
+                if (req.Count > 0) Group(qs, Loc.T(tags ? "ui.phone.group_req" : "ui.phone.group_req_maybe"), "phone-group--req", req, lines, dep2.Id, per);
+                if (tips.Count > 0) Group(qs, Loc.T("ui.phone.group_tips"), "phone-group--tips", tips, lines, dep2.Id, per);
             }
+            else Group(qs, null, null, shown, lines, dep2.Id, per);
             _answer = Ui.Text("", "phone-answer").AddTo(right);
             if (_line >= 0 && _line < lines.Count)
             {
@@ -162,6 +212,25 @@ namespace GoNoGo.UI
                 Ui.Btn(Loc.T("ui.phone.open_notes"), () => { Hud.Signal("open:notes"); Hud.Open("notes"); }).AddTo(foot);
         }
 
+        /// <summary>一組題目：標題（null = 不分組）、每題的題目與還沒問過要花多少時程（問過的再問不用）。</summary>
+        void Group(VisualElement parent, string title, string cls, List<int> idx, List<DialogueLine> lines, string dept, double per)
+        {
+            var g = Ui.El("phone-group", cls).AddTo(parent);
+            if (title != null) Ui.Text(title, "phone-group-title").AddTo(g);
+            foreach (int i in idx)
+            {
+                int k = i;
+                var line = lines[i];
+                bool asked = M.S.Calls.Any(x => x.Department == dept && x.LineId == line.Id);
+                var q = Ui.Btn("", () => Ask(k), "phone-q").Cls("phone-q--on", k == _line).Cls("phone-q--asked", asked).AddTo(g);
+                q.Clear();
+                var qr = Ui.Row("phone-q-row").AddTo(q);
+                Ui.Text(Loc.T(line.Question), "phone-q-text").AddTo(qr);
+                Ui.Spacer().AddTo(qr);
+                Ui.Text(asked ? Loc.T("ui.phone.q_asked") : Loc.T("ui.phone.q_cost", ("m", Fmt.N(per, 1))), asked ? "phone-q-done" : "phone-q-cost", "mono").AddTo(qr);
+            }
+        }
+
         void Dial(string dept)
         {
             if (dept == _dept) return;
@@ -175,7 +244,11 @@ namespace GoNoGo.UI
         {
             _line = i;
             _typed = 0;
+            var lines = D.Lines(M.Scenario, D.Department(_dept));
+            bool fresh = i >= 0 && i < lines.Count && !M.S.Calls.Any(x => x.Department == _dept && x.LineId == lines[i].Id);
             GameSession.Send(CommandType.Call, _dept, i);
+            if (fresh)
+                Hud.Toast(Loc.T("ui.phone.cost_toast", ("m", Fmt.N(D.Constants.CallMonths, 1)), ("used", Fmt.N(SessionRules.CallMonths(M.S, D), 1))));
             Hud.Signal("call:" + _dept);
             Refresh();
         }
@@ -298,7 +371,7 @@ namespace GoNoGo.UI
                 l.CapacityKg.TryGetValue(d.OrbitId, out var cap);
                 bool rideshareBlocked = SessionRules.OrbitLauncherCheck(D, d.OrbitId, id) != SessionRules.Ok;
                 string sub = (rideshareBlocked ? Loc.T("err.rideshare_orbit") : cap > 0 ? Fmt.N(cap) + " kg → " + Loc.Orbit(d.OrbitId) : Loc.T("ui.mc.cannot_reach"))
-                             + " · " + Fmt.Money(l.CostMusd) + " · " + Fmt.Pct(l.Reliability);
+                             + " · " + Fmt.Money(l.CostMusd);
                 var lb = Choice(lCol, Loc.T(l.Name), sub, id == d.LauncherId, locked, () => GameSession.Send(CommandType.SetLauncher, id));
                 if (rideshareBlocked && id != d.LauncherId) lb.SetEnabled(false);
             }
@@ -447,7 +520,11 @@ namespace GoNoGo.UI
 
         protected override void Build(VisualElement body)
         {
-            Tabs(body, new[] { "ui.tablet.dashboard", "ui.goals.title", "ui.manual.tab.parts", "ui.manual.tab.rules", "ui.notes.title", "ui.fail.title" }, _tab, i => { _tab = i; Refresh(); });
+            // 失敗原因：第一次發射失敗才出現這一頁（Reveal）
+            var keys = new List<string> { "ui.tablet.dashboard", "ui.goals.title", "ui.manual.tab.parts", "ui.manual.tab.rules", "ui.notes.title" };
+            if (Reveal.Failures) keys.Add("ui.fail.title");
+            if (_tab >= keys.Count) _tab = 0;
+            Tabs(body, keys.ToArray(), _tab, i => { _tab = i; Refresh(); });
             var sv = Scroll(body);
             switch (_tab)
             {

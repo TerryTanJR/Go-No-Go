@@ -86,6 +86,7 @@ namespace GoNoGo.UI
             _poll = new PollBanner(Root);
 
             if (M.S.Tutorial) _coach = new TutorialCoach(_tl, _labels);
+            else if (M.Difficulty.NextStepGuide) _coach = new TutorialCoach(_tl, _labels, guide: true);
 
             On(() => Hud.PanelRequested += OpenPanel, () => Hud.PanelRequested -= OpenPanel);
             On(() => Hud.ToastRequested += OnToast, () => Hud.ToastRequested -= OnToast);
