@@ -20,6 +20,8 @@ namespace GoNoGo.Game
         public string Body = "";
         public string Color = "";
         public List<KeyHint> Keys = new List<KeyHint>();
+        /// <summary>第三人稱時提示框貼在這個世界座標旁邊（物件上方）；null = 放在準星旁。</summary>
+        public Vector3? Anchor;
     }
 
     /// <summary>
