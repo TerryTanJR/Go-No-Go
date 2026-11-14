@@ -82,9 +82,10 @@ Every number in the game data files has a `source` entry (title, URL and a note 
 
 | Source | Terms | Used for |
 |---|---|---|
-| NASA, NOAA, SEC EDGAR (US government) | Public domain; credit the agency, no endorsement implied | Most values: orbits, power, propulsion, avionics (NASA SST State-of-the-Art), OCO / OCO-2 press kits, DONKI and NOAA SWPC space weather, Rocket Lab's launch revenue |
+| NASA, NOAA, USGS, SEC EDGAR (US government) | Public domain; credit the agency, no endorsement implied | Most values: orbits, power, propulsion, avionics (NASA SST State-of-the-Art), OCO / OCO-2 press kits, DONKI and NOAA SWPC space weather, the 2010-04-05 geomagnetic storm (USGS Geomagnetism Program), Rocket Lab's launch revenue |
+| Max Millennium Major Flare Watch (Montana State University) | Research log, cited by name | The 2011-02-15 X2.2 flare used in the historical OCO mission |
 | Wikipedia | CC BY-SA 4.0 (facts are not copyrightable; we credit the article) | Falcon 9 / Falcon Heavy / Electron flight records, the 13 decoy parts, Svalbard station |
 | eoPortal (ESA) | ESA terms; credit eoPortal | PRISMA, ICEYE, BIROS/FireBIRD, RADARSAT Constellation |
 | SatCatalog, GomSpace, Busek, AWS, SpaceX, ULA | Vendor datasheets and price lists, cited by name | Camera and battery specs, ground-station and launch prices, launch timelines |
-| Spaceflight Now, Universe Today, NASASpaceFlight, New Space Economy | News reporting, cited by name | Launch timelines, rideshare price, Transporter flights |
+| Spaceflight Now, Universe Today, NASASpaceFlight, New Space Economy, Astronomy magazine | News reporting, cited by name | Launch timelines, rideshare price, Transporter flights; the 2011-02-15 flare |
 | arXiv, MIT OCW, MDPI Sensors, J. Astron. Space Sci., SmallSat Conference | Open-access papers and course notes, cited by name | Eclipse and power formulas, station keeping, lunar orbit maintenance |

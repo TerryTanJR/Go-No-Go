@@ -57,7 +57,8 @@ namespace GoNoGo.Core
         public static SessionState NewSession(GameData data, string scenarioId, string difficultyId, bool tutorial, bool multiplayer)
         {
             var scenario = data.Scenario(scenarioId) ?? data.Scenarios[0];
-            var diff = data.Difficulty(difficultyId) ?? data.DifficultyFor(scenario);
+            // 一關一個難度（採購機制 v2 §7）。歷史關卡不分難度：不管傳進什麼，都用關卡指定的
+            var diff = (scenario.Historical != null ? null : data.Difficulty(difficultyId)) ?? data.DifficultyFor(scenario);
             var start = StartDesign(scenario, diff);
             return new SessionState
             {
@@ -384,6 +385,8 @@ namespace GoNoGo.Core
                     if (s.Phase == SessionPhase.Design) return Ok;
                     if (s.Phase != SessionPhase.Briefing) return "err.phase";
                     s.Phase = SessionPhase.Design;
+                    // 歷史關卡：簡報完直接照當年的設計發射（設計本來就鎖住，不用測試、不用點名）
+                    if (s.DesignLocked(data)) return Launch(s, data);
                     return Ok;
 
                 case CommandType.Pick: return Pick(s, data, c.Player, c.A);
@@ -587,7 +590,7 @@ namespace GoNoGo.Core
         {
             if (s.Phase != SessionPhase.Design) return "err.phase";
             var design = s.Bench.Clone();
-            int failed = s.FailedLaunches;
+            int failed = FailedBeforeForScore(s, data);   // 歷史關卡的重演不算玩家的失敗
             // 種子由設計決定（同樣的設計結果一樣），再混入第幾次發射：
             // 失敗重來後照原樣組回同一個設計，才不會一直擲出同一個失敗
             int seed = design.StableHash();
@@ -609,6 +612,17 @@ namespace GoNoGo.Core
             s.TurnResolved = false;
             s.Phase = SessionPhase.Launch;
             return Ok;
+        }
+
+        /// <summary>
+        /// 計分用的「之前失敗了幾次」：歷史關卡第一次發射是重演歷史（玩家不能改設計），不算玩家的失敗。
+        /// 採購的重建次數（<see cref="SessionState.FailedLaunches"/>）照算。
+        /// </summary>
+        public static int FailedBeforeForScore(SessionState s, GameData data)
+        {
+            int failed = s.FailedLaunches;
+            if (s.Scenario(data)?.Historical != null && s.Launches.Count > 0 && !s.Launches[0].Reached) failed--;
+            return Math.Max(0, failed);
         }
 
         static void StartOps(SessionState s, GameData data)

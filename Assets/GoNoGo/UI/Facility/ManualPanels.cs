@@ -321,7 +321,7 @@ namespace GoNoGo.UI
                     break;
                 default:
                     pages.Add(DonkiTimeline);
-                    int n = GameSession.Data.SpaceWeather.Count;
+                    int n = Storms().Count;
                     for (int i = 0; i < n; i += 6)
                     {
                         int from = i;
@@ -809,7 +809,7 @@ namespace GoNoGo.UI
         static void DonkiTimeline(VisualElement parent)
         {
             Ui.Text(Loc.T("ui.manual.timeline"), "eyebrow", "man-sec").AddTo(parent);
-            var items = GameSession.Data.SpaceWeather.OrderBy(x => x.Date)
+            var items = Storms().OrderBy(x => x.Date)
                 .Select(x => new StormTimeline.Item { Date = x.Date, Type = x.Type, Severity = x.Severity }).ToList();
             parent.Add(new StormTimeline(items));
             var legend = Ui.Row("mring-legend").AddTo(parent);
@@ -822,10 +822,17 @@ namespace GoNoGo.UI
             Ui.Text(Loc.T("ui.manual.timeline_hint"), "small", "faint", "man-legend").AddTo(parent);
         }
 
+        /// <summary>手冊列的事件：歷史關卡（例如 2009 年的 OCO）只列到任務結束那一年。</summary>
+        static List<SpaceWeatherEvent> Storms()
+        {
+            var m = GameSession.HasMission ? GameSession.Mission : null;
+            return GameSession.Data.StormsKnownBy(m?.Scenario, m?.S.Bench.MissionYears ?? 1);
+        }
+
         static void DonkiCards(VisualElement parent, int from, int count)
         {
             var grid = Ui.El("man-rules").AddTo(parent);
-            foreach (var e in GameSession.Data.SpaceWeather.OrderByDescending(x => x.Severity).ThenByDescending(x => x.Date).Skip(from).Take(count))
+            foreach (var e in Storms().OrderByDescending(x => x.Severity).ThenByDescending(x => x.Date).Skip(from).Take(count))
             {
                 var c = Ui.El("man-rule", "man-storm", "man-storm--" + Math.Clamp(e.Severity, 1, 3)).AddTo(grid);
                 var head = Ui.Row("man-rule-head").AddTo(c);

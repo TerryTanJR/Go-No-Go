@@ -145,9 +145,12 @@ namespace GoNoGo.UI
                 Ui.Text(Fmt.Money(GameData.Budget(sc)), "mono", "small").AddTo(stats);
                 Ui.Text("·", "faint", "small", "scn-dot").AddTo(stats);
                 Ui.Text(Fmt.Years(sc.TargetYears), "mono", "small").AddTo(stats);
-                // 一關一個難度（採購機制 v2 §7）：卡片上直接標出來，點了就開始
-                Ui.Text("·", "faint", "small", "scn-dot").AddTo(stats);
-                Ui.Text(Loc.T(D.DifficultyFor(sc).Name), "small", "accent").AddTo(stats);
+                // 一關一個難度（採購機制 v2 §7）：卡片上直接標出來，點了就開始。歷史關卡不分難度，不標
+                if (sc.Historical == null)
+                {
+                    Ui.Text("·", "faint", "small", "scn-dot").AddTo(stats);
+                    Ui.Text(Loc.T(D.DifficultyFor(sc).Name), "small", "accent").AddTo(stats);
+                }
                 card.RegisterCallback<ClickEvent>(_ => { _scenario = sc.Id; Start(null); });
                 card.RegisterCallback<PointerEnterEvent>(_ => Sfx.Hover());
             }

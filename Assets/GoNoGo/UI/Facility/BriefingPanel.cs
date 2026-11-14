@@ -89,7 +89,7 @@ namespace GoNoGo.UI
             Ui.Text(M.IsHistorical ? Loc.T("ui.brief.history", ("year", sc.Historical.Year)) : Loc.T("ui.brief.op"), "eyebrow").AddTo(ht);
             Ui.Text(Loc.T(sc.Name), "h2", "brief-mission").AddTo(ht);
             Ui.Spacer().AddTo(head);
-            Ui.Text(Loc.T("ui.brief.difficulty") + " · " + Loc.T(M.Difficulty.Name), "brief-tag").AddTo(head);
+            if (!M.IsHistorical) Ui.Text(Loc.T("ui.brief.difficulty") + " · " + Loc.T(M.Difficulty.Name), "brief-tag").AddTo(head);
 
             _log = Ui.El("brief-log").AddTo(talk);
             var box = Ui.El("brief-line").AddTo(talk);
@@ -106,15 +106,16 @@ namespace GoNoGo.UI
             // 講完才出現：接下來做什麼 + 開始
             _foot = Ui.El("brief-foot").AddTo(talk);
             var todo = Ui.Row("brief-todo").AddTo(_foot);
-            Ui.Text("☎", "brief-todo-icon").AddTo(todo);
+            // 歷史關卡：簡報完直接照當年的設計發射，第一步不是打電話
+            if (!M.IsHistorical) Ui.Text("☎", "brief-todo-icon").AddTo(todo);
             var tt = Ui.El("brief-todo-text").AddTo(todo);
             var me = M.S.Player(GameSession.LocalPlayer);
-            bool multi = M.S.Multiplayer && me != null;
-            // 多人：每個人只看到自己這一組的介紹（組裝區 / 中控室）
+            bool multi = M.S.Multiplayer && me != null && !M.IsHistorical;
+            // 多人：每個人只看到自己這一組的介紹（組裝區 / 中控室）；歷史關卡簡報完直接重演，第一步不是分組做事
             string side = me != null && me.Station == Station.Assembly ? "assembly" : "control";
             if (multi) Ui.Text(Loc.T("ui.intro." + side + ".t"), "eyebrow").AddTo(tt);
             else Ui.Text(Loc.T("ui.brief.todo_title"), "eyebrow").AddTo(tt);
-            Ui.Text(Ui.NoOrphan(Loc.T(multi ? "ui.intro." + side : "ui.brief.todo_solo")), "body").AddTo(tt);
+            Ui.Text(Ui.NoOrphan(Loc.T(M.IsHistorical ? "ui.brief.todo_history" : multi ? "ui.intro." + side : "ui.brief.todo_solo")), "body").AddTo(tt);
             if (M.IsHistorical)
             {
                 var dos = Ui.El("brief-dossier").AddTo(_foot);
@@ -124,7 +125,7 @@ namespace GoNoGo.UI
             var row = Ui.Row("modal-actions").AddTo(_foot);
             Ui.Spacer().AddTo(row);
             if (M.S.Phase == SessionPhase.Briefing)
-                Ui.Btn(Loc.T("ui.brief.start"), () =>
+                Ui.Btn(Loc.T(M.IsHistorical ? "ui.brief.launch_history" : "ui.brief.start"), () =>
                 {
                     Sfx.Confirm();
                     GameSession.Send(CommandType.BeginDesign);
@@ -147,10 +148,11 @@ namespace GoNoGo.UI
             var list = new List<string>();
             foreach (var l in Loc.T(key).Split('\n'))
                 if (!string.IsNullOrWhiteSpace(l)) list.Add(Ui.NoOrphan(l.Trim()));
-            // 多人：結尾那句依自己這一組不同（組裝組、中控組各自知道要做什麼）
+            // 多人：結尾那句依自己這一組不同（組裝組、中控組各自知道要做什麼）；歷史關卡是倒數開始
             var me = M.S.Player(GameSession.LocalPlayer);
             string close = "ui.brief.close_solo";
-            if (M.S.Multiplayer) close = me != null && me.Station == Station.Assembly ? "ui.brief.close_assembly" : "ui.brief.close_control";
+            if (M.IsHistorical) close = "ui.brief.close_history";
+            else if (M.S.Multiplayer) close = me != null && me.Station == Station.Assembly ? "ui.brief.close_assembly" : "ui.brief.close_control";
             list.Add(Ui.NoOrphan(Loc.T(close)));
             return list;
         }

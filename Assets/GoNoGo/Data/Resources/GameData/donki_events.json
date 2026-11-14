@@ -19,6 +19,25 @@
     "summary": { "en": "Extreme (G5) geomagnetic storm of the Halloween 2003 sequence; many satellites reported anomalies.", "zh-TW": "2003 年萬聖節風暴中的極端（G5）地磁暴；許多衛星回報異常。" }
   },
   {
+    "id": "2010-04-05-GST",
+    "type": "GST",
+    "date": "2010-04-05",
+    "class_type": "G3",
+    "kp_index": 7,
+    "severity": 1,
+    "link": "https://www.usgs.gov/programs/geomagnetism/science/april-5-2010-magnetic-disturbance",
+    "summary": { "en": "Strong (G3) storm after a CME hit Earth. The same day the Galaxy 15 communications satellite stopped answering the ground, probably after static charge built up on it.", "zh-TW": "日冕巨量噴發打到地球引起的強烈（G3）地磁暴。同一天 Galaxy 15 通訊衛星停止回應地面指令，可能是衛星上累積了靜電。" }
+  },
+  {
+    "id": "2011-02-15-FLR-X2",
+    "type": "FLR",
+    "date": "2011-02-15",
+    "class_type": "X2.2",
+    "severity": 1,
+    "link": "https://solar.physics.montana.edu/max_millennium/resources/MFW_documentation/MFW.2011.02.13/",
+    "summary": { "en": "The first X-class flare of solar cycle 24 and the largest since December 2006: the Sun waking up after the quietest minimum in a century.", "zh-TW": "第 24 太陽週期的第一個 X 級閃焰，也是 2006 年 12 月以來最大的一次：太陽從近百年最安靜的極小期醒過來了。" }
+  },
+  {
     "id": "2015-03-17-GST",
     "type": "GST",
     "date": "2015-03-17",

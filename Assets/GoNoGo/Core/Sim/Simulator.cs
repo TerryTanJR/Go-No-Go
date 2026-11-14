@@ -85,7 +85,8 @@ namespace GoNoGo.Core
                 switch (e.Kind)
                 {
                     case EventKind.SolarStorm:
-                        var sw = data.SpaceWeather[rng.Next(data.SpaceWeather.Count)];
+                        var storms = data.StormsDuring(data.Scenario(design.ScenarioId), years);
+                        var sw = storms[rng.Next(storms.Count)];
                         e.RefId = sw.Id;
                         e.Severity = Math.Max(1, Math.Min(3, sw.Severity));
                         break;

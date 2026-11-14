@@ -275,7 +275,7 @@ namespace GoNoGo.UI
             Ui.Spacer().AddTo(head);
             var mis = Ui.El("lobby-mission").AddTo(head);
             Ui.Text(Loc.T(m.Scenario.Name), "h2").AddTo(mis);
-            Ui.Text(Loc.T(m.Difficulty.Name), "small", "dim").AddTo(mis);
+            if (!m.IsHistorical) Ui.Text(Loc.T(m.Difficulty.Name), "small", "dim").AddTo(mis);   // 歷史關卡不分難度
 
             Teams(body);
             int ready = s.Players.Count(p => p.Ready);
