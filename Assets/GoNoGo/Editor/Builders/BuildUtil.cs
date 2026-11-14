@@ -60,7 +60,10 @@ namespace GoNoGo.EditorTools
             }
             m.EnableKeyword("_EMISSION");
             m.SetColor("_EmissionColor", emission ?? Color.black);
-            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+            // 必須是 RealtimeEmissive：URP 檢查材質時只看 GI 旗標決定要不要保留 _EMISSION
+            // （BaseShaderGUI.SetMaterialKeywords），設成 None 會在別人重新匯入時被拿掉，執行期的發光就失效。
+            // 專案沒開即時 GI，這個旗標沒有額外成本。
+            m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
             EditorUtility.SetDirty(m);
             return m;
         }

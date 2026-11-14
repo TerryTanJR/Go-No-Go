@@ -3,6 +3,18 @@
 *.prefab  text eol=lf
 *.asset   text eol=lf
 *.meta    text eol=lf
+# Unity 存檔一律寫 LF；沒列在這裡的 YAML 檔在 Windows（autocrlf=true）會 checkout 成 CRLF，
+# Unity 一存檔就被 git 列成「已修改」，內容其實沒變
+*.mat     text eol=lf
+*.anim    text eol=lf
+*.controller text eol=lf
+*.overrideController text eol=lf
+*.mixer   text eol=lf
+*.playable text eol=lf
+*.physicMaterial text eol=lf
+*.lighting text eol=lf
+*.renderTexture text eol=lf
+*.spriteatlas text eol=lf
 *.cs      text
 *.json    text
 *.uxml    text

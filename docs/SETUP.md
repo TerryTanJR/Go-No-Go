@@ -352,6 +352,10 @@ git push
 4. **不要 commit `Library/`、`Temp/`、`Logs/`、`UserSettings/`、`Builds/`。** `.gitignore` 已經排除了，只要不要用 `git add -f` 就好。
 5. **大檔案會自動走 LFS**（`.glb`、`.png`、`.wav`、`.mp3`、字型等）。commit 後可以用 `git lfs ls-files` 確認新檔案有在清單裡。
 6. **pull 之後回到 Unity 視窗**，等它匯入完、右下角沒有轉圈，再繼續工作。
+7. **commit 前先看 `git status`，只 add 自己真的有改的檔案**，不要直接 `git add -A`。Unity 打開專案時會自己改寫下面這 5 個檔案，看到了用 `git restore <檔案>` 丟掉，不要 commit：
+   - `Assets/GoNoGo/UI/Resources/UI/Fonts/` 底下 4 個字型 `.asset`：動態字型的貼圖被清空，執行時會重新產生，diff 很大但沒有影響。
+   - `Assets/Settings/UniversalRenderPipelineGlobalSettings.asset`：`m_RuntimeSettings` 被清空，是 URP 在全新 `Library/` 上做的設定遷移。
+8. **Windows：第一次 pull 到 `.gitattributes` 加了 `*.mat` 那一版之後，執行一次 `git restore -- "*.mat"`。** 在這之前 clone 的材質是 CRLF 換行，Unity 存檔時一律寫 LF，git 就會把內容沒變的材質列成已修改。執行前先確認自己沒有還沒 commit 的材質修改，這個指令會把它們丟掉。
 
 ### 13.4 場景衝突了怎麼辦
 
@@ -377,6 +381,8 @@ git rebase --continue
 | PowerShell 跑 `script eval` 出現 `CS0103: The name 'ok' does not exist` | 改在 Git Bash 執行（PowerShell 吃掉了雙引號） |
 | 新增 `.cs` 後 `unity recompile` 說 `up_to_date`，類別卻不存在 | 跑 `bash tools/unity-refresh.sh`（Editor 不在前景時不會自動偵測檔案變動） |
 | `unity command test run` 逾時、Editor 卡死 | 核心測試改用 `bash tools/run-core-tests.sh`；Editor 卡死用 `unity close <專案> --force` 再 `unity open` |
+| 沒動材質，`git status` 卻出現一堆 `.mat` 已修改，`git diff` 是空的 | 換行字元的問題，見 13.3 第 8 點：`git restore -- "*.mat"` |
+| 衛星零件 hover／安全模式／事件閃燈不亮 | 材質的 `_EMISSION` 被拿掉了。`git diff` 看 `.mat` 的 `m_ValidKeywords` 是不是少了 `_EMISSION`、`m_LightmapFlags` 變回 0；是的話 `git restore` 那些材質，不要 commit |
 | Claude Code 看不到 Blender 工具 | 重開 Claude Code；確認 Blender 裡按了 Connect；`claude mcp list` |
 | `claude mcp add` 後啟動失敗、找不到 `uvx` | 重開終端機讓 `%USERPROFILE%\.local\bin` 進 PATH |
 | 模型或圖片打開是幾百 bytes 的文字檔 | 沒裝 LFS：`git lfs install` 後 `git lfs pull` |
