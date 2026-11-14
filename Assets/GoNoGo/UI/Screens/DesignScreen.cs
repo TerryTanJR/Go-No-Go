@@ -408,8 +408,16 @@ namespace GoNoGo.UI
             }
         }
 
-        public static string WarningText(Warning w) =>
-            Loc.Format(Loc.T(w.Code), k => k == "launcher" ? Loc.Launcher(S.Design.LauncherId) : null, w.Values);
+        public static string WarningText(Warning w)
+        {
+            // 橘燈（餘裕不足、還沒超標）不能用超標的句子：「超出 / 還差」的數字會是負的
+            if (w.Severity == ResourceStatus.Tight && w.Values.ContainsKey("margin_pct"))
+            {
+                var vals = new Dictionary<string, double>(w.Values) { ["need"] = Evaluator.TightMargin * 100 };
+                return Loc.Format(Loc.T("warn.tight"), k => k == "res" ? Loc.T("res." + w.Resource.ToString().ToLowerInvariant()) : null, vals);
+            }
+            return Loc.Format(Loc.T(w.Code), k => k == "launcher" ? Loc.Launcher(S.Design.LauncherId) : null, w.Values);
+        }
 
         public static string FixText(Fix f)
         {
