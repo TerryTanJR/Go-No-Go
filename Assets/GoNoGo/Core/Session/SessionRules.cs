@@ -373,6 +373,8 @@ namespace GoNoGo.Core
                 case CommandType.StartMission:
                     if (s.Phase != SessionPhase.Lobby) return "err.phase";
                     if (c.Player != HostPlayer) return "err.host_only";
+                    // 多人房只有房主一個人：等人加入（一個人玩走單人模式）
+                    if (s.Players.Count < 2) return "err.need_players";
                     if (s.StrictRoles && !BothStationsManned(s)) return "err.strict_need_both";
                     if (s.Players.Count == 0 || s.Players.Any(p => !p.Ready)) return "err.not_ready";
                     // 多人：簡報是每個人自己看（本機面板），不卡全隊；直接進設計階段

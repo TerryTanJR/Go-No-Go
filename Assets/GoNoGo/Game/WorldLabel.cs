@@ -17,7 +17,7 @@ namespace GoNoGo.Game
         public string text = "";
         public Vector3 offset = Vector3.up;
         public float maxDistance = 8f;
-        [Tooltip("tag（名牌）、sign（看板）、code（零件編號）")]
+        [Tooltip("tag（名牌）、sign（看板）、team（大廳的組別名稱，比看板大）、code（零件編號）")]
         public string style = "sign";
         public string color = "";
 
