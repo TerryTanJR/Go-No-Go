@@ -67,6 +67,7 @@ namespace GoNoGo.Presentation
             stand.Refresh(m, false);
             OnChanged();
             Sfx.SetAmbience(Sfx.Ambience.ControlRoom);
+            Sfx.SetMusic(Sfx.Music.Facility);
         }
 
         // ---------------- 零件架 ----------------

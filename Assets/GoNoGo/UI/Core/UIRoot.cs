@@ -9,7 +9,7 @@ using UnityEngine.UIElements;
 namespace GoNoGo.UI
 {
     /// <summary>
-    /// 唯一的 UI 根物件（跨場景存在）：一個 UIDocument，分四層——畫面、遊戲選單、浮動層（提示、通知）、黑幕。
+    /// 唯一的 UI 根物件（跨場景存在）：一個 UIDocument，分五層——畫面、遊戲選單、浮動層（提示、通知）、黑幕、進場過場（<see cref="LoadingScreen"/>）。
     /// 場景載入時依場景名稱換上對應畫面；黑幕跨場景保留，所以轉場不會閃白。
     /// 遊戲中（設施、發射、報告）按 Tab 或 Esc 打開 <see cref="GameMenu"/>。
     /// </summary>
@@ -24,6 +24,7 @@ namespace GoNoGo.UI
         GameScreen _current;
         string _scene;
         GameMenu _menu;
+        LoadingScreen _loading;
         bool _wasLocked;
         int _seenClosedFrame = -1;
         float _lockGrace, _autoOpenedAt = -10f;
@@ -84,6 +85,8 @@ namespace GoNoGo.UI
 
             _fader = Ui.El("fader").AddTo(root).Named("fader");
             _fader.pickingMode = PickingMode.Ignore;
+            // 過場在黑幕之上：換場景淡出成黑的時候進度條還看得到
+            _loading = new LoadingScreen(root);
 
             // 只有真正的 UI 元件會被點到：根與畫面層本身不接收指標，3D 鏡頭才能在空白處拖曳
             root.pickingMode = PickingMode.Ignore;
@@ -167,7 +170,14 @@ namespace GoNoGo.UI
         {
             UpdateMenu();
             _current?.Tick(Time.unscaledDeltaTime);
+            _loading.Tick(Time.unscaledDeltaTime);
         }
+
+        /// <summary>開始進場過場（開房、加入房間、開始任務）。場景載入完會自己收起來。</summary>
+        public static void BeginLoading(bool network) => _i?._loading.Begin(network);
+
+        /// <summary>連線失敗：收起過場，回到原本的畫面。</summary>
+        public static void EndLoading() => _i?._loading.End();
 
         // ---------------- 遊戲選單（Tab / Esc） ----------------
 

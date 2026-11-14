@@ -10,6 +10,7 @@ namespace GoNoGo.UI
         protected override void Build()
         {
             Sfx.SetAmbience(Sfx.Ambience.ControlRoom);
+            Sfx.SetMusic(Sfx.Music.Menu);
             var top = Ui.El("topbar", "topbar--clear").AddTo(Root);
             Ui.Spacer().AddTo(top);
             Ui.Btn(Loc.IsZh ? "EN" : "中文", Loc.Toggle, "btn-small", "btn-ghost").AddTo(top);

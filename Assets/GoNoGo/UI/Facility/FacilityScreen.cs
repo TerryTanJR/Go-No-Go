@@ -15,9 +15,9 @@ namespace GoNoGo.UI
     /// </summary>
     public sealed class FacilityScreen : GameScreen
     {
-        VisualElement _hud, _labels, _modal, _phaseBar;
+        VisualElement _hud, _labels, _modal, _phaseBar, _tl;
         VisualElement _info, _infoKeys;
-        Label _infoTitle, _infoSub, _infoBody, _area, _held, _hint;
+        Label _infoTitle, _infoSub, _infoBody, _area, _held;
         Button _mic;
         ProgressRing _ring;
         VisualElement _crosshair;
@@ -33,26 +33,27 @@ namespace GoNoGo.UI
         protected override void Build()
         {
             _labelEls.Clear();
+            _shownArea = null;
             GameSession.EnsureMission();
             _labels = Ui.El("world-labels").AddTo(Root);
             _labels.pickingMode = PickingMode.Ignore;
             _hud = Ui.El("hud").AddTo(Root);
             _hud.pickingMode = PickingMode.Ignore;
 
-            // 左上：所在區域、手上的零件
-            var tl = Ui.El("hud-tl").AddTo(_hud);
+            // 左上：進入新區域時淡入一下的區域名、第幾次發射這類狀態（任務名稱、難度在 Tab 選單）
+            var tl = _tl = Ui.El("hud-tl").AddTo(_hud);
             tl.pickingMode = PickingMode.Ignore;
             _area = Ui.Text("", "hud-area").AddTo(tl);
-            _held = Ui.Text("", "hud-held").AddTo(tl);
             _phaseBar = Ui.El("hud-phase").AddTo(tl);
 
-            // 右上：麥克風（在語音頻道裡才顯示）、語言
+            // 下方中央：手上的零件
+            _held = Ui.Text("", "hud-held").AddTo(_hud);
+
+            // 右上：麥克風（在語音頻道裡才顯示）。語言在 Tab 選單的基本設定
             var tr = Ui.Row("hud-tr").AddTo(_hud);
             _mic = Ui.Btn("", ToggleMic, "btn-small", "btn-ghost").AddTo(tr);
-            var lang = Ui.Btn(Loc.IsZh ? "EN" : "中文", Loc.Toggle, "btn-small", "btn-ghost").AddTo(tr);
-            // 方向鍵是用來走路的：不讓 UI 拿方向鍵在這兩顆之間移動焦點（滑鼠還是點得到）
+            // 方向鍵是用來走路的：不讓 UI 拿方向鍵移動焦點（滑鼠還是點得到）
             _mic.focusable = false;
-            lang.focusable = false;
 
             // 中央：準星與進度環
             _crosshair = Ui.El("crosshair").AddTo(_hud);
@@ -68,9 +69,6 @@ namespace GoNoGo.UI
             _infoBody = Ui.Text("", "info-body").AddTo(_info);
             _infoKeys = Ui.Row("info-keys").AddTo(_info);
 
-            // 左下：操作說明
-            _hint = Ui.Text(Loc.T("ui.hud.controls" + (M.S.Multiplayer ? "" : "_solo")), "hud-controls").AddTo(_hud);
-
             _opsBar = new OpsBar(_hud);
 
             _modal = Ui.El("modal-layer").AddTo(Root);
@@ -79,7 +77,7 @@ namespace GoNoGo.UI
             // 點名橫幅放在面板層上面：開著面板也看得到、按得到
             _poll = new PollBanner(Root);
 
-            if (M.S.Tutorial) _coach = new TutorialCoach(Root);
+            if (M.S.Tutorial) _coach = new TutorialCoach(_tl, _labels);
 
             On(() => Hud.PanelRequested += OpenPanel, () => Hud.PanelRequested -= OpenPanel);
             On(() => Hud.ToastRequested += OnToast, () => Hud.ToastRequested -= OnToast);
@@ -134,7 +132,6 @@ namespace GoNoGo.UI
             var s = M.S;
             if (s.Phase == SessionPhase.Design)
             {
-                Ui.Text(Loc.T(M.Scenario.Name) + " · " + Loc.T(M.Difficulty.Name), "small", "dim").AddTo(_phaseBar);
                 if (s.Launches.Count > 0)
                     Ui.Text(Loc.T("ui.hud.attempt", ("n", s.Launches.Count + 1)), "small", "tight").AddTo(_phaseBar);
                 if (M.IsHistorical && s.DesignLocked(D)) Ui.Text(Loc.T("ui.hud.history_locked"), "small", "accent").AddTo(_phaseBar);
@@ -155,7 +152,7 @@ namespace GoNoGo.UI
             var head = Ui.Row("modal-head").AddTo(card);
             Ui.Text(_panel.Title, "eyebrow").AddTo(head);
             Ui.Spacer().AddTo(head);
-            if (_panel.Closable) Ui.Btn(Loc.T("ui.fac.close") + "  [Esc]", ClosePanel, "btn-small", "btn-ghost").AddTo(head);
+            if (_panel.Closable) Ui.Btn("Esc  ✕", ClosePanel, "modal-close").AddTo(head);
             var body = Ui.El("modal-body").AddTo(card);
             _panel.Attach(body, ClosePanel);
             _openedFrame = Time.frameCount;
@@ -221,10 +218,13 @@ namespace GoNoGo.UI
             _panel?.Tick(dt);
             _opsBar.Tick(dt);
             _poll?.Tick(dt);
-            _coach?.Tick(dt);
+            _coach?.Tick(dt, _panel == null && !Hud.Paused);
 
             bool playing = _panel == null && !Hud.Paused;
-            _crosshair.style.display = playing ? DisplayStyle.Flex : DisplayStyle.None;
+            // 第三人稱不靠準星選目標（角色的頭也剛好在畫面中央），只有第一人稱顯示
+            _crosshair.style.display = playing && Hud.FirstPerson ? DisplayStyle.Flex : DisplayStyle.None;
+            // 對到能互動的東西：準星變成一個圈
+            _crosshair.EnableInClassList("crosshair--on", Hud.Target != null && Hud.Target.Keys.Count > 0);
             _hud.style.opacity = _panel == null ? 1f : 0.35f;
 
             // 資訊框
@@ -239,6 +239,7 @@ namespace GoNoGo.UI
                 _infoBody.style.display = string.IsNullOrEmpty(t.Body) ? DisplayStyle.None : DisplayStyle.Flex;
                 if (!string.IsNullOrEmpty(t.Color) && ColorUtility.TryParseHtmlString(t.Color, out var c)) _info.style.borderLeftColor = c;
                 else _info.style.borderLeftColor = new Color(0.22f, 0.78f, 0.96f);
+                PlaceInfo(t.Anchor);
                 string sig = string.Join("|", t.Keys.ConvertAll(k => k.Key + k.Label));
                 if (sig != _keysSig)
                 {
@@ -253,6 +254,8 @@ namespace GoNoGo.UI
                 }
             }
             _ring.Value = Hud.Progress;
+            // 第三人稱畫面中央是角色的頭：進度環移到下方、手上零件的上面
+            _ring.EnableInClassList("hold-ring--low", !Hud.FirstPerson);
             _ring.style.display = Hud.Progress > 0 ? DisplayStyle.Flex : DisplayStyle.None;
 
             _mic.style.display = Multiplayer.VoiceConnected ? DisplayStyle.Flex : DisplayStyle.None;
@@ -260,19 +263,59 @@ namespace GoNoGo.UI
             _mic.EnableInClassList("btn-danger", Multiplayer.MicMuted);
             _mic.EnableInClassList("btn-ghost", !Multiplayer.MicMuted);
 
-            _area.text = string.IsNullOrEmpty(Hud.Area) ? "" : Loc.T("ui.area." + Hud.Area) + (Hud.FirstPerson ? "  ·  " + Loc.T("ui.hud.first_person") : "");
+            // 區域名：換區域時顯示 2.5 秒再淡出（像開放世界遊戲進入新地區）
+            if (Hud.Area != _shownArea)
+            {
+                _shownArea = Hud.Area;
+                _areaTime = string.IsNullOrEmpty(Hud.Area) ? 0f : 3f;
+                _area.text = string.IsNullOrEmpty(Hud.Area) ? "" : Loc.T("ui.area." + Hud.Area);
+            }
+            _areaTime = Mathf.Max(0, _areaTime - dt);
+            _area.style.opacity = Mathf.Clamp01(_areaTime / 0.5f);
             var held = M.S.HeldBy(GameSession.LocalPlayer);
             _held.text = held != null ? Loc.T("ui.hud.holding", ("code", D.Part(held)?.Code ?? "")) : "";
+            _held.style.display = held != null && playing ? DisplayStyle.Flex : DisplayStyle.None;
 
             DrawLabels();
         }
 
         int _openedFrame;
         string _keysSig;
+        string _shownArea;
+        float _areaTime;
+
+        /// <summary>
+        /// 資訊框位置：有錨點（第三人稱）就置中放在物件上方，不蓋住物件、不會跑出畫面；沒有就用 USS 的位置（準星右下）。
+        /// </summary>
+        void PlaceInfo(Vector3? anchor)
+        {
+            var cam = Camera.main;
+            var panel = Root.panel;
+            if (anchor == null || cam == null || panel == null || cam.WorldToViewportPoint(anchor.Value).z <= 0.1f)
+            {
+                _info.style.left = StyleKeyword.Null;
+                _info.style.top = StyleKeyword.Null;
+                _info.style.translate = StyleKeyword.Null;
+                return;
+            }
+            var sp = RuntimePanelUtils.CameraTransformWorldToPanel(panel, anchor.Value, cam);
+            var size = Root.layout.size;
+            var box = _info.layout.size;
+            if (float.IsNaN(box.x)) box = Vector2.zero;
+            _info.style.left = Mathf.Clamp(sp.x - box.x / 2f, 16f, Mathf.Max(16f, size.x - box.x - 16f));
+            _info.style.top = Mathf.Clamp(sp.y - box.y - 8f, 16f, Mathf.Max(16f, size.y - box.y - 16f));
+            _info.style.translate = new Translate(0, 0);
+        }
 
         static void ToggleMic() => Multiplayer.SetMicMuted?.Invoke(!Multiplayer.MicMuted);
 
-        /// <summary>場景裡的文字標籤：投影到畫面上（太遠、在背後、被牆擋住的不畫）。</summary>
+        /// <summary>控制台名稱（tag）只在角色走到這麼近時才顯示；看板（sign）、零件編號照各自的 maxDistance。</summary>
+        const float TagNear = 3f;
+
+        /// <summary>
+        /// 場景裡的文字標籤：投影到畫面上（太遠、在背後、被牆擋住的不畫）。
+        /// 控制台名稱不常駐：走到旁邊才出現，正對著的那台已經有提示框，就不重複。
+        /// </summary>
         void DrawLabels()
         {
             var cam = Camera.main;
@@ -286,6 +329,12 @@ namespace GoNoGo.UI
                 var v = cam.WorldToViewportPoint(wp);
                 float dist = Vector3.Distance(cam.transform.position, wp);
                 bool visible = v.z > 0.1f && v.x > -0.05f && v.x < 1.05f && v.y > -0.05f && v.y < 1.05f && dist < wl.maxDistance;
+                if (visible && wl.style == "tag")
+                {
+                    var me = PoseFeed.Local.Position;
+                    float near = Vector2.Distance(new Vector2(me.x, me.z), new Vector2(wp.x, wp.z));
+                    visible = near < TagNear && (Hud.Target == null || Hud.Target.Title != wl.Resolve());
+                }
                 if (visible && Physics.Linecast(cam.transform.position, wp, out var hit, ~(1 << 2), QueryTriggerInteraction.Ignore)
                     && hit.distance < dist - 0.4f && hit.collider.GetComponentInParent<WorldLabel>() != wl)
                     visible = false;

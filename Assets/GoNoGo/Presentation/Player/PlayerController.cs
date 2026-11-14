@@ -7,7 +7,9 @@ namespace GoNoGo.Presentation
     /// <summary>
     /// 本機玩家：WASD 移動、Shift 跑、滑鼠轉視角、Q 切換第一／第三人稱（預設第三人稱，選單也能切）。
     /// 第三人稱鏡頭在角色正後上方約 3.8 m（角色在畫面正中偏下，準星在頭上方），撞到牆時自動拉近。
-    /// 瀏覽器會鎖住滑鼠游標，Esc 放開（打開選單）。滑鼠靈敏度乘上選單裡的 <see cref="GameSettings.MouseSensitivity"/>。
+    /// 瀏覽器會鎖住滑鼠游標，Esc 放開（打開選單）。桌面版和編輯器在視窗重新拿到焦點時自動鎖回去。
+    /// 第一人稱視野比較廣（<see cref="firstPersonFov"/>），近距離看控制台不會只看到一小塊。
+    /// 滑鼠靈敏度乘上選單裡的 <see cref="GameSettings.MouseSensitivity"/>。
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
     public sealed class PlayerController : MonoBehaviour
@@ -16,6 +18,9 @@ namespace GoNoGo.Presentation
         public float runSpeed = 4.4f;
         public float mouseSensitivity = 0.11f;
         public float thirdPersonDistance = 3.8f;
+        public float firstPersonFov = 72f;
+        [Tooltip("第一人稱的眼睛高度（m）。角色是 1.2 m 的 Q 版太空人，但中控台、螢幕是照真人尺寸做的，用成人視線高度才看得到桌面和螢幕。")]
+        public float eyeHeight = 1.55f;
         public Camera cam;
         public AvatarRig rig;
 
@@ -23,10 +28,14 @@ namespace GoNoGo.Presentation
         float _yaw, _pitch = 12f, _vy, _camDist;
         Vector3 _lastPos;
         bool _firstPerson;
+        bool _refocused;
+        float _baseFov = -1;
 
         public float Speed { get; private set; }
         public bool FirstPerson => _firstPerson;
         public float Yaw => _yaw;
+        /// <summary>第一人稱鏡頭的位置。</summary>
+        public Vector3 Eye => transform.position + Vector3.up * eyeHeight;
         /// <summary>鏡頭樞紐（大約在頭的高度）。</summary>
         public Vector3 Pivot => transform.position + Vector3.up * 1.0f;
         /// <summary>鏡頭動作被鎖住（看動畫、過場）。</summary>
@@ -72,11 +81,26 @@ namespace GoNoGo.Presentation
             Cursor.visible = !on;
         }
 
+        /// <summary>
+        /// 切到別的視窗再回來（編輯器裡點了 Console 也算）：下一幀自動把游標鎖回去，不必再點一次畫面。
+        /// 瀏覽器規定一定要使用者點一下才能鎖，所以網頁版不做。
+        /// </summary>
+        void OnApplicationFocus(bool focus)
+        {
+            if (focus && Application.platform != RuntimePlatform.WebGLPlayer) _refocused = true;
+        }
+
         void Update()
         {
             var kb = Keyboard.current;
             var mouse = Mouse.current;
             bool active = !Hud.InputBlocked && !Frozen;
+
+            if (_refocused)
+            {
+                _refocused = false;
+                if (active && !CursorLocked) LockCursor(true);
+            }
 
             // 點一下畫面就鎖住游標（瀏覽器規定要使用者動作才能鎖）
             if (active && !CursorLocked && mouse != null && mouse.leftButton.wasPressedThisFrame && !PointerHooks.IsOverUI(mouse.position.ReadValue()))
@@ -145,10 +169,12 @@ namespace GoNoGo.Presentation
         void LateUpdate()
         {
             if (cam == null) return;
+            if (_baseFov < 0) _baseFov = cam.fieldOfView;
+            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, _firstPerson ? firstPersonFov : _baseFov, 1f - Mathf.Exp(-Time.deltaTime * 10f));
             var rot = Quaternion.Euler(_pitch, _yaw, 0);
             if (_firstPerson)
             {
-                cam.transform.SetPositionAndRotation(transform.position + Vector3.up * 1.0f + (Quaternion.Euler(0, _yaw, 0) * Vector3.forward) * 0.12f, rot);
+                cam.transform.SetPositionAndRotation(Eye + (Quaternion.Euler(0, _yaw, 0) * Vector3.forward) * 0.12f, rot);
                 cam.nearClipPlane = 0.05f;
                 _camDist = 0.3f;
                 return;
