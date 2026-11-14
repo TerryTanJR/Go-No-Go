@@ -175,14 +175,19 @@ namespace GoNoGo.UI
             Ui.Text(Loc.T("ui.gmenu.textsize.note"), "small", "dim").AddTo(body);
         }
 
+        /// <summary>語言（主選單的設定頁也用）。</summary>
+        public static void LanguageControl(VisualElement body)
+        {
+            var lang = ChoiceRow(body, Loc.T("ui.lang"));
+            Chip(lang, "中文", Loc.IsZh, () => { if (!Loc.IsZh) Loc.Toggle(); });
+            Chip(lang, "English", !Loc.IsZh, () => { if (Loc.IsZh) Loc.Toggle(); });
+        }
+
         void BuildSettings(VisualElement body)
         {
             TextSizeControl(body);
 
-            // 語言
-            var lang = ChoiceRow(body, Loc.T("ui.lang"));
-            Chip(lang, "中文", Loc.IsZh, () => { if (!Loc.IsZh) Loc.Toggle(); });
-            Chip(lang, "English", !Loc.IsZh, () => { if (Loc.IsZh) Loc.Toggle(); });
+            LanguageControl(body);
 
             // 視角
             var view = ChoiceRow(body, Loc.T("ui.gmenu.view"));

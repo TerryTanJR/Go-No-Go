@@ -8,7 +8,9 @@ namespace GoNoGo.UI
 {
     /// <summary>
     /// 主選單：左邊選單（新手訓練、個人任務、建立多人房間、加入房間、設定），右邊是自己的 avatar（3D，在 MainMenu 場景裡）。
-    /// 第一次進遊戲先捏 avatar。個人任務和建房：選任務（一般任務／歷史關卡）→ 選難度 → 開始。
+    /// 右上角是自己的名字，點名字或直接點右邊的太空人就能改造型。第一次進遊戲先捏 avatar。
+    /// 個人任務和建房：選任務（一般任務／歷史關卡）→ 選難度 → 開始。
+    /// 選項的說明只在滑鼠指到時顯示在選單下方同一個位置，平常只列名稱。
     /// </summary>
     public sealed class MainMenuScreen : GameScreen
     {
@@ -22,7 +24,9 @@ namespace GoNoGo.UI
         static string _ip = "127.0.0.1";
         static AvatarLook _edit;
         static bool _busy;
+        static bool _lan;
         static string _error = "";
+        Label _desc;
 
         protected override void Build()
         {
@@ -33,7 +37,15 @@ namespace GoNoGo.UI
             var top = Ui.El("topbar", "topbar--clear").AddTo(Root);
             Ui.Text("GO / NO-GO", "brand").AddTo(top);
             Ui.Spacer().AddTo(top);
-            Ui.Btn(Loc.IsZh ? "EN" : "中文", Loc.Toggle, "btn-small", "btn-ghost").AddTo(top);
+            // 右上：自己的名字，點了就改造型（語言在設定頁）
+            if (_page != Page.Avatar)
+            {
+                var me = Ui.Btn("", OpenAvatar, "menu-me").AddTo(top);
+                me.Clear();
+                Ui.Text(Profile.Look.Name, "menu-me-name").AddTo(me);
+                Ui.Text("✎  " + Loc.T("ui.menu.edit_avatar"), "small", "dim").AddTo(me);
+                AvatarHotspot();
+            }
 
             var left = Ui.El("menu-col", "fade-in").AddTo(Root);
             Ui.AnimateIn(left, "fade-in--on", 40);
@@ -47,14 +59,29 @@ namespace GoNoGo.UI
                 case Page.Avatar: AvatarEditor(left); break;
             }
 
-            // 右下：avatar 名字與修改鈕（avatar 本身是 3D）
-            if (_page != Page.Avatar)
-            {
-                var me = Ui.El("menu-me").AddTo(Root);
-                Ui.Text(Profile.Look.Name, "h2").AddTo(me);
-                Ui.Btn(Loc.T("ui.menu.edit_avatar"), OpenAvatar, "btn-ghost").AddTo(me);
-            }
             if (!string.IsNullOrEmpty(_error)) Ui.Text(Loc.T(_error), "small", "over", "menu-error").AddTo(left);
+        }
+
+        /// <summary>右邊 3D 太空人站的位置：點下去也是改造型，滑鼠指到時出現提示。</summary>
+        void AvatarHotspot()
+        {
+            var hit = Ui.El("menu-avatar-hit").AddTo(Root);
+            Ui.Text(Loc.T("ui.menu.avatar_hint"), "menu-avatar-hint").AddTo(hit).pickingMode = PickingMode.Ignore;
+            hit.RegisterCallback<ClickEvent>(_ => { Sfx.Click(); OpenAvatar(); });
+        }
+
+        /// <summary>選單下方的說明列：滑鼠指到哪一項就顯示那一項的說明，移開就回到 <paramref name="fallback"/>。</summary>
+        void DescLine(VisualElement col, string fallback = "")
+        {
+            _desc = Ui.Text(fallback, "small", "dim", "menu-desc").AddTo(col);
+            _desc.userData = fallback;
+        }
+
+        void Describe(VisualElement el, string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            el.RegisterCallback<PointerEnterEvent>(_ => { if (_desc != null) _desc.text = text; });
+            el.RegisterCallback<PointerLeaveEvent>(_ => { if (_desc != null) _desc.text = _desc.userData as string ?? ""; });
         }
 
         static void PlayerControllerUnlock()
@@ -80,15 +107,16 @@ namespace GoNoGo.UI
             Item(col, "ui.menu.host", "ui.menu.host_desc", () => { _multi = true; Go(Page.Missions); });
             Item(col, "ui.menu.join", "ui.menu.join_desc", () => Go(Page.Join));
             Item(col, "ui.menu.settings", "", () => Go(Page.Settings));
+            DescLine(col);
             Ui.Btn(Loc.T("ui.menu.title"), () => SceneFlow.Go(SceneFlow.Boot), "btn-ghost", "menu-back").AddTo(col);
         }
 
-        static void Item(VisualElement col, string key, string desc, System.Action click)
+        void Item(VisualElement col, string key, string desc, System.Action click)
         {
             var b = Ui.Btn("", click, "menu-item").AddTo(col);
             b.Clear();
             Ui.Text(Loc.T(key), "h3").AddTo(b);
-            if (!string.IsNullOrEmpty(desc)) Ui.Text(Loc.T(desc), "small", "dim").AddTo(b);
+            if (!string.IsNullOrEmpty(desc)) Describe(b, Loc.T(desc));
         }
 
         void Back(VisualElement col, Page to) => Ui.Btn("← " + Loc.T("ui.menu.back"), () => Go(to), "btn-ghost", "menu-back").AddTo(col);
@@ -135,6 +163,8 @@ namespace GoNoGo.UI
             Back(col, Page.Missions);
             Ui.Text(Loc.T(D.Scenario(_scenario)?.Name), "eyebrow").AddTo(col);
             Ui.Text(Loc.T("ui.menu.pick_difficulty"), "h2").AddTo(col);
+            string recommended = "";
+            var items = new System.Collections.Generic.List<(VisualElement, string)>();
             foreach (var df in D.SelectableDifficulties)
             {
                 var id = df.Id;
@@ -142,9 +172,16 @@ namespace GoNoGo.UI
                 b.Clear();
                 var head = Ui.Row().AddTo(b);
                 Ui.Text(Loc.T(df.Name), "h3").AddTo(head);
-                if (id == "engineer") Ui.Text(Loc.T("ui.menu.default"), "small", "accent", "menu-tag").AddTo(head);
-                Ui.Text(Loc.T(df.Description), "small", "dim").AddTo(b);
+                if (id == "engineer")
+                {
+                    Ui.Text(Loc.T("ui.menu.default"), "small", "accent", "menu-tag").AddTo(head);
+                    recommended = Loc.T(df.Description);
+                }
+                items.Add((b, Loc.T(df.Description)));
             }
+            // 平常顯示建議難度的說明，指到哪個就換成哪個
+            DescLine(col, recommended);
+            foreach (var (b, d) in items) Describe(b, d);
             if (_multi && !Multiplayer.Available) Ui.Text(Loc.T("ui.menu.no_net"), "small", "tight").AddTo(col);
             if (_busy) Ui.Text(Loc.T("ui.menu.connecting"), "small", "accent").AddTo(col);
         }
@@ -187,7 +224,14 @@ namespace GoNoGo.UI
                 Multiplayer.Join(_code, Done);
             }, "btn-primary").AddTo(row);
 
-            Ui.Text(Loc.T("ui.menu.lan"), "eyebrow", "menu-sub").AddTo(col);
+            // 同一個網路直接連（測試用）：收在「進階」裡
+            Ui.Btn((_lan ? "▾  " : "▸  ") + Loc.T("ui.menu.advanced"), () => { _lan = !_lan; Rebuild(); }, "btn-ghost", "menu-sub", "menu-back").AddTo(col);
+            if (!_lan)
+            {
+                if (_busy) Ui.Text(Loc.T("ui.menu.connecting"), "small", "accent").AddTo(col);
+                return;
+            }
+            Ui.Text(Loc.T("ui.menu.lan"), "eyebrow").AddTo(col);
             var ip = new TextField { value = _ip };
             ip.AddToClassList("code-field");
             ip.RegisterValueChangedCallback(e => _ip = e.newValue.Trim());
@@ -198,13 +242,13 @@ namespace GoNoGo.UI
                 if (Multiplayer.JoinDirect == null) { _error = "ui.menu.no_net"; Rebuild(); return; }
                 _busy = true; Rebuild();
                 Multiplayer.JoinDirect(_ip, Done);
-            }, "btn-ghost").AddTo(row2);
+            }, "menu-btn-gap").AddTo(row2);
             Ui.Btn(Loc.T("ui.menu.lan_host"), () =>
             {
                 if (Multiplayer.HostDirect == null) { _error = "ui.menu.no_net"; Rebuild(); return; }
                 _busy = true; Rebuild();
                 Multiplayer.HostDirect(_scenario ?? "earth_observation", "engineer", Done);
-            }, "btn-ghost").AddTo(row2);
+            }).AddTo(row2);
             if (_busy) Ui.Text(Loc.T("ui.menu.connecting"), "small", "accent").AddTo(col);
         }
 
@@ -214,9 +258,9 @@ namespace GoNoGo.UI
         {
             Back(col, Page.Root);
             Ui.Text(Loc.T("ui.menu.settings"), "h2").AddTo(col);
-            Ui.Btn(Loc.IsZh ? "English" : "中文", Loc.Toggle, "btn-ghost").AddTo(col);
             // 和遊戲中選單（Tab）同一組控制項
             var box = Ui.El("gm-col", "gm-settings").AddTo(col);
+            GameMenu.LanguageControl(box);
             GameMenu.TextSizeControl(box);
             GameMenu.SoundControls(box);
             GameMenu.MouseControl(box);
@@ -280,7 +324,7 @@ namespace GoNoGo.UI
             AvatarTab(scroll.contentContainer);
 
             var row = Ui.Row("modal-actions", "avatar-actions").AddTo(col);
-            if (Profile.HasAvatar) Ui.Btn(Loc.T("ui.avatar.cancel"), () => { Profile.SetPreview(null); Go(Page.Root); }, "btn-ghost").AddTo(row);
+            if (Profile.HasAvatar) Ui.Btn(Loc.T("ui.avatar.cancel"), () => { Profile.SetPreview(null); Go(Page.Root); }, "btn-big").AddTo(row);
             Ui.Spacer().AddTo(row);
             Ui.Btn(Loc.T("ui.avatar.ok"), () =>
             {
