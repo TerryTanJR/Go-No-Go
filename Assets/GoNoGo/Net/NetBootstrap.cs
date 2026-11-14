@@ -38,7 +38,7 @@ namespace GoNoGo.Net
         }
 
         /// <summary>
-        /// 測試用：命令列 <c>-gng-join 127.0.0.1</c> 開起來就用 IP 加入（可加 <c>-gng-name 名字</c>），
+        /// 測試用：命令列 <c>-gng-join 127.0.0.1</c> 開起來就用 IP 加入，<c>-gng-code ABC123</c> 用房間碼加入（可加 <c>-gng-name 名字</c>），
         /// 加 <c>-gng-control</c> 會在進房後要求去中控室（測試客戶端送操作給房主）；<c>-gng-host</c> 直接用 IP 當房主。
         /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -65,8 +65,9 @@ namespace GoNoGo.Net
                 Multiplayer.HostDirect("earth_observation", "engineer", err => Debug.Log("[Net] command-line host: " + (string.IsNullOrEmpty(err) ? "listening" : err)));
                 return;
             }
+            var code = Arg("-gng-code");
             var ip = Arg("-gng-join");
-            if (ip == null) return;
+            if (ip == null && code == null) return;
             var name = Arg("-gng-name");
             if (!string.IsNullOrEmpty(name))
             {
@@ -75,7 +76,8 @@ namespace GoNoGo.Net
                 Profile.Save(look);
             }
             bool control = args.Contains("-gng-control");
-            Multiplayer.JoinDirect(ip, err =>
+            Action<string, Action<string>> join = code != null ? Multiplayer.Join : Multiplayer.JoinDirect;
+            join(code ?? ip, err =>
             {
                 Debug.Log("[Net] command-line join: " + (string.IsNullOrEmpty(err) ? "connected as player " + GameSession.LocalPlayer : err));
                 if (string.IsNullOrEmpty(err) && control) Delay.After(3f, () => GameSession.Send(CommandType.SetStation, "", 1));
@@ -152,12 +154,25 @@ namespace GoNoGo.Net
             }
         }
 
+        /// <summary>
+        /// 轉送協定明確指定，和下面 <see cref="Manager"/> 的 UseWebSockets 一致：瀏覽器 WSS、其他 DTLS。
+        /// 不能用套件的 RelayProtocol.Default：編輯器裡它可能還是上次建瀏覽器版時編出來的 WSS，房主會建不起來。
+        /// </summary>
+        static NetworkOptions RelayNet() => new NetworkOptions
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            RelayProtocol = RelayProtocol.WSS,
+#else
+            RelayProtocol = RelayProtocol.DTLS,
+#endif
+        };
+
         static async Task<string> HostRelay(string scenario, string difficulty)
         {
             var err = await SignIn();
             if (err != null) return err;
             var nm = Manager();
-            var options = new SessionOptions { MaxPlayers = 4, IsPrivate = true }.WithRelayNetwork();
+            var options = new SessionOptions { MaxPlayers = 4, IsPrivate = true }.WithRelayNetwork().WithNetworkOptions(RelayNet());
             IHostSession session;
             try
             {
@@ -180,7 +195,8 @@ namespace GoNoGo.Net
             ISession session;
             try
             {
-                session = await MultiplayerService.Instance.JoinSessionByCodeAsync(code.Trim().ToUpperInvariant());
+                session = await MultiplayerService.Instance.JoinSessionByCodeAsync(code.Trim().ToUpperInvariant(),
+                    new JoinSessionOptions().WithNetworkOptions(RelayNet()));
             }
             catch (SessionException e)
             {
