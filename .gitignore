@@ -141,5 +141,11 @@ crashlytics-build.properties
 .vscode/
 *.slnx
 
+# 截圖與 Blender 模擬快取
+/Screenshots/
+/tools/vfx/blender/smoke_cache/
+/tools/vfx/frames/
+*.blend1
+
 # GoNoGo blueprint docs stay out of the repo
 docs/unity-blueprint/
