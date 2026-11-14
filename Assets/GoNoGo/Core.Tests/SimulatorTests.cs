@@ -34,24 +34,68 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
-        public void ChoicesDoNotReshuffleLaterEvents()
+        public void ResponsesDoNotReshuffleLaterEvents()
         {
             var d = TestData.Balanced();
-            var a = Simulator.SimulateMission(d, _data, 11, new AlwaysChoose("safe_mode", "observe"));
-            var b = Simulator.SimulateMission(d, _data, 11, new AlwaysChoose("continue", "skip"));
+            var a = Simulator.SimulateMission(d, _data, 11, new PerfectDecisions());
+            var b = Simulator.SimulateMission(d, _data, 11, new NoDecisions());
             Assert.That(b.Events.Select(e => e.Event.Id + "@" + e.Event.Day), Is.EqualTo(a.Events.Select(e => e.Event.Id + "@" + e.Event.Day)));
         }
 
         [Test]
-        public void EventCountFollowsDifficulty()
+        public void OneEventPerTurnFromTheDifficultyPool()
         {
             var d = TestData.Balanced();
-            foreach (var seed in Enumerable.Range(1, 30))
+            foreach (var diff in _data.Difficulties)
             {
-                Assert.That(Simulator.PlanMission(d, _data, seed, "engineer").Events.Count, Is.InRange(3, 4));
-                Assert.That(Simulator.PlanMission(d, _data, seed, "cadet").Events.Count, Is.InRange(1, 2));
-                Assert.That(Simulator.PlanMission(d, _data, seed, "director").Events.Count, Is.InRange(4, 5));
+                var allowed = diff.EventTypes.Select(t => OpsEvents.Parse(t).Value).ToList();
+                var seen = new HashSet<EventKind>();
+                foreach (var seed in Enumerable.Range(1, 30))
+                {
+                    var plan = Simulator.PlanMission(d, _data, seed, diff.Id);
+                    Assert.That(plan.Turns, Is.EqualTo(diff.Turns), diff.Id);
+                    Assert.That(plan.Events.Count, Is.EqualTo(diff.Turns), diff.Id);
+                    Assert.That(plan.TurnStartDays.Count, Is.EqualTo(diff.Turns + 1));
+                    for (int i = 0; i < plan.Events.Count; i++)
+                    {
+                        var e = plan.Events[i];
+                        Assert.That(e.Turn, Is.EqualTo(i));
+                        Assert.That(e.Day, Is.InRange(plan.TurnStartDays[i], plan.TurnStartDays[i + 1] - 1), diff.Id + " " + e.Id);
+                        Assert.That(allowed, Does.Contain(e.Kind), diff.Id);
+                        seen.Add(e.Kind);
+                    }
+                }
+                Assert.That(seen, Is.EquivalentTo(allowed), diff.Id + "：每一種事件都要出現得到");
             }
+        }
+
+        [Test]
+        public void TutorialAlwaysLaunchesAndHasOnePowerAnomaly()
+        {
+            var d = TestData.CheapSmallsat();
+            foreach (var seed in Enumerable.Range(1, 40))
+            {
+                var r = Simulator.SimulateMission(d, _data, seed, null, new MissionContext { DifficultyId = "tutorial" });
+                Assert.That(r.Launch.Outcome, Is.EqualTo(LaunchOutcome.Nominal), "seed " + seed);
+                Assert.That(r.Events.Single().Event.Kind, Is.EqualTo(EventKind.PowerAnomaly));
+            }
+        }
+
+        [Test]
+        public void BatteryThatCannotSurviveAShadowDiesOnOrbit()
+        {
+            var d = TestData.HighScience();
+            d.Parts[PartCategory.Battery] = "batt_small";
+            var ev = Evaluator.EvaluateDesign(d, _data);
+            Assume.That(ev.Power.ActualDod, Is.GreaterThan(1.0));
+            int seed = Enumerable.Range(1, 200).First(s => Simulator.PlanMission(d, _data, s, null).LaunchRoll < 0.9);
+            var r = Simulator.SimulateMission(d, _data, seed, null);
+            Assert.That(r.Launch.Outcome, Is.EqualTo(LaunchOutcome.DeadOnOrbit));
+            Assert.That(r.Launch.Deployed, Is.True, "動畫照樣部署");
+            Assert.That(r.ReachedOrbit, Is.False, "但算任務失敗");
+            Assert.That(r.Score.Grade, Is.EqualTo("FAIL"));
+            Assert.That(r.Causes[0].Code, Is.EqualTo("dead_on_orbit"));
+            Assert.That(r.SuggestionCode, Is.EqualTo("suggest.battery_eclipse"));
         }
 
         [Test]
@@ -90,7 +134,7 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
-        public void SafeModeCostsDaysButProtects()
+        public void StormProcedureCostsDaysButProtects()
         {
             var d = TestData.Balanced();
             int seed = Enumerable.Range(1, 200).First(s =>
@@ -98,8 +142,8 @@ namespace GoNoGo.Core.Tests
                 var plan = Simulator.PlanMission(d, _data, s, null);
                 return plan.LaunchRoll < 0.9 && plan.Events.Any(e => e.Kind == EventKind.SolarStorm && e.Roll < 0.2);
             });
-            var safe = Simulator.SimulateMission(d, _data, seed, new AlwaysChoose("safe_mode"));
-            var risky = Simulator.SimulateMission(d, _data, seed, new AlwaysChoose("continue"));
+            var safe = Simulator.SimulateMission(d, _data, seed, new PerfectDecisions());
+            var risky = Simulator.SimulateMission(d, _data, seed, new NoDecisions());
             Assert.That(safe.Events.Where(e => e.Event.Kind == EventKind.SolarStorm).Select(e => e.ResultCode), Has.All.EqualTo("event.storm.safe"));
             Assert.That(risky.Events.Select(e => e.ResultCode), Does.Contain("event.storm.damaged"));
             Assert.That(safe.Events.Where(e => e.Event.Kind == EventKind.SolarStorm).All(e => e.LostDays > 0));
@@ -119,6 +163,82 @@ namespace GoNoGo.Core.Tests
                 return;
             }
             Assert.Inconclusive("300 個種子裡沒有反應輪故障");
+        }
+
+        [Test]
+        public void PowerProcedureSavesTheBattery()
+        {
+            var d = TestData.Balanced();
+            var ctx = new MissionContext { DifficultyId = "tutorial" };
+            var handled = Simulator.SimulateMission(d, _data, 5, new PerfectDecisions(), ctx);
+            var ignored = Simulator.SimulateMission(d, _data, 5, new NoDecisions(), ctx);
+            Assert.That(handled.Events.Single().ResultCode, Is.EqualTo("event.power.handled"));
+            Assert.That(ignored.Events.Single().ResultCode, Is.EqualTo("event.power.drained"));
+            Assert.That(handled.Score.Ops, Is.EqualTo(100));
+            Assert.That(ignored.Score.Ops, Is.EqualTo(0));
+            Assert.That(ignored.Causes.Select(c => c.Code), Does.Contain("power_anomaly"));
+        }
+
+        [Test]
+        public void OpsScoreRewardsJudgementAndEachStep()
+        {
+            var d = TestData.Balanced();
+            int seed = Enumerable.Range(1, 200).First(s => Simulator.PlanMission(d, _data, s, "engineer").LaunchRoll < 0.9);
+            var ctx = new MissionContext { DifficultyId = "engineer" };
+            double Ops(IDecisionSource src) => Simulator.SimulateMission(d, _data, seed, src, ctx).Score.Ops;
+            Assert.That(Ops(new PerfectDecisions()), Is.EqualTo(100));
+            Assert.That(Ops(new NoDecisions()), Is.EqualTo(0));
+            // 判斷正確、只做一步：50 + 50/3
+            Assert.That(Ops(Scripted.Partial(1)), Is.EqualTo(50 + 50.0 / 3).Within(1e-9));
+            Assert.That(Ops(Scripted.Partial(2)), Is.GreaterThan(Ops(Scripted.Partial(1))));
+        }
+
+        [Test]
+        public void WrongActionsCostObservingDays()
+        {
+            var d = TestData.Balanced();
+            var ctx = new MissionContext { DifficultyId = "cadet" };
+            int seed = Enumerable.Range(1, 200).First(s =>
+            {
+                var plan = Simulator.PlanMission(d, _data, s, "cadet");
+                return plan.LaunchRoll < 0.9 && plan.Events.Any(e => e.Kind == EventKind.ScienceOpportunity);
+            });
+            // 把科學機會當成太陽風暴處理：關儀器、進安全模式都是多餘的
+            var r = Simulator.SimulateMission(d, _data, seed, Scripted.AlwaysTreatAs(EventKind.SolarStorm), ctx);
+            var opp = r.Events.First(e => e.Event.Kind == EventKind.ScienceOpportunity);
+            Assert.That(opp.JudgedCorrect, Is.False);
+            Assert.That(opp.WrongActions, Is.EquivalentTo(new[] { OpsActions.InstrumentsOff, OpsActions.SafeMode, OpsActions.SunPoint }));
+            Assert.That(opp.LostDays, Is.EqualTo(4));
+            Assert.That(opp.ResultCode, Is.EqualTo("event.opportunity.skipped"));
+        }
+
+        [Test]
+        public void TelemetryTellsStormFromPowerAnomaly()
+        {
+            var d = TestData.Balanced();
+            var ev = Evaluator.EvaluateDesign(d, _data);
+            Reading Read(EventKind k, string console, string key) =>
+                OpsTelemetry.For(console, new MissionEvent { Kind = k, Severity = 2, RefId = "x" }, ev, d, _data, null)
+                    .Single(x => x.Key == "ops.read." + key);
+
+            // 兩種事件電量都會掉
+            Assert.That(double.Parse(Read(EventKind.PowerAnomaly, OpsConsoles.Power, "battery").Value), Is.LessThan(50));
+            Assert.That(Read(EventKind.PowerAnomaly, OpsConsoles.Power, "battery").Alert, Is.True);
+            // 只有風暴的輻射會暴增
+            Assert.That(Read(EventKind.SolarStorm, OpsConsoles.Attitude, "dose_rate").Alert, Is.True);
+            Assert.That(Read(EventKind.PowerAnomaly, OpsConsoles.Attitude, "dose_rate").Alert, Is.False);
+            Assert.That(Read(EventKind.PowerAnomaly, OpsConsoles.Attitude, "proton_flux").Alert, Is.False);
+
+            // 零件故障：只有故障零件所在的控制台出現警示
+            var fail = new MissionEvent { Kind = EventKind.PartFailure, RefId = "inst_thermal", Severity = 2 };
+            var payload = OpsTelemetry.For(OpsConsoles.Payload, fail, ev, d, _data, null);
+            Assert.That(payload.Single(x => x.Key == "part:inst_thermal").Value, Is.EqualTo("NO SIGNAL"));
+            Assert.That(OpsTelemetry.For(OpsConsoles.Comms, fail, ev, d, _data, null).Any(x => x.Alert), Is.False);
+
+            // 科學機會：酬載台有地面通報
+            var opp = new MissionEvent { Kind = EventKind.ScienceOpportunity, RefId = "wildfire", Severity = 1 };
+            Assert.That(OpsTelemetry.For(OpsConsoles.Payload, opp, ev, d, _data, null).Single(x => x.Key == "ops.read.ground_alert").Value,
+                Is.EqualTo("opp.wildfire"));
         }
 
         [Test]
@@ -143,7 +263,7 @@ namespace GoNoGo.Core.Tests
             Assert.That(Fingerprint(_data), Is.EqualTo(ExpectedFingerprint), "核心模擬結果變了：如果是刻意調整數值，請更新 ExpectedFingerprint 並在 Unity 裡比對");
         }
 
-        public const string ExpectedFingerprint = "9370C5F071BA88B4"; // Unity 6000.6.8f1（Mono）與 .NET 8 實測一致
+        public const string ExpectedFingerprint = "1BE879B4F22AB2D4"; // 3D 版（回合制營運、處室需求）：.NET 8 與 Unity 6000.6 Mono 相同
 
         public static string Fingerprint(GameData data)
         {

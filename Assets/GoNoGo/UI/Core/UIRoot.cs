@@ -25,10 +25,9 @@ namespace GoNoGo.UI
         static readonly Dictionary<string, Func<GameScreen>> Screens = new Dictionary<string, Func<GameScreen>>
         {
             { SceneFlow.Boot, () => new TitleScreen() },
-            { SceneFlow.DesignRoom, () => new DesignScreen() },
-            { SceneFlow.MissionControl, () => new MissionControlScreen() },
+            { SceneFlow.MainMenu, () => new MainMenuScreen() },
+            { SceneFlow.Facility, () => new FacilityScreen() },
             { SceneFlow.Launch, () => new LaunchScreen() },
-            { SceneFlow.Operations, () => new OperationsScreen() },
             { SceneFlow.Report, () => new ReportScreen() },
         };
 
@@ -116,7 +115,7 @@ namespace GoNoGo.UI
             _current = null;
             _screenLayer.Clear();
             if (!Screens.TryGetValue(sceneName, out var make)) return;
-            GameSession.EnsureScenario();
+            if (sceneName != SceneFlow.Boot && sceneName != SceneFlow.MainMenu) GameSession.EnsureMission();
             _current = make();
             _current.Attach(this, _screenLayer);
         }

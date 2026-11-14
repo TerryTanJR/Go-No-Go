@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections.Generic;
 using GoNoGo.Core;
 using UnityEngine;
@@ -37,6 +38,59 @@ namespace GoNoGo.Presentation
             BuildPropulsion(root.transform, mats, s, h, design.Get(PartCategory.Propulsion));
             BuildComputer(root.transform, mats, s, h, design.Get(PartCategory.Computer));
             BuildBattery(root.transform, mats, s, h, design.Get(PartCategory.Battery));
+            return root;
+        }
+
+        /// <summary>
+        /// 單一零件的模型（組裝區零件架上、玩家手上拿的那個）：用只裝這個零件的設計組一艘船，
+        /// 取出這個零件那一組，縮放到 <paramref name="size"/> 公尺、中心對齊 parent。沒有外型的零件（例如不裝推進）用一個小箱子代替。
+        /// </summary>
+        public static GameObject BuildPart(string partId, GameData data, Transform parent, float size)
+        {
+            var part = data.Part(partId);
+            var root = new GameObject("Part_" + partId);
+            root.transform.SetParent(parent, false);
+            var mats = SatMaterials.Load();
+            if (part == null || mats == null) return root;
+
+            var d = new Design();
+            if (part.Category == PartCategory.Instrument) d.Instruments.Add(partId);
+            else d.Parts[part.Category] = partId;
+            var tmp = Build(d, data, null, null);
+            Transform group = null;
+            foreach (var sp in tmp.GetComponentsInChildren<SatPart>())
+                if (sp.partId == partId && sp.category == part.Category && sp.GetComponentsInChildren<Renderer>().Length > 0) { group = sp.transform; break; }
+            // 屏蔽就是本體外殼
+            if (group == null && part.Category == PartCategory.Shielding)
+                foreach (var sp in tmp.GetComponentsInChildren<SatPart>())
+                    if (sp.category == PartCategory.Shielding) { group = sp.transform; break; }
+
+            if (group != null)
+            {
+                group.SetParent(root.transform, false);
+                group.localPosition = Vector3.zero;
+                group.localRotation = Quaternion.identity;
+            }
+            else Box(root.transform, Vector3.zero, new Vector3(0.6f, 0.08f, 0.6f), mats.paintWhite);
+            UnityEngine.Object.DestroyImmediate(tmp);
+
+            // 縮放、置中
+            var rs = root.GetComponentsInChildren<Renderer>();
+            if (rs.Length > 0)
+            {
+                var b = rs[0].bounds;
+                foreach (var r in rs) b.Encapsulate(r.bounds);
+                float longest = Mathf.Max(b.size.x, b.size.y, b.size.z, 0.01f);
+                float k = size / longest;
+                var inner = new GameObject("Model").transform;
+                inner.SetParent(root.transform, false);
+                foreach (Transform c in root.transform.Cast<Transform>().ToArray())
+                    if (c != inner) c.SetParent(inner, true);
+                inner.localScale = Vector3.one * k;
+                b = rs[0].bounds;
+                foreach (var r in rs) b.Encapsulate(r.bounds);
+                inner.position += root.transform.position - b.center;
+            }
             return root;
         }
 

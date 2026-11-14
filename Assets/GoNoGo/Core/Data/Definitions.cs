@@ -65,7 +65,11 @@ namespace GoNoGo.Core
         public string Id { get; set; } = "";
         public string Category { get; set; } = "";
         public int Tier { get; set; }
+        /// <summary>零件上印的編號（例如 X-2）。組裝區只看得到編號，規格要查中控室的手冊。</summary>
+        public string Code { get; set; } = "";
         public LocalizedText Name { get; set; } = new LocalizedText();
+        /// <summary>一句白話功能，組裝區看零件時顯示（不含任何數值）。</summary>
+        public LocalizedText Function { get; set; } = new LocalizedText();
         public LocalizedText Description { get; set; } = new LocalizedText();
 
         // 共通
@@ -178,8 +182,12 @@ namespace GoNoGo.Core
 
     public sealed class RequirementDef
     {
+        /// <summary>情境內唯一的 id（電話問到後記在筆記板上）。</summary>
+        public string Id { get; set; } = "";
         /// <summary>budget_reserve、lifetime_target、mass_power_margin、science_threshold、instrument_required、data_return。</summary>
         public string Type { get; set; } = "";
+        /// <summary>0 = 一定有；n = 和其他處室衝突的需求，難度的 requirement_conflicts ≥ n 才出現。</summary>
+        public int ConflictGroup { get; set; }
         public double Value { get; set; }
         public string PartId { get; set; } = "";
         public LocalizedText Text { get; set; } = new LocalizedText();
@@ -216,7 +224,7 @@ namespace GoNoGo.Core
         public List<string> AllowedLaunchers { get; set; } = new List<string>();
         /// <summary>科學分數 100 分對應的科學點數。</summary>
         public double ScienceReference { get; set; } = 100;
-        /// <summary>角色 → 可抽的私有目標（部門要求）。</summary>
+        /// <summary>處室 key（mission_lead、budget_office、science、engineering、comms）→ 這個處室的需求。</summary>
         public Dictionary<string, List<RequirementDef>> Requirements { get; set; } = new Dictionary<string, List<RequirementDef>>();
         public Design DefaultDesign { get; set; } = new Design();
         public List<string> ComparisonMissions { get; set; } = new List<string>();
@@ -227,15 +235,33 @@ namespace GoNoGo.Core
     {
         public string Id { get; set; } = "";
         public LocalizedText Name { get; set; } = new LocalizedText();
+        public LocalizedText Description { get; set; } = new LocalizedText();
+        /// <summary>不出現在選單（新手訓練用的難度）。</summary>
+        public bool Hidden { get; set; }
         public double BudgetMultiplier { get; set; } = 1.0;
-        /// <summary>部門要求的設計餘裕（工程師的質量與電力）。</summary>
+        /// <summary>工程部要求的設計餘裕（質量與電力）。</summary>
         public double RequiredMargin { get; set; } = 0.15;
-        public int EventsMin { get; set; } = 3;
-        public int EventsMax { get; set; } = 4;
-        /// <summary>fixes：直接給兩個解法；reasons：只說原因；lights：只顯示紅燈。</summary>
-        public string HintLevel { get; set; } = "reasons";
-        public List<string> VisibleResources { get; set; } = new List<string>();
         public int TiersPerCategory { get; set; } = 3;
+        /// <summary>儀表板加上紅黃綠（學員）。</summary>
+        public bool DashboardColors { get; set; }
+        /// <summary>筆記板：checklist（整理成發射條件清單）、transcript（記下對話原文）、none（不自動記錄）。</summary>
+        public string NotesMode { get; set; } = "transcript";
+        /// <summary>開放到第幾組互相衝突的處室需求。</summary>
+        public int RequirementConflicts { get; set; }
+        /// <summary>失敗原因看板：advice（原因 + 因果鏈 + 建議）、chain（原因 + 因果鏈）、category（只寫大類）。</summary>
+        public string FailureDetail { get; set; } = "chain";
+        /// <summary>第一次發射失敗不影響評價。</summary>
+        public bool FreeFirstFailure { get; set; }
+        /// <summary>營運事件直接顯示名稱（不用自己判讀）。</summary>
+        public bool EventReveal { get; set; }
+        /// <summary>營運回合數（每回合一個事件）。</summary>
+        public int Turns { get; set; } = 6;
+        /// <summary>會出現的事件種類：solar_storm、part_failure、science_opportunity、power_anomaly。</summary>
+        public List<string> EventTypes { get; set; } = new List<string>();
+        /// <summary>每回合時間限制（秒），0 = 無限制。</summary>
+        public int TurnSeconds { get; set; }
+        /// <summary>發射一定成功（新手訓練）。</summary>
+        public bool GuaranteedLaunch { get; set; }
     }
 
     /// <summary>NASA DONKI 的歷史太空天氣事件（賽前抓的快照）。</summary>
@@ -268,6 +294,33 @@ namespace GoNoGo.Core
         public LocalizedText Lesson { get; set; } = new LocalizedText();
         public double LifetimeYears { get; set; }
         public string Url { get; set; } = "";
+    }
+
+    /// <summary>中控室電話可以撥的處室（departments.json）。</summary>
+    public sealed class DepartmentDef
+    {
+        /// <summary>mission_lead、budget_office、science、engineering、comms。</summary>
+        public string Id { get; set; } = "";
+        public LocalizedText Name { get; set; } = new LocalizedText();
+        /// <summary>接電話的人（虛構角色）。</summary>
+        public LocalizedText Contact { get; set; } = new LocalizedText();
+        public LocalizedText Greeting { get; set; } = new LocalizedText();
+        public string Color { get; set; } = "";
+        public List<DialogueLine> Lines { get; set; } = new List<DialogueLine>();
+    }
+
+    /// <summary>
+    /// 對話的一個問題。回答可以用 {budget}、{reserve_pct}、{years}… 這類參數（GameState 代入）；
+    /// reveals 列出這題會說出的需求種類，回答後面接上該處室這些需求的文字，並記到筆記板。
+    /// </summary>
+    public sealed class DialogueLine
+    {
+        public string Id { get; set; } = "";
+        public LocalizedText Question { get; set; } = new LocalizedText();
+        public LocalizedText Answer { get; set; } = new LocalizedText();
+        /// <summary>這個處室在這個情境沒有 reveals 列的需求時，改用這段回答。</summary>
+        public LocalizedText AnswerNone { get; set; } = new LocalizedText();
+        public List<string> Reveals { get; set; } = new List<string>();
     }
 
     /// <summary>公式用到的常數，全部放在資料檔並附來源。</summary>

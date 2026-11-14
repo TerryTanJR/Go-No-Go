@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 using GoNoGo.Core;
 using GoNoGo.Game;
@@ -51,7 +52,7 @@ namespace GoNoGo.UI
         /// <summary>貢獻項目的名稱：零件、火箭、或固定項目（bus、structure…）。</summary>
         public static string ContributionName(string key)
         {
-            var d = GameSession.State.Data;
+            var d = GameSession.Data;
             if (d.Part(key) != null) return Loc.Part(key);
             if (d.Launcher(key) != null) return Loc.Launcher(key);
             return Loc.T("ui.contrib." + key);
@@ -59,6 +60,14 @@ namespace GoNoGo.UI
 
         public static string Years(double y) => Loc.IsZh ? $"{y.ToString("0.0", Inv)} 年" : $"{y.ToString("0.0", Inv)} yr";
 
-        public static string Role(Role r) => Loc.T("ui.role." + Roles.Key(r));
+        /// <summary>倒數計時 m:ss。</summary>
+        public static string Clock(float seconds)
+        {
+            int t = Math.Max(0, (int)Math.Ceiling(seconds));
+            return $"{t / 60}:{(t % 60).ToString("00", Inv)}";
+        }
+
+        public static string Dept(Department d) => Loc.T(GameSession.Data.Department(Departments.Key(d))?.Name);
+        public static string Dept(string key) => Loc.T(GameSession.Data.Department(key)?.Name);
     }
 }

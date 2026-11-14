@@ -1,19 +1,22 @@
 using System;
 using System.Collections.Generic;
+using GoNoGo.Core;
 using GoNoGo.Game;
 using UnityEngine.UIElements;
 
 namespace GoNoGo.UI
 {
     /// <summary>
-    /// 一個場景的介面。UIRoot 依場景名稱建立對應的畫面；切語言時整個重建（狀態都在 GameState，重建不會遺失）。
+    /// 一個場景的介面。UIRoot 依場景名稱建立對應的畫面；切語言時整個重建（狀態都在 MissionSession，重建不會遺失）。
     /// 用 <see cref="On"/> 訂閱的事件會在畫面關閉時自動取消，避免場景切換後還收到事件。
     /// </summary>
     public abstract class GameScreen
     {
         protected VisualElement Root { get; private set; }
         protected UIRoot Host { get; private set; }
-        protected static GameState S => GameSession.State;
+        /// <summary>這一局（直接開場景測試時自動建立）。</summary>
+        protected static MissionSession M => GameSession.Mission;
+        protected static GameData D => GameSession.Data;
         readonly List<Action> _unsubscribe = new List<Action>();
 
         public void Attach(UIRoot host, VisualElement root)

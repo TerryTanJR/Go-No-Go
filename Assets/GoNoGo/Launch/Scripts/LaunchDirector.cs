@@ -83,6 +83,7 @@ namespace GoNoGo.Launch
         readonly List<Cue> _cues = new List<Cue>();
         int _nextCue;
         LaunchOutcome _outcome;
+        Design _design;
         string _reason;
 
         // 飛行方位：垂直於長焦鏡頭的視線，火箭在畫面裡由左往右轉向，分離過程看得到側面
@@ -152,22 +153,24 @@ namespace GoNoGo.Launch
 
         void Start()
         {
-            GameSession.EnsureScenario();
-            var s = GameSession.State;
-            if (s.Result == null) s.Launch(); // 直接開這個場景測試時
-            _outcome = s.Result.Launch.Outcome;
-            _reason = s.Result.Launch.ReasonCode ?? "";
-            var orbit = s.Data.Orbit(s.Design.OrbitId);
+            GameSession.EnsureMission();
+            var m = GameSession.Mission;
+            if (m.S.LastLaunch == null) GameSession.Send(CommandType.Launch); // 直接開這個場景測試時
+            var launch = m.S.LastLaunch;
+            _design = launch.Design;
+            _outcome = launch.Outcome;
+            _reason = launch.ReasonCode ?? "";
+            var orbit = m.Data.Orbit(_design.OrbitId);
             _orbitAltKm = (float)Math.Min(orbit?.AltitudeKm ?? 500, 1200);
 
             var kit = LaunchKit.Load();
-            _rocket = RocketBuilder.Build(s.Design.LauncherId, kit, rocketAnchor);
+            _rocket = RocketBuilder.Build(_design.LauncherId, kit, rocketAnchor);
             _firstLen = _rocket.upperStage.localPosition.y;
             // 整流罩沿上節的 X 軸分成兩半，而太空側面鏡頭正好在 +X 那一側：其中一半會直直飛向鏡頭、擋住整個畫面。
             // 上節繞自己的軸轉 90°，兩半改成在畫面上下方向分開；衛星反向轉回來，展開鏡頭看到的方向不變
             _rocket.upperStage.localRotation = Quaternion.Euler(0f, 90f, 0f);
             _rocket.payloadMount.localRotation = Quaternion.Euler(0f, -90f, 0f);
-            BuildPayload(s);
+            BuildPayload(m.Data);
 
             _longFocus = new GameObject("LongFocus").transform;
             _longFocus.position = _rocket.root.position;
@@ -277,9 +280,9 @@ namespace GoNoGo.Launch
             if (_padProbe != null) _padProbe0 = _padProbe.intensity;
         }
 
-        void BuildPayload(GameState s)
+        void BuildPayload(GameData data)
         {
-            _payload = SatelliteBuilder.Build(s.Design, s.Data, s.Evaluation, _rocket.payloadMount);
+            _payload = SatelliteBuilder.Build(_design, data, Evaluator.EvaluateDesign(_design, data), _rocket.payloadMount);
             // 縮到整流罩裝得下：直徑 0.8 × 罩寬
             var rs = _payload.GetComponentsInChildren<Renderer>();
             if (rs.Length == 0) return;
@@ -362,6 +365,13 @@ namespace GoNoGo.Launch
                     }));
                     _cues.Add(new Cue(FairingT + 6.5f, Deploy));
                     _endT = FairingT + 13f;
+                    if (_outcome == LaunchOutcome.DeadOnOrbit)
+                    {
+                        // 入軌後失效：太陽能板展開後進入地影，訊號中斷
+                        _cues.Add(new Cue(FairingT + 12f, () => { Stage("ui.launch.stage.eclipse"); Say("ui.launch.call.eclipse"); StartCoroutine(EnterEclipse()); }));
+                        _cues.Add(new Cue(FairingT + 15.5f, () => { Stage("ui.launch.stage.signal_lost"); Say("ui.launch.call.signal_lost"); Sfx.Alert(); }));
+                        _endT = FairingT + 19f;
+                    }
                     break;
             }
             _cues.Add(new Cue(_endT, Finish));
@@ -592,6 +602,18 @@ namespace GoNoGo.Launch
                 _sideFollow = camSide.GetComponent<CinemachineFollow>();
                 if (_sideFollow != null) _sideOffset0 = _sideFollow.FollowOffset;
             }
+        }
+
+        /// <summary>入軌後失效：太陽慢慢被地球擋住（地影）。</summary>
+        System.Collections.IEnumerator EnterEclipse()
+        {
+            float i0 = sun.intensity;
+            for (float t = 0; t < 2.5f; t += Time.deltaTime)
+            {
+                sun.intensity = Mathf.Lerp(i0, 0.02f, t / 2.5f);
+                yield return null;
+            }
+            sun.intensity = 0.02f;
         }
 
         void Deploy()
@@ -930,7 +952,7 @@ namespace GoNoGo.Launch
             float t = _T;
             if (t <= 0) { LaunchFeed.AltitudeKm = 0; LaunchFeed.VelocityKms = 0; return; }
             if (_exploded) { LaunchFeed.VelocityKms = Mathf.Max(0, LaunchFeed.VelocityKms - 0.02f); return; }
-            bool reaches = _outcome == LaunchOutcome.Nominal || _outcome == LaunchOutcome.LowerOrbit;
+            bool reaches = _outcome == LaunchOutcome.Nominal || _outcome == LaunchOutcome.LowerOrbit || _outcome == LaunchOutcome.DeadOnOrbit;
             // 失敗的飛行只到次軌道頂點（約 150 km），不能先爬到目標軌道高度再掉下來
             TelAlt[TelAlt.Length - 1] = !reaches ? 150f
                 : _outcome == LaunchOutcome.LowerOrbit ? _orbitAltKm * 0.8f : Mathf.Max(160f, _orbitAltKm);

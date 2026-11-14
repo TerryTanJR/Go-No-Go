@@ -8,7 +8,7 @@ namespace GoNoGo.UI
 {
     /// <summary>
     /// 發射 HUD：倒數計時、遙測、播報紀錄、跳過鈕（第二次以後才有），播完顯示結果。
-    /// 畫面本身不決定結果——結果在按下發射時就由核心算好了（GameState.Result），3D 只是演出來。
+    /// 畫面本身不決定結果——結果在按下發射時就由核心算好了（SessionState.LastLaunch），3D 只是演出來。
     /// </summary>
     public sealed class LaunchScreen : GameScreen
     {
@@ -21,10 +21,12 @@ namespace GoNoGo.UI
         protected override void Build()
         {
             Sfx.SetAmbience(Sfx.Ambience.None);
+            GameSession.EnsureMission();
+            if (M.S.LastLaunch == null) GameSession.Send(CommandType.Launch);
             if (!LaunchFeed.DirectorActive && _selfTimer == 0) LaunchFeed.Reset();
 
             var head = Ui.El("launch-head").AddTo(Root);
-            Ui.Text(Loc.T("ui.launch.eyebrow") + " · " + Loc.Launcher(S.Design.LauncherId), "eyebrow").AddTo(head);
+            Ui.Text(Loc.T("ui.launch.eyebrow") + " · " + Loc.Launcher(M.S.LastLaunch?.Design.LauncherId ?? ""), "eyebrow").AddTo(head);
             _clock = Ui.Text("T-00:00:10", "launch-clock", "mono").AddTo(head);
             _stage = Ui.Text("", "launch-stage").AddTo(head);
 
@@ -38,7 +40,7 @@ namespace GoNoGo.UI
 
             var actions = Ui.Row("launch-actions").AddTo(Root);
             Ui.Spacer().AddTo(actions);
-            if (S.SkipLaunchAllowed)
+            if (M.S.Launches.Count > 1)
                 Ui.Btn(Loc.T("ui.launch.skip"), LaunchFeed.RequestSkip, "btn-ghost").AddTo(actions);
 
             _outcome = Ui.El("launch-outcome").AddTo(Root);
@@ -100,41 +102,28 @@ namespace GoNoGo.UI
 
         void ShowOutcome(bool sound)
         {
-            var r = S.Result;
+            var l = M.S.LastLaunch;
             _outcome.Clear();
             _outcome.style.display = DisplayStyle.Flex;
             var card = Ui.El("panel", "outcome-card", "fade-in").AddTo(_outcome);
             Ui.AnimateIn(card, "fade-in--on");
-            bool ok = r != null && r.ReachedOrbit;
-            string titleKey = r == null ? "ui.launch.result.nominal" : r.Launch.Outcome switch
-            {
-                LaunchOutcome.Nominal => "ui.launch.result.nominal",
-                LaunchOutcome.LowerOrbit => "ui.launch.result.lower",
-                LaunchOutcome.FairingFailure => "ui.launch.result.fairing",
-                _ => "ui.launch.result.failure",
-            };
+            bool ok = l != null && l.Reached;
             Ui.Text(Loc.T("ui.launch.result.eyebrow"), "eyebrow").AddTo(card);
-            Ui.Text(Loc.T(titleKey), "h2", ok ? "go" : "over").AddTo(card);
-            if (r != null) Ui.Text(Loc.T(r.Launch.ReasonCode), "body").AddTo(card);
+            Ui.Text(Loc.T(FailureBoardView.OutcomeKey(l?.Outcome ?? LaunchOutcome.Nominal)), "h2", ok ? "go" : "over").AddTo(card);
+            if (l != null) Ui.Text(Loc.T(l.ReasonCode), "body").AddTo(card);
+            if (!ok) Ui.Text(Loc.T("ui.launch.redesign_note"), "small", "dim").AddTo(card);
             var row = Ui.Row("outcome-actions").AddTo(card);
             Ui.Spacer().AddTo(row);
-            Ui.Btn(Loc.T(ok ? "ui.launch.to_ops" : "ui.launch.to_report"), Continue, ok ? "btn-go" : "btn-primary", "btn-big").AddTo(row);
+            if (GameSession.IsHost)
+                Ui.Btn(Loc.T(ok ? "ui.launch.to_ops" : "ui.launch.to_redesign"), Continue, ok ? "btn-go" : "btn-primary", "btn-big").AddTo(row);
+            else Ui.Text(Loc.T("ui.launch.wait_host"), "small", "dim").AddTo(row);
             if (sound) { if (ok) Sfx.Go(); else Sfx.NoGo(); }
         }
 
         static void Continue()
         {
             Sfx.Confirm();
-            if (S.Result != null && S.Result.ReachedOrbit)
-            {
-                S.SetPhase(Phase.Operations);
-                SceneFlow.Go(SceneFlow.Operations, 0.8f);
-            }
-            else
-            {
-                S.SetPhase(Phase.Report);
-                SceneFlow.Go(SceneFlow.Report, 0.8f);
-            }
+            GameSession.Send(CommandType.FinishLaunch);
         }
     }
 }

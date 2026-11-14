@@ -2,7 +2,10 @@
   {
     "id": "earth_observation",
     "objective": "earth_observation",
-    "name": { "en": "Eyes on Earth", "zh-TW": "看顧地球" },
+    "name": {
+      "en": "Eyes on Earth",
+      "zh-TW": "看顧地球"
+    },
     "briefing": {
       "en": "Build a satellite that watches wildfires, floods and crops for at least 3 years. You have $140M, 42 months to launch, and room for up to 3 instruments. Every choice costs mass, power, money, data or time.",
       "zh-TW": "打造一顆監測野火、洪水和農作物的衛星，至少運作 3 年。預算 1.4 億美元，42 個月內要發射，最多裝 3 台儀器。每個選擇都要付出質量、電力、金錢、資料或時間。"
@@ -11,30 +14,96 @@
     "target_years": 3,
     "deadline_months": 42,
     "max_instruments": 3,
-    "allowed_orbits": ["leo_400", "sso_700", "geo"],
+    "allowed_orbits": [
+      "leo_400",
+      "sso_700",
+      "geo"
+    ],
     "allowed_launchers": [],
     "science_reference": 360,
     "requirements": {
-      "director": [
-        { "type": "budget_reserve", "value": 0.15, "text": { "en": "Keep at least 15% of the budget in reserve.", "zh-TW": "預算至少保留 15% 準備金。" } },
-        { "type": "lifetime_target", "value": 0, "text": { "en": "Plan at least the 3-year target and make it to the end.", "zh-TW": "任務至少規劃 3 年，而且要撐到最後。" } }
+      "mission_lead": [
+        {
+          "id": "eo_years",
+          "type": "lifetime_target",
+          "value": 0,
+          "text": {
+            "en": "Plan at least the 3-year target and make it to the end.",
+            "zh-TW": "任務至少規劃 3 年，而且要撐到最後。"
+          }
+        }
       ],
-      "engineer": [
-        { "type": "mass_power_margin", "value": 0, "text": { "en": "Keep 15% or more margin on both mass and power.", "zh-TW": "質量和電力都保留 15% 以上的餘裕。" } },
-        { "type": "lifetime_target", "value": 0, "text": { "en": "No part may wear out before the planned end of mission.", "zh-TW": "任何零件都不能在任務結束前耗盡。" } }
+      "budget_office": [
+        {
+          "id": "eo_reserve",
+          "type": "budget_reserve",
+          "value": 0.15,
+          "text": {
+            "en": "Keep at least 15% of the budget in reserve.",
+            "zh-TW": "預算至少保留 15% 準備金。"
+          }
+        }
       ],
-      "scientist": [
-        { "type": "science_threshold", "value": 60, "text": { "en": "Reach a science score of 60 or more.", "zh-TW": "科學分數達到 60 分以上。" } },
-        { "type": "instrument_required", "value": 0, "part_id": "inst_thermal", "text": { "en": "Fire-watch partners need a thermal infrared imager on board.", "zh-TW": "野火監測合作單位需要一台熱紅外線成像儀。" } }
+      "science": [
+        {
+          "id": "eo_science",
+          "type": "science_threshold",
+          "value": 60,
+          "text": {
+            "en": "Reach a science score of 60 or more.",
+            "zh-TW": "科學分數達到 60 分以上。"
+          }
+        },
+        {
+          "id": "eo_thermal",
+          "type": "instrument_required",
+          "value": 0,
+          "conflict_group": 1,
+          "part_id": "inst_thermal",
+          "text": {
+            "en": "Fire-watch partners need a thermal infrared imager on board.",
+            "zh-TW": "野火監測合作單位需要一台熱紅外線成像儀。"
+          }
+        }
+      ],
+      "engineering": [
+        {
+          "id": "eo_margin",
+          "type": "mass_power_margin",
+          "value": 0,
+          "text": {
+            "en": "Keep the required margin on both mass and power.",
+            "zh-TW": "質量和電力都要保留規定的餘裕。"
+          }
+        }
       ],
       "comms": [
-        { "type": "data_return", "value": 0.9, "text": { "en": "Bring home at least 90% of the data collected.", "zh-TW": "至少傳回 90% 收集到的資料。" } },
-        { "type": "data_return", "value": 0.97, "text": { "en": "Lose almost nothing: return 97% of the data.", "zh-TW": "幾乎不能掉資料：傳回 97% 的資料。" } }
+        {
+          "id": "eo_return",
+          "type": "data_return",
+          "value": 0.9,
+          "text": {
+            "en": "Bring home at least 90% of the data collected.",
+            "zh-TW": "至少傳回 90% 收集到的資料。"
+          }
+        },
+        {
+          "id": "eo_return_high",
+          "type": "data_return",
+          "value": 0.97,
+          "conflict_group": 2,
+          "text": {
+            "en": "Lose almost nothing: return 97% of the data.",
+            "zh-TW": "幾乎不能掉資料：傳回 97% 的資料。"
+          }
+        }
       ]
     },
     "default_design": {
       "scenario_id": "earth_observation",
-      "instruments": ["inst_visible"],
+      "instruments": [
+        "inst_visible"
+      ],
       "parts": {
         "solar": "solar_body",
         "battery": "batt_small",
@@ -49,12 +118,19 @@
       "launcher_id": "electron",
       "mission_years": 3
     },
-    "comparison_missions": ["landsat9", "prisma", "planet_dove"]
+    "comparison_missions": [
+      "landsat9",
+      "prisma",
+      "planet_dove"
+    ]
   },
   {
     "id": "lunar_mapping",
     "objective": "lunar_mapping",
-    "name": { "en": "Map the Moon", "zh-TW": "繪製月球地圖" },
+    "name": {
+      "en": "Map the Moon",
+      "zh-TW": "繪製月球地圖"
+    },
     "briefing": {
       "en": "Map the lunar surface from a 100 km orbit for 2 years. Getting there is expensive, the orbit decays fast, and every byte must cross 384,000 km. Budget $250M, 48 months.",
       "zh-TW": "從 100 公里高的月球軌道繪製月面地圖 2 年。到月球很貴、軌道掉得快，每筆資料都要飛 38 萬公里回家。預算 2.5 億美元，48 個月。"
@@ -63,26 +139,94 @@
     "target_years": 2,
     "deadline_months": 48,
     "max_instruments": 3,
-    "allowed_orbits": ["llo_100"],
+    "allowed_orbits": [
+      "llo_100"
+    ],
     "allowed_launchers": [],
     "science_reference": 160,
     "requirements": {
-      "director": [
-        { "type": "budget_reserve", "value": 0.1, "text": { "en": "Keep at least 10% of the budget in reserve.", "zh-TW": "預算至少保留 10% 準備金。" } }
+      "mission_lead": [
+        {
+          "id": "lm_years",
+          "type": "lifetime_target",
+          "value": 0,
+          "text": {
+            "en": "Map for the full 2 years.",
+            "zh-TW": "完整測繪 2 年。"
+          }
+        }
       ],
-      "engineer": [
-        { "type": "lifetime_target", "value": 0, "text": { "en": "Carry enough propellant to stay in orbit for the whole mission.", "zh-TW": "帶足推進劑，整個任務期間都要維持在軌道上。" } }
+      "budget_office": [
+        {
+          "id": "lm_reserve",
+          "type": "budget_reserve",
+          "value": 0.1,
+          "text": {
+            "en": "Keep at least 10% of the budget in reserve.",
+            "zh-TW": "預算至少保留 10% 準備金。"
+          }
+        }
       ],
-      "scientist": [
-        { "type": "science_threshold", "value": 55, "text": { "en": "Reach a science score of 55 or more.", "zh-TW": "科學分數達到 55 分以上。" } }
+      "science": [
+        {
+          "id": "lm_science",
+          "type": "science_threshold",
+          "value": 55,
+          "text": {
+            "en": "Reach a science score of 55 or more.",
+            "zh-TW": "科學分數達到 55 分以上。"
+          }
+        },
+        {
+          "id": "lm_multispectral",
+          "type": "instrument_required",
+          "value": 0,
+          "conflict_group": 1,
+          "part_id": "inst_multispectral",
+          "text": {
+            "en": "The mineral team needs a multispectral imager.",
+            "zh-TW": "礦物研究小組需要一台多光譜成像儀。"
+          }
+        }
+      ],
+      "engineering": [
+        {
+          "id": "lm_margin",
+          "type": "mass_power_margin",
+          "value": 0,
+          "text": {
+            "en": "Keep the required margin on both mass and power.",
+            "zh-TW": "質量和電力都要保留規定的餘裕。"
+          }
+        }
       ],
       "comms": [
-        { "type": "data_return", "value": 0.85, "text": { "en": "Return at least 85% of the data across 384,000 km.", "zh-TW": "跨越 38 萬公里傳回至少 85% 的資料。" } }
+        {
+          "id": "lm_return",
+          "type": "data_return",
+          "value": 0.85,
+          "text": {
+            "en": "Return at least 85% of the data across 384,000 km.",
+            "zh-TW": "跨越 38 萬公里傳回至少 85% 的資料。"
+          }
+        },
+        {
+          "id": "lm_return_high",
+          "type": "data_return",
+          "value": 0.95,
+          "conflict_group": 2,
+          "text": {
+            "en": "Return 95% of the data: the map must have no holes.",
+            "zh-TW": "傳回 95% 的資料：地圖不能有破洞。"
+          }
+        }
       ]
     },
     "default_design": {
       "scenario_id": "lunar_mapping",
-      "instruments": ["inst_visible"],
+      "instruments": [
+        "inst_visible"
+      ],
       "parts": {
         "solar": "solar_deployable",
         "battery": "batt_medium",
@@ -102,7 +246,10 @@
   {
     "id": "hist_oco",
     "objective": "carbon_monitoring",
-    "name": { "en": "Rewrite History: Orbiting Carbon Observatory (2009)", "zh-TW": "改寫歷史：軌道碳觀測衛星（2009）" },
+    "name": {
+      "en": "Rewrite History: Orbiting Carbon Observatory (2009)",
+      "zh-TW": "改寫歷史：軌道碳觀測衛星（2009）"
+    },
     "briefing": {
       "en": "2009. NASA's first satellite dedicated to measuring carbon dioxide from space is ready: 441 kg, bound for a 705 km sun-synchronous orbit to join the A-Train. Fly the original design first and see what happened.",
       "zh-TW": "2009 年。NASA 第一顆專門從太空量測二氧化碳的衛星準備好了：441 公斤，目標是 705 公里的太陽同步軌道，加入 A-Train 衛星編隊。先用原始設計飛一次，看看當年發生了什麼事。"
@@ -111,26 +258,97 @@
     "target_years": 2,
     "deadline_months": 48,
     "max_instruments": 1,
-    "allowed_orbits": ["sso_700"],
-    "allowed_launchers": ["taurus_xl", "delta_ii"],
+    "allowed_orbits": [
+      "sso_700"
+    ],
+    "allowed_launchers": [
+      "taurus_xl",
+      "delta_ii"
+    ],
     "science_reference": 200,
     "requirements": {
-      "director": [
-        { "type": "budget_reserve", "value": 0.0, "text": { "en": "Stay within 110% of the original budget.", "zh-TW": "不超過原始預算的 110%。" } }
+      "mission_lead": [
+        {
+          "id": "oco_years",
+          "type": "lifetime_target",
+          "value": 0,
+          "text": {
+            "en": "Operate for the full 2-year design life.",
+            "zh-TW": "完整運作 2 年設計壽命。"
+          }
+        }
       ],
-      "engineer": [
-        { "type": "lifetime_target", "value": 0, "text": { "en": "Operate for the full 2-year design life.", "zh-TW": "完整運作 2 年設計壽命。" } }
+      "budget_office": [
+        {
+          "id": "oco_budget",
+          "type": "budget_reserve",
+          "value": 0.0,
+          "text": {
+            "en": "Stay within 110% of the original budget.",
+            "zh-TW": "不超過原始預算的 110%。"
+          }
+        }
       ],
-      "scientist": [
-        { "type": "instrument_required", "value": 0, "part_id": "inst_co2_spectrometer", "text": { "en": "Keep the CO2 spectrometer: it is the whole point.", "zh-TW": "保留二氧化碳光譜儀：這就是任務的意義。" } }
+      "science": [
+        {
+          "id": "oco_co2",
+          "type": "instrument_required",
+          "value": 0,
+          "part_id": "inst_co2_spectrometer",
+          "text": {
+            "en": "Keep the CO2 spectrometer: it is the whole point.",
+            "zh-TW": "保留二氧化碳光譜儀：這就是任務的意義。"
+          }
+        },
+        {
+          "id": "oco_science",
+          "type": "science_threshold",
+          "value": 50,
+          "conflict_group": 1,
+          "text": {
+            "en": "Reach a science score of 50 or more.",
+            "zh-TW": "科學分數達到 50 分以上。"
+          }
+        }
+      ],
+      "engineering": [
+        {
+          "id": "oco_margin",
+          "type": "mass_power_margin",
+          "value": 0,
+          "text": {
+            "en": "Keep the required margin on both mass and power.",
+            "zh-TW": "質量和電力都要保留規定的餘裕。"
+          }
+        }
       ],
       "comms": [
-        { "type": "data_return", "value": 0.95, "text": { "en": "Return 95% of the carbon measurements.", "zh-TW": "傳回 95% 的碳量測資料。" } }
+        {
+          "id": "oco_return",
+          "type": "data_return",
+          "value": 0.95,
+          "text": {
+            "en": "Return 95% of the carbon measurements.",
+            "zh-TW": "傳回 95% 的碳量測資料。"
+          }
+        },
+        {
+          "id": "oco_return_high",
+          "type": "data_return",
+          "value": 0.98,
+          "conflict_group": 2,
+          "text": {
+            "en": "Climate models need 98% of the soundings.",
+            "zh-TW": "氣候模型需要 98% 的量測資料。"
+          }
+        }
       ]
     },
     "default_design": {
       "scenario_id": "hist_oco",
-      "instruments": ["inst_co2_spectrometer"],
+      "instruments": [
+        "inst_co2_spectrometer"
+      ],
       "parts": {
         "solar": "solar_large",
         "battery": "batt_large",
@@ -145,12 +363,17 @@
       "launcher_id": "taurus_xl",
       "mission_years": 2
     },
-    "comparison_missions": ["oco2", "landsat9"],
+    "comparison_missions": [
+      "oco2",
+      "landsat9"
+    ],
     "historical": {
       "year": 2009,
       "preset_design": {
         "scenario_id": "hist_oco",
-        "instruments": ["inst_co2_spectrometer"],
+        "instruments": [
+          "inst_co2_spectrometer"
+        ],
         "parts": {
           "solar": "solar_large",
           "battery": "batt_large",
@@ -165,7 +388,9 @@
         "launcher_id": "taurus_xl",
         "mission_years": 2
       },
-      "scripted_events": ["fairing_stuck"],
+      "scripted_events": [
+        "fairing_stuck"
+      ],
       "scripted_launcher_id": "taurus_xl",
       "budget_cap": 1.1,
       "cinematic": "fairing_stuck",
@@ -182,10 +407,26 @@
         "zh-TW": "NASA 幾乎原封不動地重造了衛星，命名 OCO-2；在 Glory 也因金牛座 XL 失敗之後，改用德爾塔 II 7320（成功 149 次）發射。OCO-2 於 2014 年 7 月 2 日入軌，至今仍在量測二氧化碳。總投資增加到 4.677 億美元。"
       },
       "sources": [
-        { "title": "NASA: Overview of the OCO Mishap Investigation Results", "url": "https://nasa.gov/wp-content/uploads/2019/05/369037main_ocoexecutivesummary_71609.pdf", "note": "fairing failed to separate; 300 m/s short; root cause not isolated" },
-        { "title": "NASA/JPL: OCO launch press kit (2009)", "url": "https://www.jpl.nasa.gov/news/press_kits/oco-launch.pdf", "note": "441 kg, 705 km SSO, $273.4M NASA investment, Taurus XL 86% success" },
-        { "title": "NASA/JPL: OCO-2 launch press kit (2014)", "url": "https://www.jpl.nasa.gov/news/press_kits/oco2-launch-press-kit.pdf", "note": "Delta II 7320-10, 149 successes, $467.7M" },
-        { "title": "Spaceflight Now (2012): NASA picks Delta II for OCO-2", "url": "https://spaceflightnow.com/news/n1202/10oco2/", "note": "Glory lost to an almost identical anomaly in March 2011" }
+        {
+          "title": "NASA: Overview of the OCO Mishap Investigation Results",
+          "url": "https://nasa.gov/wp-content/uploads/2019/05/369037main_ocoexecutivesummary_71609.pdf",
+          "note": "fairing failed to separate; 300 m/s short; root cause not isolated"
+        },
+        {
+          "title": "NASA/JPL: OCO launch press kit (2009)",
+          "url": "https://www.jpl.nasa.gov/news/press_kits/oco-launch.pdf",
+          "note": "441 kg, 705 km SSO, $273.4M NASA investment, Taurus XL 86% success"
+        },
+        {
+          "title": "NASA/JPL: OCO-2 launch press kit (2014)",
+          "url": "https://www.jpl.nasa.gov/news/press_kits/oco2-launch-press-kit.pdf",
+          "note": "Delta II 7320-10, 149 successes, $467.7M"
+        },
+        {
+          "title": "Spaceflight Now (2012): NASA picks Delta II for OCO-2",
+          "url": "https://spaceflightnow.com/news/n1202/10oco2/",
+          "note": "Glory lost to an almost identical anomaly in March 2011"
+        }
       ]
     }
   }

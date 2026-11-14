@@ -5,6 +5,10 @@
 """
 import json
 import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from ui_strings_3d import UI3D, OBSOLETE_PREFIXES  # noqa: E402
 
 UI = {
     # 共用
@@ -251,7 +255,9 @@ def main():
     data = json.loads(path.read_text(encoding="utf-8"))
     # 先移除舊的 ui.*，確保刪掉的鍵不會殘留
     data = {k: v for k, v in data.items() if not k.startswith("ui.")}
-    for k, (en, zh) in UI.items():
+    merged = {k: v for k, v in UI.items() if not k.startswith(OBSOLETE_PREFIXES)}
+    merged.update(UI3D)
+    for k, (en, zh) in merged.items():
         data[k] = {"en": en, "zh-TW": zh}
     lines = ["{"]
     items = list(data.items())
@@ -263,7 +269,7 @@ def main():
         lines.append(f'  {json.dumps(k, ensure_ascii=False)}: {{ "en": {en}, "zh-TW": {zh} }}{sep}')
     lines.append("}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
-    print(f"strings.json: {len(data)} keys ({len(UI)} ui.*)")
+    print(f"strings.json: {len(data)} keys ({len(merged)} ui.*)")
 
 
 if __name__ == "__main__":

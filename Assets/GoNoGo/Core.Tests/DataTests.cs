@@ -82,24 +82,29 @@ namespace GoNoGo.Core.Tests
                 "warn.schedule", "warn.lifetime.propellant", "warn.lifetime.battery", "warn.lifetime.radiation",
                 "warn.no_instrument", "warn.instrument_mismatch", "warn.too_many_instruments",
                 "fix.swap", "fix.remove", "fix.orbit", "fix.launcher", "fix.years",
-                "nogo.science", "nogo.lifetime", "nogo.mass",
-                "launch.nominal", "launch.lower_orbit", "launch.anomaly", "launch.overweight", "launch.unreachable", "launch.fairing",
+                "launch.dead_on_orbit", "launch.nominal", "launch.lower_orbit", "launch.anomaly", "launch.overweight", "launch.unreachable", "launch.fairing",
                 "event.storm.safe", "event.storm.ok", "event.storm.damaged", "event.failure.redundant", "event.failure.instrument",
                 "event.failure.computer", "event.failure.adcs", "event.failure.antenna",
                 "event.opportunity.success", "event.opportunity.strained", "event.opportunity.skipped",
-                "choice.safe_mode", "choice.continue", "choice.observe", "choice.skip", "choice.ack",
+                "event.power.handled", "event.power.drained", "event.failure.instrument_contained", "event.failure.computer_contained",
+                "event.failure.adcs_contained", "event.failure.antenna_contained",
                 "opp.wildfire", "opp.volcano", "opp.flood", "opp.hurricane",
                 "suggest.launcher_reach", "suggest.mass", "suggest.launcher", "suggest.history_launcher", "suggest.mass_margin",
                 "suggest.downlink", "suggest.storage", "suggest.power", "suggest.propellant", "suggest.battery", "suggest.shielding",
-                "suggest.safe_mode", "suggest.redundancy", "suggest.more_science", "suggest.try_orbit",
+                "suggest.storm_procedure", "suggest.battery_eclipse", "suggest.power_procedure", "suggest.redundancy", "suggest.more_science", "suggest.try_orbit",
             });
-            foreach (var role in Roles.All)
-                keys.AddRange(Roles.Domain(role).Select(r => "nogo." + r.ToString().ToLowerInvariant()));
-            foreach (EventKind k in Enum.GetValues(typeof(EventKind)))
+            foreach (var k in OpsEvents.All)
             {
-                keys.Add("event.title." + k.ToString().ToLowerInvariant());
-                keys.Add("event.prompt." + k.ToString().ToLowerInvariant());
+                keys.Add("event.title." + OpsEvents.Key(k));
+                keys.Add("event.diag." + OpsEvents.Key(k));
             }
+            Assert.That(OpsEvents.All.Length, Is.EqualTo(Enum.GetValues(typeof(EventKind)).Length));
+            foreach (var c in OpsConsoles.All)
+            {
+                keys.Add("ops.console." + c);
+                keys.AddRange(OpsConsoles.Actions(c).Select(a => "ops.action." + a));
+            }
+            Assert.That(OpsActions.All.Select(OpsConsoles.ConsoleOf), Has.None.Empty, "每個操作都要有所屬的控制台");
 
             // 因果鏈：實際跑一堆設計，收集出現過的鍵
             var designs = new List<Design> { TestData.CheapSmallsat(), TestData.Balanced(), TestData.HighScience() };
@@ -107,16 +112,26 @@ namespace GoNoGo.Core.Tests
             foreach (var d in designs)
                 foreach (var seed in Enumerable.Range(1, 40))
                 {
-                    var choices = seed % 2 == 0 ? null : new AlwaysChoose("continue", "skip");
-                    var r = Simulator.SimulateMission(d, data, seed, choices);
+                    IDecisionSource choices = (seed % 3) switch { 0 => null, 1 => new PerfectDecisions(), _ => Scripted.Partial(1) };
+                    var diff = data.Difficulties[seed % data.Difficulties.Count].Id;
+                    var r = Simulator.SimulateMission(d, data, seed, choices, new MissionContext { DifficultyId = diff });
                     keys.AddRange(r.Causes.SelectMany(c => c.Steps).Select(s => s.Key));
+                    // 控制台讀數（每個事件、每台控制台）
+                    var ev = Evaluator.EvaluateDesign(d, data);
+                    foreach (var e in r.Events)
+                        foreach (var c in OpsConsoles.All)
+                            foreach (var rd in OpsTelemetry.For(c, e.Event, ev, d, data, null))
+                            {
+                                keys.Add(rd.Key.StartsWith("part:") ? null : rd.Key);
+                                if (rd.Value.StartsWith("opp.")) keys.Add(rd.Value);
+                            }
                     keys.Add(r.SuggestionCode);
                     keys.Add(r.Launch.ReasonCode);
                     keys.AddRange(r.Events.Select(e => e.ResultCode));
                 }
             keys.AddRange(CausalKeysInSource);
 
-            var missing = keys.Distinct().Where(k => !data.Strings.ContainsKey(k)).ToList();
+            var missing = keys.Where(k => k != null).Distinct().Where(k => !data.Strings.ContainsKey(k)).ToList();
             Assert.That(missing, Is.Empty, "strings.json 缺少：" + string.Join(", ", missing));
         }
 
@@ -130,6 +145,7 @@ namespace GoNoGo.Core.Tests
             "cause.battery_worn", "cause.radiation_dose", "cause.radiation_limit", "cause.storm", "cause.kept_running",
             "cause.instrument_damaged", "cause.part_failed", "cause.no_redundancy", "cause.degraded", "cause.safe_mode",
             "cause.protected", "cause.success_instrument", "cause.success_return", "cause.success_science",
+            "cause.battery_capacity", "cause.eclipse_need", "cause.dead_on_orbit", "cause.power_anomaly", "cause.not_handled",
         };
 
         [Test]
@@ -141,7 +157,7 @@ namespace GoNoGo.Core.Tests
             {
                 foreach (var kv in s.Requirements)
                 {
-                    Assert.That(Roles.All.Select(Roles.Key), Does.Contain(kv.Key), s.Id);
+                    Assert.That(Departments.All.Select(Departments.Key), Does.Contain(kv.Key), s.Id);
                     foreach (var r in kv.Value)
                     {
                         Assert.That(types, Does.Contain(r.Type), s.Id);
@@ -151,6 +167,66 @@ namespace GoNoGo.Core.Tests
                 }
                 Assert.That(data.LaunchersFor(s).Any(l => s.AllowedOrbits.Any(o => l.CapacityKg.ContainsKey(o))), s.Id + "：沒有火箭到得了允許的軌道");
             }
+        }
+
+        [Test]
+        public void DepartmentRequirementsFollowDifficulty()
+        {
+            var data = TestData.Load();
+            foreach (var s in data.Scenarios)
+            {
+                var cadet = Departments.Active(s, data.Difficulty("cadet"));
+                var eng = Departments.Active(s, data.Difficulty("engineer"));
+                var dir = Departments.Active(s, data.Difficulty("director"));
+                Assert.That(cadet.Count, Is.LessThan(eng.Count), s.Id + "：工程師難度要多一條需求");
+                Assert.That(eng.Count, Is.LessThan(dir.Count), s.Id + "：任務主管難度要再多一條");
+                Assert.That(cadet.All(a => a.Requirement.ConflictGroup == 0));
+                // 每個處室在每個難度都至少有一條需求，打電話才有內容
+                foreach (var dep in Departments.All)
+                    Assert.That(cadet.Any(a => a.Department == dep), s.Id + " " + Departments.Key(dep));
+                Assert.That(dir.Select(a => a.Requirement.Id).Distinct().Count(), Is.EqualTo(dir.Count), "需求 id 不能重複");
+            }
+        }
+
+        [Test]
+        public void DepartmentLinesRevealRealRequirementTypes()
+        {
+            var data = TestData.Load();
+            var types = data.Scenarios.SelectMany(s => s.Requirements.Values.SelectMany(l => l)).Select(r => r.Type).Distinct().ToList();
+            Assert.That(data.Departments.Select(d => d.Id), Is.EquivalentTo(Departments.All.Select(Departments.Key)));
+            foreach (var dep in data.Departments)
+            {
+                Assert.That(dep.Lines.Count, Is.GreaterThanOrEqualTo(3), dep.Id);
+                foreach (var line in dep.Lines)
+                    foreach (var t in line.Reveals)
+                        Assert.That(types, Does.Contain(t), dep.Id + " " + line.Id);
+            }
+            // 每一種需求都有某個處室的某句話會說出來
+            foreach (var t in types)
+                Assert.That(data.Departments.SelectMany(d => d.Lines).Any(l => l.Reveals.Contains(t)), t);
+        }
+
+        [Test]
+        public void PartsHaveUniqueCodesAndPlainFunctions()
+        {
+            var data = TestData.Load();
+            var parts = data.Parts.Where(p => p.Category != PartCategory.GroundStation).ToList();
+            Assert.That(parts.Select(p => p.Code).Distinct().Count(), Is.EqualTo(parts.Count));
+            foreach (var p in parts)
+            {
+                Assert.That(data.PartByCode(p.Code), Is.SameAs(p));
+                Assert.That(p.Function.En.Length * p.Function.ZhTW.Length, Is.GreaterThan(0), p.Id);
+                Assert.That(p.Function.ZhTW, Does.Not.Match("[0-9]"), p.Id + "：功能說明不放數字");
+            }
+        }
+
+        [Test]
+        public void TutorialDifficultyIsHidden()
+        {
+            var data = TestData.Load();
+            Assert.That(data.SelectableDifficulties.Select(d => d.Id), Is.EqualTo(new[] { "engineer", "cadet", "director" }));
+            var t = data.Difficulty("tutorial");
+            Assert.That(t.Hidden && t.GuaranteedLaunch && t.Turns == 1);
         }
 
         [Test]

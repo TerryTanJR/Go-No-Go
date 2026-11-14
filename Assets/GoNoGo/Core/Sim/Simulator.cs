@@ -4,13 +4,14 @@ using System.Linq;
 
 namespace GoNoGo.Core
 {
-    /// <summary>評分與點名需要、但不影響物理模擬的資訊。</summary>
+    /// <summary>評分需要、但不影響物理模擬的資訊。</summary>
     public sealed class MissionContext
     {
         public string DifficultyId { get; set; }
-        public IDictionary<Role, RequirementDef> Requirements { get; set; } = new Dictionary<Role, RequirementDef>();
-        /// <summary>第一次點名就全員 GO（團隊協作加分）。</summary>
-        public bool FirstCallAllGo { get; set; }
+        /// <summary>這一局有效的處室需求。</summary>
+        public List<ActiveRequirement> Requirements { get; set; } = new List<ActiveRequirement>();
+        /// <summary>這次發射之前已經失敗過幾次（重新設計的次數）。</summary>
+        public int FailedLaunchesBefore { get; set; }
     }
 
     /// <summary>
@@ -33,38 +34,40 @@ namespace GoNoGo.Core
             var rng = new Random(seed);
             var diff = data.Difficulty(difficultyId) ?? data.Difficulties.FirstOrDefault() ?? new DifficultyDef();
             var plan = new MissionPlan { Seed = seed, LaunchRoll = rng.NextDouble(), LaunchRoll2 = rng.NextDouble() };
+            if (diff.GuaranteedLaunch) { plan.LaunchRoll = 0; plan.LaunchRoll2 = 1; }
 
             int years = Math.Max(1, design.MissionYears);
             int days = (int)Math.Round(years * 365.25);
-            int n = rng.Next(diff.EventsMin, diff.EventsMax + 1);
+            int n = Math.Max(1, diff.Turns);
+            plan.Turns = n;
+            for (int i = 0; i <= n; i++) plan.TurnStartDays.Add((int)Math.Round(days * (double)i / n));
 
             // 會故障的零件，依不可靠度加權
             var failable = design.Instruments
                 .Concat(new[] { design.Get(PartCategory.Computer), design.Get(PartCategory.Adcs), design.Get(PartCategory.Antenna) })
                 .Select(data.Part).Where(p => p != null).ToList();
-            double survive = failable.Aggregate(1.0, (acc, p) => acc * Math.Pow(p.ReliabilityPerYear, years));
-            double pFail = Math.Min(0.85, Math.Max(0.15, 1 - survive));
-            double failRoll = rng.NextDouble();
 
-            var kinds = new List<EventKind> { EventKind.SolarStorm, EventKind.ScienceOpportunity };
-            if (failRoll < pFail) kinds.Add(EventKind.PartFailure);
-            while (kinds.Count < n) kinds.Add(rng.NextDouble() < 0.5 ? EventKind.SolarStorm : EventKind.ScienceOpportunity);
-            if (kinds.Count > n) kinds = kinds.Take(n).ToList();
+            // 每回合一個事件：把可用的事件種類輪流排滿，再洗牌（同一種事件不會連出太多次）
+            var pool = diff.EventTypes.Select(OpsEvents.Parse).Where(k => k.HasValue).Select(k => k.Value).Distinct().ToList();
+            if (pool.Count == 0) pool = new List<EventKind> { EventKind.SolarStorm, EventKind.ScienceOpportunity };
+            if (failable.Count == 0) pool.Remove(EventKind.PartFailure);
+            if (pool.Count == 0) pool.Add(EventKind.SolarStorm);
+            var kinds = Enumerable.Range(0, n).Select(i => pool[i % pool.Count]).ToList();
             for (int i = kinds.Count - 1; i > 0; i--)
             {
                 int j = rng.Next(i + 1);
                 (kinds[i], kinds[j]) = (kinds[j], kinds[i]);
             }
 
-            int start = Math.Min(30, days / 4), end = Math.Max(start + 1, days - 30);
-            double seg = (end - start) / (double)Math.Max(1, kinds.Count);
-            for (int i = 0; i < kinds.Count; i++)
+            for (int i = 0; i < n; i++)
             {
+                int a = plan.TurnStartDays[i], b = plan.TurnStartDays[i + 1];
                 var e = new MissionEvent
                 {
-                    Id = $"{kinds[i].ToString().ToLowerInvariant()}_{i}",
+                    Id = OpsEvents.Key(kinds[i]) + "_" + i,
                     Kind = kinds[i],
-                    Day = start + (int)(seg * i + rng.NextDouble() * seg * 0.8),
+                    Turn = i,
+                    Day = Math.Min(b - 1, a + (int)((b - a) * (0.3 + 0.4 * rng.NextDouble()))),
                 };
                 switch (e.Kind)
                 {
@@ -72,35 +75,31 @@ namespace GoNoGo.Core
                         var sw = data.SpaceWeather[rng.Next(data.SpaceWeather.Count)];
                         e.RefId = sw.Id;
                         e.Severity = Math.Max(1, Math.Min(3, sw.Severity));
-                        e.Choices = new List<string> { "safe_mode", "continue" };
-                        e.DefaultChoice = "safe_mode";
                         break;
                     case EventKind.PartFailure:
                         double total = failable.Sum(p => 1 - p.ReliabilityPerYear);
                         double pick = rng.NextDouble() * total;
-                        var part = failable.Count > 0 ? failable[failable.Count - 1] : null;
+                        var part = failable[failable.Count - 1];
                         foreach (var p in failable)
                         {
                             pick -= 1 - p.ReliabilityPerYear;
                             if (pick <= 0) { part = p; break; }
                         }
-                        e.RefId = part?.Id ?? "";
+                        e.RefId = part.Id;
                         e.Severity = 2;
-                        e.Choices = new List<string> { "ack" };
-                        e.DefaultChoice = "ack";
+                        break;
+                    case EventKind.PowerAnomaly:
+                        e.Severity = 1 + rng.Next(3);
                         break;
                     default:
                         e.RefId = Opportunities[rng.Next(Opportunities.Length)];
                         e.Severity = 1 + rng.Next(2);
-                        e.Choices = new List<string> { "observe", "skip" };
-                        e.DefaultChoice = "observe";
                         break;
                 }
                 e.Roll = rng.NextDouble();
                 e.Roll2 = rng.NextDouble();
                 plan.Events.Add(e);
             }
-            plan.Events = plan.Events.OrderBy(e => e.Day).ToList();
             return plan;
         }
 
@@ -120,6 +119,8 @@ namespace GoNoGo.Core
             else if (hist != null && hist.ScriptedLauncherId == design.LauncherId && hist.ScriptedEvents.Contains("fairing_stuck"))
             { r.Outcome = LaunchOutcome.FairingFailure; r.ReasonCode = "launch.fairing"; }
             else if (plan.LaunchRoll > r.Reliability) { r.Outcome = LaunchOutcome.Failure; r.ReasonCode = "launch.anomaly"; }
+            // 電池撐不過一次地影：部署後第一次進地影就斷電（原本由 Go/No-Go 點名擋下，點名拿掉後改成發射後果）
+            else if (ev.Power.ActualDod > 1.0) { r.Outcome = LaunchOutcome.DeadOnOrbit; r.ReasonCode = "launch.dead_on_orbit"; }
             else if (r.MassMargin < 0.05 && plan.LaunchRoll2 < 0.5) { r.Outcome = LaunchOutcome.LowerOrbit; r.ReasonCode = "launch.lower_orbit"; }
             else { r.Outcome = LaunchOutcome.Nominal; r.ReasonCode = "launch.nominal"; }
             return r;
@@ -128,7 +129,7 @@ namespace GoNoGo.Core
         public static MissionResult SimulateMission(Design design, GameData data, int seed, IDecisionSource decisions, MissionContext ctx)
         {
             ctx ??= new MissionContext();
-            decisions ??= new FixedDecisions();
+            decisions ??= new NoDecisions();
             var c = data.Constants;
             var ev = Evaluator.EvaluateDesign(design, data, ctx.DifficultyId, false);
             var plan = PlanMission(design, data, seed, ctx.DifficultyId);
@@ -183,7 +184,7 @@ namespace GoNoGo.Core
                 while (queue.Count > 0 && queue.Peek().Day <= day)
                 {
                     var e = queue.Dequeue();
-                    var o = ApplyEvent(e, decisions.Decide(e), inst, health, ev, data, doseFactor,
+                    var o = ApplyEvent(e, decisions.Respond(e) ?? new EventResponse(), inst, health, ev, data, doseFactor,
                         ref safeDays, ref storageCap, ref antennaHealth, ref dose, ref cycles, cycleLimit);
                     if (o.ScienceDelta > 0) result.ScienceTotal += o.ScienceDelta;
                     result.Events.Add(o);
@@ -265,65 +266,89 @@ namespace GoNoGo.Core
             SafeMode = safe,
         };
 
-        static EventOutcome ApplyEvent(MissionEvent e, string choice, List<PartDef> inst, List<double> health, Evaluation ev,
+        static EventOutcome ApplyEvent(MissionEvent e, EventResponse resp, List<PartDef> inst, List<double> health, Evaluation ev,
             GameData data, double doseFactor, ref int safeDays, ref double storageCap, ref double antennaHealth,
             ref double dose, ref double cycles, double cycleLimit)
         {
-            var o = new EventOutcome { Event = e, Choice = choice };
+            var actions = resp.Actions ?? new List<string>();
+            var o = new EventOutcome
+            {
+                Event = e,
+                Judged = resp.Judged ?? "",
+                JudgedCorrect = resp.Judged == OpsEvents.Key(e.Kind),
+                StepsRequired = Procedures.Required(e.Kind).Count,
+                StepsDone = Procedures.Done(e.Kind, actions),
+                WrongActions = Procedures.Wrong(e.Kind, actions),
+            };
+            double f = o.StepsFraction;
+            bool Did(string a) => actions.Contains(a);
+
+            // 不必要的操作也有代價：沒事進安全模式、關掉儀器都會少觀測幾天
+            if (o.WrongActions.Contains(OpsActions.SafeMode)) { safeDays += 3; o.LostDays += 3; }
+            if (o.WrongActions.Contains(OpsActions.InstrumentsOff)) { safeDays += 1; o.LostDays += 1; }
+
             switch (e.Kind)
             {
                 case EventKind.SolarStorm:
-                    if (choice == "safe_mode")
+                    if (Did(OpsActions.SafeMode))
                     {
-                        o.LostDays = 3 + 3 * e.Severity;
-                        safeDays += o.LostDays;
-                        o.ResultCode = "event.storm.safe";
+                        int lost = 3 + 3 * e.Severity;
+                        safeDays += lost;
+                        o.LostDays += lost;
                     }
-                    else
+                    // 處置做得越完整，劑量和損壞機率越低；全部做完就完全受保護
+                    dose += 0.3 * e.Severity * doseFactor * (1 - f);
+                    double p = Math.Min(0.85, 0.2 * e.Severity * Math.Sqrt(doseFactor)) * (1 - f);
+                    if (f >= 1) o.ResultCode = "event.storm.safe";
+                    else if (e.Roll < p && inst.Count > 0)
                     {
-                        dose += 0.3 * e.Severity * doseFactor;
-                        double p = Math.Min(0.85, 0.2 * e.Severity * Math.Sqrt(doseFactor));
-                        if (e.Roll < p && inst.Count > 0)
-                        {
-                            int i = Math.Min(inst.Count - 1, (int)(e.Roll2 * inst.Count));
-                            health[i] *= 0.5;
-                            o.AffectedPartId = inst[i].Id;
-                            o.ResultCode = "event.storm.damaged";
-                        }
-                        else o.ResultCode = "event.storm.ok";
+                        int i = Math.Min(inst.Count - 1, (int)(e.Roll2 * inst.Count));
+                        health[i] *= 0.5;
+                        o.AffectedPartId = inst[i].Id;
+                        o.ResultCode = "event.storm.damaged";
                     }
+                    else o.ResultCode = "event.storm.ok";
+                    break;
+
+                case EventKind.PowerAnomaly:
+                    if (Did(OpsActions.InstrumentsOff)) { safeDays += 2; o.LostDays += 2; }
+                    if (f >= 1) { o.ResultCode = "event.power.handled"; break; }
+                    // 電池越大（餘裕越多）越撐得住
+                    double k = Math.Max(0.3, Math.Min(1.5, 1 - ev.Power.BatteryMargin));
+                    cycles += cycleLimit * 0.06 * e.Severity * (1 - f) * k;
+                    o.ResultCode = "event.power.drained";
                     break;
 
                 case EventKind.PartFailure:
                     var part = data.Part(e.RefId);
                     o.AffectedPartId = e.RefId;
-                    if (part == null) { o.ResultCode = "event.failure.redundant"; break; }
-                    if (part.Redundant) { o.ResultCode = "event.failure.redundant"; break; }
+                    if (part == null || part.Redundant) { o.ResultCode = "event.failure.redundant"; break; }
                     switch (part.Category)
                     {
                         case PartCategory.Instrument:
-                            int idx = inst.FindIndex(p => p.Id == part.Id);
-                            if (idx >= 0) health[idx] *= 0.4;
+                            int idx = inst.FindIndex(x => x.Id == part.Id);
+                            if (idx >= 0) health[idx] *= 0.4 + 0.4 * f;
                             o.ResultCode = "event.failure.instrument";
                             break;
                         case PartCategory.Computer:
-                            storageCap *= 0.5;
+                            storageCap *= 0.5 + 0.4 * f;
                             o.ResultCode = "event.failure.computer";
                             break;
                         case PartCategory.Adcs:
-                            for (int i = 0; i < health.Count; i++) health[i] *= 0.75;
+                            for (int i = 0; i < health.Count; i++) health[i] *= 0.75 + 0.2 * f;
                             o.ResultCode = "event.failure.adcs";
                             break;
                         default:
-                            antennaHealth = 0.5;
+                            antennaHealth = 0.5 + 0.4 * f;
                             o.ResultCode = "event.failure.antenna";
                             break;
                     }
+                    if (f >= 1) o.ResultCode += "_contained";
                     break;
 
                 default:
-                    if (choice == "skip") { o.ResultCode = "event.opportunity.skipped"; break; }
-                    double bonus = ev.SciencePerYear * 0.04 * e.Severity;
+                    if (f <= 0) { o.ResultCode = "event.opportunity.skipped"; break; }
+                    double bonus = ev.SciencePerYear * 0.04 * e.Severity * f;
                     if (ev.Power.ArrayMargin >= 0.05)
                     {
                         o.ScienceDelta = bonus;

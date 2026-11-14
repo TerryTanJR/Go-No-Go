@@ -83,6 +83,17 @@ namespace GoNoGo.Game
         public static void Stamp() => I.Play("stamp", 0.8f);
         public static void Tick() => I.Play("tick", 0.18f);
         public static void Whoosh() => I.Play("whoosh", 0.35f);
+        /// <summary>拿起零件。</summary>
+        public static void Pick() => I.Play("pick", 0.4f);
+        /// <summary>放下零件。</summary>
+        public static void Drop() => I.Play("drop", 0.4f);
+        /// <summary>零件裝上太空船：機械卡榫聲 + 上升的電子音。</summary>
+        public static void Install() => I.Play("install", 0.55f);
+        /// <summary>長按安裝時的充能聲（每 0.1 秒一下，音高跟著進度升高）。</summary>
+        public static void Charge(float progress) => I.Play("charge" + Mathf.Clamp(Mathf.RoundToInt(progress * 10), 0, 10), 0.12f);
+        /// <summary>電話撥號鈴聲。</summary>
+        public static void Ring() => I.Play("ring", 0.35f);
+        public static void Door() => I.Play("door", 0.3f);
 
         void Play(string id, float vol)
         {
@@ -140,8 +151,38 @@ namespace GoNoGo.Game
 
         static AudioClip Synthesize(string id)
         {
+            if (id.StartsWith("charge") && int.TryParse(id.Substring(6), out int step))
+            {
+                float f = 500f + step * 70f;
+                return Tone(id, 0.05f, t => Sine(f, t) * Env(t, 0.002f, 0.045f));
+            }
             switch (id)
             {
+                case "pick": return Tone(id, 0.12f, t => (Sine(520 + 900 * t, t) * 0.6f + Sine(1040, t) * 0.2f) * Env(t, 0.003f, 0.1f));
+                case "drop": return Tone(id, 0.16f, t => (Sine(420 - 600 * t, t) * 0.6f + Sine(90, t) * 0.5f) * Env(t, 0.003f, 0.14f));
+                case "install":
+                {
+                    var rnd = new System.Random(11);
+                    return Tone(id, 0.7f, t =>
+                    {
+                        float n = (float)(rnd.NextDouble() * 2 - 1);
+                        float clunk = (n * 0.6f + Sine(95, t)) * Env(t, 0.001f, 0.08f);
+                        float rise = t > 0.08f ? (Sine(660 * (1 + (t - 0.08f) * 1.4f), t) * 0.35f + Sine(1320 * (1 + (t - 0.08f) * 1.4f), t) * 0.15f) * Env(t - 0.08f, 0.01f, 0.55f) : 0f;
+                        return clunk + rise;
+                    });
+                }
+                case "ring": return Tone(id, 1.2f, t => (t % 0.6f < 0.4f ? (Sine(440, t) + Sine(480, t)) * 0.35f : 0f) * Env(t, 0.01f, 1.15f));
+                case "door":
+                {
+                    var rnd = new System.Random(5);
+                    float lp = 0;
+                    return Tone(id, 0.5f, t =>
+                    {
+                        float n = (float)(rnd.NextDouble() * 2 - 1);
+                        lp += (n - lp) * 0.05f;
+                        return lp * 1.6f * Env(t, 0.05f, 0.45f) + Sine(60, t) * 0.2f * Env(t, 0.02f, 0.4f);
+                    });
+                }
                 case "click": return Tone(id, 0.045f, t => Sine(2400, t) * Env(t, 0.002f, 0.04f) * 0.6f + Sine(1200, t) * Env(t, 0.001f, 0.02f) * 0.4f);
                 case "hover": return Tone(id, 0.03f, t => Sine(1800, t) * Env(t, 0.003f, 0.025f));
                 case "tick": return Tone(id, 0.02f, t => Sine(3200, t) * Env(t, 0.001f, 0.015f));

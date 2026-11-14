@@ -17,6 +17,7 @@ namespace GoNoGo.Core
         public List<DifficultyDef> Difficulties { get; set; } = new List<DifficultyDef>();
         public List<SpaceWeatherEvent> SpaceWeather { get; set; } = new List<SpaceWeatherEvent>();
         public List<MissionCard> Missions { get; set; } = new List<MissionCard>();
+        public List<DepartmentDef> Departments { get; set; } = new List<DepartmentDef>();
         public Dictionary<string, LocalizedText> Strings { get; set; } = new Dictionary<string, LocalizedText>();
 
         Dictionary<string, PartDef> _parts;
@@ -39,6 +40,13 @@ namespace GoNoGo.Core
         public LauncherDef Launcher(string id) => id != null && _launchers.TryGetValue(id, out var l) ? l : null;
         public ScenarioDef Scenario(string id) => id != null && _scenarios.TryGetValue(id, out var s) ? s : null;
         public DifficultyDef Difficulty(string id) => id != null && _difficulties.TryGetValue(id, out var d) ? d : null;
+        public DepartmentDef Department(string id) => Departments.Find(x => x.Id == id);
+
+        /// <summary>選單上可以選的難度（不含新手訓練專用的）。</summary>
+        public IEnumerable<DifficultyDef> SelectableDifficulties => Difficulties.Where(d => !d.Hidden);
+
+        /// <summary>零件編號 → 零件。</summary>
+        public PartDef PartByCode(string code) => Parts.Find(p => p.Code == code);
 
         public IEnumerable<PartDef> PartsIn(string category) =>
             Parts.Where(p => p.Category == category).OrderBy(p => p.Tier).ThenBy(p => p.Id, StringComparer.Ordinal);
@@ -71,7 +79,7 @@ namespace GoNoGo.Core
         /// <summary>資料檔名（不含副檔名）。</summary>
         public static readonly string[] FileNames =
         {
-            "constants", "parts", "orbits", "launchers", "scenarios", "difficulty", "donki_events", "missions", "strings"
+            "constants", "parts", "orbits", "launchers", "scenarios", "difficulty", "donki_events", "missions", "departments", "strings"
         };
 
         /// <summary>
@@ -98,6 +106,7 @@ namespace GoNoGo.Core
                 Difficulties = Read<List<DifficultyDef>>("difficulty"),
                 SpaceWeather = Read<List<SpaceWeatherEvent>>("donki_events"),
                 Missions = Read<List<MissionCard>>("missions"),
+                Departments = Read<List<DepartmentDef>>("departments"),
                 Strings = Read<Dictionary<string, LocalizedText>>("strings"),
             };
             d.BuildIndex();
@@ -120,6 +129,11 @@ namespace GoNoGo.Core
                 Check(p.CostMusd >= 0 && p.MassKg >= 0 && p.PowerW >= 0, $"{w}：數值不可為負");
                 Check(p.ReliabilityPerYear > 0 && p.ReliabilityPerYear <= 1, $"{w}：可靠度必須在 (0,1]");
                 Check(!string.IsNullOrEmpty(p.Source?.Title), $"{w}：缺來源");
+                if (p.Category != PartCategory.GroundStation)
+                {
+                    Check(!string.IsNullOrEmpty(p.Code), $"{w}：缺零件編號");
+                    Check(!string.IsNullOrEmpty(p.Function?.En) && !string.IsNullOrEmpty(p.Function?.ZhTW), $"{w}：缺白話功能");
+                }
                 switch (p.Category)
                 {
                     case PartCategory.Instrument:
@@ -135,6 +149,9 @@ namespace GoNoGo.Core
                     case PartCategory.Shielding: Check(p.DoseFactor > 0 && p.DoseFactor <= 1, $"{w}：劑量倍率必須在 (0,1]"); break;
                 }
             }
+
+            foreach (var g in d.Parts.Where(p => !string.IsNullOrEmpty(p.Code)).GroupBy(p => p.Code).Where(g => g.Count() > 1))
+                errors.Add($"零件編號重複：{g.Key}");
 
             foreach (var o in d.Orbits)
             {
@@ -168,9 +185,33 @@ namespace GoNoGo.Core
                     Check(s.Historical.Sources.Count > 0, $"{w}：歷史關卡缺來源");
                 }
                 foreach (var m in s.ComparisonMissions) Check(d.Missions.Any(x => x.Id == m), $"{w}：未知對照任務 {m}");
+                foreach (var kv in s.Requirements)
+                {
+                    Check(Departments.Parse(kv.Key) != null, $"{w}：未知處室 {kv.Key}");
+                    foreach (var r in kv.Value) Check(!string.IsNullOrEmpty(r.Id), $"{w}：{kv.Key} 的需求缺 id");
+                }
+                foreach (var g in s.Requirements.Values.SelectMany(x => x).GroupBy(r => r.Id).Where(g => g.Count() > 1))
+                    errors.Add($"{w}：需求 id 重複 {g.Key}");
             }
 
             Check(d.Difficulties.Count > 0, "缺難度設定");
+            foreach (var df in d.Difficulties)
+            {
+                Check(df.Turns >= 1, $"難度 {df.Id}：回合數至少 1");
+                Check(df.EventTypes.Count > 0, $"難度 {df.Id}：缺事件種類");
+                foreach (var k in df.EventTypes) Check(OpsEvents.Parse(k) != null, $"難度 {df.Id}：未知事件 {k}");
+                Check(new[] { "checklist", "transcript", "none" }.Contains(df.NotesMode), $"難度 {df.Id}：未知筆記板模式 {df.NotesMode}");
+                Check(new[] { "advice", "chain", "category" }.Contains(df.FailureDetail), $"難度 {df.Id}：未知失敗說明 {df.FailureDetail}");
+            }
+            foreach (var key in Departments.All.Select(Departments.Key))
+            {
+                var dep = d.Department(key);
+                Check(dep != null, $"departments.json 缺處室 {key}");
+                if (dep == null) continue;
+                Check(dep.Lines.Count > 0, $"處室 {key}：沒有對話");
+                foreach (var l in dep.Lines)
+                    Check(l.Question.En.Length * l.Question.ZhTW.Length * l.Answer.En.Length * l.Answer.ZhTW.Length > 0, $"處室 {key} 對話 {l.Id}：缺中英文");
+            }
             Check(d.SpaceWeather.Count > 0, "缺太空天氣事件");
             Check(d.Constants.BatteryCycleLife.Count >= 2, "電池循環壽命表至少要兩個點");
             return errors;

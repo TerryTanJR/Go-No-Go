@@ -50,40 +50,52 @@ namespace GoNoGo.Presentation
             new Vector2(-33.15f, -70.67f),  // 聖地牙哥（智利）
         };
 
+        bool _setup;
+
         void Start()
         {
-            GameSession.EnsureScenario();
-            var s = GameSession.State;
-            var orbit = s.Data.Orbit(s.Design.OrbitId);
+            OpsClock.EventTriggered += OnEvent;
+            if (_setup) return;
+            // 單獨的營運場景（或沒有人呼叫 Setup）：用目前這一局最後一次發射的設計
+            GameSession.EnsureMission();
+            var m = GameSession.Mission;
+            var l = m.S.LastLaunch;
+            Setup(l?.Design ?? m.S.Bench, m.Data, l != null && l.Outcome == LaunchOutcome.LowerOrbit);
+        }
+
+        /// <summary>依設計重建行星、軌道、地面站和太空船（中控室主螢幕在發射後呼叫）。</summary>
+        public void Setup(Design design, GameData data, bool lowerOrbit)
+        {
+            _setup = true;
+            foreach (var st in _stations) if (st != null) Destroy(st.gameObject);
+            _stations.Clear();
+            if (_sat != null) Destroy(_sat);
+
+            var orbit = data.Orbit(design.OrbitId);
             bool moon = orbit != null && orbit.Body == "moon";
             if (planetRenderer != null) planetRenderer.sharedMaterial = moon ? moonMaterial : earthMaterial;
             if (atmosphere != null) atmosphere.SetActive(!moon);
 
-            float bodyR = moon ? (float)s.Data.Constants.MoonRadiusKm : (float)s.Data.Constants.EarthRadiusKm;
+            float bodyR = moon ? (float)data.Constants.MoonRadiusKm : (float)data.Constants.EarthRadiusKm;
             double alt = orbit?.AltitudeKm ?? 700;
             // 低軌道的高度在畫面上太小，看起來像貼著地面：放大 2.5 倍（只影響視覺）
             bool geo = alt > 20000;
             _radius = geo ? 1f + (float)alt / bodyR : 1f + Mathf.Max(0.06f, (float)alt / bodyR * 2.5f);
-            if (s.Result != null && s.Result.Launch.Outcome == LaunchOutcome.LowerOrbit) _radius = 1f + (_radius - 1f) * 0.7f;
+            if (lowerOrbit) _radius = 1f + (_radius - 1f) * 0.7f;
             float incl = orbit != null && orbit.Id.StartsWith("sso") ? 98f : orbit != null && orbit.Id == "geo" ? 0f : orbit != null && orbit.Body == "moon" ? 90f : 51.6f;
             _orbitNormal = Quaternion.Euler(0, 0, incl) * Vector3.up;
 
-            if (geo)
-            {
-                secondsPerOrbit = 40f;
-                satelliteScale *= 3.5f;
-                if (cameraPivot != null) cameraPivot.localScale = Vector3.one * 4.2f;
-            }
+            secondsPerOrbit = geo ? 40f : 14f;
+            float scale = satelliteScale * (geo ? 3.5f : 1f);
+            if (cameraPivot != null) cameraPivot.localScale = Vector3.one * (geo ? 4.2f : 1f);
 
             BuildOrbitLine();
-            BuildStations(moon ? 0 : StationCount(s.Design.Get(PartCategory.GroundStation)), moon);
+            BuildStations(moon ? 0 : StationCount(design.Get(PartCategory.GroundStation)), moon);
 
-            _sat = SatelliteBuilder.Build(s.Design, s.Data, s.Evaluation, satelliteAnchor);
-            _sat.transform.localScale = Vector3.one * satelliteScale;
+            _sat = SatelliteBuilder.Build(design, data, Evaluator.EvaluateDesign(design, data), satelliteAnchor);
+            _sat.transform.localScale = Vector3.one * scale;
             _satRenderers = _sat.GetComponentsInChildren<Renderer>();
             _mpb = new MaterialPropertyBlock();
-
-            OpsClock.EventTriggered += OnEvent;
         }
 
         void OnDestroy() => OpsClock.EventTriggered -= OnEvent;

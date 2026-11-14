@@ -2,7 +2,10 @@ using System.Collections.Generic;
 
 namespace GoNoGo.Core
 {
-    public enum LaunchOutcome { Nominal, LowerOrbit, Failure, FairingFailure, NotLaunched }
+    /// <summary>
+    /// DeadOnOrbit：入軌、部署都正常，但電池撐不過第一次地影就斷電失聯（算失敗）。
+    /// </summary>
+    public enum LaunchOutcome { Nominal, LowerOrbit, Failure, FairingFailure, NotLaunched, DeadOnOrbit }
 
     public sealed class LaunchResult
     {
@@ -13,23 +16,25 @@ namespace GoNoGo.Core
         public double Reliability { get; set; }
         public double Roll { get; set; }
         public bool Success => Outcome == LaunchOutcome.Nominal || Outcome == LaunchOutcome.LowerOrbit;
+        /// <summary>太空船有被送進軌道並部署（發射演出要播到展開太陽能板）。</summary>
+        public bool Deployed => Success || Outcome == LaunchOutcome.DeadOnOrbit;
     }
 
-    public enum EventKind { SolarStorm, PartFailure, ScienceOpportunity }
+    public enum EventKind { SolarStorm, PartFailure, ScienceOpportunity, PowerAnomaly }
 
-    /// <summary>營運期間的事件。亂數在規劃時就擲好，所以玩家的選擇不會改變後面的亂數。</summary>
+    /// <summary>營運期間的事件（每回合一個）。亂數在規劃時就擲好，所以玩家的處置不會改變後面的事件。</summary>
     public sealed class MissionEvent
     {
         public string Id { get; set; } = "";
         public EventKind Kind { get; set; }
+        /// <summary>第幾回合（0 起算）。</summary>
+        public int Turn { get; set; }
         public int Day { get; set; }
-        /// <summary>太陽風暴：DONKI 事件 id；零件故障：零件 id；科學機會：機會種類。</summary>
+        /// <summary>太陽風暴：DONKI 事件 id；零件故障：零件 id；科學機會：機會種類；電量異常：空白。</summary>
         public string RefId { get; set; } = "";
         public int Severity { get; set; } = 1;
         public double Roll { get; set; }
         public double Roll2 { get; set; }
-        public List<string> Choices { get; set; } = new List<string>();
-        public string DefaultChoice { get; set; } = "";
     }
 
     public sealed class MissionPlan
@@ -37,21 +42,50 @@ namespace GoNoGo.Core
         public int Seed { get; set; }
         public double LaunchRoll { get; set; }
         public double LaunchRoll2 { get; set; }
+        public int Turns { get; set; }
+        /// <summary>每回合開始的任務天數（長度 = Turns + 1，最後一個是任務結束）。</summary>
+        public List<int> TurnStartDays { get; set; } = new List<int>();
         public List<MissionEvent> Events { get; set; } = new List<MissionEvent>();
+    }
+
+    /// <summary>玩家對一個事件的回應：判斷成哪一種事件、在控制台做了哪些操作。</summary>
+    public sealed class EventResponse
+    {
+        /// <summary>判讀結果（事件 key，例如 solar_storm），空白 = 沒判斷。</summary>
+        public string Judged { get; set; } = "";
+        /// <summary>做過的操作（OpsActions 的 id），依時間順序。</summary>
+        public List<string> Actions { get; set; } = new List<string>();
+
+        public EventResponse Clone() => new EventResponse { Judged = Judged, Actions = new List<string>(Actions) };
     }
 
     public interface IDecisionSource
     {
-        string Decide(MissionEvent e);
+        EventResponse Respond(MissionEvent e);
     }
 
-    /// <summary>用事先記錄的選擇；沒記錄的事件用預設選項。</summary>
+    /// <summary>用事先記錄的回應；沒記錄的事件視為沒處理。</summary>
     public sealed class FixedDecisions : IDecisionSource
     {
-        readonly IDictionary<string, string> _map;
-        public FixedDecisions(IDictionary<string, string> map = null) { _map = map ?? new Dictionary<string, string>(); }
-        public string Decide(MissionEvent e) =>
-            _map.TryGetValue(e.Id, out var c) && e.Choices.Contains(c) ? c : e.DefaultChoice;
+        readonly IDictionary<string, EventResponse> _map;
+        public FixedDecisions(IDictionary<string, EventResponse> map = null) { _map = map ?? new Dictionary<string, EventResponse>(); }
+        public EventResponse Respond(MissionEvent e) => _map.TryGetValue(e.Id, out var r) && r != null ? r : new EventResponse();
+    }
+
+    /// <summary>每個事件都判斷正確、照處置手冊做完（平衡測試與「略過到結尾」的參考線）。</summary>
+    public sealed class PerfectDecisions : IDecisionSource
+    {
+        public EventResponse Respond(MissionEvent e) => new EventResponse
+        {
+            Judged = OpsEvents.Key(e.Kind),
+            Actions = new List<string>(Procedures.Required(e.Kind)),
+        };
+    }
+
+    /// <summary>完全不處理任何事件。</summary>
+    public sealed class NoDecisions : IDecisionSource
+    {
+        public EventResponse Respond(MissionEvent e) => new EventResponse();
     }
 
     public sealed class Sample
@@ -70,7 +104,14 @@ namespace GoNoGo.Core
     public sealed class EventOutcome
     {
         public MissionEvent Event { get; set; }
-        public string Choice { get; set; } = "";
+        public string Judged { get; set; } = "";
+        public bool JudgedCorrect { get; set; }
+        /// <summary>處置手冊要求的操作數、做到的數量。</summary>
+        public int StepsRequired { get; set; }
+        public int StepsDone { get; set; }
+        /// <summary>做了但這個事件不需要的操作。</summary>
+        public List<string> WrongActions { get; set; } = new List<string>();
+        public double StepsFraction => StepsRequired > 0 ? (double)StepsDone / StepsRequired : 1;
         /// <summary>多語鍵，例如 event.storm.safe。</summary>
         public string ResultCode { get; set; } = "";
         public string AffectedPartId { get; set; } = "";

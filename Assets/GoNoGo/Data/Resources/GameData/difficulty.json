@@ -1,35 +1,113 @@
 [
   {
     "id": "engineer",
-    "name": { "en": "Engineer", "zh-TW": "工程師" },
+    "name": {
+      "en": "Engineer",
+      "zh-TW": "工程師"
+    },
+    "description": {
+      "en": "The dashboard shows only numbers. Calls are written down word for word. You diagnose events yourself, 3 minutes a turn.",
+      "zh-TW": "儀表板只有數字，電話內容逐字記下。營運事件要自己判讀，每回合 3 分鐘。"
+    },
     "budget_multiplier": 1.0,
     "required_margin": 0.15,
-    "events_min": 3,
-    "events_max": 4,
-    "hint_level": "fixes",
-    "visible_resources": ["mass", "power", "budget", "data", "comms", "time"],
-    "tiers_per_category": 3
+    "tiers_per_category": 3,
+    "dashboard_colors": false,
+    "notes_mode": "transcript",
+    "requirement_conflicts": 1,
+    "failure_detail": "chain",
+    "free_first_failure": false,
+    "event_reveal": false,
+    "turns": 6,
+    "event_types": [
+      "solar_storm",
+      "part_failure",
+      "science_opportunity"
+    ],
+    "turn_seconds": 180,
+    "guaranteed_launch": false
   },
   {
     "id": "cadet",
-    "name": { "en": "Cadet", "zh-TW": "學員" },
+    "name": {
+      "en": "Cadet",
+      "zh-TW": "學員"
+    },
+    "description": {
+      "en": "Bigger budget, fewer parts, a coloured dashboard and a launch checklist. Events are named for you; the first failed launch is free.",
+      "zh-TW": "預算多一半、零件少一些，儀表板有紅黃綠，電話內容自動整理成發射條件清單。營運事件直接告訴你名稱，第一次發射失敗不扣分。"
+    },
     "budget_multiplier": 1.5,
     "required_margin": 0.0,
-    "events_min": 1,
-    "events_max": 2,
-    "hint_level": "fixes",
-    "visible_resources": ["mass", "power", "data", "comms"],
-    "tiers_per_category": 2
+    "tiers_per_category": 2,
+    "dashboard_colors": true,
+    "notes_mode": "checklist",
+    "requirement_conflicts": 0,
+    "failure_detail": "advice",
+    "free_first_failure": true,
+    "event_reveal": true,
+    "turns": 6,
+    "event_types": [
+      "solar_storm",
+      "science_opportunity"
+    ],
+    "turn_seconds": 0,
+    "guaranteed_launch": false
   },
   {
     "id": "director",
-    "name": { "en": "Mission Director", "zh-TW": "任務主管" },
+    "name": {
+      "en": "Mission Director",
+      "zh-TW": "任務主管"
+    },
+    "description": {
+      "en": "Tight budget and conflicting demands. Nothing is written down for you, failures are only named, and events look alike. 90 seconds a turn.",
+      "zh-TW": "預算更緊、處室需求互相衝突。電話內容不會自動記錄，失敗只說大類，事件症狀相似，每回合 90 秒。"
+    },
     "budget_multiplier": 0.8,
     "required_margin": 0.25,
-    "events_min": 4,
-    "events_max": 5,
-    "hint_level": "lights",
-    "visible_resources": ["mass", "power", "budget", "data", "comms", "time"],
-    "tiers_per_category": 3
+    "tiers_per_category": 3,
+    "dashboard_colors": false,
+    "notes_mode": "none",
+    "requirement_conflicts": 2,
+    "failure_detail": "category",
+    "free_first_failure": false,
+    "event_reveal": false,
+    "turns": 6,
+    "event_types": [
+      "solar_storm",
+      "part_failure",
+      "science_opportunity",
+      "power_anomaly"
+    ],
+    "turn_seconds": 90,
+    "guaranteed_launch": false
+  },
+  {
+    "id": "tutorial",
+    "name": {
+      "en": "Training",
+      "zh-TW": "新手訓練"
+    },
+    "description": {
+      "en": "Guided training mission.",
+      "zh-TW": "引導式訓練任務。"
+    },
+    "hidden": true,
+    "budget_multiplier": 1.5,
+    "required_margin": 0.0,
+    "tiers_per_category": 2,
+    "dashboard_colors": true,
+    "notes_mode": "checklist",
+    "requirement_conflicts": 0,
+    "failure_detail": "advice",
+    "free_first_failure": true,
+    "event_reveal": true,
+    "turns": 1,
+    "event_types": [
+      "power_anomaly"
+    ],
+    "turn_seconds": 0,
+    "guaranteed_launch": true
   }
 ]

@@ -443,3 +443,37 @@
       - 藍圖改正四個地方：修訂表、發射特效、美術資源、可用工具。另外在專案結構註明「Experiments/ 正式發射也在用」，附錄 C 補上煙霧材質。
       - 本檔第 85 條的修正表也補上 Blender 這一列。
     - 教訓：判斷「有沒有用到」要查引用（材質、GUID 被誰載入），不能看資料夾名稱。之後可以考慮把序列圖搬出 `Experiments/`。
+
+## 3D 版（單人迴圈：設施、avatar、主選單）
+
+87. **場景裡的名牌大多沒出現：`WorldLabel`、`WorldScreen` 寫在 `Hud.cs` 裡，存進場景後變成 Missing Script**
+    - 原因：Unity 只能序列化「類別名稱和檔名相同」的 MonoBehaviour。執行時 `AddComponent<WorldLabel>()`（零件編號）正常，但 SceneBuilder 存進場景的名牌、看板一載入就是 Missing Script。`ConsoleTarget` 寫在 `Interactable.cs` 裡也一樣。
+    - 解法：拆成 `Game/WorldLabel.cs`、`Game/WorldScreen.cs`、`Presentation/Facility/ConsoleTarget.cs`。用小腳本掃過所有 `.cs`：繼承 MonoBehaviour／Interactable／ScriptableObject 的類別名稱都要等於檔名。
+    - 怎麼發現的：Play 時 `GameObject.Find("Label_ui.fac.stand")` 找得到，但 `GetComponents` 回來是 `MISSING`。
+
+88. **avatar 的頭盔整個蓋住面罩、耳朵、鰭，從正面看像後腦勺**
+    - 原因：Unity 6.6 的 `Resources.GetBuiltinResource<Mesh>("Sphere.fbx")` 回傳直徑 2 的網格（膠囊 2×4、圓柱 2×2），不是 `CreatePrimitive` 用的直徑 1。程式照直徑 1 設縮放，球形零件全部大一倍。
+    - 解法：`AvatarBuilder.Builtin` 改用 `GameObject.CreatePrimitive(...)` 取網格再刪掉物件。面罩往前移到頭盔前緣外。
+    - 沒改的：`SatelliteBuilder`、`RocketBuilder` 也用 `GetBuiltinResource`，但它們的尺寸是 v1 照畫面調過的，維持原樣。
+
+89. **零件架看起來是空的**
+    - 原因：
+      - 很多零件是薄板（電池、電腦、太陽能板），從整顆衛星拆出來時是貼在本體側面的方向，放到架上剛好側面朝外，只看到 1 公分厚的邊。
+      - 架子是黑色、零件也偏暗，十幾公尺外完全看不出來。
+    - 解法：`PartItem.Create` 偵測最薄的軸，把大面轉向玩家、往後仰 15°；架子改淺色、每層加發光邊條、每座架子一盞聚光燈；零件尺寸 0.42 → 0.5 m。
+
+90. **整合台上的衛星很小，而且懸在台座上方**
+    - 原因：`SatelliteRig` 只有「太大才縮小」（maxSize），預設設計只有 0.9 m；模型以中心對齊，中心放在 1.6 m 高。
+    - 解法：`SatelliteRig` 加 `fixedScale`（整合台用 2 倍）和 `bottomAnchor`（底部貼台面）。
+
+91. **設施裡太暗，天花板是黑的**
+    - 原因：環境光用三色漸層，朝下的面吃 ground 色（0.1），天花板內面全黑；太陽被當成室內主光但只照到地板。
+    - 解法：環境光調亮（ground 0.32）、太陽 1.3、後處理曝光 +0.35；拿掉一盞補光避免 URP 每個物件的燈數上限。
+
+92. **`.git/index.lock` 殘留，`git rm` 失敗**
+    - 原因：之前某個 git 指令中斷（0 位元組、沒有 git 行程在跑）。
+    - 解法：確認沒有 git 行程後刪掉 lock 再執行。
+
+93. **在 Bash 用 heredoc 把一大段 USS 接到 `Theme.uss` 失敗：`unexpected EOF while looking for matching '''`**
+    - 原因：同一個指令前面的 `grep` 參數有未成對的引號，整段被當成一個字串。
+    - 解法：大段文字先用 Write 寫到暫存檔，再 `cat 暫存檔 >> Theme.uss`。

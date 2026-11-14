@@ -78,11 +78,25 @@ namespace GoNoGo.Core.Tests
             "sso_700", "falcon9");
     }
 
-    /// <summary>每個事件都優先選指定的選項（沒有就用預設）。</summary>
-    public sealed class AlwaysChoose : IDecisionSource
+    /// <summary>照指定函式回應每個事件。</summary>
+    public sealed class Scripted : IDecisionSource
     {
-        readonly string[] _prefer;
-        public AlwaysChoose(params string[] prefer) { _prefer = prefer; }
-        public string Decide(MissionEvent e) => _prefer.FirstOrDefault(e.Choices.Contains) ?? e.DefaultChoice;
+        readonly System.Func<MissionEvent, EventResponse> _f;
+        public Scripted(System.Func<MissionEvent, EventResponse> f) { _f = f; }
+        public EventResponse Respond(MissionEvent e) => _f(e);
+
+        /// <summary>判斷正確，但只做處置手冊的前幾步。</summary>
+        public static Scripted Partial(int steps) => new Scripted(e => new EventResponse
+        {
+            Judged = OpsEvents.Key(e.Kind),
+            Actions = Procedures.Required(e.Kind).Take(steps).ToList(),
+        });
+
+        /// <summary>每個事件都判斷成同一種，並照那一種的手冊操作。</summary>
+        public static Scripted AlwaysTreatAs(EventKind k) => new Scripted(e => new EventResponse
+        {
+            Judged = OpsEvents.Key(k),
+            Actions = Procedures.Required(k).ToList(),
+        });
     }
 }

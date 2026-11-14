@@ -15,7 +15,7 @@ namespace GoNoGo.Core.Tests
         [SetUp]
         public void SetUp() => _data = TestData.Load();
 
-        /// <summary>照單人模式真實流程跑：抽部門要求、系統點名、模擬。</summary>
+        /// <summary>照真實流程跑：這個難度的處室需求、第一次就發射、營運事件照手冊處置。</summary>
         List<MissionResult> Runs(Design d, int n = 30)
         {
             var list = new List<MissionResult>();
@@ -23,15 +23,13 @@ namespace GoNoGo.Core.Tests
             var diff = _data.Difficulty("engineer");
             for (int seed = 1; seed <= n; seed++)
             {
-                var reqs = Roles.DrawRequirements(scenario, seed);
-                var ev = Evaluator.EvaluateDesign(d, _data, "engineer", false);
                 var ctx = new MissionContext
                 {
                     DifficultyId = "engineer",
-                    Requirements = reqs,
-                    FirstCallAllGo = RollCall.AllGo(RollCall.Run(ev, d, _data, diff, reqs)),
+                    Requirements = Departments.Active(scenario, diff),
+                    FailedLaunchesBefore = 0,
                 };
-                list.Add(Simulator.SimulateMission(d, _data, seed, null, ctx));
+                list.Add(Simulator.SimulateMission(d, _data, seed, new PerfectDecisions(), ctx));
             }
             return list;
         }
@@ -53,8 +51,7 @@ namespace GoNoGo.Core.Tests
             var ev = Evaluator.EvaluateDesign(d, _data);
             Assert.That(ev.AnyOver, Is.False, string.Join(", ", ev.Warnings.Select(w => w.Code)));
             Assert.That(ev.Lifetime.Years, Is.GreaterThanOrEqualTo(d.MissionYears));
-            var votes = RollCall.Run(ev, d, _data, _data.Difficulty("engineer"), new Dictionary<Role, RequirementDef>());
-            Assert.That(RollCall.AllGo(votes), string.Join(", ", votes.Where(v => v.Vote == Vote.NoGo).Select(v => v.ReasonCode)));
+            Assert.That(ev.Power.ActualDod, Is.LessThanOrEqualTo(1.0), "電池要撐得過地影");
 
             var runs = Runs(d);
             var reached = runs.Where(r => r.ReachedOrbit).ToList();
@@ -113,7 +110,7 @@ namespace GoNoGo.Core.Tests
             var original = s.Historical.PresetDesign;
             foreach (var seed in Enumerable.Range(1, 10))
             {
-                var r = Simulator.SimulateMission(original, _data, seed, null);
+                var r = Simulator.SimulateMission(original, _data, seed, null, new MissionContext { DifficultyId = "engineer" });
                 Assert.That(r.Launch.Outcome, Is.EqualTo(LaunchOutcome.FairingFailure), "重演歷史：整流罩每次都卡住");
                 Assert.That(r.Causes[0].Code, Is.EqualTo("fairing"));
                 Assert.That(r.SuggestionCode, Is.EqualTo("suggest.history_launcher"));

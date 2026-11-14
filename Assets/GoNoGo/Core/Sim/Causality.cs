@@ -64,6 +64,13 @@ namespace GoNoGo.Core
                         new CauseStep("cause.fairing", ("launcher", L)),
                         new CauseStep("cause.fairing_mass"), lost));
                     break;
+                case LaunchOutcome.DeadOnOrbit:
+                    chains.Add(Chain("dead_on_orbit", 100,
+                        new CauseStep("cause.battery_capacity", ("wh", N(ev.Power.BatteryWh)), ("part", Part(d.Get(PartCategory.Battery)))),
+                        new CauseStep("cause.eclipse_need", ("min", N(ev.Orbit.EclipseMin)),
+                            ("need", N(ev.Power.EclipseEnergyWh / Math.Max(1e-6, data.Constants.BatteryEfficiency)))),
+                        new CauseStep("cause.dead_on_orbit"), lost));
+                    break;
                 case LaunchOutcome.LowerOrbit:
                     chains.Add(Chain("lower_orbit", 25,
                         new CauseStep("cause.mass_margin", ("margin", Pct(r.Launch.MassMargin)), ("launcher", L)),
@@ -138,7 +145,14 @@ namespace GoNoGo.Core
                         new CauseStep("cause.kept_running"),
                         new CauseStep("cause.instrument_damaged", ("part", Part(o.AffectedPartId)))));
                 }
-                else if (o.ResultCode.StartsWith("event.failure.") && o.ResultCode != "event.failure.redundant")
+                else if (o.ResultCode == "event.power.drained")
+                {
+                    chains.Add(Chain("power_anomaly", 10,
+                        new CauseStep("cause.power_anomaly"),
+                        new CauseStep("cause.not_handled", ("done", o.StepsDone.ToString(CultureInfo.InvariantCulture)), ("total", o.StepsRequired.ToString(CultureInfo.InvariantCulture))),
+                        new CauseStep("cause.battery_worn", ("part", Part(d.Get(PartCategory.Battery))))));
+                }
+                else if (o.ResultCode.StartsWith("event.failure.") && o.ResultCode != "event.failure.redundant" && !o.ResultCode.EndsWith("_contained"))
                 {
                     chains.Add(Chain("part_failure", 12,
                         new CauseStep("cause.part_failed", ("part", Part(o.AffectedPartId))),
@@ -181,6 +195,8 @@ namespace GoNoGo.Core
                     case "launch_overweight": return "suggest.mass";
                     case "launch_anomaly": return "suggest.launcher";
                     case "fairing": return "suggest.history_launcher";
+                    case "dead_on_orbit": return "suggest.battery_eclipse";
+                    case "power_anomaly": return "suggest.power_procedure";
                     case "lower_orbit": return "suggest.mass_margin";
                     case "data_loss": return "suggest.downlink";
                     case "storage_full": return "suggest.storage";
@@ -188,7 +204,7 @@ namespace GoNoGo.Core
                     case "lifetime_propellant": return "suggest.propellant";
                     case "lifetime_battery": return "suggest.battery";
                     case "lifetime_radiation": return "suggest.shielding";
-                    case "storm_damage": return "suggest.safe_mode";
+                    case "storm_damage": return "suggest.storm_procedure";
                     case "part_failure": return "suggest.redundancy";
                     case "storm_safe": return "suggest.shielding";
                 }

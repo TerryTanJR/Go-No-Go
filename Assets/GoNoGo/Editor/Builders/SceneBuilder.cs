@@ -12,11 +12,11 @@ using UnityEngine.Rendering;
 namespace GoNoGo.EditorTools
 {
     /// <summary>
-    /// 用程式從零建出六個遊戲場景（可重複執行，每次整個重建）：
-    /// Boot（標題）、DesignRoom（無塵室）、MissionControl（控制中心）、Launch（發射）、Operations（在軌營運）、Report（任務報告）。
+    /// 用程式從零建出五個遊戲場景（可重複執行，每次整個重建）：
+    /// Boot（標題）、MainMenu（主選單）、Facility（大廳＋組裝區＋中控室，見 FacilityBuilder.cs）、Launch（發射）、Report（任務報告）。
     /// 介面由 UIRoot 依場景名稱自動掛上，場景裡只放 3D。
     /// </summary>
-    public static class SceneBuilder
+    public static partial class SceneBuilder
     {
         const string MeshDir = "Assets/GoNoGo/Art/Meshes";
         const string ModelDir = "Assets/GoNoGo/Art/Models/NASA/";
@@ -29,10 +29,9 @@ namespace GoNoGo.EditorTools
             var paths = new List<string>
             {
                 Boot(art, sphere),
-                DesignRoom(art),
-                MissionControl(art),
+                MainMenu(art, sphere),
+                Facility(art, sphere),
                 Launch(art, sphere),
-                Operations(art, sphere),
                 Report(art, sphere),
             };
             EditorBuildSettings.scenes = paths.Select(p => new EditorBuildSettingsScene(p, true)).ToArray();
@@ -365,176 +364,6 @@ namespace GoNoGo.EditorTools
             post.bloom = 1.1f; post.bloomThreshold = 0.9f; post.vignette = 0.34f; post.contrast = 14f;
             BuildUtil.PostVolume("Boot", post);
             return Save(scene, SceneFlow.Boot);
-        }
-
-        // ================= DesignRoom：無塵室 =================
-
-        static string DesignRoom(ArtBuilder.Art art)
-        {
-            var scene = NewScene();
-            Env(null, new Color(0.34f, 0.37f, 0.42f), new Color(0.24f, 0.26f, 0.3f), new Color(0.1f, 0.1f, 0.11f));
-            var sun = Sun(new Vector3(-0.45f, -0.8f, 0.4f), new Color(1f, 0.97f, 0.92f), 1.25f);
-            sun.shadowStrength = 0.7f;
-
-            var room = BuildUtil.Group("CleanRoom");
-            const float W = 20f, H = 9f;
-            Box("Floor", room, new Vector3(0, -0.1f, 0), new Vector3(W * 2, 0.2f, W * 2), art.floor);
-            Box("Ceiling", room, new Vector3(0, H + 0.1f, 0), new Vector3(W * 2, 0.2f, W * 2), art.wallDark, shadows: false);
-            for (int side = 0; side < 4; side++)
-            {
-                var rot = Quaternion.Euler(0, side * 90f, 0);
-                var wall = BuildUtil.Group("Wall" + side, room);
-                wall.localRotation = rot;
-                Box("Panel", wall, new Vector3(0, H / 2, W), new Vector3(W * 2, H, 0.3f), art.wallPanel, shadows: false);
-                Box("Skirting", wall, new Vector3(0, 0.6f, W - 0.2f), new Vector3(W * 2, 1.2f, 0.12f), art.wallDark, shadows: false);
-                Box("GlowStrip", wall, new Vector3(0, 1.26f, W - 0.24f), new Vector3(W * 2, 0.05f, 0.04f), art.accentGlow, shadows: false);
-                Box("UpperBand", wall, new Vector3(0, H - 0.8f, W - 0.2f), new Vector3(W * 2, 1.6f, 0.12f), art.trim, shadows: false);
-                for (int i = -4; i <= 4; i++)
-                    Box("Rib" + i, wall, new Vector3(i * 4.4f, H / 2, W - 0.25f), new Vector3(0.22f, H, 0.2f), art.trim, shadows: false);
-            }
-
-            // 牆上螢幕：一面是地球、兩側是遙測畫面
-            Quad("EarthScreen", room, new Vector3(0, 4.6f, W - 0.4f), Quaternion.identity, new Vector2(11f, 5.5f), art.screenEarth);
-            Box("EarthScreenFrame", room, new Vector3(0, 4.6f, W - 0.33f), new Vector3(11.4f, 5.9f, 0.05f), art.wallDark, shadows: false);
-            for (int i = 0; i < 4; i++)
-            {
-                var rot = Quaternion.Euler(0, 90f * (i < 2 ? 1 : -1), 0);
-                float x = i < 2 ? W - 0.4f : -(W - 0.4f);
-                float z = (i % 2 == 0 ? -1 : 1) * 6f;
-                var q = Quad("Telemetry" + i, room, new Vector3(x, 4.2f, z), rot, new Vector2(6f, 3.75f), art.consoleScreens[i]);
-                q.transform.localRotation = Quaternion.LookRotation(new Vector3(x > 0 ? 1 : -1, 0, 0));
-            }
-
-            // 天花板燈板
-            for (int x = -2; x <= 2; x++)
-                for (int z = -2; z <= 2; z++)
-                    Quad("LightPanel", room, new Vector3(x * 6.5f, H - 0.02f, z * 6.5f), Quaternion.Euler(-90, 0, 0), new Vector2(3.8f, 1.1f), art.lightPanel); // Quad 的正面朝 -Z：轉成朝下
-
-            // 展示台：深色圓台 + 一圈青色光環
-            // 展示台：深色圓台 + 青色光環。內建圓柱只有 24 段，近看是多邊形，所以用自己產生的高細分網格
-            var ped = BuildUtil.Group("Pedestal", room);
-            var cyl = HiCylinder();
-            MeshObj("Base", ped, cyl, art.trim, new Vector3(0, 0.3f, 0), 1f).transform.localScale = new Vector3(3.6f, 0.3f, 3.6f);
-            MeshObj("Top", ped, Annulus("Disk_0_1.85", 0f, 1.85f), art.consoleBody, new Vector3(0, 0.602f, 0), 1f);
-            MeshObj("Ring", ped, Annulus("Ring_1.85_2.0", 1.85f, 2.0f), art.accentGlow, new Vector3(0, 0.603f, 0), 1f);
-            MeshObj("FloorRing", ped, Annulus("Ring_3.6_3.7", 3.6f, 3.7f), art.accentGlow, new Vector3(0, 0.004f, 0), 1f);
-            MeshObj("FloorRingOuter", ped, Annulus("Ring_5.2_5.24", 5.2f, 5.24f), art.accentGlow, new Vector3(0, 0.004f, 0), 1f);
-            foreach (var r in ped.GetComponentsInChildren<MeshRenderer>())
-            {
-                r.receiveShadows = true;
-                r.shadowCastingMode = r.name == "Base" ? ShadowCastingMode.On : ShadowCastingMode.Off;
-            }
-
-            // 燈：主光（上面的方向光）+ 四盞聚光燈打在太空船上 + 展示台青色光
-            for (int i = 0; i < 4; i++)
-            {
-                float a = i * 90f + 45f;
-                var p = Quaternion.Euler(0, a, 0) * new Vector3(0, 7.8f, -7.5f);
-                var target = new Vector3(0, 2.6f, 0);
-                var l = BuildUtil.Light("Spot" + i, LightType.Spot, i % 2 == 0 ? new Color(1f, 0.95f, 0.88f) : new Color(0.8f, 0.9f, 1f), 70f, p, Quaternion.LookRotation(target - p), 20f, LightShadows.None, room);
-                l.spotAngle = 38f;
-                l.innerSpotAngle = 20f;
-            }
-            // 從台面往上打的淡青色光，照亮太空船底部（點光源放在台面上會把台面打到過曝）
-            var up = BuildUtil.Light("PedestalUplight", LightType.Spot, new Color(0.35f, 0.85f, 1f), 3f, new Vector3(0, 0.62f, 0), Quaternion.LookRotation(Vector3.up, Vector3.forward), 5f, LightShadows.None, room);
-            up.spotAngle = 50f;
-            up.innerSpotAngle = 20f;
-
-            var rigGo = new GameObject("Satellite");
-            rigGo.transform.position = new Vector3(0, 2.6f, 0);
-            var rig = rigGo.AddComponent<SatelliteRig>();
-
-            Probe(room, new Vector3(0, 3f, 0), new Vector3(W * 2, H + 1, W * 2));
-
-            var cam = MainCamera(new Vector3(0, 4.4f, -7.5f), new Vector3(0, 2.6f, 0), 38f, 0.1f, 200f);
-            cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0.03f, 0.035f, 0.045f);
-            var orbit = cam.gameObject.AddComponent<OrbitCameraRig>();
-            orbit.target = rigGo.transform;
-            orbit.satellite = rig;
-
-            var post = BuildUtil.DefaultPost;
-            post.bloom = 0.7f; post.bloomThreshold = 1.0f; post.vignette = 0.26f; post.contrast = 10f; post.grain = 0.08f;
-            BuildUtil.PostVolume("DesignRoom", post);
-            return Save(scene, SceneFlow.DesignRoom);
-        }
-
-        // ================= MissionControl：控制中心 =================
-
-        static string MissionControl(ArtBuilder.Art art)
-        {
-            var scene = NewScene();
-            Env(null, new Color(0.07f, 0.09f, 0.13f), new Color(0.05f, 0.06f, 0.08f), new Color(0.02f, 0.02f, 0.025f));
-            var sun = Sun(new Vector3(0.2f, -0.9f, 0.3f), new Color(0.6f, 0.7f, 0.9f), 0.25f, LightShadows.None);
-
-            var room = BuildUtil.Group("ControlRoom");
-            const float X = 16f, Z0 = -13f, Z1 = 15f, H = 8.5f;
-            // 霧面地板：高光澤地板會把點光源反射成一條拉長的亮線（在控制台之間看起來像一根發光柱）
-            Box("Floor", room, new Vector3(0, -0.1f, (Z0 + Z1) / 2), new Vector3(X * 2, 0.2f, Z1 - Z0), art.floorMatte);
-            Box("Ceiling", room, new Vector3(0, H, (Z0 + Z1) / 2), new Vector3(X * 2, 0.2f, Z1 - Z0), art.wallDark, shadows: false);
-            Box("FrontWall", room, new Vector3(0, H / 2, Z1), new Vector3(X * 2, H, 0.3f), art.wallDark, shadows: false);
-            Box("BackWall", room, new Vector3(0, H / 2, Z0), new Vector3(X * 2, H, 0.3f), art.wallDark, shadows: false);
-            Box("LeftWall", room, new Vector3(-X, H / 2, (Z0 + Z1) / 2), new Vector3(0.3f, H, Z1 - Z0), art.wallDark, shadows: false);
-            Box("RightWall", room, new Vector3(X, H / 2, (Z0 + Z1) / 2), new Vector3(0.3f, H, Z1 - Z0), art.wallDark, shadows: false);
-            for (int i = 0; i < 7; i++)
-            {
-                float z = Z0 + 2f + i * 4f;
-                Box("LeftRib" + i, room, new Vector3(-X + 0.25f, H / 2, z), new Vector3(0.2f, H, 0.5f), art.trim, shadows: false);
-                Box("RightRib" + i, room, new Vector3(X - 0.25f, H / 2, z), new Vector3(0.2f, H, 0.5f), art.trim, shadows: false);
-            }
-            Box("LeftGlow", room, new Vector3(-X + 0.2f, 0.9f, (Z0 + Z1) / 2), new Vector3(0.04f, 0.05f, Z1 - Z0), art.accentGlow, shadows: false);
-            Box("RightGlow", room, new Vector3(X - 0.2f, 0.9f, (Z0 + Z1) / 2), new Vector3(0.04f, 0.05f, Z1 - Z0), art.accentGlow, shadows: false);
-
-            // 大螢幕牆：中間地球、兩側遙測
-            Box("ScreenWall", room, new Vector3(0, 4.6f, Z1 - 0.25f), new Vector3(30f, 6.6f, 0.2f), art.trim, shadows: false);
-            Quad("MainScreen", room, new Vector3(0, 4.6f, Z1 - 0.4f), Quaternion.identity, new Vector2(14f, 6f), art.screenEarth);
-            for (int i = 0; i < 4; i++)
-            {
-                float x = (i < 2 ? -1 : 1) * (i % 2 == 0 ? 8.6f : 12.4f);
-                Quad("SideScreen" + i, room, new Vector3(x, 4.6f, Z1 - 0.4f), Quaternion.identity, new Vector2(3.4f, 6f), art.consoleScreens[i]);
-            }
-            // 螢幕上方的跑馬燈條
-            Box("Ticker", room, new Vector3(0, 8.05f, Z1 - 0.4f), new Vector3(30f, 0.35f, 0.05f), art.accentGlow, shadows: false);
-
-            // 三排階梯式控制台，越後排越高
-            for (int row = 0; row < 3; row++)
-            {
-                float z = 6f - row * 4.4f;
-                float y = row * 0.45f;
-                if (row > 0) Box("Tier" + row, room, new Vector3(0, y / 2, z - 1.1f), new Vector3(X * 2 - 1, y, 4.4f), art.floorMatte);
-                int count = 6 - (row == 0 ? 1 : 0);
-                for (int c = 0; c < count; c++)
-                {
-                    float x = (c - (count - 1) / 2f) * 4.4f;
-                    var con = BuildUtil.Group($"Console_{row}_{c}", room);
-                    con.localPosition = new Vector3(x, y, z);
-                    Box("Desk", con, new Vector3(0, 0.75f, 0), new Vector3(4.0f, 0.08f, 1.1f), art.consoleBody);
-                    Box("Body", con, new Vector3(0, 0.37f, 0.25f), new Vector3(3.9f, 0.74f, 0.6f), art.consoleBody);
-                    Box("Riser", con, new Vector3(0, 1.05f, 0.42f), new Vector3(3.9f, 0.55f, 0.25f), art.trim);
-                    for (int s = 0; s < 2; s++)
-                    {
-                        // 螢幕面向後方的操作員（鏡頭在後面），上緣往前傾 12°
-                        Quad("Screen" + s, con, new Vector3((s - 0.5f) * 1.9f, 1.4f, 0.3f), Quaternion.Euler(12f, 0, 0), new Vector2(1.75f, 1.05f), art.consoleScreens[(row * 3 + c + s) % 4]);
-                    }
-                    Box("Lip", con, new Vector3(0, 0.79f, -0.5f), new Vector3(4.0f, 0.02f, 0.05f), art.accentGlow, shadows: false);
-                }
-                var l = BuildUtil.Light("RowLight" + row, LightType.Spot, new Color(1f, 0.85f, 0.65f), 45f, new Vector3(0, H - 0.3f, z - 0.5f), Quaternion.Euler(80, 0, 0), 14f, LightShadows.None, room);
-                l.spotAngle = 95f;
-                l.innerSpotAngle = 60f;
-            }
-            BuildUtil.Light("ScreenSpill", LightType.Point, new Color(0.35f, 0.6f, 1f), 30f, new Vector3(0, 4.5f, Z1 - 3f), Quaternion.identity, 22f, LightShadows.None, room);
-
-            var cam = MainCamera(new Vector3(0, 5.3f, -10.8f), new Vector3(0, 3.0f, Z1), 46f, 0.1f, 200f);
-            cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = Color.black;
-            var drift = cam.gameObject.AddComponent<CameraDrift>();
-            drift.positionAmplitude = new Vector3(0.4f, 0.15f, 0.2f);
-
-            var post = BuildUtil.DefaultPost;
-            post.bloom = 1.2f; post.bloomThreshold = 0.85f; post.vignette = 0.36f; post.contrast = 16f; post.saturation = 0f;
-            post.dof = true; post.dofStart = 12f; post.dofEnd = 34f;
-            BuildUtil.PostVolume("MissionControl", post);
-            return Save(scene, SceneFlow.MissionControl);
         }
 
         // ================= Launch：發射 =================
@@ -992,95 +821,6 @@ namespace GoNoGo.EditorTools
             r.lengthScale = 2f;
             r.shadowCastingMode = ShadowCastingMode.Off;
             return ps;
-        }
-
-        // ================= Operations：在軌營運 =================
-
-        static string Operations(ArtBuilder.Art art, Mesh sphere)
-        {
-            var scene = NewScene();
-            Env(art.starfield, new Color(0.03f, 0.035f, 0.05f), new Color(0.02f, 0.022f, 0.03f), Color.black);
-            var sunFwd = Quaternion.Euler(14f, -62f, 0f) * Vector3.forward;
-            var sun = Sun(sunFwd, new Color(1f, 0.97f, 0.92f), 2.4f, LightShadows.None);
-
-            var planet = MeshObj("Planet", null, sphere, art.earth, Vector3.zero, 2f);
-            var atmo = MeshObj("Atmosphere", null, sphere, art.atmosphere, Vector3.zero, 2f * 1.025f);
-            var stationRoot = BuildUtil.Group("Stations", planet.transform);
-
-            // 地面站標記（模板，關閉；OpsView 依天線數量複製）
-            var marker = BuildUtil.Group("StationMarker").gameObject;
-            BuildUtil.Prim(PrimitiveType.Cylinder, "Pad", marker.transform, new Vector3(0, 0, 0), new Vector3(0.02f, 0.002f, 0.02f), art.stationGlow);
-            BuildUtil.Prim(PrimitiveType.Cylinder, "Beam", marker.transform, new Vector3(0, 0.014f, 0), new Vector3(0.0025f, 0.014f, 0.0025f), art.stationGlow);
-            marker.SetActive(false);
-
-            var satAnchor = BuildUtil.Group("SatelliteAnchor");
-            var orbitLine = Line("OrbitLine", art.orbitLine, 0.006f);
-            var linkLine = Line("LinkLine", art.linkLine, 0.004f);
-
-            var storm = new GameObject("SolarStorm");
-            storm.transform.position = -sunFwd * 7f;
-            storm.transform.rotation = Quaternion.LookRotation(sunFwd);
-            var ps = storm.AddComponent<ParticleSystem>();
-            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            var main = ps.main;
-            main.loop = true;
-            main.playOnAwake = false;
-            main.startLifetime = new ParticleSystem.MinMaxCurve(1.6f, 2.4f);
-            main.startSpeed = new ParticleSystem.MinMaxCurve(3.5f, 5.5f);
-            main.startSize = new ParticleSystem.MinMaxCurve(0.015f, 0.04f);
-            main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.75f, 0.35f), new Color(1f, 0.45f, 0.2f));
-            main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.maxParticles = 800;
-            var em = ps.emission;
-            em.rateOverTime = 0f;
-            var sh = ps.shape;
-            sh.shapeType = ParticleSystemShapeType.Box;
-            sh.scale = new Vector3(3.5f, 3.5f, 0.1f);
-            var col = ps.colorOverLifetime;
-            col.enabled = true;
-            var g = new Gradient();
-            g.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
-                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.15f), new GradientAlphaKey(0f, 1f) });
-            col.color = g;
-            var pr = storm.GetComponent<ParticleSystemRenderer>();
-            pr.sharedMaterial = art.storm;
-            pr.renderMode = ParticleSystemRenderMode.Stretch;
-            pr.lengthScale = 8f;
-            pr.velocityScale = 0.05f;
-            pr.shadowCastingMode = ShadowCastingMode.Off;
-
-            var pivot = BuildUtil.Group("CameraPivot");
-            var pivotSpin = pivot.gameObject.AddComponent<Spin>();
-            pivotSpin.axis = Vector3.up;
-            pivotSpin.degreesPerSecond = 1.2f;
-            var cam = BuildUtil.Camera("Main Camera", Vector3.zero, Quaternion.identity, 40f, 0.02f, 500f);
-            cam.transform.SetParent(pivot, false);
-            cam.transform.localPosition = new Vector3(0f, 1.05f, -3.7f);
-            cam.transform.localRotation = Quaternion.LookRotation(new Vector3(0f, 0.1f, 0) - cam.transform.localPosition);
-            var drift = cam.gameObject.AddComponent<CameraDrift>();
-            drift.positionAmplitude = new Vector3(0.05f, 0.03f, 0.04f);
-            drift.rotationAmplitude = new Vector3(0.3f, 0.4f, 0.2f);
-
-            var view = new GameObject("OpsView").AddComponent<OpsView>();
-            view.planet = planet.transform;
-            view.planetRenderer = planet.GetComponent<Renderer>();
-            view.earthMaterial = art.earth;
-            view.moonMaterial = art.moon;
-            view.atmosphere = atmo;
-            view.satelliteAnchor = satAnchor;
-            view.orbitLine = orbitLine;
-            view.linkLine = linkLine;
-            view.stationRoot = stationRoot;
-            view.stationMarkerPrefab = marker;
-            view.stormParticles = ps;
-            view.sun = sun;
-            view.cameraPivot = pivot;
-            view.cam = cam;
-
-            var post = BuildUtil.DefaultPost;
-            post.bloom = 1.0f; post.bloomThreshold = 0.9f; post.vignette = 0.3f;
-            BuildUtil.PostVolume("Operations", post);
-            return Save(scene, SceneFlow.Operations);
         }
 
         static LineRenderer Line(string name, Material mat, float width)

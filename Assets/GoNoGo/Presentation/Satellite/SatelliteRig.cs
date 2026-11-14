@@ -1,78 +1,100 @@
+using System;
 using System.Collections.Generic;
 using GoNoGo.Core;
-using GoNoGo.Game;
 using UnityEngine;
 
 namespace GoNoGo.Presentation
 {
     /// <summary>
-    /// 設計室裡的太空船：設計一改就重組模型，換掉的零件會「彈」進來；
-    /// 滑鼠移到 UI 上某個零件時，太空船上對應的部位發光。
+    /// 展示用的太空船：給它一個設計就重組模型，新裝上的零件「彈」進來（0.45 秒）。
+    /// 每個零件都有網格碰撞體，準星可以對到船上的某個零件（拆下用）。
     /// </summary>
     public sealed class SatelliteRig : MonoBehaviour
     {
         [Tooltip("模型最長邊的目標尺寸（公尺），太空船再大也會縮到這個範圍內好取景")]
         public float maxSize = 3.2f;
-        public bool reactToHover = true;
+        [Tooltip("固定放大倍率（整合台上用 2：真實尺寸的太空船對 Q 版 avatar 來說太小）；超過 maxSize 才縮小")]
+        public float fixedScale = 1f;
+        [Tooltip("模型底部對齊這個物件（放在台座上）；否則中心對齊")]
+        public bool bottomAnchor;
+        [Tooltip("加上碰撞體，讓準星對得到零件")]
+        public bool pickable;
 
         GameObject _model;
-        readonly Dictionary<string, string> _lastParts = new Dictionary<string, string>();
+        readonly HashSet<string> _lastParts = new HashSet<string>();
         readonly List<(Transform t, float t0)> _pops = new List<(Transform, float)>();
         SatPart[] _parts = new SatPart[0];
+        int _shownHash;
+        bool _hasShown;
 
         public Bounds ModelBounds { get; private set; }
+        public Transform Model => _model != null ? _model.transform : null;
+        public IReadOnlyList<SatPart> Parts => _parts;
 
-        void OnEnable()
+        /// <summary>新裝上的零件（世界座標中心），安裝特效用。</summary>
+        public event Action<SatPart> PartAdded;
+
+        public void Show(Design design, GameData data, Evaluation ev, bool animate)
         {
-            GameSession.EnsureScenario();
-            GameSession.State.DesignChanged += OnDesign;
-            Rebuild(false);
-        }
+            int h = design.StableHash();
+            if (_hasShown && h == _shownHash) return;
+            _shownHash = h;
+            bool first = !_hasShown;
+            _hasShown = true;
 
-        void OnDisable()
-        {
-            if (GameSession.Exists) GameSession.State.DesignChanged -= OnDesign;
-        }
-
-        void OnDesign(Evaluation ev) => Rebuild(true);
-
-        public void Rebuild(bool animate)
-        {
-            var s = GameSession.State;
             if (_model != null) Destroy(_model);
-            _model = SatelliteBuilder.Build(s.Design, s.Data, s.Evaluation, transform);
+            _model = SatelliteBuilder.Build(design, data, ev, transform);
             _parts = _model.GetComponentsInChildren<SatPart>(true);
 
             // 縮放到展示尺寸，並讓模型中心對齊這個物件
             var b = ComputeBounds(_model);
             float longest = Mathf.Max(b.size.x, b.size.y, b.size.z);
-            float k = longest > maxSize ? maxSize / longest : 1f;
+            float k = longest * fixedScale > maxSize ? maxSize / longest : fixedScale;
             _model.transform.localScale = Vector3.one * k;
             b = ComputeBounds(_model);
-            _model.transform.position += transform.position - b.center;
+            var anchor = bottomAnchor ? new Vector3(b.center.x, b.min.y, b.center.z) : b.center;
+            _model.transform.position += transform.position - anchor;
             ModelBounds = ComputeBounds(_model);
 
+            if (pickable)
+                foreach (var p in _parts)
+                    foreach (var mf in p.GetComponentsInChildren<MeshFilter>())
+                    {
+                        var mc = mf.gameObject.AddComponent<MeshCollider>();
+                        mc.sharedMesh = mf.sharedMesh;
+                    }
+
             _pops.Clear();
+            var now = new HashSet<string>();
             foreach (var p in _parts)
             {
-                bool changed = !_lastParts.TryGetValue(p.category + "#" + p.partId, out _);
-                if (animate && changed && p.Renderers.Length > 0)
+                string key = p.category + "#" + p.partId;
+                now.Add(key);
+                if (animate && !first && !_lastParts.Contains(key) && p.Renderers.Length > 0)
                 {
                     p.transform.localScale = Vector3.one * 0.01f;
                     _pops.Add((p.transform, Time.time));
+                    PartAdded?.Invoke(p);
                 }
             }
             _lastParts.Clear();
-            foreach (var p in _parts) _lastParts[p.category + "#" + p.partId] = p.partId;
+            _lastParts.UnionWith(now);
         }
 
-        static Bounds ComputeBounds(GameObject go)
+        public static Bounds ComputeBounds(GameObject go)
         {
             var rs = go.GetComponentsInChildren<Renderer>();
-            if (rs.Length == 0) return new Bounds(go.transform.position, Vector3.one);
+            if (rs.Length == 0) return new Bounds(go.transform.position, Vector3.one * 0.3f);
             var b = rs[0].bounds;
             foreach (var r in rs) b.Encapsulate(r.bounds);
             return b;
+        }
+
+        public SatPart PartOf(Collider c) => c != null ? c.GetComponentInParent<SatPart>() : null;
+
+        public void Glow(string category, string partId, float g)
+        {
+            foreach (var p in _parts) p.SetGlow(p.category == category && (partId == null || p.partId == partId) ? g : 0f);
         }
 
         void Update()
@@ -86,17 +108,6 @@ namespace GoNoGo.Presentation
                 float e = 1f + 2.70158f * Mathf.Pow(x - 1, 3) + 1.70158f * Mathf.Pow(x - 1, 2); // easeOutBack
                 t.localScale = Vector3.one * Mathf.Max(0.01f, e);
                 if (x >= 1) { t.localScale = Vector3.one; _pops.RemoveAt(i); }
-            }
-
-            if (!reactToHover) return;
-            var s = GameSession.State;
-            string cat = s.HoverCategory;
-            string id = s.HoverPartId;
-            float pulse = 0.55f + 0.45f * Mathf.Sin(Time.time * 6f);
-            foreach (var p in _parts)
-            {
-                bool hit = cat != null && p.category == cat && (cat != PartCategory.Instrument || p.partId == id || !s.Design.Instruments.Contains(id));
-                p.SetGlow(hit ? pulse : 0f);
             }
         }
     }

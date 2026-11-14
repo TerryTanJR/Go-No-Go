@@ -9,13 +9,13 @@ namespace GoNoGo.Game
     public static class SceneFlow
     {
         public const string Boot = "Boot";
-        public const string DesignRoom = "DesignRoom";
-        public const string MissionControl = "MissionControl";
+        public const string MainMenu = "MainMenu";
+        /// <summary>大廳、組裝區、中控室都在這個場景裡（多人時大家同一個場景，同步最單純）。</summary>
+        public const string Facility = "Facility";
         public const string Launch = "Launch";
-        public const string Operations = "Operations";
         public const string Report = "Report";
 
-        public static readonly string[] All = { Boot, DesignRoom, MissionControl, Launch, Operations, Report };
+        public static readonly string[] All = { Boot, MainMenu, Facility, Launch, Report };
 
         /// <summary>UI 層註冊：淡出到黑（參數：秒數、完成時回呼）。</summary>
         public static Action<float, Action> FadeOut;
