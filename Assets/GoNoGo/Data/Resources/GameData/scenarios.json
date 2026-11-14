@@ -241,6 +241,28 @@
       "launcher_id": "falcon9",
       "mission_years": 2
     },
+    "shelf": {
+      "cadet": [
+        "inst_visible",
+        "inst_multispectral",
+        "inst_thermal",
+        "solar_body",
+        "solar_deployable",
+        "batt_small",
+        "batt_medium",
+        "ant_sband",
+        "ant_xband",
+        "ant_xband_hr",
+        "obc_cubesat",
+        "obc_mass_memory",
+        "adcs_compact",
+        "adcs_wheels",
+        "prop_none",
+        "prop_green",
+        "shield_std",
+        "shield_vault"
+      ]
+    },
     "comparison_missions": []
   },
   {

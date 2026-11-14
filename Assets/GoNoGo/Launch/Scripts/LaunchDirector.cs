@@ -100,6 +100,8 @@ namespace GoNoGo.Launch
         float _T;
         float _played;      // 倒數開始後經過的真實秒數（開發快轉時照快轉後的時間算）
         LaunchPacing _pace;
+        // 任務時間的正本用 double：月球任務會走到 T+5 天（約 43 萬秒），float 在那裡的精度只剩 0.03 秒，每幀 1/60 秒會被捨入成 0 或 2 倍
+        double _Td;
         float _pathAlt;    // 發射台段飛過的距離（公尺）
         float _sceneVel;    // 發射台段畫面上的速度（m/s）
         float _accel;       // 目前畫面上的加速度：分離出去的物體依它算相對運動
@@ -246,6 +248,10 @@ namespace GoNoGo.Launch
         float _syncWait, _audio0;
         float _roar0 = 1f, _rumble0 = 0.8f;
 
+        // 月球任務：衛星分離後的地月轉移俯瞰圖（縮時）與抵達月球的近景
+        LunarTransferView _lunar;
+        bool _coasting, _arrived;
+
         struct Cue
         {
             public float t;
@@ -292,7 +298,10 @@ namespace GoNoGo.Launch
             _scaleEnd = Mathf.Clamp(_mecoT - 8f, 25f, 35f);
             // 失敗的飛行：倍率照成功的飛行算，出事前看不出來
             var plan = _outcome == LaunchOutcome.Nominal ? _tl : LaunchTimeline.Build(m.Data, _design, LaunchOutcome.Nominal, "launch.nominal");
-            _pace = new LaunchPacing(_tl, RealTimeUntil, PlayBudget - (RealTimeUntil - StartT), plan);
+            // 月球任務多了地月轉移的縮時區間（約 30 秒），預算跟著加，近地那段才不會被壓縮
+            float warpSecs = 0f;
+            foreach (var w in _tl.Warps) warpSecs += (float)w.Seconds;
+            _pace = new LaunchPacing(_tl, RealTimeUntil, PlayBudget + warpSecs - (RealTimeUntil - StartT), plan);
             // 實際要播的長度（失敗的飛行比預算短）：執行時的校正照這個算，不然會為了湊滿預算整段放慢
             _budget = (RealTimeUntil - StartT) + (float)_pace.PlannedTotal;
 
@@ -352,9 +361,11 @@ namespace GoNoGo.Launch
             if (flashLight != null) flashLight.intensity = 0;
             foreach (var ps in padSmoke) if (ps != null) { var em = ps.emission; em.enabled = false; }
             SetupSky();
+            SetupLunar();
 
             BuildCues();
             _T = StartT;
+            _Td = StartT;
             LaunchFeed.T = _T;
             Cut(camWide);
             if (roar != null) _roar0 = roar.volume *= RoarGain;
@@ -644,6 +655,8 @@ namespace GoNoGo.Launch
             }
             if (_chaseT < Mathf.Min(_mecoT, _swapT)) list.Add(new Cue(_chaseT, StartChase));
             if (_swapT < 1e5f) list.Add(new Cue(_swapT, GoToSpace));
+            // 地月轉移的最後一段：衛星接近月球時，鏡頭從俯瞰圖移到月球旁邊
+            if (_lunar != null) list.Add(new Cue((float)_lunar.ApproachT(), () => { if (_coasting) Blend(_lunar.Approach, 4f, true); }));
             _cues.Clear();
             _cues.AddRange(list.OrderBy(c => c.t)); // OrderBy 是穩定排序：同時間的照加入順序
         }
@@ -663,6 +676,9 @@ namespace GoNoGo.Launch
                 case "upper_sep": DropSegment(); break;
                 case "upper_ignite": case "restart": SetUpperThrust(true); break;
                 case "deploy": Deploy(); break;
+                case "lunar_coast": StartLunarCoast(); break;
+                case "loi": ArriveAtMoon(); break;
+                case "capture": _lunar?.SetBurn(false); if (!_skipping) Sfx.Confirm(); break;
                 case "eclipse": StartCoroutine(EnterEclipse()); break;
                 case "signal_lost": if (!_skipping) Sfx.Alert(); break;
                 case "underspeed": StartFall(); break;
@@ -1116,6 +1132,67 @@ namespace GoNoGo.Launch
             if (_cam != camSide) Blend(camSide, 3f, true);
         }
 
+        /// <summary>月球任務才建：地月轉移俯瞰圖（先藏起來）。地球沿用近地太空場景的材質。</summary>
+        void SetupLunar()
+        {
+            if (_tl.Lunar == null) return;
+            var kit = LaunchKit.Load();
+            var atmo = spaceSet != null ? spaceSet.transform.Find("Earth_Atmosphere") : null;
+            _lunar = new LunarTransferView(_tl.Lunar, kit, _earth != null ? _earth.sharedMaterial : null,
+                atmo != null ? atmo.GetComponent<Renderer>()?.sharedMaterial : null, sun, _yaw);
+        }
+
+        /// <summary>
+        /// 地月轉移滑行開始：近地的場景（地球、上節、衛星）收起來，切到俯瞰圖。
+        /// 接下來約 5 天用縮時播完（時間表的 Warps），衛星與月球的位置都照任務時間算。
+        /// </summary>
+        void StartLunarCoast()
+        {
+            if (_lunar == null) return;
+            _coasting = true;
+            if (spaceSet != null)
+                foreach (var n in new[] { "Earth", "Earth_Atmosphere" })
+                {
+                    var e = spaceSet.transform.Find(n);
+                    if (e != null) e.gameObject.SetActive(false);
+                }
+            if (_rocket != null) _rocket.root.gameObject.SetActive(false);
+            foreach (var d in _drift) if (d.t != null) d.t.gameObject.SetActive(false);
+            _drift.Clear();
+            if (_payload != null) _payload.SetActive(false);
+            _lunar.ShowTransfer();
+            _lunar.Tick(_Td);
+            Cut(_lunar.Wide);
+        }
+
+        /// <summary>
+        /// 抵達月球：先淡出到黑再換到近景（俯瞰圖和近景是兩個不同的場景，鏡頭混合接不起來，直接切會很突然），
+        /// 衛星轉成引擎朝前，開始減速點火。
+        /// </summary>
+        void ArriveAtMoon()
+        {
+            if (_lunar == null) return;
+            if (_skipping || SceneFlow.FadeOut == null) { ShowMoonArrival(); return; }
+            SceneFlow.FadeOut(MoonFadeSecs, () =>
+            {
+                ShowMoonArrival();
+                SceneFlow.FadeIn?.Invoke(MoonFadeSecs * 1.5f);
+            });
+        }
+
+        const float MoonFadeSecs = 0.4f;
+
+        void ShowMoonArrival()
+        {
+            if (_lunar == null || _arrived) return;
+            _coasting = false;
+            _arrived = true;
+            _lunar.ShowArrival(_payload != null ? _payload.transform : null, spaceSet != null ? spaceSet.transform : null, LaunchKit.Load(), _payloadSize);
+            _lunar.SetBurn(true);
+            if (camDeploy != null) camDeploy.PreviousStateIsValid = false;
+            Cut(camDeploy); // 淡入淡出本身就是轉場，不加音效
+        }
+
         void Finish()
         {
             if (_done) return;
@@ -1142,7 +1219,12 @@ namespace GoNoGo.Launch
             if (roar != null) roar.Stop();
             if (rumble != null) rumble.Stop();
             int guard = 0;
-            while (!_done && guard++ < 40000) Step(_T < _swapT + 5f ? 0.25f : 1f);
+            // 縮時區間（地月轉移）一步跨一大段，其他照原本的小步長
+            while (!_done && guard++ < 40000)
+            {
+                double rate = _tl.WarpRate(_Td);
+                Step(rate > 1 ? (float)(rate * 0.25) : _T < _swapT + 5f ? 0.25f : 1f);
+            }
             if (_deployed) _solarK = _deployCam = 1f; // 跳到結尾：推近和展開都直接做完
             _skipping = false;
         }
@@ -1164,16 +1246,20 @@ namespace GoNoGo.Launch
                 UpdateCams(real);
                 return;
             }
-            // 一幀拆成小步，事件照順序發生
+            // 一幀拆成小步，事件照順序發生；縮時區間（地月轉移）的倍率也在 LaunchPacing 裡
             float dev = Mathf.Max(1f, DevSpeed);
             _played += real * dev;
-            float speed = dev * (float)_pace.Speed(_T, _budget - _played);
+            float speed = dev * (float)_pace.Speed(_Td, _budget - _played);
             LaunchFeed.Speed = speed;
-            float todo = real * speed;
-            while (todo > 1e-5f && !_done)
+            // 縮時區間裡一秒播放 = 好幾小時任務時間：步長跟著倍率放大，而且一步不跨過區間邊界
+            double todo = real * speed;
+            while (todo > 1e-5 && !_done)
             {
-                float st = Mathf.Min(todo, MaxSubStep);
-                Step(st);
+                double rate = _tl.WarpRate(_Td);
+                double st = Math.Min(todo, MaxSubStep * rate);
+                double edge = _tl.NextWarpEdge(_Td);
+                if (_Td + st > edge) st = Math.Max(1e-4, edge - _Td);
+                Step((float)st);
                 todo -= st;
             }
             UpdateCams(real);
@@ -1182,21 +1268,22 @@ namespace GoNoGo.Launch
 
         void Step(float dt)
         {
-            float prev = _T;
-            _T += dt;
+            double prev = _Td;
+            _Td += dt;
             // 倒數期間時間直接由錄音位置換算（不設門檻、只往前走）：數字一定在念出來的那一刻跳
-            if (!_skipping && _calls != null && _sync != Sync.Off && _T < 1f && countdown != null && countdown.isPlaying)
+            if (!_skipping && _calls != null && _sync != Sync.Off && _Td < 1 && countdown != null && countdown.isPlaying)
             {
-                float at = (float)LaunchClock.TFromAudio(countdown.time, _calls, CallLead);
-                _T = Mathf.Max(prev, at);
+                double at = LaunchClock.TFromAudio(countdown.time, _calls, CallLead);
+                _Td = Math.Max(prev, at);
             }
+            _T = (float)_Td;
             LaunchFeed.T = _T;
             while (_nextCue < _cues.Count && _cues[_nextCue].t <= _T)
             {
                 var c = _cues[_nextCue++];
                 c.act();
             }
-            Animate(_T - prev);
+            Animate((float)(_Td - prev));
             UpdateTelemetry();
         }
 
@@ -1339,7 +1426,7 @@ namespace GoNoGo.Launch
                     if (_sideFollow != null)
                         _sideFollow.FollowOffset = _sideOffset0 * Mathf.Lerp(1f, 1.2f, Mathf.SmoothStep(0f, 1f, f / 3f));
                 }
-                if (_deployed)
+                if (_deployed && !_coasting && !_arrived)
                 {
                     // 分離彈簧推開後兩邊等速飄開（不會越退越快），上節順便慢慢翻轉；
                     // 推開的速度在 1 秒內加上去，不是一分離就突然動
@@ -1349,7 +1436,8 @@ namespace GoNoGo.Launch
                     _rocket.root.position -= back;
                     _rocket.root.RotateAround(_rocket.upperStage.position, _rocket.root.right, SepTumble * push * dt);
                 }
-                if (_deployed && _payload != null)
+                if (_arrived && _lunar != null) _lunar.TickArrival(dt, _tl.Velocity(_Td));
+                if (_deployed && _payload != null && !_coasting && !_arrived)
                 {
                     _payload.transform.position += _sepDir * (SepFwdSpeed * Mathf.SmoothStep(0f, 1f, (t - _deployT) / 1f) * dt);
                     _payload.transform.Rotate(Vector3.up, 4f * dt, Space.Self);
@@ -1379,6 +1467,7 @@ namespace GoNoGo.Launch
         void UpdateCams(float real)
         {
             _camSince += real;
+            _lunar?.Tick(_Td);
             if (_inSpace) FadeInStars(real);
             else UpdateDarkness(real);
             UpdateSpaceCams(real);
@@ -1443,7 +1532,13 @@ namespace GoNoGo.Launch
         void UpdateLongCam(float real = 0f)
         {
             if (camLong == null || _longFocus == null || _rocket == null) return;
-            if (_chase) _chaseK = Mathf.MoveTowards(_chaseK, 1f, real / ChaseMoveSecs);
+            if (_chase)
+            {
+                _chaseK = Mathf.MoveTowards(_chaseK, 1f, real / ChaseMoveSecs);
+                // 最晚在一節關機前 8 秒移完：爬升段倍率高的時候（例如月球任務）4 個真實秒還沒走完就關機了，
+                // 停在火箭正後下方的半路上，接近水平的火箭看起來像機頭朝下往下栽
+                _chaseK = Mathf.Max(_chaseK, Mathf.InverseLerp(_chaseT, Mathf.Max(_chaseT + 1f, Mathf.Min(_mecoT, _swapT) - 8f), _T));
+            }
             Vector3 focus;
             float frame;
             if (_inSpace)
@@ -1702,8 +1797,8 @@ namespace GoNoGo.Launch
             LaunchFeed.Throttle = _exploded ? 0f : t < 0f ? Throttle(t) : (_tl.Thrusting(t) ? 1f : 0f);
             if (t <= 0) { LaunchFeed.AltitudeKm = 0; LaunchFeed.VelocityKms = 0; return; }
             if (_exploded) { LaunchFeed.VelocityKms = Mathf.Max(0, LaunchFeed.VelocityKms - 0.02f); return; }
-            LaunchFeed.AltitudeKm = (float)_tl.Altitude(t);
-            LaunchFeed.VelocityKms = (float)_tl.Velocity(t);
+            LaunchFeed.AltitudeKm = (float)_tl.Altitude(_Td);
+            LaunchFeed.VelocityKms = (float)_tl.Velocity(_Td);
         }
     }
 }

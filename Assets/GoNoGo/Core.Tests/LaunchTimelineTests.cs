@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using NUnit.Framework;
 
@@ -115,6 +116,74 @@ namespace GoNoGo.Core.Tests
             d.OrbitId = "geo";
             d.LauncherId = "falcon9";
             Assert.That(LaunchTimeline.Build(_data, d, LaunchOutcome.Nominal, "launch.nominal").First("deploy").Call, Is.EqualTo("ui.launch.call.deploy_gto"));
+        }
+
+        /// <summary>月球任務：衛星分離後還有地月轉移（約 5 天，縮時播放）、月球軌道進入點火（約 40 分鐘）、被捕獲。</summary>
+        [TestCase("falcon9")]
+        [TestCase("falcon_heavy")]
+        public void LunarFlightCoastsToTheMoonAndIsCaptured(string launcher)
+        {
+            var tl = Tl(launcher, "llo_100");
+            var L = tl.Lunar;
+            Assert.That(L, Is.Not.Null);
+            Assert.That(tl.Events.Select(e => e.T), Is.Ordered);
+            Assert.That(tl.Events.Select(e => e.Id), Is.SupersetOf(new[] { "deploy", "lunar_coast", "loi", "capture", "end" }));
+            double deploy = tl.First("deploy").T, loi = tl.First("loi").T, cap = tl.First("capture").T;
+            Assert.That(tl.First("lunar_coast").T, Is.GreaterThan(deploy));
+            Assert.That(L.TransferDays, Is.InRange(4.5, 5.5), "最省能量的地月轉移約 5 天（LRO 走快一點的路線 4.5 天）");
+            Assert.That(cap - loi, Is.EqualTo(2400), "LRO 的月球軌道進入點火約 40 分鐘");
+            Assert.That(tl.End, Is.EqualTo(cap + 20));
+
+            // 關機時在近地點，速度和停泊軌道之後的再點火銜接；之後一路變遠、變慢
+            Assert.That(tl.Velocity(L.TliT), Is.InRange(10.8, 11.0), "地月轉移需要約 10.9 km/s");
+            Assert.That(tl.Velocity(deploy), Is.GreaterThan(7.0));
+            double prevA = 0, prevV = 99;
+            for (double t = L.TliT; t < loi - 1; t += 1800)
+            {
+                Assert.That(tl.Altitude(t), Is.GreaterThanOrEqualTo(prevA - 1e-6), "t=" + t);
+                Assert.That(tl.Velocity(t), Is.LessThanOrEqualTo(prevV + 1e-6), "t=" + t);
+                prevA = tl.Altitude(t); prevV = tl.Velocity(t);
+            }
+            Assert.That(tl.Altitude(loi - 2), Is.GreaterThan(370000), "抵達前離地球約 38 萬公里");
+            Assert.That(tl.Velocity(loi - 2), Is.LessThan(0.3), "遠地點只剩約 0.19 km/s");
+            Assert.That(tl.MoonRelative(loi - 2), Is.False);
+            Assert.That(tl.MoonRelative(loi), Is.True);
+            Assert.That(tl.Altitude(loi + 60), Is.EqualTo(100).Within(1e-6), "抵達後改看離月面的高度");
+            Assert.That(tl.Velocity(loi), Is.InRange(2.3, 2.6), "近月點的雙曲線速度");
+            Assert.That(tl.Velocity(cap + 5), Is.EqualTo(1.633).Within(0.002), "月面 100 km 圓軌道");
+            Assert.That(tl.Thrusting(loi + 60), Is.True, "減速點火有推力");
+            Assert.That(tl.Thrusting(cap + 1), Is.False);
+            Assert.That(tl.StageKey(L.TliT + 86400), Is.EqualTo("ui.launch.stage.lunar_coast"));
+            Assert.That(tl.StageKey(loi + 60), Is.EqualTo("ui.launch.stage.loi"));
+            Assert.That(tl.StageKey(cap + 5), Is.EqualTo("ui.launch.stage.lunar_orbit"));
+
+            // 月球在抵達那一刻轉到衛星的位置（真近點角 π）
+            L.State(loi - L.TliT, out var r, out _, out var nu);
+            Assert.That(r, Is.EqualTo(LunarTransfer.MoonDistanceKm).Within(1));
+            Assert.That(nu, Is.EqualTo(L.MoonAngle(loi)).Within(1e-6));
+            Assert.That(L.MoonAngle(L.TliT), Is.InRange(Math.PI - 1.3, Math.PI - 0.9), "5 天前月球在後面約 65°");
+
+            // 縮時：滑行和點火各壓縮成幾十秒內，區間不重疊、都在事件之間
+            Assert.That(tl.Warps.Count, Is.EqualTo(2));
+            Assert.That(tl.Warps.Sum(w => w.Seconds) + (tl.End - tl.Warps.Sum(w => w.To - w.From)), Is.LessThan(tl.First("deploy").T + 120), "縮時之後整段演出只比一般任務多兩分鐘左右");
+            Assert.That(tl.WarpRate(L.TliT + 86400), Is.GreaterThan(10000));
+            Assert.That(tl.WarpRate(deploy), Is.EqualTo(1));
+            Assert.That(tl.NextWarpEdge(deploy), Is.EqualTo(tl.Warps[0].From));
+            Assert.That(tl.First("restart").Call, Is.EqualTo("ui.launch.call.tli"));
+            Assert.That(tl.First("seco2").Call, Is.EqualTo("ui.launch.call.tli_done"));
+            foreach (var e in tl.Events.Where(e => e.Call.Length > 0))
+                Assert.That(_data.Strings.ContainsKey(e.Call), e.Call);
+            foreach (var id in new[] { "lunar_coast", "loi", "capture" })
+                Assert.That(_data.Strings.ContainsKey("ui.launch.ev." + id) && _data.Strings.ContainsKey(tl.StageKey(tl.First(id).T + 1)), id);
+        }
+
+        [Test]
+        public void LunarConstantsMatchTheGameData()
+        {
+            Assert.That(LunarTransfer.MoonMu, Is.EqualTo(_data.Constants.MoonMuKm3S2));
+            Assert.That(LunarTransfer.MoonRadiusKm, Is.EqualTo(_data.Constants.MoonRadiusKm));
+            Assert.That(Tl("falcon9", "leo_400").Lunar, Is.Null);
+            Assert.That(Tl("falcon9", "llo_100", LaunchOutcome.DeadOnOrbit, "launch.dead_on_orbit").Lunar, Is.Null, "入軌後就失效的不會飛到月球");
         }
 
         [Test]

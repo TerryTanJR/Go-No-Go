@@ -16,6 +16,10 @@ namespace GoNoGo.Core
     /// 失敗的飛行：k 照「成功的飛行」解（plan），出事前的倍率和成功時一樣，不會從倍率看出這次會失敗；
     /// 出事的地方再照失敗事件的窗口放慢，總長會比預算短。
     /// </para>
+    /// <para>
+    /// 縮時區間（月球任務的地月轉移，<see cref="LaunchTimeline.Warps"/>）：區間裡的底速直接用它的倍率（約 5 天用 22 秒播完），
+    /// 不乘 k；進出區間一樣受事件限速約束，倍率在真實時間裡平滑變化。
+    /// </para>
     /// </summary>
     public sealed class LaunchPacing
     {
@@ -23,7 +27,8 @@ namespace GoNoGo.Core
         public const double Ramp = 2.5;
         /// <summary>滑行比上節燃燒快幾倍；一節爬升（長焦追蹤鏡頭）比上節燃燒慢多少。</summary>
         const double CoastMul = 6, AscentMul = 0.2;
-        const double Dt = 0.25;
+        /// <summary>積分步長（真實秒）：任務時間的步長 = Dt × 倍率，快的地方步長跟著放大（月球任務整段約 43 萬秒）。</summary>
+        const double Dt = 0.1;
 
         /// <summary>有動作的事件：窗口（事件前、後幾秒）裡的倍率。</summary>
         struct Window { public double From, To, Speed; }
@@ -32,7 +37,7 @@ namespace GoNoGo.Core
         readonly double _from, _end, _meco;
         readonly List<Window> _windows = new List<Window>();
         double _k = 1, _m = 1;
-        double[] _left; // 每個取樣點到結束還要幾個真實秒（照計畫）
+        double[] _ts, _left; // 取樣點的任務時間、從那裡播到結束還要幾個真實秒（照計畫）
 
         public double End => _end;
 
@@ -69,6 +74,9 @@ namespace GoNoGo.Core
                 case "upper_ignite": case "restart": pre = 1; post = 2; speed = 8; break;
                 case "fairing": case "fairing_fail": pre = 1; post = 5; speed = 2; break;
                 case "deploy": pre = 2; post = 20; speed = 1.5; break; // 一直慢到結束：衛星分離後慢慢飄開、展開太陽能板
+                case "lunar_coast": pre = 1; post = 3; speed = 2; break;  // 切到地月轉移俯瞰圖，之後進縮時
+                case "loi": pre = 4; post = 4; speed = 2; break;          // 抵達月球、開始減速點火
+                case "capture": pre = 3; post = 20; speed = 1.5; break;   // 被月球捕獲，一直慢到結束
                 case "anomaly": pre = 3; post = 8; speed = 1; break;
                 case "anomaly_warn": pre = 1; post = 3; speed = 1; break;
                 case "underspeed_warn": pre = 1; post = 4; speed = 2; break;
@@ -90,7 +98,8 @@ namespace GoNoGo.Core
         public double PlanSpeed(double t)
         {
             if (t < _from) return 1;
-            double s = _k * Base(t);
+            double warp = _tl.WarpRate(t);
+            double s = warp > 1 ? warp : _k * Base(t);
             foreach (var w in _windows)
             {
                 double d = t < w.From ? w.From - t : t > w.To ? t - w.To : 0;
@@ -101,10 +110,28 @@ namespace GoNoGo.Core
             return Math.Max(1, s);
         }
 
+        /// <summary>
+        /// 一步一步走完整段：任務時間的步長 = Dt × 這裡的倍率（每一步約 Dt 真實秒），不跨過縮時區間的邊界。
+        /// 接近事件窗口時限速和距離成正比（Dt × Ramp &lt; 1），步長一定比到窗口的距離短，不會跨過窗口。
+        /// </summary>
+        void Walk(Action<double, double, double> step)
+        {
+            double t = _from;
+            while (t < _end)
+            {
+                double s = PlanSpeed(t);
+                double st = Math.Min(Math.Max(1e-3, Dt * s), _end - t);
+                double edge = _tl.NextWarpEdge(t);
+                if (t + st > edge) st = edge - t;
+                step(t, st, s);
+                t += st;
+            }
+        }
+
         double Cost()
         {
             double sum = 0;
-            for (double t = _from; t < _end; t += Dt) sum += Math.Min(Dt, _end - t) / PlanSpeed(t);
+            Walk((t, st, s) => sum += st / s);
             return sum;
         }
 
@@ -130,22 +157,26 @@ namespace GoNoGo.Core
 
         void BuildLeft()
         {
-            int n = (int)Math.Ceiling((_end - _from) / Dt) + 1;
-            _left = new double[n + 1];
-            for (int i = n - 1; i >= 0; i--)
-            {
-                double t = _from + i * Dt;
-                _left[i] = _left[i + 1] + (t < _end ? Math.Min(Dt, _end - t) / PlanSpeed(t) : 0);
-            }
+            var ts = new List<double>();
+            var cost = new List<double>();
+            Walk((t, st, s) => { ts.Add(t); cost.Add(st / s); });
+            ts.Add(_end);
+            cost.Add(0);
+            _ts = ts.ToArray();
+            _left = new double[_ts.Length];
+            for (int i = _ts.Length - 2; i >= 0; i--) _left[i] = _left[i + 1] + cost[i];
         }
 
         /// <summary>照計畫從 t 播到結束還要幾個真實秒。</summary>
         public double PlannedLeft(double t)
         {
             if (t <= _from) return _left[0];
-            double x = (t - _from) / Dt;
-            int i = Math.Min(_left.Length - 2, (int)x);
-            return _left[i] + (_left[i + 1] - _left[i]) * (x - i);
+            if (t >= _end) return 0;
+            int i = Array.BinarySearch(_ts, t);
+            if (i >= 0) return _left[i];
+            i = ~i - 1;
+            double f = (t - _ts[i]) / Math.Max(1e-9, _ts[i + 1] - _ts[i]);
+            return _left[i] + (_left[i + 1] - _left[i]) * f;
         }
 
         /// <summary>

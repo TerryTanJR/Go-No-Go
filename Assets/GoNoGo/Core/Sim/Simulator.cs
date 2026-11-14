@@ -165,7 +165,8 @@ namespace GoNoGo.Core
             bool lower = result.Launch.Outcome == LaunchOutcome.LowerOrbit;
             double dragFactor = lower ? 2.0 : 1.0;
 
-            int targetDays = (int)Math.Round(result.TargetYears * 365.25);
+            // 無條件進位：Math.Round(730.5) 是 730（銀行家捨入），2 年任務只跑 1.9986 年，「撐滿年數」永遠判定沒達成
+            int targetDays = (int)Math.Ceiling(result.TargetYears * 365.25);
             double storageCap = ev.Data.StorageGb;
             double antennaHealth = 1.0;
             double prop = ev.Mass.PropellantKg, mass = ev.Mass.WetKg;

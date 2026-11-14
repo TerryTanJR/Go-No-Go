@@ -16,6 +16,7 @@ Every number in `Assets/GoNoGo/Data/Resources/GameData/*.json` carries a `source
 | JPL Concept Maturity Levels paper (Wessen et al., AIAA 2013, CC0), listed in the challenge Resources | `ui.tut.done` text; the tutorial flow (requirements, trade-off, point design) | CML 1–4 named in the end-of-training message. |
 | Goddard Mission Design Lab (challenge Resources) | `ui.tut.call` text; the five departments in `departments.json` | Departments are framed as MDL-style engineering disciplines. |
 | NASA CubeSat 101 (CSLI, challenge Resources) | CubeSat-class parts in `parts.json` (computer, battery) | Standard-size reference (1U = 10×10×11 cm, ~1–1.33 kg). Not yet cross-checked part by part. |
+| LRO (Lunar Reconnaissance Orbiter, 2009): NASA SVS animation 10445, LROC mission news, NSSDCA Moon Fact Sheet | `LunarTransfer` in `Core/Sim/LaunchTimeline.cs` → lunar launch cinematic (`LunarTransferView`) | LRO's transfer (launch 2009-06-18, arrival 06-23) and its ~40-minute lunar orbit insertion burn set the coast length and LOI duration; Earth–Moon distance 384,400 km and sidereal month 27.3217 d from NSSDCA. Links: https://svs.gsfc.nasa.gov/10445 , https://www.lroc.asu.edu/news/146 , https://www.lroc.asu.edu/news/147 , https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html |
 | NOAA SWPC scales | `donki_events.json` links, severity mapping | G-scale / flare class definitions. |
 
 ### Challenge "Resources" checklist
@@ -39,7 +40,7 @@ Only facts and figures are used. No text or images are copied from these sites.
 | Wikipedia | CC BY-SA 4.0; facts are not copyrightable, article credited | Falcon 9 / Falcon Heavy / Electron flight records, decoy parts, Svalbard station |
 | eoPortal (ESA) | ESA terms; credit eoPortal | PRISMA, ICEYE, BIROS/FireBIRD, RADARSAT Constellation |
 | SatCatalog, GomSpace, Busek, AWS, SpaceX, ULA | Vendor datasheets and price lists, cited by name | Camera and battery specs, ground-station and launch prices, launch timelines |
-| Spaceflight Now, Universe Today, NASASpaceFlight, New Space Economy | News reporting, cited by name | Launch timelines, rideshare price, Transporter flights |
+| Spaceflight Now, Universe Today, NASASpaceFlight, New Space Economy | News reporting, cited by name | Launch timelines, rideshare price, Transporter flights; LRO launch and TLI timing (https://spaceflightnow.com/atlas/av020/av020status.html) |
 | arXiv, MIT OCW, MDPI Sensors, J. Astron. Space Sci., SmallSat Conference | Open-access papers and course notes, cited by name | Eclipse and power formulas, station keeping |
 | Noto Sans TC, Rajdhani, Share Tech Mono, JetBrains Mono | SIL OFL 1.1; license files ship in `Art/Fonts/` | UI fonts |
 
