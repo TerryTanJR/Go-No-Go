@@ -651,7 +651,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     left: 72px;
     top: 96px;
     max-height: 82%;
-    width: 460px;
+    width: 560px;
     justify-content: flex-start;
     padding: 20px 22px;
     border-radius: 8px;
@@ -925,7 +925,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .modal-actions { flex-direction: row; align-items: center; margin-top: 16px; }
 /* 遊戲選單（Tab / Esc） */
 .game-menu-layer { background-color: rgba(2, 5, 10, 0.7); }
-.game-menu { width: 460px; }
+.game-menu { width: 560px; }
 .gm-col { margin-top: 4px; }
 .gm-col > * { margin-bottom: 10px; }
 .gm-mission { margin-bottom: 10px; color: var(--c-text); }
@@ -1558,7 +1558,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 /* 新手訓練：左上角的任務追蹤 */
 .coach {
     margin-top: 10px;
-    width: 400px;
+    width: 480px;
     padding: 10px 14px;
     border-radius: 6px;
     background-color: rgba(9, 16, 28, 0.85);

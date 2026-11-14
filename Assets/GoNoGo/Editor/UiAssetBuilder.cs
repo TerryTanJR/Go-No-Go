@@ -81,7 +81,11 @@ namespace GoNoGo.EditorTools
         /// 這裡依 <see cref="GameSettings.TextScales"/> 為每個 N 算出各檔大小。
         /// :root 是預設值（世界螢幕也用它），UI 根元素掛 .fs-115 等 class 時換成對應大小。
         /// 40px 以上的大標題、大數字本來就夠大，Theme.uss 直接寫像素、不跟著縮放（放大會撐破固定大小的印章、時鐘）。
+        /// 介面（.fs-*）整體再乘 <see cref="UiBaseScale"/>：Theme.uss 的字級是照 1080p 大螢幕排的，筆電上太小；
+        /// :root（牆上螢幕用）維持原本大小，那些畫面是照 RenderTexture 的尺寸排的。
         /// </summary>
+        public const float UiBaseScale = 1.2f;
+
         [MenuItem("GoNoGo/Build/UI Font Scale")]
         public static string BuildFontScale()
         {
@@ -98,7 +102,7 @@ namespace GoNoGo.EditorTools
             sb.Append("   字體大小設定：UI 根元素掛 .fs-{百分比}，所有 var(--fs-N) 一起換大小。 */\n\n");
             Block(sb, ":root", sizes, GameSettings.DefaultTextScale);
             foreach (int pct in GameSettings.TextScales)
-                Block(sb, "." + GameSettings.TextScaleClass(pct), sizes, pct);
+                Block(sb, "." + GameSettings.TextScaleClass(pct), sizes, pct * UiBaseScale);
 
             string path = UiRoot + "/FontScale.uss";
             File.WriteAllText(path, sb.ToString());
@@ -106,7 +110,7 @@ namespace GoNoGo.EditorTools
             return $"FontScale.uss: {sizes.Count} sizes x {GameSettings.TextScales.Length} steps";
         }
 
-        static void Block(StringBuilder sb, string selector, IEnumerable<int> sizes, int pct)
+        static void Block(StringBuilder sb, string selector, IEnumerable<int> sizes, float pct)
         {
             sb.Append(selector).Append(" {\n");
             foreach (int n in sizes)
