@@ -12,7 +12,10 @@ namespace GoNoGo.UI
 
         public static string N(double v, int dec = 0) => v.ToString("N" + dec, Inv);
 
-        public static string Money(double musd) => musd >= 100 ? $"${musd.ToString("0", Inv)}M" : $"${musd.ToString("0.0", Inv)}M";
+        /// <summary>沙盒的預算、期限「沒有上限」：資料裡是一個很大的數字，畫面一律寫 ∞。</summary>
+        public static bool Unlimited(double v) => v >= ScenarioDef.NoLimit / 2;
+
+        public static string Money(double musd) => Unlimited(musd) ? "∞" : musd >= 100 ? $"${musd.ToString("0", Inv)}M" : $"${musd.ToString("0.0", Inv)}M";
 
         /// <summary>零件的價錢：很多零件不到 0.1 M$，要多兩位小數才看得出差別。</summary>
         public static string PartMoney(double musd) => Math.Abs(musd) < 1 ? $"${musd.ToString("0.00", Inv)}M" : Money(musd);
@@ -37,7 +40,7 @@ namespace GoNoGo.UI
                 case ResourceId.Budget: return $"{Money(r.Used)} / {Money(r.Capacity)}";
                 case ResourceId.Comms: return $"{N(r.Used, 1)} / {N(r.Capacity, 1)} {Unit(r.Unit)}";
                 case ResourceId.Data: return $"{N(r.Used, 1)} / {N(r.Capacity, 0)} {Unit(r.Unit)}";
-                default: return $"{N(r.Used)} / {N(r.Capacity)} {Unit(r.Unit)}";
+                default: return Unlimited(r.Capacity) ? $"{N(r.Used)} / ∞ {Unit(r.Unit)}" : $"{N(r.Used)} / {N(r.Capacity)} {Unit(r.Unit)}";
             }
         }
 

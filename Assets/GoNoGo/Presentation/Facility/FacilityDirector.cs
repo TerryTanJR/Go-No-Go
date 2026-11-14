@@ -95,11 +95,15 @@ namespace GoNoGo.Presentation
             var held = new HashSet<string>(m.S.Held.Values);
             bool Loose(string id) => m.S.Owned.Contains(id) && !installed.Contains(id) && !held.Contains(id);
             foreach (var kv in _items)
+            {
+                // 還沒組裝的零件是一箱小零件；在組裝工作台組好之後才變成零件本身
+                kv.Value.SetBuilt(!SessionRules.NeedsAssembly(m.S, m.Data, kv.Key));
                 if (!Loose(kv.Key))
                 {
                     delivery.Remove(kv.Value);
                     kv.Value.SetVisible(false);
                 }
+            }
             foreach (var id in m.S.Owned)
                 if (Loose(id) && _items.TryGetValue(id, out var item) && !delivery.Has(item))
                     delivery.Add(item, _ownedBefore != null && !_ownedBefore.Contains(id));
@@ -184,11 +188,14 @@ namespace GoNoGo.Presentation
 
             // 本機手上的零件
             var mine = m.S.HeldBy(GameSession.LocalPlayer);
-            if (mine != _localHeldId)
+            // 手上拿的是箱子還是組好的零件（組裝完成時要換模型，所以一起記）
+            bool mineKit = mine != null && SessionRules.NeedsAssembly(m.S, m.Data, mine);
+            string mineKey = mine == null ? null : mine + (mineKit ? "#kit" : "");
+            if (mineKey != _localHeldId)
             {
-                _localHeldId = mine;
+                _localHeldId = mineKey;
                 if (_localHeld != null) Destroy(_localHeld.gameObject);
-                _localHeld = mine != null ? SatelliteBuilder.BuildPart(mine, m.Data, _localRig.hold, 0.42f).transform : null;
+                _localHeld = mine == null ? null : HeldModel(mine, mineKit, m.Data, _localRig.hold);
             }
             _localRig.holding = mine != null;
             PoseFeed.Local.Held = mine;
@@ -216,9 +223,14 @@ namespace GoNoGo.Presentation
                     var start = SpawnFor(m.S.Phase, p.Station, true);
                     go.transform.position = start.position;
                 }
-                ra.Apply(p.Look, m.S.HeldBy(p.Id), m.Data);
+                var held = m.S.HeldBy(p.Id);
+                ra.Apply(p.Look, held, m.Data, held != null && SessionRules.NeedsAssembly(m.S, m.Data, held));
             }
         }
+
+        /// <summary>拿在手上的模型：還沒組裝是一箱小零件，組好了是零件本身。</summary>
+        public static Transform HeldModel(string partId, bool kit, GameData data, Transform hand) =>
+            (kit ? SatelliteBuilder.BuildKit(data.Part(partId), hand, 0.4f) : SatelliteBuilder.BuildPart(partId, data, hand, 0.42f)).transform;
 
         void Update()
         {

@@ -47,7 +47,9 @@ namespace GoNoGo.UI
             if (asm)
             {
                 // 手上拿著零件 → 裝上去；買了還沒裝 → 去拿；什麼都還沒買 → 採購
-                if (s.HeldBy(GameSession.LocalPlayer) != null) return Make("install", "IntegrationStand");
+                var held = s.HeldBy(GameSession.LocalPlayer);
+                if (held != null && SessionRules.NeedsAssembly(s, data, held)) return Make("assemble", "AssemblyBench");
+                if (held != null) return Make("install", "IntegrationStand");
                 var bench = new HashSet<string>(s.Bench.AllPartIds());
                 var last = s.Orders.LastOrDefault();
                 if (last != null && last.Parts.Any(id => !bench.Contains(id))) return Make("pick", "code");

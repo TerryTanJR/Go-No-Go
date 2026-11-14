@@ -69,7 +69,9 @@ namespace GoNoGo.UI
                 Ui.Text(Loc.T(rr.Requirement.Text), "small").AddTo(card);
             }
             int fails = SessionRules.FailedBeforeForScore(M.S, D);   // 歷史關卡的重演不算玩家的失敗
-            Ui.Text(r.Score.FirstLaunchBonus ? Loc.T("ui.report.first_launch") : Loc.T("ui.report.redesigns", ("n", fails)), "small", r.Score.FirstLaunchBonus ? "go" : "dim", "first-call").AddTo(reqPanel);
+            // 有加分但其實失敗過（學員、沙盒第一次失敗不算）：照實寫，不要說「第一次就成功」
+            string firstKey = !r.Score.FirstLaunchBonus ? "ui.report.redesigns" : fails > 0 ? "ui.report.first_free" : "ui.report.first_launch";
+            Ui.Text(Loc.T(firstKey, ("n", fails)), "small", r.Score.FirstLaunchBonus ? "go" : "dim", "first-call").AddTo(reqPanel);
 
             // ---- 中欄：營運、發射紀錄 ----
             var mid = Ui.El("report-col", "report-col--why").AddTo(wrap);
@@ -108,6 +110,9 @@ namespace GoNoGo.UI
             Fact(you, "ui.report.f.data", Fmt.N(r.DataReturnedGb / 1000, 1) + " TB (" + Fmt.Pct(r.ReturnFraction) + ")");
             Fact(you, "ui.report.f.cost", Fmt.Money(ev.Cost.TotalMusd) + " / " + Fmt.Money(ev.Cost.BudgetMusd));
             Fact(you, "ui.report.f.mass", Fmt.N(ev.Mass.WetKg) + " kg");
+            // 這一局收進圖鑑的知識卡（組裝、安裝零件時收的）
+            int cards = Codex.NewThisMission.Count;
+            if (cards > 0) Fact(you, "ui.report.f.cards", Loc.T("ui.report.cards", ("n", cards), ("have", Codex.Count(D)), ("total", Codex.Total(D))));
 
             // 沒有對照任務的關卡（月球、野火）不放空的面板
             var missions = M.Scenario.ComparisonMissions.Select(id => D.Missions.FirstOrDefault(x => x.Id == id)).Where(x => x != null).ToList();
@@ -129,14 +134,50 @@ namespace GoNoGo.UI
 
             var actions = Ui.Row("report-actions").AddTo(Root);
             Ui.Btn(Loc.T("ui.report.to_menu"), () => GameSession.EndMission(), "btn-big").AddTo(actions);
+            // 儲存、分享這一份設計（設計圖庫在主選單，可以拿來比較、在沙盒打開）
+            if (!M.S.Tutorial)
+            {
+                string code = DesignCode.Encode(l.Design, D, "");
+                bool saved = ReferenceEquals(_savedFor, r);
+                var save = Ui.Btn(Loc.T(saved ? "ui.report.saved" : "ui.report.save"), null, "btn-big", "report-save").AddTo(actions);
+                save.SetEnabled(!saved);
+                save.clicked += () =>
+                {
+                    var s = DesignsView.SaveFlown();
+                    _savedFor = r;
+                    Sfx.Confirm();
+                    UIRoot.Toast(Loc.T("ui.designs.saved", ("name", s.name)));
+                    save.text = Loc.T("ui.report.saved");
+                    save.SetEnabled(false);
+                };
+                Button share = null;
+                share = Ui.Btn(Loc.T("ui.report.share"), () =>
+                {
+                    ClipboardUtil.Copy(code);
+                    Sfx.Confirm();
+                    UIRoot.Toast(Loc.T("ui.report.shared"), 4f);
+                    share.text = Loc.T("ui.report.share_done");
+                }, "btn-big", "report-save").AddTo(actions);
+            }
             Ui.Spacer().AddTo(actions);
             if (!M.S.Multiplayer && !M.S.Tutorial)
             {
                 var sid = M.S.ScenarioId;
                 var did = M.S.DifficultyId;
-                Ui.Btn(Loc.T("ui.report.again"), () => { Sfx.Confirm(); GameSession.StartSolo(sid, did); }, "btn-primary", "btn-big").AddTo(actions);
+                bool sandbox = M.Scenario != null && M.Scenario.Sandbox;
+                string again = sandbox ? DesignCode.Encode(l.Design, D, "") : null;
+                // 沙盒：帶著這一份設計回去接著改；一般任務：從頭再玩一次
+                Ui.Btn(Loc.T(sandbox ? "ui.report.again_sandbox" : "ui.report.again"), () =>
+                {
+                    Sfx.Confirm();
+                    if (sandbox) GameSession.StartSandbox(again);
+                    else GameSession.StartSolo(sid, did);
+                }, "btn-primary", "btn-big").AddTo(actions);
             }
         }
+
+        /// <summary>這一局的設計已經存進圖庫（按鈕變成「已儲存」）。</summary>
+        static MissionResult _savedFor;
 
         static void ScoreRow(VisualElement parent, string key, double value, double weight, bool animate)
         {

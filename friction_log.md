@@ -624,3 +624,20 @@
     - 拋整流罩後到衛星分離只用側面鏡頭，不再輪替到後方鏡頭：後方鏡頭推近後是從上節尾端往前看，箭體會擋住衛星。
     - 共乘：整流罩裡畫出三層 ESPA 式轉接環（直徑 1.6 m、高 0.6 m），每環 6 個接口掛別人的小衛星或立方衛星發射盒，玩家的衛星裝在最上面。固定亂數種子，每次都是同一疊。
     - 還沒處理：衛星本體大小是依質量估的（最小 0.55 m），8 kg 的立方衛星畫成約 0.65 m，比真的 3U（10 × 10 × 34 cm）大。
+
+124. **第三人稱拆不了零件：快取的碰撞體清單過期**
+    - 原因：`Interactable.Colliders` 只收集一次。子物件會重建的互動物件（整合台上的船每次裝拆都整艘重組），清單裡會全是已銷毀的碰撞體（Unity 的假 null），`Length > 0` 的判斷擋不住。
+    - 解法：getter 發現清單裡有被銷毀的就重新收集；重建子物件的地方另外呼叫 `InvalidateColliders()`。之後凡是「快取 GetComponentsInChildren 的結果」都要想一下子物件會不會被換掉。
+
+125. **USS 不支援 `:first-child`**
+    - 現象：`.menu-pair > .menu-item--half:first-child { margin-right: 10px; }` 沒有任何效果，也不會報錯。
+    - 解法：UI Toolkit 的 USS 只支援 `:hover`、`:active`、`:focus`、`:disabled`、`:enabled`、`:checked`、`:root` 這些，位置類的偽類都沒有。改成在程式裡多掛一個 class（`menu-item--left`）。
+
+126. **rich text 標籤和「打字機效果」「不落單」互相打架**
+    - 字串裡的 `[[重點]]` 由 `Loc.Mark` 換成 `<color=…>…</color>`。直接對這種字串 `Substring` 會把標籤切一半（畫面上出現 `<col`）；`Ui.NoOrphan` 在最後三個字之間插零寬字元，剛好插進結尾的 `</color>` 裡，標籤就壞了。
+    - 解法：打字機用 `Ui.VisibleLength` / `Ui.RichPrefix`（標籤不算字數、不會被切一半、切在上色的字中間會補結尾標籤）；`NoOrphanLine` 結尾四個字裡有 `<` 或 `>` 就不處理。
+
+127. **實機測試：零件剛下單時對不到**
+    - 原因：新到貨的零件要沿著輸送帶滑大約 12 秒才停，這段時間它一直在動，測試腳本走到「上一刻的位置」就撲空。不是遊戲的問題。
+    - 解法：下單後先 `tools/playtest/pt.sh flow Wait 800` 再 `AimFrom "Item_<id>",1.5`。長按 V 安裝要 1.2 秒，Editor 沒有焦點時幀率很高，`Hold "v",700` 才夠。
+    - `pt.sh flow <進入點> <參數>` 的參數是「一個」用逗號隔開的 JSON 字串（`'"batt_small",false'`）；分成兩個引數會變成不合法的 JSON，指令直接失敗、沒有任何輸出。

@@ -40,10 +40,59 @@ namespace GoNoGo.UI
             return string.Join("\n", paras);
         }
 
+        /// <summary>不算 rich text 標籤（&lt;color=…&gt;）的字數：打字機效果要照看得到的字算。</summary>
+        public static int VisibleLength(string rich)
+        {
+            if (string.IsNullOrEmpty(rich)) return 0;
+            int n = 0;
+            bool tag = false;
+            foreach (char c in rich)
+            {
+                if (c == '<') tag = true;
+                else if (c == '>' && tag) tag = false;
+                else if (!tag) n++;
+            }
+            return n;
+        }
+
+        /// <summary>
+        /// 前 visible 個看得到的字（標籤不算、不會被切一半）。切在上色的字中間時補上結尾標籤，後面的字才不會全部變色。
+        /// </summary>
+        public static string RichPrefix(string rich, int visible)
+        {
+            if (string.IsNullOrEmpty(rich) || visible <= 0) return "";
+            var sb = new System.Text.StringBuilder(rich.Length);
+            int n = 0, open = 0;
+            for (int i = 0; i < rich.Length; i++)
+            {
+                char c = rich[i];
+                if (c == '<')
+                {
+                    int close = rich.IndexOf('>', i);
+                    if (close > i)
+                    {
+                        string tag = rich.Substring(i, close - i + 1);
+                        if (tag.StartsWith("</")) open = System.Math.Max(0, open - 1);
+                        else open++;
+                        sb.Append(tag);
+                        i = close;
+                        continue;
+                    }
+                }
+                if (n >= visible) break;
+                sb.Append(c);
+                n++;
+            }
+            for (int k = 0; k < open; k++) sb.Append("</color>");
+            return sb.ToString();
+        }
+
         static string NoOrphanLine(string s)
         {
             s = s.TrimEnd();
             if (s.Length < 4) return s;
+            // 結尾幾個字裡有 rich text 標籤：不黏（零寬字元插進標籤裡，標籤就壞了）
+            if (s.IndexOf('>', s.Length - 4) >= 0 || s.IndexOf('<', s.Length - 4) >= 0) return s;
             int sp = s.LastIndexOf(' ');
             // 英文：最後一個單字和前一個連在一起（太長的不黏，免得整行被推下去）
             if (sp > 0 && s.Length - sp <= 16 && !IsCjk(s[s.Length - 1]) && !IsCjk(s[s.Length - 2]))

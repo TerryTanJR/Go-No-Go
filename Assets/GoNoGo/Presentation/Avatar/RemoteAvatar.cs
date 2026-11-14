@@ -14,7 +14,8 @@ namespace GoNoGo.Presentation
         string _lookKey, _heldId;
         Transform _held;
 
-        public void Apply(AvatarLook look, string held, GameData data)
+        /// <param name="kit">手上那個零件還沒組裝（拿的是一箱小零件）。</param>
+        public void Apply(AvatarLook look, string held, GameData data, bool kit = false)
         {
             look = (look ?? new AvatarLook()).Sanitized();
             string key = $"{look.Suit}/{look.Helmet}/{look.Visor}/{look.Accessory}/{look.Accent}/{look.Lower}";
@@ -36,11 +37,12 @@ namespace GoNoGo.Presentation
             }
             _tag.text = string.IsNullOrEmpty(look.Name) ? "P" + playerId : look.Name;
 
-            if (held != _heldId)
+            string heldKey = held == null ? null : held + (kit ? "#kit" : "");
+            if (heldKey != _heldId)
             {
-                _heldId = held;
+                _heldId = heldKey;
                 if (_held != null) Destroy(_held.gameObject);
-                _held = held != null ? SatelliteBuilder.BuildPart(held, data, _rig.hold, 0.42f).transform : null;
+                _held = held != null ? FacilityDirector.HeldModel(held, kit, data, _rig.hold) : null;
             }
             _rig.holding = held != null;
         }

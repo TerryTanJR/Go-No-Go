@@ -27,6 +27,19 @@ namespace GoNoGo.Core.Tests
             Ok(s, Command.Of(CommandType.PlaceOrder, 1));
             if (SessionRules.NeedsApproval(s)) Ok(s, Command.Of(CommandType.ApproveOrder, 2));
         }
+        /// <summary>手上的零件如果還是一箱小零件，先在組裝工作台組好。</summary>
+        void Assemble(SessionState s, int player = 1)
+        {
+            if (SessionRules.NeedsAssembly(s, _data, s.HeldBy(player))) Ok(s, Command.Of(CommandType.Assemble, player));
+        }
+
+        /// <summary>把手上的零件裝上船（買來的要先組裝）。</summary>
+        void Install(SessionState s, int player = 1)
+        {
+            Assemble(s, player);
+            Ok(s, Command.Of(CommandType.Install, player));
+        }
+
         string Try(SessionState s, CommandType t, int player, string a = "", int n = 0) => SessionRules.Apply(s, _data, Command.Of(t, player, a, n));
 
         /// <summary>發射（採購機制 v2：不用先做環境測試）。</summary>
@@ -223,7 +236,7 @@ namespace GoNoGo.Core.Tests
             Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
             Assert.That(SessionRules.Apply(s, _data, Command.Of(CommandType.Pick, 1, "batt_small")), Is.EqualTo("err.hands_full"));
             Assert.That(SessionRules.WouldReplace(s, _data, "batt_large"), Is.EqualTo("batt_small"));
-            Ok(s, Command.Of(CommandType.Install, 1));
+            Install(s);
             Assert.That(s.Bench.Get(PartCategory.Battery), Is.EqualTo("batt_large"));
             Assert.That(s.HeldBy(1), Is.Null);
             // 大螢幕在組裝區，直接看整合台
@@ -233,7 +246,7 @@ namespace GoNoGo.Core.Tests
             var inst = s.Bench.Instruments[0];
             Ok(s, Command.Of(CommandType.Pick, 1, inst));
             Assert.That(s.Bench.Instruments, Has.No.Member(inst));
-            Ok(s, Command.Of(CommandType.Install, 1));
+            Install(s);
             Assert.That(s.Bench.Instruments, Has.Member(inst));
         }
 
@@ -251,6 +264,7 @@ namespace GoNoGo.Core.Tests
             foreach (var p in more)
             {
                 Ok(s, Command.Of(CommandType.Pick, 1, p.Id));
+                Assemble(s);
                 var r = SessionRules.Apply(s, _data, Command.Of(CommandType.Install, 1));
                 if (r != SessionRules.Ok)
                 {
@@ -300,7 +314,7 @@ namespace GoNoGo.Core.Tests
             var s = Solo();
             Buy(s, "batt_large");
             Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
-            Ok(s, Command.Of(CommandType.Install, 1));
+            Install(s);
             Fly(s);
             Assert.That(s.LastLaunch.Design.Get(PartCategory.Battery), Is.EqualTo("batt_large"));
             Assert.That(s.LastLaunch.Design.ProcurementMusd, Is.EqualTo(Cost("batt_small")).Within(1e-9), "換下來的開局電池還是算錢");
@@ -330,7 +344,7 @@ namespace GoNoGo.Core.Tests
             {
                 if (s.Bench.Get(cat) == good.Get(cat)) continue;
                 Ok(s, Command.Of(CommandType.Pick, 1, good.Get(cat)));
-                Ok(s, Command.Of(CommandType.Install, 1));
+                Install(s);
             }
             s.Bench.Instruments = good.Instruments.ToList();
             s.Bench.OrbitId = good.OrbitId;
@@ -528,7 +542,7 @@ namespace GoNoGo.Core.Tests
             double dev1 = dev0 + Cost("batt_medium");
             Assert.That(Dev(), Is.EqualTo(dev1).Within(1e-9), "買了沒裝也算錢");
             Ok(s, Command.Of(CommandType.Pick, 1, "batt_medium"));
-            Ok(s, Command.Of(CommandType.Install, 1));
+            Install(s);
             Assert.That(Dev(), Is.EqualTo(dev1).Within(1e-9), "裝上去不會再多算");
             Ok(s, Command.Of(CommandType.Pick, 1, "batt_medium"));
             Ok(s, Command.Of(CommandType.Drop, 1));
@@ -623,7 +637,7 @@ namespace GoNoGo.Core.Tests
             Ok(s, Command.Of(CommandType.Call, 1, "engineering", 1));
             Buy(s, "batt_medium");
             Ok(s, Command.Of(CommandType.Pick, 1, "batt_medium"));
-            Ok(s, Command.Of(CommandType.Install, 1));
+            Install(s);
             Ok(s, Command.Of(CommandType.CartAdd, 1, "solar_deployable"));
             Ok(s, Command.Of(CommandType.SetGroundStation, 1, "gs_6"));
             Ok(s, Command.Of(CommandType.SetYears, 1, "", 5));

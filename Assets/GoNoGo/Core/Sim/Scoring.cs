@@ -71,7 +71,9 @@ namespace GoNoGo.Core
             // 學員難度：第一次發射失敗不算
             int allowed = diff.FreeFirstFailure ? 1 : 0;
             s.FirstLaunchBonus = r.ReachedOrbit && ctx.FailedLaunchesBefore <= allowed;
-            s.Departments = Clamp(80.0 * s.Requirements.Count(x => x.Met) / n + (s.FirstLaunchBonus ? 20 : 0));
+            // 沙盒沒有任何處室需求：這一項不扣分（一般關卡沒有傳需求進來時照舊算 0，不影響既有的結果）
+            double met = scenario != null && scenario.Sandbox && s.Requirements.Count == 0 ? 1.0 : s.Requirements.Count(x => x.Met) / (double)n;
+            s.Departments = Clamp(80.0 * met + (s.FirstLaunchBonus ? 20 : 0));
             s.Ops = OpsScore(r, diff.ExtraActionPenalty);
             s.ScienceThreshold = ScienceThreshold(ctx.Requirements);
 

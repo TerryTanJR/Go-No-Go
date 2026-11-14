@@ -48,6 +48,8 @@ namespace GoNoGo.Presentation
         {
             rig.Show(m.S.Bench, m.Data, m.BenchEval, animate);
             _ghostFor = null; // 船變了，預覽重算
+            // 船整艘重組了：舊零件的碰撞體都換掉了，第三人稱挑零件用的清單要重新收集
+            InvalidateColliders();
         }
 
         public float DistanceTo(Vector3 p)
@@ -173,6 +175,34 @@ namespace GoNoGo.Presentation
         // ---------------- 準星對著船上的零件 ----------------
 
         public SatPart Aimed => _aimed;
+
+        /// <summary>
+        /// 離準星最近的「拆得下來」的零件（船身結構不算）。
+        /// byCenter：比零件碰撞體中心和準星的夾角（第三人稱：船在角色前方偏下，鏡頭中央的射線常常從船上方穿過）；
+        /// 否則比碰撞框上離準星射線最近的點（第一人稱：準星打在船身上、旁邊就是小零件時吸過去）。
+        /// </summary>
+        public Collider NearestPart(Ray aim, float maxDeg, bool byCenter)
+        {
+            Collider best = null;
+            float nearest = maxDeg;
+            foreach (var c in Colliders)
+            {
+                if (c == null || !c.enabled || !c.gameObject.activeInHierarchy) continue;
+                var part = c.GetComponentInParent<SatPart>();
+                if (part == null || string.IsNullOrEmpty(part.partId)) continue;
+                var b = c.bounds;
+                Vector3 p = b.center;
+                if (!byCenter)
+                    p = b.ClosestPoint(aim.origin + aim.direction * Mathf.Max(0, Vector3.Dot(b.center - aim.origin, aim.direction)));
+                float a = Vector3.Angle(aim.direction, p - aim.origin);
+                if (a < nearest)
+                {
+                    nearest = a;
+                    best = c;
+                }
+            }
+            return best;
+        }
 
         public void Aim(Collider c)
         {

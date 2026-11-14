@@ -57,6 +57,16 @@ namespace GoNoGo.Presentation
                     }
                 }
                 if (found == null) found = Assist(out hitCol);
+                // 準星打在船身（拆不下來的結構）上：旁邊 7° 內有零件就吸過去，薄板和小感測器不用對得剛剛好
+                if (found is IntegrationStand fs)
+                {
+                    var onPart = hitCol != null ? hitCol.GetComponentInParent<SatPart>() : null;
+                    if (onPart == null || string.IsNullOrEmpty(onPart.partId))
+                    {
+                        var near = fs.NearestPart(ray, 7f, false);
+                        if (near != null) hitCol = near;
+                    }
+                }
             }
             else if (active) found = Nearby(out hitCol);
             if (found is IntegrationStand st) st.Aim(hitCol);
@@ -93,7 +103,8 @@ namespace GoNoGo.Presentation
             {
                 var def = m.Data.Part(held);
                 target = PartItem.Info(def);
-                target.Subtitle = Loc.T("ui.hint.holding");
+                // 手上是一箱還沒組的小零件：先去組裝工作台
+                target.Subtitle = Loc.T(SessionRules.NeedsAssembly(m.S, m.Data, held) ? "ui.hint.holding_kit" : "ui.hint.holding");
                 target.Keys.Add(new KeyHint("C", Loc.T("ui.hint.drop")));
             }
             Hud.Target = target;
@@ -170,23 +181,8 @@ namespace GoNoGo.Presentation
                     col = c;
                 }
             }
-            if (best is IntegrationStand stand)
-            {
-                // 船在角色前方偏下，鏡頭中央的射線常常從船上方穿過：改挑離畫面中央角度最小的零件（30° 內）
-                col = null;
-                float nearest = 30f;
-                foreach (var c in stand.Colliders)
-                {
-                    var part = c != null && c.enabled && c.gameObject.activeInHierarchy ? c.GetComponentInParent<SatPart>() : null;
-                    if (part == null || string.IsNullOrEmpty(part.partId)) continue; // 船身結構不能拆
-                    float a = Vector3.Angle(aim.direction, c.bounds.center - aim.origin);
-                    if (a < nearest)
-                    {
-                        nearest = a;
-                        col = c;
-                    }
-                }
-            }
+            // 船在角色前方偏下，鏡頭中央的射線常常從船上方穿過：改挑離畫面中央角度最小的零件（30° 內）
+            if (best is IntegrationStand stand) col = stand.NearestPart(aim, 30f, true);
             return best;
         }
 

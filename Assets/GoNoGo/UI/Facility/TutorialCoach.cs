@@ -37,6 +37,7 @@ namespace GoNoGo.UI
             new Step { Key = "notes", Phase = SessionPhase.Design, Done = s => s == "open:notes", Target = "Screen_notes" },
             new Step { Key = "procure", Phase = SessionPhase.Design, Done = s => s == "order", Target = "ProcureConsole" },
             new Step { Key = "pick", Phase = SessionPhase.Design, Done = s => s.StartsWith("pick:"), Target = "code" },
+            new Step { Key = "assemble", Phase = SessionPhase.Design, Done = s => s == "assemble", Target = "AssemblyBench" },
             new Step { Key = "install", Phase = SessionPhase.Design, Done = s => s == "install", Target = "IntegrationStand" },
             new Step { Key = "dashboard", Phase = SessionPhase.Design, Done = s => s == "open:dashboard" || s == "open:tablet", Target = "BayDashboard" },
             // 後排北座的手冊 2・電力（組裝區的完整手冊也算，裡面一樣翻得到第 2 章）

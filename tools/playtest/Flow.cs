@@ -239,4 +239,194 @@ public static class Flow
         GameSession.Send(t, a, n);
         return "sent " + t + " " + a + " " + n + "  " + State();
     }
+
+    // ---------------- 直接開局、整合台上的零件（拆零件的檢查） ----------------
+
+    static async Task<bool> WaitFor(System.Func<bool> ok, float seconds)
+    {
+        float end = Time.realtimeSinceStartup + seconds;
+        while (Time.realtimeSinceStartup < end)
+        {
+            if (ok()) return true;
+            await Task.Yield();
+        }
+        return ok();
+    }
+
+    /// <summary>不經選單直接開一局個人任務（"sandbox" = 沙盒），等設施場景載好、簡報關掉、進設計階段。</summary>
+    public static async Task<string> Start(string scenario)
+    {
+        if (scenario == "sandbox") GameSession.StartSandbox();
+        else if (scenario == "tutorial") GameSession.StartSolo("earth_observation", "tutorial", true);
+        else GameSession.StartSolo(scenario, null);
+        bool ok = await WaitFor(() => SceneManager.GetActiveScene().name == "Facility" && FacilityDirector.Instance != null
+                                      && FacilityDirector.Instance.Player != null && !SceneFlow.Loading && !Hud.Covered, 30f);
+        await Frames(20);
+        return (ok ? "" : "TIMEOUT ") + State();
+    }
+
+    /// <summary>整合台上的每一組零件：類別、id、有幾個模型、幾個碰撞體。</summary>
+    public static string Parts()
+    {
+        var stand = IntegrationStand.Instance;
+        if (stand == null) return "no stand";
+        var sb = new StringBuilder();
+        foreach (var p in stand.rig.Parts)
+            sb.Append(p.category).Append('=').Append(string.IsNullOrEmpty(p.partId) ? "-" : p.partId)
+              .Append(" r").Append(p.GetComponentsInChildren<Renderer>().Length)
+              .Append(" c").Append(p.GetComponentsInChildren<Collider>().Length).Append("; ");
+        return sb.ToString();
+    }
+
+    static Bounds BoundsOf(SatPart p)
+    {
+        var rs = p.GetComponentsInChildren<Renderer>();
+        var b = rs.Length > 0 ? rs[0].bounds : new Bounds(p.transform.position, Vector3.zero);
+        foreach (var r in rs) b.Encapsulate(r.bounds);
+        return b;
+    }
+
+    /// <summary>
+    /// 站在整合台旁（零件那一側）、看向船上的某個零件，回傳資訊框內容。firstPerson = false 測第三人稱（預設視角）。
+    /// 第三人稱只轉向零件的水平方向，俯仰用預設值（玩家平常就是這樣走過去的，不會特地低頭對準）。
+    /// </summary>
+    public static async Task<string> AimPart(string partId, bool firstPerson)
+    {
+        var stand = IntegrationStand.Instance;
+        var part = stand.rig.Parts.FirstOrDefault(x => x.partId == partId);
+        if (part == null) return "no part " + partId + " on the stand";
+        if (part.GetComponentsInChildren<Renderer>().Length == 0) return partId + ": NO MODEL";
+        // 瞄這個零件最大的那一塊（整組的中心可能在船身裡面，例如四面都有的貼片太陽能板）
+        var biggest = part.GetComponentsInChildren<Renderer>().OrderByDescending(r => r.bounds.size.x * r.bounds.size.y + r.bounds.size.y * r.bounds.size.z + r.bounds.size.x * r.bounds.size.z).First();
+        var c = biggest.bounds.center;
+        var center = stand.transform.position;
+        var outward = new Vector3(c.x - center.x, 0, c.z - center.z);
+        if (outward.magnitude < 0.15f) outward = Vector3.back;
+        outward.Normalize();
+        // 整合台的台座半徑 3.1 m：站在台座邊緣外一點
+        var at = new Vector3(center.x, 0, center.z) + outward * 3.45f;
+        var pc = FacilityDirector.Instance.Player;
+        Hud.FirstPerson = firstPerson;
+        pc.Teleport(new Vector3(at.x, 0.05f, at.z), Quaternion.LookRotation(-outward).eulerAngles.y);
+        await Frames(4);
+        var t = typeof(PlayerController);
+        var yawF = t.GetField("_yaw", BindingFlags.NonPublic | BindingFlags.Instance);
+        var pitchF = t.GetField("_pitch", BindingFlags.NonPublic | BindingFlags.Instance);
+        // 把畫面中央轉到零件上（第三人稱的鏡頭位置會跟著視角動，多轉幾次才對得準）：就是玩家用滑鼠做的事
+        for (int i = 0; i < (firstPerson ? 2 : 8); i++)
+        {
+            var from = Camera.main.transform.position;
+            var d = c - from;
+            yawF.SetValue(pc, Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg);
+            pitchF.SetValue(pc, Mathf.Clamp(-Mathf.Atan2(d.y, new Vector2(d.x, d.z).magnitude) * Mathf.Rad2Deg, -70f, 75f));
+            await Frames(firstPerson ? 3 : 12);
+        }
+        await Frames(4);
+        var h = Hud.Target;
+        var def = GameSession.Data.Part(partId);
+        if (h == null) return partId + ": FAIL nothing targeted";
+        bool right = def != null && h.Title.StartsWith(def.Code + "｜");
+        bool canRemove = h.Keys.Any(k => k.Key == "C");
+        return partId + ": " + (right && canRemove ? "OK" : "FAIL") + " [" + h.Title + (string.IsNullOrEmpty(h.Subtitle) ? "" : " / " + h.Subtitle) + "] keys=" + string.Join(",", h.Keys.Select(k => k.Key));
+    }
+
+    /// <summary>
+    /// 第一人稱：零件可能被別的零件擋住（大太陽能翼後面的電腦、被別台儀器擋住的儀器）。
+    /// 玩家會繞著船走：這裡繞一圈每 30° 站一次、再加上零件自己那一側，任何一個位置對得到就算可以拆。
+    /// </summary>
+    public static async Task<string> AimPartAround(string partId)
+    {
+        var stand = IntegrationStand.Instance;
+        var part = stand.rig.Parts.FirstOrDefault(x => x.partId == partId);
+        if (part == null) return "no part " + partId;
+        var renderers = part.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0) return partId + ": NO MODEL";
+        var def = GameSession.Data.Part(partId);
+        var pc = FacilityDirector.Instance.Player;
+        var t = typeof(PlayerController);
+        var yawF = t.GetField("_yaw", BindingFlags.NonPublic | BindingFlags.Instance);
+        var pitchF = t.GetField("_pitch", BindingFlags.NonPublic | BindingFlags.Instance);
+        var center = stand.transform.position;
+        Hud.FirstPerson = true;
+        string last = "nothing targeted";
+        for (int a = 0; a < 360; a += 30)
+        {
+            var outward = Quaternion.Euler(0, a, 0) * Vector3.forward;
+            var at = new Vector3(center.x, 0, center.z) + outward * 3.45f;
+            pc.Teleport(new Vector3(at.x, 0.05f, at.z), Quaternion.LookRotation(-outward).eulerAngles.y);
+            await Frames(3);
+            foreach (var r in renderers)
+            {
+                var d = r.bounds.center - Camera.main.transform.position;
+                yawF.SetValue(pc, Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg);
+                pitchF.SetValue(pc, Mathf.Clamp(-Mathf.Atan2(d.y, new Vector2(d.x, d.z).magnitude) * Mathf.Rad2Deg, -70f, 75f));
+                await Frames(4);
+                var h = Hud.Target;
+                if (h == null) continue;
+                last = h.Title;
+                if (h.Title.StartsWith(def.Code + "｜") && h.Keys.Any(k => k.Key == "C")) return partId + ": OK from " + a + "°";
+            }
+        }
+        return partId + ": FAIL from every side, last=[" + last + "]";
+    }
+
+    /// <summary>第一人稱繞著船走，船上每個零件是不是至少有一個位置對得到。</summary>
+    public static async Task<string> AimAllAround()
+    {
+        var ids = IntegrationStand.Instance.rig.Parts.Where(p => !string.IsNullOrEmpty(p.partId)).Select(p => p.partId).Distinct().ToList();
+        var sb = new StringBuilder("first person, walking around; ");
+        int ok = 0;
+        foreach (var id in ids)
+        {
+            var r = await AimPartAround(id);
+            if (r.Contains(": OK")) ok++;
+            sb.Append(r).Append("; ");
+        }
+        sb.Append(ok).Append('/').Append(ids.Count).Append(" removable");
+        return sb.ToString();
+    }
+
+    /// <summary>船上每一個零件都瞄一次（見 <see cref="AimPart"/>）。</summary>
+    public static async Task<string> AimAllParts(bool firstPerson)
+    {
+        var ids = IntegrationStand.Instance.rig.Parts.Where(p => !string.IsNullOrEmpty(p.partId)).Select(p => p.partId).Distinct().ToList();
+        var sb = new StringBuilder(firstPerson ? "first person\n" : "third person\n");
+        int ok = 0;
+        foreach (var id in ids)
+        {
+            var r = await AimPart(id, firstPerson);
+            if (r.Contains(": OK")) ok++;
+            sb.Append(r).Append('\n');
+        }
+        sb.Append(ok).Append('/').Append(ids.Count).Append(" removable");
+        return sb.ToString();
+    }
+
+    /// <summary>目前這一局的狀態摘要：手上、船上、擁有、已組裝、購物車。</summary>
+    public static string Mission()
+    {
+        if (!GameSession.HasMission) return "no mission";
+        var s = GameSession.Mission.S;
+        return "scenario=" + s.ScenarioId + " diff=" + s.DifficultyId + " phase=" + s.Phase + " held=" + (s.HeldBy(GameSession.LocalPlayer) ?? "-")
+               + "\nbench=" + string.Join(",", s.Bench.AllPartIds()) + " orbit=" + s.Bench.OrbitId + " launcher=" + s.Bench.LauncherId + " years=" + s.Bench.MissionYears
+               + "\nowned=" + string.Join(",", s.Owned) + "\nbuilt=" + string.Join(",", s.Built) + "\ncart=" + string.Join(",", s.Cart)
+               + "\nlaunches=" + s.Launches.Count + " restarts=" + s.Restarts;
+    }
+
+    /// <summary>畫面上所有看得到的文字（檢查有沒有漏掉的字串鍵、沒轉換的 [[ ]] 記號）。</summary>
+    public static string Texts()
+    {
+        var list = Elements().OfType<TextElement>().Where(e => Visible(e) && !string.IsNullOrEmpty(e.text)).Select(e => e.text.Replace("\n", " ")).Distinct().ToList();
+        var s = string.Join(" | ", list);
+        return s.Length > 3000 ? s.Substring(0, 3000) + "…" : s;
+    }
+
+    /// <summary>看得到的文字裡，像是沒翻到的字串鍵（ui.xxx.yyy）或沒轉換的記號。沒有就回傳 clean。</summary>
+    public static string Leaks()
+    {
+        var bad = Elements().OfType<TextElement>().Where(e => Visible(e) && !string.IsNullOrEmpty(e.text))
+            .Select(e => e.text).Where(t => t.Contains("[[") || t.Contains("]]") || System.Text.RegularExpressions.Regex.IsMatch(t, @"^(ui|err|res|warn|event|ops|mini|cause|suggest|objective)\.[a-z0-9_.]+$")
+                                            || System.Text.RegularExpressions.Regex.IsMatch(t, @"\{[a-z_]+(:[^}]*)?\}")).Distinct().ToList();
+        return bad.Count == 0 ? "clean" : "LEAKS: " + string.Join(" | ", bad);
+    }
 }

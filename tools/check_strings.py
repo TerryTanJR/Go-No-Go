@@ -40,7 +40,12 @@ def main():
         "ui.phone.notes_": sorted({d.get("notes_mode", "transcript") for d in diffs}),
         "ui.area.": ["assembly", "control", "lobby"],
         "ui.hud.controls": ["", "_solo"],
-        "ui.tut.": [k + t for k in ["move", "view", "procure", "pick", "install", "dashboard", "call", "launch", "console", "judge"] for t in ["", ".t"]],
+        "ui.tut.": [k + t for k in ["move", "view", "procure", "pick", "assemble", "install", "dashboard", "call", "notes", "manual", "launch", "console", "judge"] for t in ["", ".t"]],
+        "ui.guide.": [k + t for k in ["call", "procure", "pick", "assemble", "install", "fix", "fix_ctl", "fix_goals", "launch", "ready_asm", "review",
+                                      "wait_review", "vote", "ops_act", "ops_end", "ops_next"] for t in ["", ".t"]],
+        "ui.lobby.team_": ["assembly", "control"],
+        "ui.intro.": ["assembly", "control", "assembly.t", "control.t"],
+        "ui.brief.speech.": [s["id"] for s in scen] + ["default", "sandbox"],
         "event.title.": ["solar_storm", "part_failure", "science_opportunity", "power_anomaly", "big_fire", "false_fire"],
         "event.diag.": ["solar_storm", "part_failure", "science_opportunity", "power_anomaly", "big_fire", "false_fire"],
         "ops.console.": ["payload", "power", "attitude", "comms"],
@@ -56,7 +61,7 @@ def main():
             code += f.read_text(encoding="utf-8") + "\n"
 
     needed = set()
-    for m in re.finditer(r'"((?:ui|event|choice|opp|res|launch|nogo|warn|fix|cause|suggest)\.[a-z0-9_.]*)"', code):
+    for m in re.finditer(r'"((?:ui|event|choice|opp|res|launch|nogo|warn|fix|cause|suggest|err)\.[a-z0-9_.]*)"', code):
         key = m.group(1)
         if key.endswith(".") or key in families:
             continue

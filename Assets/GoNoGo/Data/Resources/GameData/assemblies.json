@@ -1,0 +1,148 @@
+{
+  "prebuilt": ["prop_none"],
+  "recipes": [
+    {
+      "category": "instrument",
+      "components": [
+        { "id": "optics", "name": { "en": "Optics", "zh-TW": "光學鏡組" }, "role": { "en": "Collects light from the ground and brings it to a focus.", "zh-TW": "把地面來的光收集起來，聚成清楚的影像" } },
+        { "id": "detector", "name": { "en": "Detector", "zh-TW": "感測器" }, "role": { "en": "Turns the focused light into an electrical signal.", "zh-TW": "把聚好的光變成電訊號" } },
+        { "id": "readout", "name": { "en": "Readout electronics", "zh-TW": "讀出電路" }, "role": { "en": "Turns the signal into digital data and hands it to the onboard computer.", "zh-TW": "把訊號變成數位資料，交給衛星的電腦" } },
+        { "id": "baffle", "name": { "en": "Baffle", "zh-TW": "遮光罩" }, "role": { "en": "Blocks stray light coming in from the side.", "zh-TW": "擋掉從旁邊照進來的雜光" } }
+      ],
+      "source": { "title": "NASA Small Spacecraft Technology State-of-the-Art Report", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/", "note": "Typical building blocks of an optical payload; simplified for the game." }
+    },
+    {
+      "category": "instrument",
+      "part_ids": ["inst_thermal", "inst_fire_mwir_hr"],
+      "components": [
+        { "id": "optics", "name": { "en": "Optics", "zh-TW": "光學鏡組" }, "role": { "en": "Collects light from the ground and brings it to a focus.", "zh-TW": "把地面來的光收集起來，聚成清楚的影像" } },
+        { "id": "detector", "name": { "en": "Detector", "zh-TW": "感測器" }, "role": { "en": "Turns the focused light into an electrical signal.", "zh-TW": "把聚好的光變成電訊號" } },
+        { "id": "cryocooler", "name": { "en": "Cryocooler", "zh-TW": "製冷機" }, "role": { "en": "Keeps the detector very cold so it does not see its own heat.", "zh-TW": "把感測器降到很低溫，才不會看到自己的熱" } },
+        { "id": "readout", "name": { "en": "Readout electronics", "zh-TW": "讀出電路" }, "role": { "en": "Turns the signal into digital data and hands it to the onboard computer.", "zh-TW": "把訊號變成數位資料，交給衛星的電腦" } }
+      ],
+      "source": { "title": "NASA Small Spacecraft Technology State-of-the-Art Report", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/", "note": "Cooled infrared payloads add a cryocooler (thermal control chapter); simplified for the game." }
+    },
+    {
+      "category": "instrument",
+      "part_ids": ["inst_sar"],
+      "components": [
+        { "id": "radar_antenna", "name": { "en": "Radar antenna", "zh-TW": "雷達天線" }, "role": { "en": "Sends microwave pulses down and catches the echoes.", "zh-TW": "向地面送出微波脈衝，再接住彈回來的回波" } },
+        { "id": "transmitter", "name": { "en": "Transmitter", "zh-TW": "發射機" }, "role": { "en": "Makes the radio signal and boosts its power.", "zh-TW": "產生無線電訊號，並把它放大" } },
+        { "id": "receiver", "name": { "en": "Receiver", "zh-TW": "接收機" }, "role": { "en": "Amplifies the very faint signal that comes back.", "zh-TW": "把傳回來的微弱訊號放大" } },
+        { "id": "readout", "name": { "en": "Readout electronics", "zh-TW": "讀出電路" }, "role": { "en": "Turns the signal into digital data and hands it to the onboard computer.", "zh-TW": "把訊號變成數位資料，交給衛星的電腦" } }
+      ],
+      "source": { "title": "NASA Earthdata: What is Synthetic Aperture Radar?", "url": "https://www.earthdata.nasa.gov/learn/earth-observation-data-basics/sar", "note": "An active radar transmits pulses and records the echoes; simplified for the game." }
+    },
+    {
+      "category": "instrument",
+      "part_ids": ["inst_magnetometer", "inst_ais", "inst_particle", "inst_microwave_radiometer"],
+      "components": [
+        { "id": "sensor_head", "name": { "en": "Sensor head", "zh-TW": "感測頭" }, "role": { "en": "Feels the thing being measured directly: a field, particles or radio waves.", "zh-TW": "直接感應要量的東西：磁場、粒子或無線電波" } },
+        { "id": "boom", "name": { "en": "Boom", "zh-TW": "伸展桿" }, "role": { "en": "Holds the sensor away from the spacecraft's own interference.", "zh-TW": "把感測頭撐離機身，避開衛星自己的干擾" } },
+        { "id": "readout", "name": { "en": "Readout electronics", "zh-TW": "讀出電路" }, "role": { "en": "Turns the signal into digital data and hands it to the onboard computer.", "zh-TW": "把訊號變成數位資料，交給衛星的電腦" } },
+        { "id": "housing", "name": { "en": "Housing", "zh-TW": "外殼" }, "role": { "en": "Holds everything in place through the shaking of launch.", "zh-TW": "把裡面的東西固定住，撐過發射時的振動" } }
+      ],
+      "source": { "title": "NASA Small Spacecraft Technology State-of-the-Art Report", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/", "note": "In-situ and radio sensors; simplified for the game." }
+    },
+    {
+      "category": "solar",
+      "components": [
+        { "id": "solar_cells", "name": { "en": "Solar cells", "zh-TW": "太陽能電池片" }, "role": { "en": "Turn sunlight straight into electricity.", "zh-TW": "把陽光直接變成電" } },
+        { "id": "substrate", "name": { "en": "Panel substrate", "zh-TW": "面板基板" }, "role": { "en": "A light, stiff board that the cells are bonded to.", "zh-TW": "又輕又硬的板子，讓電池片有地方貼" } },
+        { "id": "hinge", "name": { "en": "Hinge and release", "zh-TW": "鉸鏈與展開機構" }, "role": { "en": "Keeps the panel folded for launch and swings it open in orbit.", "zh-TW": "發射時把板子折好，入軌後再打開" } },
+        { "id": "harness", "name": { "en": "Wiring harness", "zh-TW": "電纜" }, "role": { "en": "Carries the electricity back into the spacecraft body.", "zh-TW": "把發出來的電送回機身" } }
+      ],
+      "source": { "title": "NASA Small Spacecraft Technology State-of-the-Art Report: Power", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/power-subsystems/", "note": "Solar cells, panels and deployment; simplified for the game." }
+    },
+    {
+      "category": "solar",
+      "part_ids": ["solar_body"],
+      "components": [
+        { "id": "solar_cells", "name": { "en": "Solar cells", "zh-TW": "太陽能電池片" }, "role": { "en": "Turn sunlight straight into electricity.", "zh-TW": "把陽光直接變成電" } },
+        { "id": "cover_glass", "name": { "en": "Cover glass", "zh-TW": "保護玻璃" }, "role": { "en": "A thin window that protects the cells from radiation and dust-sized impacts.", "zh-TW": "薄薄一層玻璃，替電池片擋輻射和微小的撞擊" } },
+        { "id": "harness", "name": { "en": "Wiring harness", "zh-TW": "電纜" }, "role": { "en": "Carries the electricity back into the spacecraft body.", "zh-TW": "把發出來的電送回機身" } }
+      ],
+      "source": { "title": "NASA Small Spacecraft Technology State-of-the-Art Report: Power", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/power-subsystems/", "note": "Body-mounted cells need no deployment; simplified for the game." }
+    },
+    {
+      "category": "battery",
+      "components": [
+        { "id": "cells", "name": { "en": "Energy cells", "zh-TW": "儲能電芯" }, "role": { "en": "Where the electrical energy is actually stored.", "zh-TW": "真正把電存起來的地方" } },
+        { "id": "bms", "name": { "en": "Battery management board", "zh-TW": "電池管理板" }, "role": { "en": "Watches every cell's voltage and temperature so none is overcharged or drained too far.", "zh-TW": "盯著每顆電芯的電壓和溫度，不讓它過充或放得太深" } },
+        { "id": "heater", "name": { "en": "Heater", "zh-TW": "加熱片" }, "role": { "en": "Keeps the pack warm when the spacecraft gets very cold.", "zh-TW": "衛星很冷的時候，替電池保溫" } },
+        { "id": "housing", "name": { "en": "Housing", "zh-TW": "外殼" }, "role": { "en": "Holds everything in place through the shaking of launch.", "zh-TW": "把裡面的東西固定住，撐過發射時的振動" } }
+      ],
+      "source": { "title": "NASA Small Spacecraft Technology State-of-the-Art Report: Power", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/power-subsystems/", "note": "Energy storage and battery protection; simplified for the game." }
+    },
+    {
+      "category": "antenna",
+      "components": [
+        { "id": "radiator", "name": { "en": "Antenna element", "zh-TW": "天線面" }, "role": { "en": "Sends the radio waves toward the ground and hears commands coming up.", "zh-TW": "把無線電波送向地面，也接收地面傳上來的指令" } },
+        { "id": "transmitter", "name": { "en": "Transmitter", "zh-TW": "發射機" }, "role": { "en": "Makes the radio signal and boosts its power.", "zh-TW": "產生無線電訊號，並把它放大" } },
+        { "id": "diplexer", "name": { "en": "Diplexer", "zh-TW": "雙工器" }, "role": { "en": "Lets sending and receiving share one antenna without drowning each other out.", "zh-TW": "讓收和發共用一支天線，不會互相蓋掉" } },
+        { "id": "feed", "name": { "en": "Feed cable", "zh-TW": "饋線" }, "role": { "en": "Carries the signal between the radio and the antenna.", "zh-TW": "在無線電機和天線之間傳送訊號" } }
+      ],
+      "source": { "title": "NASA Small Spacecraft Technology State-of-the-Art Report: Communications", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/soa-communications/", "note": "Radio, antenna and RF front end; simplified for the game." }
+    },
+    {
+      "category": "antenna",
+      "part_ids": ["ant_optical"],
+      "components": [
+        { "id": "laser", "name": { "en": "Laser source", "zh-TW": "雷射光源" }, "role": { "en": "Makes the beam of light that carries the data.", "zh-TW": "產生載著資料的光束" } },
+        { "id": "beam_telescope", "name": { "en": "Beam telescope", "zh-TW": "發射望遠鏡" }, "role": { "en": "Squeezes the beam very narrow so it still reaches a station hundreds of kilometres away.", "zh-TW": "把光束收得很細，才打得到遠方的地面站" } },
+        { "id": "pointing", "name": { "en": "Fine pointing mechanism", "zh-TW": "精密指向機構" }, "role": { "en": "Keeps the narrow beam locked on the ground station.", "zh-TW": "讓很細的光束一直對準地面站" } }
+      ],
+      "source": { "title": "NASA Small Spacecraft Technology State-of-the-Art Report: Communications", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/soa-communications/", "note": "Optical (laser) communication terminals; simplified for the game." }
+    },
+    {
+      "category": "computer",
+      "components": [
+        { "id": "cpu", "name": { "en": "Processor board", "zh-TW": "處理器板" }, "role": { "en": "The brain: runs the commands and controls every device.", "zh-TW": "衛星的大腦：執行指令、控制所有設備" } },
+        { "id": "memory", "name": { "en": "Memory", "zh-TW": "記憶體" }, "role": { "en": "Keeps the data on board until the next pass over a ground station.", "zh-TW": "飛過地面站之前，資料先存在這裡" } },
+        { "id": "power_board", "name": { "en": "Power board", "zh-TW": "電源板" }, "role": { "en": "Turns the battery's power into the voltages the circuits need.", "zh-TW": "把電池的電轉成電路需要的電壓" } },
+        { "id": "housing", "name": { "en": "Housing", "zh-TW": "外殼" }, "role": { "en": "Holds everything in place through the shaking of launch.", "zh-TW": "把裡面的東西固定住，撐過發射時的振動" } }
+      ],
+      "source": { "title": "NASA Small Spacecraft Technology State-of-the-Art Report: Command and Data Handling", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/soa-cdh/", "note": "Onboard computer, memory and power conditioning; simplified for the game." }
+    },
+    {
+      "category": "adcs",
+      "components": [
+        { "id": "star_tracker", "name": { "en": "Star tracker", "zh-TW": "星象儀" }, "role": { "en": "Photographs the stars and works out which way the spacecraft is facing.", "zh-TW": "拍星星、認星座，算出衛星現在朝哪裡" } },
+        { "id": "wheels", "name": { "en": "Reaction wheels", "zh-TW": "反應輪" }, "role": { "en": "Spin faster or slower so the spacecraft turns the other way, with no fuel.", "zh-TW": "飛輪轉快或轉慢，衛星就往反方向轉，不用燃料" } },
+        { "id": "torquer", "name": { "en": "Magnetorquers", "zh-TW": "磁力棒" }, "role": { "en": "Push against Earth's magnetic field to unload the wheels.", "zh-TW": "和地球磁場互推，替反應輪卸掉累積的轉速" } },
+        { "id": "control", "name": { "en": "Control electronics", "zh-TW": "控制電路" }, "role": { "en": "Compares where the spacecraft points with where it should, and commands the wheels.", "zh-TW": "比較現在的指向和目標，決定輪子怎麼轉" } }
+      ],
+      "source": { "title": "NASA Small Spacecraft Technology State-of-the-Art Report: Guidance, Navigation and Control", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/guidance-navigation-and-control/", "note": "Attitude sensors and actuators; simplified for the game." }
+    },
+    {
+      "category": "propulsion",
+      "components": [
+        { "id": "tank", "name": { "en": "Propellant tank", "zh-TW": "推進劑貯箱" }, "role": { "en": "Holds the propellant until it is needed.", "zh-TW": "把推進劑裝好，要用時才放出來" } },
+        { "id": "valve", "name": { "en": "Valve", "zh-TW": "閥門" }, "role": { "en": "Opens and shuts the flow of propellant.", "zh-TW": "開關推進劑的流動" } },
+        { "id": "catalyst", "name": { "en": "Catalyst bed", "zh-TW": "觸媒床" }, "role": { "en": "Breaks the propellant down into hot gas without any spark.", "zh-TW": "不用點火，就讓推進劑分解成高溫氣體" } },
+        { "id": "nozzle", "name": { "en": "Nozzle", "zh-TW": "噴嘴" }, "role": { "en": "Speeds the hot gas up and throws it backward to make thrust.", "zh-TW": "把高溫氣體加速往後噴，產生推力" } }
+      ],
+      "source": { "title": "NASA Small Spacecraft Technology State-of-the-Art Report: In-Space Propulsion", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/in-space_propulsion/", "note": "Monopropellant system parts; simplified for the game." }
+    },
+    {
+      "category": "propulsion",
+      "part_ids": ["prop_ion"],
+      "components": [
+        { "id": "tank", "name": { "en": "Propellant tank", "zh-TW": "推進劑貯箱" }, "role": { "en": "Holds the propellant until it is needed.", "zh-TW": "把推進劑裝好，要用時才放出來" } },
+        { "id": "ionizer", "name": { "en": "Ionisation chamber", "zh-TW": "游離室" }, "role": { "en": "Uses electricity to turn propellant atoms into charged ions.", "zh-TW": "用電把推進劑的原子變成帶電的離子" } },
+        { "id": "grids", "name": { "en": "Accelerator grids", "zh-TW": "加速柵極" }, "role": { "en": "Use high voltage to fling the ions out at very high speed.", "zh-TW": "用高電壓把離子高速推出去" } },
+        { "id": "neutralizer", "name": { "en": "Neutraliser", "zh-TW": "中和器" }, "role": { "en": "Puts electrons back into the exhaust so the spacecraft does not charge up.", "zh-TW": "把電子補回噴出去的離子裡，衛星才不會自己帶電" } }
+      ],
+      "source": { "title": "NASA Small Spacecraft Technology State-of-the-Art Report: In-Space Propulsion", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/in-space_propulsion/", "note": "Gridded ion thruster parts; simplified for the game." }
+    },
+    {
+      "category": "shielding",
+      "components": [
+        { "id": "plates", "name": { "en": "Shield plates", "zh-TW": "屏蔽板" }, "role": { "en": "Stop most of the low-energy charged particles.", "zh-TW": "擋下大部分低能量的帶電粒子" } },
+        { "id": "spot_shield", "name": { "en": "Spot shield", "zh-TW": "局部屏蔽片" }, "role": { "en": "An extra layer placed right on the chips that are most sensitive to radiation.", "zh-TW": "直接蓋在最怕輻射的晶片上，多擋一層" } },
+        { "id": "fasteners", "name": { "en": "Fasteners", "zh-TW": "固定件" }, "role": { "en": "Bolt the shield around the electronics bay.", "zh-TW": "把屏蔽鎖在電子艙外面" } }
+      ],
+      "source": { "title": "NASA Small Spacecraft Technology State-of-the-Art Report: Structures, Materials and Mechanisms", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/structures-materials-and-mechanisms/", "note": "Radiation shielding of electronics; simplified for the game." }
+    }
+  ]
+}

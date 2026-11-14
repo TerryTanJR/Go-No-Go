@@ -144,7 +144,7 @@ namespace GoNoGo.UI
             bool late = t.Capacity > 0 && t.Used > t.Capacity;
             var cost = Ui.El("phone-cost").Cls("phone-cost--late", late).AddTo(body);
             Ui.Text(Loc.T("ui.phone.cost", ("m", Fmt.N(per, 1))), "phone-cost-rule").AddTo(cost);
-            Ui.Text(Loc.T("ui.phone.cost_used", ("used", Fmt.N(SessionRules.CallMonths(M.S, D), 1)), ("now", Fmt.N(t.Used, 1)), ("deadline", Fmt.N(t.Capacity, 0)))
+            Ui.Text(Loc.T("ui.phone.cost_used", ("used", Fmt.N(SessionRules.CallMonths(M.S, D), 1)), ("now", Fmt.N(t.Used, 1)), ("deadline", Fmt.Unlimited(t.Capacity) ? "∞" : Fmt.N(t.Capacity, 0)))
                     + (late ? "　" + Loc.T("ui.phone.late") : ""), "small", late ? "over" : "dim").AddTo(cost);
 
             // 需求問到幾條、哪個處室還有沒問到的（任務主管難度要自己記，不顯示）
@@ -256,7 +256,7 @@ namespace GoNoGo.UI
         public override void Tick(float dt)
         {
             if (_answer == null || _line < 0 || _typed >= _answerText.Length) return;
-            _typed += dt * (Loc.IsZh ? 28f : 60f);
+            _typed += dt * (Loc.IsZh ? 40f : 80f);
             _answer.text = _answerText.Substring(0, (int)System.Math.Min(_answerText.Length, _typed));
         }
     }
@@ -417,7 +417,8 @@ namespace GoNoGo.UI
                 ? Loc.T("ui.launchp.funds_ok", ("years", years))
                 : Loc.T("ui.launchp.funds_short", ("funded", Fmt.N(funded, 1)), ("years", years)));
             // 歷史任務失敗不重來（保留原設計），其他關卡失敗就整個任務重來
-            if (s.Scenario(D)?.Historical == null) Gate(gate, "dim", Loc.T("ui.launchp.restart_note"));
+            if (s.Scenario(D)?.Sandbox == true) Gate(gate, "dim", Loc.T("ui.launchp.sandbox_note"));
+            else if (s.Scenario(D)?.Historical == null) Gate(gate, "dim", Loc.T("ui.launchp.restart_note"));
             if (poll) Gate(gate, "dim", Loc.T("ui.launchp.poll_note", ("n", s.Players.Count)));
 
             var why = SessionRules.CanLaunch(s);

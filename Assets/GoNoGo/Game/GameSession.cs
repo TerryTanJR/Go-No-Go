@@ -56,6 +56,18 @@ namespace GoNoGo.Game
             if (loadScene) SceneFlow.Go(SceneFlow.Facility);
         }
 
+        /// <summary>
+        /// 沙盒模式：沒有預設限制的自由設計。designCode 有給就把那份設計（圖庫裡存的、或別人分享的）直接放上整合台。
+        /// </summary>
+        public static void StartSandbox(string designCode = null, bool loadScene = true)
+        {
+            StartSolo(Data.Sandbox.Scenario.Id, null, false, loadScene);
+            if (!string.IsNullOrEmpty(designCode)) Send(CommandType.LoadDesign, designCode);
+        }
+
+        /// <summary>網頁版：瀏覽器把剪貼簿的文字送回來（見 <see cref="ClipboardUtil"/>）。</summary>
+        public void OnClipboardText(string text) => ClipboardUtil.Deliver(text);
+
         /// <summary>多人（GoNoGo.Net 呼叫）：換上網路版的 link。</summary>
         public static void Begin(MissionSession m, ISessionLink link)
         {
@@ -64,6 +76,7 @@ namespace GoNoGo.Game
             i._link?.Shutdown();
             i._mission = m;
             i._link = link;
+            Codex.BeginMission();
             m.PhaseChanged += i.OnPhaseChanged;
         }
 

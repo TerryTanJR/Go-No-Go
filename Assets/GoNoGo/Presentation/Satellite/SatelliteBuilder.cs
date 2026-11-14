@@ -98,6 +98,38 @@ namespace GoNoGo.Presentation
             return root;
         }
 
+        /// <summary>
+        /// 還沒組裝的零件：一箱小零件。深色箱身、白色箱蓋、兩條金屬束帶，中間一圈用零件的顏色，
+        /// 遠遠就看得出「這是一箱東西，不是零件本身」。最長邊是 <paramref name="size"/> 公尺，中心對齊 parent。
+        /// </summary>
+        public static GameObject BuildKit(PartDef part, Transform parent, float size)
+        {
+            var root = new GameObject("Kit_" + (part?.Id ?? ""));
+            root.transform.SetParent(parent, false);
+            var mats = SatMaterials.Load();
+            if (mats == null) return root;
+            var sp = root.AddComponent<SatPart>();
+            sp.category = part?.Category ?? "";
+            sp.partId = part?.Id ?? "";
+            var t = root.transform;
+            float w = size, h = size * 0.6f, d = size * 0.7f;
+            Box(t, Vector3.zero, new Vector3(w, h, d), mats.frameDark);
+            Box(t, new Vector3(0, h / 2 + size * 0.02f, 0), new Vector3(w * 1.04f, size * 0.04f, d * 1.04f), mats.paintWhite);
+            var band = Box(t, Vector3.zero, new Vector3(w * 1.012f, h * 0.34f, d * 1.012f), mats.accent);
+            Color accent = Color.white;
+            if (part != null) ColorUtility.TryParseHtmlString(part.Color, out accent);
+            var mpb = new MaterialPropertyBlock();
+            mpb.SetColor("_BaseColor", accent);
+            band.GetComponent<Renderer>().SetPropertyBlock(mpb);
+            foreach (var x in new[] { -1, 1 })
+                Box(t, new Vector3(x * w * 0.3f, size * 0.012f, 0), new Vector3(size * 0.045f, h + size * 0.07f, d * 1.06f), mats.metal);
+            // 箱蓋上的把手
+            Box(t, new Vector3(0, h / 2 + size * 0.075f, 0), new Vector3(w * 0.3f, size * 0.03f, size * 0.05f), mats.metal);
+            foreach (var x in new[] { -1, 1 })
+                Box(t, new Vector3(x * w * 0.14f, h / 2 + size * 0.055f, 0), new Vector3(size * 0.03f, size * 0.04f, size * 0.05f), mats.metal);
+            return root;
+        }
+
         // ---------------- 本體 ----------------
 
         static void BuildBus(Transform root, SatMaterials m, float s, float h, string shield)
@@ -125,7 +157,17 @@ namespace GoNoGo.Presentation
                 if (heavy)
                     Box(v, new Vector3(0.22f * s, h / 2 + 0.1f * s, -0.22f * s), new Vector3(0.28f * s, 0.16f * s, 0.28f * s), m.mliSilver);
             }
-            else Group(root, PartCategory.Shielding, shield); // 標準屏蔽：就是金色隔熱毯本身
+            else
+            {
+                // 標準外殼：一個薄的鋁製電子設備盒，裝在上甲板同一個角落。
+                // 以前沒有模型（「就是隔熱毯本身」），準星對不到，裝上去就拆不下來，零件架上也看不到
+                var v = Group(root, PartCategory.Shielding, shield);
+                if (!string.IsNullOrEmpty(shield))
+                {
+                    Box(v, new Vector3(-0.22f * s, h / 2 + 0.06f * s, 0.22f * s), new Vector3(0.28f * s, 0.08f * s, 0.28f * s), m.metal);
+                    Box(v, new Vector3(-0.22f * s, h / 2 + 0.105f * s, 0.22f * s), new Vector3(0.22f * s, 0.012f * s, 0.22f * s), m.frameDark);
+                }
+            }
         }
 
         // ---------------- 太陽能板 ----------------
@@ -170,6 +212,7 @@ namespace GoNoGo.Presentation
         static void BuildAntenna(Transform root, SatMaterials m, float s, float h, string id)
         {
             var g = Group(root, PartCategory.Antenna, id ?? "");
+            if (string.IsNullOrEmpty(id)) return; // 天線拆掉了：不要還畫著一支拆不下來的預設天線
             switch (id)
             {
                 case "ant_xband_hr":
@@ -205,9 +248,27 @@ namespace GoNoGo.Presentation
         /// <summary>朝天儀器在頂面的位置（角落，避開中間的火箭轉接環、電子艙屏蔽盒與星象儀）。</summary>
         static readonly Vector2[] TopSlots = { new Vector2(0.34f, 0.34f), new Vector2(-0.34f, -0.34f), new Vector2(0.36f, 0f) };
 
+        /// <summary>
+        /// 酬載甲板一層放三台儀器。沙盒可以裝到六台：第四台起放到下面（朝天的放到上面）再多掛的一層酬載板，
+        /// 每台都有自己的位置，不會疊在一起（疊在一起就對不到、拆不下來）。
+        /// </summary>
+        const float DeckGap = 0.62f;
+
+        /// <summary>多掛一層酬載板：一片板子加四根支柱（算船身結構，拆不下來）。</summary>
+        static void ExtraDeck(Transform root, SatMaterials m, float s, float y, float fromY)
+        {
+            var g = Group(root, "bus", "");
+            Box(g, new Vector3(0, y, 0), new Vector3(0.92f * s, 0.03f * s, 0.92f * s), m.paintWhite);
+            float mid = (y + fromY) / 2, len = Mathf.Abs(y - fromY);
+            foreach (var x in new[] { -1, 1 })
+                foreach (var z in new[] { -1, 1 })
+                    Box(g, new Vector3(x * 0.43f * s, mid, z * 0.43f * s), new Vector3(0.03f * s, len, 0.03f * s), m.metal);
+        }
+
         static void BuildInstruments(Transform root, SatMaterials m, float s, float h, Design d, GameData data)
         {
             int slot = 0, top = 0;
+            int decksDown = 0, decksUp = 0;
             foreach (var id in d.Instruments)
             {
                 var p = data.Part(id);
@@ -220,23 +281,31 @@ namespace GoNoGo.Presentation
                 if (model != null)
                 {
                     bool up = p.Mount == "zenith" || p.Mount == "boom";
-                    var tp = TopSlots[Mathf.Min(top, TopSlots.Length - 1)];
-                    var sp = Slots[Mathf.Min(slot, Slots.Length - 1)];
-                    var pos = up ? new Vector3(tp.x * s, h / 2 + 0.015f * s, tp.y * s) : new Vector3(sp.x * s, -h / 2, sp.y * s);
+                    int tier = (up ? top : slot) / Slots.Length;
+                    var tp = TopSlots[top % TopSlots.Length];
+                    var sp = Slots[slot % Slots.Length];
+                    float yUp = h / 2 + 0.015f * s + tier * DeckGap * s, yDown = -h / 2 - tier * DeckGap * s;
+                    if (up && tier > decksUp) { decksUp = tier; ExtraDeck(root, m, s, yUp - 0.015f * s, h / 2); }
+                    if (!up && tier > decksDown) { decksDown = tier; ExtraDeck(root, m, s, yDown + 0.015f * s, -h / 2); }
+                    var pos = up ? new Vector3(tp.x * s, yUp, tp.y * s) : new Vector3(sp.x * s, yDown, sp.y * s);
                     if (up) top++; else slot++;
                     PlaceModel(g, model, m, pos, s, accent);
                     continue;
                 }
 
-                var at = Slots[Mathf.Min(slot, Slots.Length - 1)];
-                var basePos = new Vector3(at.x * s, -h / 2, at.y * s);
+                var at = Slots[slot % Slots.Length];
+                int deck = slot / Slots.Length;
+                // 這台儀器裝在哪一層的底面（第一層就是船身底面）
+                float bottom = -h / 2 - deck * DeckGap * s;
+                if (deck > decksDown) { decksDown = deck; ExtraDeck(root, m, s, bottom + 0.015f * s, -h / 2); }
+                var basePos = new Vector3(at.x * s, bottom, at.y * s);
                 slot++;
                 switch (id)
                 {
                     case "inst_sar":
                     {
                         // 合成孔徑雷達：長條平板天線，比本體還長
-                        var pos = new Vector3(0, -h / 2 - 0.05f * s, 0.05f * s);
+                        var pos = new Vector3(0, bottom - 0.05f * s, 0.05f * s);
                         Box(g, pos, new Vector3(0.36f * s, 0.035f * s, 1.9f * s), m.paintWhite);
                         for (int i = -3; i <= 3; i++)
                             Box(g, pos + new Vector3(0, -0.02f * s, i * 0.26f * s), new Vector3(0.34f * s, 0.008f * s, 0.2f * s), m.frameDark);
@@ -386,8 +455,18 @@ namespace GoNoGo.Presentation
         static void BuildAdcs(Transform root, SatMaterials m, float s, float h, string id)
         {
             var g = Group(root, PartCategory.Adcs, id ?? "");
+            if (string.IsNullOrEmpty(id)) return; // 沒裝姿態控制：什麼都不畫
             // 太陽感測器（每種都有）
-            Box(g, new Vector3(s / 2 + (_skin - 0.002f) * s, h * 0.42f, s * 0.38f), new Vector3(0.02f * s, 0.05f * s, 0.05f * s), m.lens);
+            Box(g, new Vector3(s / 2 + (_skin + 0.008f) * s, h * 0.42f, s * 0.38f), new Vector3(0.03f * s, 0.07f * s, 0.07f * s), m.lens);
+            if (id != "adcs_wheels" && id != "adcs_precision" && id != "adcs_cmg")
+            {
+                // 整合式模組：一個小盒子（三顆小反應輪在裡面）加一支星象儀鏡筒，裝在背面。
+                // 以前只畫了太陽感測器那一小塊，幾乎看不到，也對不到
+                var c = new Vector3(0, h * 0.25f, -s / 2 - (_skin + 0.035f) * s);
+                Box(g, c, new Vector3(0.24f * s, 0.16f * s, 0.07f * s), m.frameDark);
+                Cyl(g, c + new Vector3(0.06f * s, 0, -0.06f * s), 0.03f * s, 0.06f * s, Vector3.forward, m.metal);
+                Box(g, c + new Vector3(-0.06f * s, 0, -0.037f * s), new Vector3(0.06f * s, 0.06f * s, 0.006f * s), m.lens);
+            }
             if (id == "adcs_wheels" || id == "adcs_precision" || id == "adcs_cmg")
             {
                 foreach (var z in new[] { -0.2f, 0.2f })
@@ -407,8 +486,18 @@ namespace GoNoGo.Presentation
         static void BuildPropulsion(Transform root, SatMaterials m, float s, float h, string id)
         {
             var g = Group(root, PartCategory.Propulsion, id ?? "");
-            if (string.IsNullOrEmpty(id) || id == "prop_none") return;
+            if (string.IsNullOrEmpty(id)) return;
             var back = new Vector3(0, -0.1f * h, s / 2);
+            if (id == "prop_none")
+            {
+                // 不裝推進：推進器的位置蓋一片封板（四顆螺絲）。有模型才對得到、拆得下來
+                var plate = back + new Vector3(0, 0, (_skin + 0.006f) * s);
+                Box(g, plate, new Vector3(0.22f * s, 0.22f * s, 0.012f * s), m.paintWhite);
+                foreach (var x in new[] { -1, 1 })
+                    foreach (var y in new[] { -1, 1 })
+                        Cyl(g, plate + new Vector3(x * 0.08f * s, y * 0.08f * s, 0.008f * s), 0.012f * s, 0.008f * s, Vector3.forward, m.metal);
+                return;
+            }
             Cone(g, back + new Vector3(0, 0, 0.08f * s), 0.07f * s, 0.16f * s, Vector3.forward, m.metal);
             if (id == "prop_hydrazine")
             {
@@ -423,16 +512,28 @@ namespace GoNoGo.Presentation
         static void BuildComputer(Transform root, SatMaterials m, float s, float h, string id)
         {
             var g = Group(root, PartCategory.Computer, id ?? "");
-            // 電腦的散熱板：等級越高越大
+            if (string.IsNullOrEmpty(id)) return;
+            // 電腦：側面的一個電子盒，外面是白色散熱板；等級越高越大。
+            // 盒子有厚度（以前只是一片 8 毫米的薄板，從旁邊幾乎看不到，也很難對準）
             float size = id == "obc_radhard" ? 0.5f : id == "obc_mass_memory" ? 0.38f : 0.24f;
-            Box(g, new Vector3(-s / 2 - _skin * s, -0.15f * h, 0), new Vector3(0.008f * s, size * h, size * s), m.paintWhite);
+            float tall = Mathf.Min(size, 0.34f) * h, depth = 0.06f * s;
+            float x = -s / 2 - _skin * s - depth / 2;
+            Box(g, new Vector3(x, -0.26f * h, 0), new Vector3(depth, tall, size * s), m.frameDark);
+            Box(g, new Vector3(x - depth / 2 - 0.004f * s, -0.26f * h, 0), new Vector3(0.008f * s, tall * 0.9f, size * s * 0.9f), m.paintWhite);
         }
 
         static void BuildBattery(Transform root, SatMaterials m, float s, float h, string id)
         {
             var g = Group(root, PartCategory.Battery, id ?? "");
+            if (string.IsNullOrEmpty(id)) return;
+            // 電池：側面的一個電池盒（有厚度），正面兩條電極匯流排
             float size = id == "batt_large" ? 0.34f : id == "batt_medium" ? 0.24f : id == "batt_cubesat" ? 0.11f : 0.15f;
-            Box(g, new Vector3(s / 2 + _skin * s, -0.22f * h, -0.18f * s), new Vector3(0.008f * s, size * h, size * s), m.paintWhite);
+            float depth = 0.07f * s;
+            float x = s / 2 + _skin * s + depth / 2;
+            var c = new Vector3(x, -0.26f * h, -0.18f * s);
+            Box(g, c, new Vector3(depth, size * h, size * s), m.paintWhite);
+            foreach (var z in new[] { -1, 1 })
+                Box(g, c + new Vector3(depth / 2 + 0.003f * s, 0, z * size * s * 0.25f), new Vector3(0.006f * s, size * h * 0.8f, 0.02f * s), m.metal);
         }
 
         // ---------------- 幾何工具 ----------------

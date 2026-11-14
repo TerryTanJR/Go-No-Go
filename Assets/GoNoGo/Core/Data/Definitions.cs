@@ -298,6 +298,53 @@ namespace GoNoGo.Core
         public double LatencyLimitMin { get; set; }
 
         public bool FireAlert => ScienceModel == "fire_alert";
+
+        /// <summary>
+        /// 沙盒：沒有預設限制。預算、發射期限不設上限（畫面顯示 ∞），沒有處室需求，所有零件、軌道、火箭都能用，
+        /// 發射失敗不重來（保留設計接著改），零件不用先組裝，可以直接載入存過的設計。
+        /// 任務目標是 <see cref="OpenObjective"/>：每台儀器、每條軌道都用它最擅長的目標來算科學。
+        /// </summary>
+        public bool Sandbox { get; set; }
+
+        /// <summary>沙盒的任務目標：不限定主題。</summary>
+        public const string OpenObjective = "open";
+        /// <summary>預算、期限大到這個數字以上就當成「沒有上限」（畫面顯示 ∞）。</summary>
+        public const double NoLimit = 1e5;
+    }
+
+    /// <summary>零件的一個小零件（組裝工作台）：名稱和一句白話功能。</summary>
+    public sealed class AssemblyComponent
+    {
+        public string Id { get; set; } = "";
+        public LocalizedText Name { get; set; } = new LocalizedText();
+        /// <summary>這個小零件做什麼（不含數字）。組裝時看著這句話挑出對的小零件。</summary>
+        public LocalizedText Role { get; set; } = new LocalizedText();
+    }
+
+    /// <summary>
+    /// 一類零件由哪些小零件組成（組裝順序就是清單順序）。part_ids 有寫就只適用那幾個零件（例如有製冷機的儀器），
+    /// 沒寫就是這個類別的通用配方。
+    /// </summary>
+    public sealed class AssemblyRecipe
+    {
+        public string Category { get; set; } = "";
+        public List<string> PartIds { get; set; } = new List<string>();
+        public List<AssemblyComponent> Components { get; set; } = new List<AssemblyComponent>();
+        public SourceRef Source { get; set; } = new SourceRef();
+    }
+
+    /// <summary>assemblies.json：各類零件的組裝配方，以及不用組裝的零件（例如「不裝推進」的封板）。</summary>
+    public sealed class AssemblyData
+    {
+        public List<AssemblyRecipe> Recipes { get; set; } = new List<AssemblyRecipe>();
+        public List<string> Prebuilt { get; set; } = new List<string>();
+    }
+
+    /// <summary>sandbox.json：沙盒用的情境與難度。不放進一般的情境、難度清單（選單、平衡測試都不會列到它）。</summary>
+    public sealed class SandboxData
+    {
+        public ScenarioDef Scenario { get; set; } = new ScenarioDef();
+        public DifficultyDef Difficulty { get; set; } = new DifficultyDef();
     }
 
     public sealed class DifficultyDef

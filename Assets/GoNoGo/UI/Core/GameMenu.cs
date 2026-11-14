@@ -213,6 +213,8 @@ namespace GoNoGo.UI
             KeyRow(body, "C", "ui.keys.pick");
             KeyRow(body, "V", "ui.keys.install");
             if (!mp) KeyRow(body, "T", "ui.keys.tablet");
+            KeyRow(body, "K", "ui.keys.codex");
+            KeyRow(body, "L", "ui.keys.designs");
             if (mp) KeyRow(body, "M", "ui.keys.mic");
             if (mp) KeyRow(body, "G / N", "ui.keys.vote");
             if (s != null && s.Tutorial) KeyRow(body, "H", "ui.keys.tut");

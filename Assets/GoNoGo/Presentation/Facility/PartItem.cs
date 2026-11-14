@@ -16,6 +16,12 @@ namespace GoNoGo.Presentation
 
         SatPart[] _glow;
         WorldLabel _label;
+        Transform _kit;
+        BoxCollider _col;
+        bool _built = true;
+
+        /// <summary>已經組好（顯示零件本身）還是一箱小零件（顯示箱子）。</summary>
+        public bool Built => _built;
 
         public static PartItem Create(PartDef def, GameData data, Transform parent, Vector3 localPos, float size)
         {
@@ -44,25 +50,57 @@ namespace GoNoGo.Presentation
                 var nb = SatelliteRig.ComputeBounds(model);
                 model.transform.position += pivot - nb.center;
             }
-            b = SatelliteRig.ComputeBounds(model);
-            model.transform.position += new Vector3(0, go.transform.position.y - b.min.y + 0.02f, 0);
-            b = SatelliteRig.ComputeBounds(model);
+            Seat(go.transform, model);
 
-            var col = go.AddComponent<BoxCollider>();
-            col.center = go.transform.InverseTransformPoint(b.center);
-            var ls = go.transform.InverseTransformVector(b.size);
-            col.size = Vector3.Max(new Vector3(Mathf.Abs(ls.x), Mathf.Abs(ls.y), Mathf.Abs(ls.z)), Vector3.one * 0.25f);
+            // 還沒組裝時顯示的箱子（一箱小零件）
+            var kit = SatelliteBuilder.BuildKit(def, go.transform, size * 0.92f);
+            Seat(go.transform, kit);
+            kit.SetActive(false);
+            item._kit = kit.transform;
 
-            // 用 SatPart 的發光（模型裡每一組都有）
+            item._col = go.AddComponent<BoxCollider>();
+            // 用 SatPart 的發光（模型裡每一組都有，箱子也有一個）
             item._glow = go.GetComponentsInChildren<SatPart>(true);
 
             item._label = go.AddComponent<WorldLabel>();
             item._label.text = def.Code;
             item._label.style = "code";
-            item._label.offset = new Vector3(0, b.max.y - go.transform.position.y + 0.12f, 0);
             item._label.maxDistance = 5f;
             item._label.color = def.Color;
+            item.Fit();
             return item;
+        }
+
+        /// <summary>底部貼在皮帶上（高一點點，不會和皮帶同一個平面）。</summary>
+        static void Seat(Transform root, GameObject model)
+        {
+            var b = SatelliteRig.ComputeBounds(model);
+            model.transform.position += new Vector3(0, root.position.y - b.min.y + 0.02f, 0);
+        }
+
+        /// <summary>碰撞框和編號標籤跟著現在顯示的那個（零件或箱子）。</summary>
+        void Fit()
+        {
+            var shown = _built ? Model.gameObject : _kit.gameObject;
+            var b = SatelliteRig.ComputeBounds(shown);
+            _col.center = transform.InverseTransformPoint(b.center);
+            var ls = transform.InverseTransformVector(b.size);
+            _col.size = Vector3.Max(new Vector3(Mathf.Abs(ls.x), Mathf.Abs(ls.y), Mathf.Abs(ls.z)), Vector3.one * 0.25f);
+            _label.offset = new Vector3(0, b.max.y - transform.position.y + 0.12f, 0);
+        }
+
+        /// <summary>組好了沒：沒組好顯示箱子，組好顯示零件本身。</summary>
+        public void SetBuilt(bool built)
+        {
+            if (built == _built) return;
+            _built = built;
+            Model.gameObject.SetActive(built);
+            _kit.gameObject.SetActive(!built);
+            // 物件關著的時候 Renderer 量不到大小：先確定自己是開著的再量
+            bool was = gameObject.activeSelf;
+            if (!was) gameObject.SetActive(true);
+            Fit();
+            if (!was) gameObject.SetActive(false);
         }
 
         public static HudTarget Info(PartDef def)
@@ -79,7 +117,12 @@ namespace GoNoGo.Presentation
         {
             var t = Info(Def);
             if (who.Holding != null) t.Subtitle = Loc.T("ui.hint.hands_full");
-            else t.Keys.Add(new KeyHint("C", Loc.T("ui.hint.pick")));
+            else
+            {
+                // 還是一箱小零件：提醒要先拿去組裝工作台
+                if (!_built) t.Subtitle = Loc.T("ui.hint.kit");
+                t.Keys.Add(new KeyHint("C", Loc.T(_built ? "ui.hint.pick" : "ui.hint.pick_kit")));
+            }
             return t;
         }
 

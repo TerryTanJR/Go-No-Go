@@ -107,7 +107,7 @@ namespace GoNoGo.UI
             _foot = Ui.El("brief-foot").AddTo(talk);
             var todo = Ui.Row("brief-todo").AddTo(_foot);
             // 歷史關卡：簡報完直接照當年的設計發射，第一步不是打電話
-            if (!M.IsHistorical) Ui.Text("☎", "brief-todo-icon").AddTo(todo);
+            if (!M.IsHistorical && !M.Scenario.Sandbox) Ui.Text("☎", "brief-todo-icon").AddTo(todo);
             var tt = Ui.El("brief-todo-text").AddTo(todo);
             var me = M.S.Player(GameSession.LocalPlayer);
             bool multi = M.S.Multiplayer && me != null && !M.IsHistorical;
@@ -115,7 +115,8 @@ namespace GoNoGo.UI
             string side = me != null && me.Station == Station.Assembly ? "assembly" : "control";
             if (multi) Ui.Text(Loc.T("ui.intro." + side + ".t"), "eyebrow").AddTo(tt);
             else Ui.Text(Loc.T("ui.brief.todo_title"), "eyebrow").AddTo(tt);
-            Ui.Text(Ui.NoOrphan(Loc.T(M.IsHistorical ? "ui.brief.todo_history" : multi ? "ui.intro." + side : "ui.brief.todo_solo")), "body").AddTo(tt);
+            Ui.Text(Ui.NoOrphan(Loc.T(M.IsHistorical ? "ui.brief.todo_history" : M.Scenario.Sandbox ? "ui.brief.todo_sandbox"
+                : multi ? "ui.intro." + side : "ui.brief.todo_solo")), "body").AddTo(tt);
             if (M.IsHistorical)
             {
                 var dos = Ui.El("brief-dossier").AddTo(_foot);
@@ -152,6 +153,7 @@ namespace GoNoGo.UI
             var me = M.S.Player(GameSession.LocalPlayer);
             string close = "ui.brief.close_solo";
             if (M.IsHistorical) close = "ui.brief.close_history";
+            else if (M.Scenario.Sandbox) close = "ui.brief.close_sandbox";
             else if (M.S.Multiplayer) close = me != null && me.Station == Station.Assembly ? "ui.brief.close_assembly" : "ui.brief.close_control";
             list.Add(Ui.NoOrphan(Loc.T(close)));
             return list;
@@ -161,7 +163,8 @@ namespace GoNoGo.UI
         {
             if (_done) return;
             string line = _lines[_shown];
-            if (_typed < line.Length) { _typed = line.Length; Redraw(); return; }   // 先把這句打完
+            int len = Ui.VisibleLength(line);
+            if (_typed < len) { _typed = len; Redraw(); return; }   // 先把這句打完
             _shown++;
             _typed = 0;
             Sfx.Tick();
@@ -184,7 +187,7 @@ namespace GoNoGo.UI
             for (int i = 0; i < upto; i++)
                 Ui.Text(_lines[i], "brief-past").AddTo(_log);
             _current.parent.style.display = _done ? DisplayStyle.None : DisplayStyle.Flex;
-            if (!_done) _current.text = _lines[_shown].Substring(0, (int)Math.Min(_lines[_shown].Length, _typed));
+            if (!_done) _current.text = Ui.RichPrefix(_lines[_shown], (int)_typed);
             _dots.Clear();
             for (int i = 0; i < _lines.Count; i++)
                 Ui.El("brief-dot").Cls("brief-dot--done", i < _shown).Cls("brief-dot--now", i == _shown).AddTo(_dots);
@@ -200,12 +203,13 @@ namespace GoNoGo.UI
         {
             if (_current == null || _done) return;
             string line = _lines[_shown];
-            bool talking = _typed < line.Length;
+            bool talking = _typed < Ui.VisibleLength(line);
             if (talking)
             {
                 int before = (int)_typed;
-                _typed += dt * (Loc.IsZh ? 22f : 48f);
-                if ((int)_typed != before) _current.text = line.Substring(0, (int)Math.Min(line.Length, _typed));
+                // 打字速度：比閱讀速度快一點（等字出來的時間也是閱讀負擔）
+                _typed += dt * (Loc.IsZh ? 34f : 70f);
+                if ((int)_typed != before) _current.text = Ui.RichPrefix(line, (int)_typed);
             }
             // 聲波：講話時跳動，停下來就平
             _wave += dt;

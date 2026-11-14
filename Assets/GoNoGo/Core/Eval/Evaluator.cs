@@ -222,7 +222,7 @@ namespace GoNoGo.Core
 
             // ---------- 科學潛力 ----------
             string objective = scenario?.Objective ?? "";
-            double orbitMatch = orbit != null && orbit.ObjectiveMatch.TryGetValue(objective, out var om) ? om : 0;
+            double orbitMatch = OrbitMatch(orbit, objective);
             ev.SciencePerYear = instruments.Sum(i => i.ScienceValue * Match(i, objective)) * orbitMatch * c.ScienceYearScale;
 
             // ---------- 火點偵測與通報延遲（野火關卡；其他關卡也算，只是不顯示） ----------
@@ -245,8 +245,19 @@ namespace GoNoGo.Core
             return ev;
         }
 
+        /// <summary>儀器和任務目標的吻合度。沙盒的目標不限定主題：用這台儀器最擅長的那個目標。</summary>
         public static double Match(PartDef instrument, string objective) =>
-            instrument.ObjectiveMatch != null && instrument.ObjectiveMatch.TryGetValue(objective, out var v) ? v : 0;
+            instrument.ObjectiveMatch == null ? 0
+            : objective == ScenarioDef.OpenObjective ? Best(instrument.ObjectiveMatch)
+            : instrument.ObjectiveMatch.TryGetValue(objective, out var v) ? v : 0;
+
+        /// <summary>軌道和任務目標的吻合度（沙盒同上）。</summary>
+        public static double OrbitMatch(OrbitDef orbit, string objective) =>
+            orbit?.ObjectiveMatch == null ? 0
+            : objective == ScenarioDef.OpenObjective ? Best(orbit.ObjectiveMatch)
+            : orbit.ObjectiveMatch.TryGetValue(objective, out var v) ? v : 0;
+
+        static double Best(Dictionary<string, double> match) => match.Count == 0 ? 0 : match.Values.Max();
 
         /// <summary>依放電深度內插電池循環壽命。</summary>
         public static double CycleLife(Constants c, double dod)

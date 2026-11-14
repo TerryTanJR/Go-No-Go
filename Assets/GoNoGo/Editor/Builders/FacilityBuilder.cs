@@ -787,6 +787,78 @@ namespace GoNoGo.EditorTools
             return ct;
         }
 
+        /// <summary>
+        /// 組裝工作台：一張厚實的工作桌（操作員站在 -Z 那一側看向 +Z）。桌面中央是發光的組裝墊，
+        /// 後面一片掛工具的洞洞板和工作燈，桌上一排小零件盒。按 E 打開組裝面板（ConsoleTarget panel = assemble）。
+        /// </summary>
+        static ConsoleTarget Workbench(ArtBuilder.Art art, FacMats fm, Transform parent, string name, Vector3 pos, float yaw)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = pos;
+            go.transform.localRotation = Quaternion.Euler(0, yaw, 0);
+            go.transform.localScale = Vector3.one * 1.3f;   // 和控制台一樣整台放大
+            var t = go.transform;
+            const float w = 2.4f;
+            // 桌體：兩側櫃腳、中間留空、厚桌板、前緣發光條
+            foreach (float sx in new[] { -1f, 1f })
+                Solid("Leg", t, new Vector3(sx * (w / 2 - 0.25f), 0.4f, 0.1f), new Vector3(0.5f, 0.8f, 0.8f), art.consoleBody, true);
+            Solid("Apron", t, new Vector3(0, 0.62f, 0.4f), new Vector3(w - 1f, 0.36f, 0.2f), art.consoleBody, true);
+            Box("Plinth", t, new Vector3(0, 0.04f, 0.1f), new Vector3(w + 0.1f, 0.08f, 0.92f), art.trim, shadows: false);
+            Solid("Top", t, new Vector3(0, 0.84f, 0.1f), new Vector3(w + 0.16f, 0.08f, 1.0f), art.trim, true);
+            var glow = Box("Glow", t, new Vector3(0, 0.845f, -0.41f), new Vector3(w + 0.16f, 0.035f, 0.04f), fm.glow, shadows: false);
+            for (int i = 0; i < 4; i++)
+                Box("Drawer", t, new Vector3((i < 2 ? -1 : 1) * (w / 2 - 0.25f), 0.24f + (i % 2) * 0.3f, -0.305f), new Vector3(0.4f, 0.24f, 0.012f), art.wallDark, shadows: false);
+            // 組裝墊：桌面中央一塊防靜電墊，四周一圈亮邊，零件就在這上面組
+            Box("Mat", t, new Vector3(0, 0.885f, 0.02f), new Vector3(1.0f, 0.012f, 0.62f), art.wallDark, shadows: false);
+            Box("MatGlowF", t, new Vector3(0, 0.893f, -0.3f), new Vector3(1.04f, 0.008f, 0.02f), art.accentGlow, shadows: false);
+            Box("MatGlowB", t, new Vector3(0, 0.893f, 0.34f), new Vector3(1.04f, 0.008f, 0.02f), art.accentGlow, shadows: false);
+            Box("MatGlowL", t, new Vector3(-0.51f, 0.893f, 0.02f), new Vector3(0.02f, 0.008f, 0.66f), art.accentGlow, shadows: false);
+            Box("MatGlowR", t, new Vector3(0.51f, 0.893f, 0.02f), new Vector3(0.02f, 0.008f, 0.66f), art.accentGlow, shadows: false);
+            // 桌上兩側的小零件盒（一格一格、顏色不同）
+            var binMats = new[] { fm.hazard, fm.white, art.accentGlow, fm.red };
+            for (int i = 0; i < 4; i++)
+            {
+                float bx = (i < 2 ? -1 : 1) * (0.78f + (i % 2) * 0.24f);
+                Box("Bin", t, new Vector3(bx, 0.93f, 0.2f), new Vector3(0.2f, 0.1f, 0.26f), art.wallDark, shadows: false);
+                Box("BinParts", t, new Vector3(bx, 0.975f, 0.2f), new Vector3(0.16f, 0.02f, 0.22f), binMats[i], shadows: false);
+            }
+            // 後面的洞洞板：掛著幾樣工具（長短不一的條狀物），上面一盞工作燈
+            Box("Board", t, new Vector3(0, 1.5f, 0.56f), new Vector3(w, 1.2f, 0.06f), art.consoleBody);
+            Box("BoardTrim", t, new Vector3(0, 2.12f, 0.56f), new Vector3(w + 0.06f, 0.05f, 0.1f), art.trim, shadows: false);
+            // 背面（朝整合台那一面）：兩條亮邊和一片黃黑警示板，從整合台走過來時看得出這是一座機台，不是一面黑牆
+            Box("BackGlowTop", t, new Vector3(0, 2.0f, 0.595f), new Vector3(w - 0.2f, 0.03f, 0.01f), art.accentGlow, shadows: false);
+            Box("BackGlowLow", t, new Vector3(0, 1.0f, 0.595f), new Vector3(w - 0.2f, 0.03f, 0.01f), art.accentGlow, shadows: false);
+            Box("BackPlate", t, new Vector3(0, 1.5f, 0.595f), new Vector3(1.2f, 0.5f, 0.012f), art.wallDark, shadows: false);
+            Box("BackHazard", t, new Vector3(0, 1.2f, 0.6f), new Vector3(1.2f, 0.06f, 0.012f), _hazardStripe, shadows: false);
+            Box("BackSkirt", t, new Vector3(0, 0.45f, 0.51f), new Vector3(w - 1.0f, 0.7f, 0.02f), art.consoleBody, shadows: false);
+            float[] toolX = { -0.95f, -0.75f, -0.55f, 0.5f, 0.72f, 0.95f };
+            float[] toolH = { 0.42f, 0.3f, 0.36f, 0.34f, 0.46f, 0.28f };
+            for (int i = 0; i < toolX.Length; i++)
+            {
+                Box("Tool", t, new Vector3(toolX[i], 1.62f - toolH[i] / 2, 0.52f), new Vector3(0.05f, toolH[i], 0.03f), i % 2 == 0 ? _steel : fm.hazard, shadows: false);
+                Box("Hook", t, new Vector3(toolX[i], 1.64f, 0.52f), new Vector3(0.09f, 0.03f, 0.04f), art.trim, shadows: false);
+            }
+            // 洞洞板中間的小螢幕：顯示組裝圖（沿用控制台的螢幕材質）
+            Quad("Screen", t, new Vector3(0, 1.5f, 0.525f), Quaternion.identity, new Vector2(0.8f, 0.5f), art.consoleScreens[1 % art.consoleScreens.Length]);
+            Box("LampArm", t, new Vector3(0, 2.18f, 0.3f), new Vector3(0.05f, 0.05f, 0.56f), art.trim, shadows: false);
+            Box("Lamp", t, new Vector3(0, 2.15f, 0.04f), new Vector3(1.3f, 0.04f, 0.14f), art.lightPanel, shadows: false);
+            var lamp = BuildUtil.Light("BenchLight", LightType.Spot, new Color(1f, 0.95f, 0.85f), 9f, Vector3.zero, Quaternion.identity, 4f, LightShadows.None, t);
+            lamp.transform.localPosition = new Vector3(0, 2.1f, 0.04f);
+            lamp.transform.localRotation = Quaternion.Euler(90, 0, 0);
+            lamp.spotAngle = 70f;
+
+            var ct = go.AddComponent<ConsoleTarget>();
+            ct.panel = "assemble";
+            ct.titleKey = "ui.fac.bench";
+            ct.bodyKey = "ui.fac.bench_body";
+            ct.phases = "design,briefing";
+            ct.actionKey = "ui.hint.assemble";
+            ct.glow = glow.GetComponent<Renderer>();
+            Label(t, "ui.fac.bench", new Vector3(0, 2.4f, 0.3f), "tag", 9f);
+            return ct;
+        }
+
         /// <summary>牆上的大螢幕：畫面由 UI 層依 id 畫上去（WorldScreen）。</summary>
         static GameObject WallScreen(ArtBuilder.Art art, FacMats fm, Transform parent, string name, string id, Vector3 pos, float yaw, Vector2 size, Vector2Int res)
         {
@@ -818,6 +890,9 @@ namespace GoNoGo.EditorTools
             // 採購終端：組裝區下單買零件（沒有價格，價格在中控室的型錄）
             var proc = Console(art, fm, bay, "ProcureConsole", new Vector3(6.2f, 0, -4.6f), -52f, "procure", "ui.fac.procure", "ui.fac.procure_body", "design,briefing", art.consoleScreens[0], 2.4f);
             proc.actionKey = "ui.hint.procure";
+
+            // 組裝工作台：買來的零件是一箱小零件，要先在這裡組好才能裝上船。位置和採購終端左右對稱
+            Workbench(art, fm, bay, "AssemblyBench", new Vector3(-6.2f, 0, -4.6f), 52f);
             // （環境測試台在採購機制 v2 拿掉了：發射前不再檢查）
 
             // 東牆（門的南邊）：失敗原因看板

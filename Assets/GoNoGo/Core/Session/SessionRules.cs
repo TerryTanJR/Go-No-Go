@@ -25,6 +25,10 @@ namespace GoNoGo.Core
         ApproveOrder, RejectOrder, WithdrawOrder,
         // 營運小遊戲：交出自己的成績（A = 遊戲 id，N = 分數 0 ~ 1000）。加在最後，其他人的編號不變
         MiniDone,
+        // 組裝工作台：把手上那一箱小零件組成零件（A = 零件 id）。加在最後，其他人的編號不變
+        Assemble,
+        // 沙盒：把一份存過（或別人分享）的設計直接放上整合台（A = 設計分享碼）
+        LoadDesign,
     }
 
     /// <summary>
@@ -72,6 +76,7 @@ namespace GoNoGo.Core
                 Bench = start.Clone(),
                 Reported = start.Clone(),
                 Owned = StartOwned(data, start),
+                Built = StartOwned(data, start),
             };
         }
 
@@ -94,7 +99,11 @@ namespace GoNoGo.Core
         /// 任務年數上限 = 關卡目標年數 + 2。科學點數隨年數線性成長，不設上限的話「把年數調到壽命允許的最大值」永遠最好。
         /// </summary>
         public static int MaxMissionYears(ScenarioDef scenario) =>
-            Math.Max(1, (int)Math.Floor(scenario?.TargetYears ?? 8) + 2);
+            scenario != null && scenario.Sandbox ? SandboxMaxYears
+            : Math.Max(1, (int)Math.Floor(scenario?.TargetYears ?? 8) + 2);
+
+        /// <summary>沙盒的任務年數上限（不看目標年數）。</summary>
+        public const int SandboxMaxYears = 15;
 
         // ---------------------------------------------------------------- 採購（採購機制 v2：只用錢當代價，見 docs/procurement_v2.md）
 
@@ -236,6 +245,7 @@ namespace GoNoGo.Core
             s.Bench = start.Clone();
             s.Reported = start.Clone();
             s.Owned = StartOwned(data, start);
+            s.Built = StartOwned(data, start);
             s.Cart.Clear();
             s.Orders.Clear();
             s.Request = null;
@@ -303,6 +313,7 @@ namespace GoNoGo.Core
         /// <summary>組裝區的操作（嚴格分工時只有組裝區的人能做）。</summary>
         public static bool IsAssemblyCommand(CommandType t) =>
             t == CommandType.Pick || t == CommandType.Drop || t == CommandType.Install || t == CommandType.Report
+            || t == CommandType.Assemble
             || t == CommandType.CartAdd || t == CommandType.CartRemove || t == CommandType.PlaceOrder || t == CommandType.WithdrawOrder;
 
         /// <summary>中控室的操作（嚴格分工時只有中控室的人能做）。</summary>
@@ -328,6 +339,7 @@ namespace GoNoGo.Core
         /// <summary>點名中不能改設計（要改就喊 NO-GO）。</summary>
         static bool ChangesDesign(CommandType t) =>
             t == CommandType.Install || t == CommandType.Report || t == CommandType.PlaceOrder || t == CommandType.ApproveOrder
+            || t == CommandType.Assemble || t == CommandType.LoadDesign
             || t == CommandType.SetOrbit || t == CommandType.SetLauncher || t == CommandType.SetGroundStation || t == CommandType.SetYears;
 
         static string ApplyInner(SessionState s, GameData data, Command c)
@@ -406,6 +418,8 @@ namespace GoNoGo.Core
                     if (!s.Held.Remove(c.Player)) return "err.nothing_held";
                     return Ok;
                 case CommandType.Install: return Install(s, data, c.Player);
+                case CommandType.Assemble: return Assemble(s, data, c.Player, c.A);
+                case CommandType.LoadDesign: return LoadDesign(s, data, c.A);
                 case CommandType.Report:
                     if (s.Phase != SessionPhase.Design) return "err.phase";
                     s.Reported.Instruments = new List<string>(s.Bench.Instruments);
@@ -448,8 +462,8 @@ namespace GoNoGo.Core
                     if (s.LastLaunch.Reached) { StartOps(s, data); return Ok; }
                     s.Phase = SessionPhase.Design;
                     s.Held.Clear();
-                    // 失敗重來（歷史關卡另外處理：保留設計，接著改）
-                    if (s.Scenario(data)?.Historical == null) ResetAfterFailure(s, data);
+                    // 失敗重來（歷史關卡另外處理：保留設計，接著改；沙盒沒有懲罰，也保留設計）
+                    if (s.Scenario(data)?.Historical == null && s.Scenario(data)?.Sandbox != true) ResetAfterFailure(s, data);
                     return Ok;
 
                 case CommandType.Judge:
@@ -524,8 +538,78 @@ namespace GoNoGo.Core
             var id = s.HeldBy(player);
             if (id == null) return "err.nothing_held";
             var part = data.Part(id);
+            if (NeedsAssembly(s, data, id)) return "err.not_assembled";
             if (part.Category == PartCategory.Instrument && s.Bench.Instruments.Count >= (s.Scenario(data)?.MaxInstruments ?? 3))
                 return "err.instruments_full";
+            return Ok;
+        }
+
+        // ---------------------------------------------------------------- 組裝工作台（小零件 → 零件）
+
+        /// <summary>
+        /// 這個零件還是一箱沒組的小零件：要先拿到組裝工作台組好，才能裝上船。
+        /// 沒有配方的零件（封板、地面站）和沙盒裡的零件不用組。
+        /// </summary>
+        public static bool NeedsAssembly(SessionState s, GameData data, string partId)
+        {
+            var part = data.Part(partId);
+            if (part == null || s.Built.Contains(partId)) return false;
+            if (s.Scenario(data)?.Sandbox == true) return false;
+            return data.Recipe(part) != null;
+        }
+
+        /// <summary>手上的那一箱能不能在工作台組裝。回傳 Ok 或原因。</summary>
+        public static string CanAssemble(SessionState s, GameData data, int player)
+        {
+            if (s.Phase != SessionPhase.Design && s.Phase != SessionPhase.Briefing) return "err.phase";
+            if (s.DesignLocked(data)) return "err.locked";
+            var id = s.HeldBy(player);
+            if (id == null) return "err.nothing_held";
+            if (!NeedsAssembly(s, data, id)) return "err.already_built";
+            return Ok;
+        }
+
+        static string Assemble(SessionState s, GameData data, int player, string partId)
+        {
+            var why = CanAssemble(s, data, player);
+            if (why != Ok) return why;
+            var id = s.HeldBy(player);
+            if (!string.IsNullOrEmpty(partId) && partId != id) return "err.unknown";
+            s.Built.Add(id);
+            return Ok;
+        }
+
+        // ---------------------------------------------------------------- 沙盒：載入設計
+
+        /// <summary>
+        /// 把分享碼裡的設計放上整合台（只有沙盒可以：一般任務這樣做等於跳過採購）。
+        /// 設計可以來自別的關卡：零件、軌道、火箭照用，儀器超過上限的部分和超過上限的年數裁掉。
+        /// 用到的零件都算已經擁有、已經組好。
+        /// </summary>
+        static string LoadDesign(SessionState s, GameData data, string code)
+        {
+            var sc = s.Scenario(data);
+            if (sc == null || !sc.Sandbox) return "err.sandbox_only";
+            if (s.Phase != SessionPhase.Design && s.Phase != SessionPhase.Briefing) return "err.phase";
+            if (!DesignCode.TryDecode(code, data, out var d, out _, out var error)) return error;
+            d.ScenarioId = sc.Id;
+            if (!sc.AllowedOrbits.Contains(d.OrbitId)) d.OrbitId = s.Bench.OrbitId;
+            if (!data.LaunchersFor(sc).Any(l => l.Id == d.LauncherId)) d.LauncherId = s.Bench.LauncherId;
+            if (OrbitLauncherCheck(data, d.OrbitId, d.LauncherId) != Ok) d.LauncherId = s.Bench.LauncherId;
+            if (OrbitLauncherCheck(data, d.OrbitId, d.LauncherId) != Ok) d.OrbitId = s.Bench.OrbitId;
+            if (d.Instruments.Count > sc.MaxInstruments) d.Instruments = d.Instruments.Take(sc.MaxInstruments).ToList();
+            d.MissionYears = Math.Max(1, Math.Min(MaxMissionYears(sc), d.MissionYears));
+            if (string.IsNullOrEmpty(d.Get(PartCategory.GroundStation)))
+                d.Parts[PartCategory.GroundStation] = s.Bench.Get(PartCategory.GroundStation) ?? data.PartsIn(PartCategory.GroundStation).First().Id;
+            s.Bench = d;
+            foreach (var id in d.AllPartIds())
+            {
+                if (data.Part(id)?.Category == PartCategory.GroundStation) continue;
+                if (!s.Owned.Contains(id)) s.Owned.Add(id);
+                if (!s.Built.Contains(id)) s.Built.Add(id);
+            }
+            s.Held.Clear();
+            s.Cart.RemoveAll(s.Owned.Contains);
             return Ok;
         }
 

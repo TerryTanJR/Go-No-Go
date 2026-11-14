@@ -51,11 +51,14 @@ namespace GoNoGo.Presentation
 
             if (pickable)
                 foreach (var p in _parts)
+                {
                     foreach (var mf in p.GetComponentsInChildren<MeshFilter>())
                     {
                         var mc = mf.gameObject.AddComponent<MeshCollider>();
                         mc.sharedMesh = mf.sharedMesh;
                     }
+                    AddPickProxy(p);
+                }
 
             _pops.Clear();
             var now = new HashSet<string>();
@@ -74,6 +77,48 @@ namespace GoNoGo.Presentation
             }
             _lastParts.Clear();
             _lastParts.UnionWith(now);
+        }
+
+        /// <summary>準星對得到的最小尺寸（公尺）：比這個小的零件另外加一個放大的感應框。</summary>
+        const float MinPick = 0.3f;
+        /// <summary>最長邊超過這個尺寸（公尺）的零件不加感應框。</summary>
+        const float MaxProxy = 0.7f;
+
+        /// <summary>
+        /// 小零件（薄板、小感測器）的網格碰撞體只有幾公分，準星很難對到：再加一個至少 <see cref="MinPick"/> 見方的感應框。
+        /// 用 trigger，不會擋到角色，也不會擋住「中間有沒有隔著東西」的判斷；船身結構（沒有零件 id）不加。
+        /// </summary>
+        static void AddPickProxy(SatPart p)
+        {
+            if (string.IsNullOrEmpty(p.partId)) return;
+            // 在零件那一組的局部座標裡量大小（整合台會轉、船會縮放，世界座標的外框不準）
+            var t = p.transform;
+            bool any = false;
+            Bounds b = default;
+            foreach (var mf in p.GetComponentsInChildren<MeshFilter>())
+            {
+                if (mf.sharedMesh == null) continue;
+                var toLocal = t.worldToLocalMatrix * mf.transform.localToWorldMatrix;
+                var mb = mf.sharedMesh.bounds;
+                for (int i = 0; i < 8; i++)
+                {
+                    var corner = mb.center + Vector3.Scale(mb.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1));
+                    var q = toLocal.MultiplyPoint3x4(corner);
+                    if (!any) { b = new Bounds(q, Vector3.zero); any = true; }
+                    else b.Encapsulate(q);
+                }
+            }
+            if (!any) return;
+            float k = Mathf.Max(1e-4f, t.lossyScale.x);
+            float min = MinPick / k;
+            if (Mathf.Min(b.size.x, Mathf.Min(b.size.y, b.size.z)) >= min) return;
+            // 只幫真的很小的零件加：大而薄的（太陽能翼、雷達天線）本來就好對，
+            // 把它們加厚成一大片感應框反而會擋住後面的電池、電腦和旁邊的儀器
+            if (Mathf.Max(b.size.x, Mathf.Max(b.size.y, b.size.z)) > MaxProxy / k) return;
+            var box = p.gameObject.AddComponent<BoxCollider>();
+            box.isTrigger = true;
+            box.center = b.center;
+            box.size = Vector3.Max(b.size, Vector3.one * min);
         }
 
         /// <summary>

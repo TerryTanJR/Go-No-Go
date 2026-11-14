@@ -92,6 +92,8 @@ namespace GoNoGo.UI
             On(() => Hud.ToastRequested += OnToast, () => Hud.ToastRequested -= OnToast);
             On(() => M.Changed += OnChanged, () => { if (GameSession.HasMission) M.Changed -= OnChanged; });
             On(() => M.Rejected += OnRejected, () => { if (GameSession.HasMission) M.Rejected -= OnRejected; });
+            On(() => Codex.Unlocked += OnCard, () => Codex.Unlocked -= OnCard);
+            _installedSeen = null;
 
             _screens ??= new WorldScreens();
             _screens.MarkDirty();
@@ -111,6 +113,30 @@ namespace GoNoGo.UI
         }
 
         void OnToast(string text) => UIRoot.Toast(text);
+
+        /// <summary>收到一張新的知識卡：跳通知（想看按 K）。</summary>
+        void OnCard(string partId)
+        {
+            var p = D.Part(partId);
+            if (p == null) return;
+            Sfx.Confirm();
+            UIRoot.Toast(Loc.T("ui.codex.toast", ("code", p.Code), ("name", Loc.T(p.Name))), 3.4f);
+        }
+
+        HashSet<string> _installedSeen;
+
+        /// <summary>
+        /// 新裝上船的零件：知識卡收進圖鑑（開局就在船上的不算，要自己動手裝過）。
+        /// 在組裝工作台組好的那一刻已經收過了，這裡是給不用組裝的零件和沙盒用的。
+        /// </summary>
+        void CollectCards()
+        {
+            var now = new HashSet<string>(M.S.Bench.AllPartIds());
+            if (_installedSeen != null && M.S.Phase == SessionPhase.Design && M.S.Restarts == _restartsShown)
+                foreach (var id in now)
+                    if (!_installedSeen.Contains(id)) Codex.Unlock(D, id);
+            _installedSeen = now;
+        }
         void OnRejected(string code) { Sfx.NoGo(); UIRoot.Toast(Loc.T(code)); }
 
         void OnChanged()
@@ -129,6 +155,7 @@ namespace GoNoGo.UI
             _screens?.MarkDirty();
             UpdatePhaseBar();
             Notices();
+            CollectCards();
         }
 
         // 發射失敗重來的提示要跨場景（失敗後從發射場景回來才看得到），所以記在靜態欄位，換一局就重算
@@ -312,6 +339,16 @@ namespace GoNoGo.UI
             {
                 if (_panelId == "tablet") ClosePanel();
                 else if (_panel == null) OpenPanel("tablet", "");
+            }
+            // K：知識卡圖鑑；L：設計圖庫（儲存、分享、比較）。開著就關掉
+            else if (keys && kb.kKey.wasPressedThisFrame && M.S.Phase != SessionPhase.Launch)
+            {
+                if (_panelId == "codex") ClosePanel();
+                else if (_panel == null) OpenPanel("codex", "");
+            }
+            else if (keys && kb.lKey.wasPressedThisFrame && M.S.Phase != SessionPhase.Launch && M.S.Phase != SessionPhase.Lobby)
+            {
+                if (_panel == null) OpenPanel("designs", "");
             }
             // 在面板上按 E 也可以關（同一個鍵開關）
             else if (keys && kb.eKey.wasPressedThisFrame && _panel != null && _panel.Closable && _panel.CloseWithE && _openedFrame != Time.frameCount)

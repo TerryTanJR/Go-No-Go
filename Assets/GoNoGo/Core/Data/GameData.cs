@@ -19,6 +19,10 @@ namespace GoNoGo.Core
         public List<MissionCard> Missions { get; set; } = new List<MissionCard>();
         public List<DepartmentDef> Departments { get; set; } = new List<DepartmentDef>();
         public Dictionary<string, LocalizedText> Strings { get; set; } = new Dictionary<string, LocalizedText>();
+        /// <summary>組裝工作台的配方（小零件 → 零件）。</summary>
+        public AssemblyData Assemblies { get; set; } = new AssemblyData();
+        /// <summary>沙盒的情境與難度（不在 <see cref="Scenarios"/>、<see cref="Difficulties"/> 裡，用 id 查得到）。</summary>
+        public SandboxData Sandbox { get; set; }
 
         Dictionary<string, PartDef> _parts;
         Dictionary<string, OrbitDef> _orbits;
@@ -33,6 +37,49 @@ namespace GoNoGo.Core
             _launchers = Launchers.ToDictionary(l => l.Id);
             _scenarios = Scenarios.ToDictionary(s => s.Id);
             _difficulties = Difficulties.ToDictionary(d => d.Id);
+            if (Sandbox != null)
+            {
+                _scenarios[Sandbox.Scenario.Id] = Sandbox.Scenario;
+                _difficulties[Sandbox.Difficulty.Id] = Sandbox.Difficulty;
+            }
+        }
+
+        /// <summary>所有情境，含沙盒（資料檢查用；選單只列 <see cref="Scenarios"/>）。</summary>
+        public IEnumerable<ScenarioDef> AllScenarios => Sandbox != null ? Scenarios.Concat(new[] { Sandbox.Scenario }) : Scenarios;
+        public IEnumerable<DifficultyDef> AllDifficulties => Sandbox != null ? Difficulties.Concat(new[] { Sandbox.Difficulty }) : Difficulties;
+
+        /// <summary>
+        /// 這個零件的組裝配方：先找指定這個零件的，再找這一類通用的。
+        /// null = 不用組裝（地面站、封板這類沒有小零件的東西）。
+        /// </summary>
+        public AssemblyRecipe Recipe(PartDef part)
+        {
+            if (part == null || Assemblies == null || Assemblies.Prebuilt.Contains(part.Id)) return null;
+            return Assemblies.Recipes.Find(r => r.PartIds.Contains(part.Id))
+                   ?? Assemblies.Recipes.Find(r => r.PartIds.Count == 0 && r.Category == part.Category);
+        }
+
+        /// <summary>組裝工作台上混進來的「不是這個零件的小零件」：從別類的配方裡照固定順序挑 n 個。</summary>
+        public List<AssemblyComponent> Distractors(PartDef part, int n)
+        {
+            var list = new List<AssemblyComponent>();
+            var recipe = Recipe(part);
+            if (recipe == null || n <= 0) return list;
+            var own = new HashSet<string>(recipe.Components.Select(c => c.Id));
+            var others = Assemblies.Recipes.Where(r => r.Category != part.Category).SelectMany(r => r.Components)
+                .Where(c => !own.Contains(c.Id)).GroupBy(c => c.Id).Select(g => g.First()).ToList();
+            if (others.Count == 0) return list;
+            // 依零件 id 決定從哪裡開始挑：同一個零件每次混進來的都一樣，不同零件不一樣
+            int start = 0;
+            foreach (char ch in part.Id) start = unchecked(start * 31 + ch);
+            start = (start & 0x7fffffff) % others.Count;
+            int step = Math.Max(1, others.Count / Math.Max(1, n));
+            for (int i = 0; i < others.Count && list.Count < n; i++)
+            {
+                var c = others[(start + i * step) % others.Count];
+                if (!list.Contains(c)) list.Add(c);
+            }
+            return list;
         }
 
         public PartDef Part(string id) => id != null && _parts.TryGetValue(id, out var p) ? p : null;
@@ -170,7 +217,8 @@ namespace GoNoGo.Core
         /// <summary>資料檔名（不含副檔名）。</summary>
         public static readonly string[] FileNames =
         {
-            "constants", "parts", "orbits", "launchers", "scenarios", "difficulty", "donki_events", "missions", "departments", "strings"
+            "constants", "parts", "orbits", "launchers", "scenarios", "difficulty", "donki_events", "missions", "departments", "strings",
+            "assemblies", "sandbox"
         };
 
         /// <summary>
@@ -199,6 +247,8 @@ namespace GoNoGo.Core
                 Missions = Read<List<MissionCard>>("missions"),
                 Departments = Read<List<DepartmentDef>>("departments"),
                 Strings = Read<Dictionary<string, LocalizedText>>("strings"),
+                Assemblies = Read<AssemblyData>("assemblies"),
+                Sandbox = Read<SandboxData>("sandbox"),
             };
             d.BuildIndex();
             return d;
@@ -270,11 +320,22 @@ namespace GoNoGo.Core
                 Check(!string.IsNullOrEmpty(l.Source?.Title), $"{w}：缺來源");
             }
 
-            foreach (var s in d.Scenarios)
+            foreach (var g in d.AllScenarios.GroupBy(s => s.Id).Where(g => g.Count() > 1)) errors.Add($"情境 id 重複：{g.Key}");
+            Check(d.Scenarios.All(s => !s.Sandbox), "沙盒情境要放在 sandbox.json，不要放進 scenarios.json");
+            if (d.Sandbox != null)
+            {
+                Check(d.Sandbox.Scenario.Sandbox, "sandbox.json 的情境要標 sandbox: true");
+                Check(d.Sandbox.Scenario.Difficulty == d.Sandbox.Difficulty.Id, "sandbox.json 的情境要用同一個檔案裡的難度");
+                Check(d.Sandbox.Difficulty.Hidden, "沙盒難度不出現在選單（hidden: true）");
+                Check(d.Sandbox.Scenario.Requirements.Count == 0 && d.Sandbox.Scenario.Historical == null, "沙盒沒有處室需求，也不是歷史關卡");
+                Check(d.Sandbox.Scenario.BudgetMusd >= ScenarioDef.NoLimit && d.Sandbox.Scenario.DeadlineMonths >= ScenarioDef.NoLimit, "沙盒的預算和期限要設成不限（≥ NoLimit）");
+            }
+
+            foreach (var s in d.AllScenarios)
             {
                 string w = $"情境 {s.Id}";
                 Check(s.BudgetMusd > 0 && s.TargetYears > 0 && s.DeadlineMonths > 0, $"{w}：預算/年數/期限必須 > 0");
-                Check(string.IsNullOrEmpty(s.Difficulty) || (d.Difficulty(s.Difficulty) != null && !d.Difficulty(s.Difficulty).Hidden), $"{w}：未知難度 {s.Difficulty}");
+                Check(string.IsNullOrEmpty(s.Difficulty) || (d.Difficulty(s.Difficulty) != null && (s.Sandbox || !d.Difficulty(s.Difficulty).Hidden)), $"{w}：未知難度 {s.Difficulty}");
                 foreach (var o in s.AllowedOrbits) Check(d.Orbit(o) != null, $"{w}：未知軌道 {o}");
                 foreach (var l in s.AllowedLaunchers) Check(d.Launcher(l) != null, $"{w}：未知火箭 {l}");
                 errors.AddRange(ValidateDesign(d, s.DefaultDesign, $"{w} 預設設計"));
@@ -315,7 +376,7 @@ namespace GoNoGo.Core
             }
 
             Check(d.Difficulties.Count > 0, "缺難度設定");
-            foreach (var df in d.Difficulties)
+            foreach (var df in d.AllDifficulties)
             {
                 Check(df.Turns >= 1, $"難度 {df.Id}：回合數至少 1");
                 Check(df.EventTypes.Count > 0, $"難度 {df.Id}：缺事件種類");
@@ -340,6 +401,23 @@ namespace GoNoGo.Core
                 foreach (var l in dep.Lines)
                     Check(l.Question.En.Length * l.Question.ZhTW.Length * l.Answer.En.Length * l.Answer.ZhTW.Length > 0, $"處室 {key} 對話 {l.Id}：缺中英文");
             }
+            // 組裝配方：除了地面站和標成不用組裝的，每個零件都要有配方；小零件要有中英文名稱和功能
+            foreach (var r in d.Assemblies.Recipes)
+            {
+                string w = $"組裝配方 {r.Category}";
+                Check(PartCategory.All.Contains(r.Category) && r.Category != PartCategory.GroundStation, $"{w}：類別無效");
+                Check(r.Components.Count >= 3 && r.Components.Count <= 5, $"{w}：小零件要 3–5 個");
+                Check(r.Components.Select(c => c.Id).Distinct().Count() == r.Components.Count, $"{w}：小零件 id 重複");
+                Check(!string.IsNullOrEmpty(r.Source?.Title), $"{w}：缺來源");
+                foreach (var id in r.PartIds) Check(d.Part(id)?.Category == r.Category, $"{w}：指定的零件 {id} 不是這個類別");
+                foreach (var c in r.Components)
+                    Check(c.Id.Length * c.Name.En.Length * c.Name.ZhTW.Length * c.Role.En.Length * c.Role.ZhTW.Length > 0, $"{w}：小零件 {c.Id} 缺 id 或中英文");
+            }
+            foreach (var g in d.Assemblies.Recipes.SelectMany(r => r.Components).GroupBy(c => c.Id))
+                Check(g.Select(c => c.Name.En).Distinct().Count() == 1, $"小零件 {g.Key}：同一個 id 在不同配方裡名稱不一樣");
+            foreach (var id in d.Assemblies.Prebuilt) Check(d.Part(id) != null, $"不用組裝的零件 {id} 不存在");
+            foreach (var p in d.Parts.Where(p => p.Category != PartCategory.GroundStation && !d.Assemblies.Prebuilt.Contains(p.Id)))
+                Check(d.Recipe(p) != null, $"零件 {p.Id}：沒有組裝配方");
             Check(d.SpaceWeather.Count > 0, "缺太空天氣事件");
             Check(d.Constants.BatteryCycleLife.Count >= 2, "電池循環壽命表至少要兩個點");
             return errors;

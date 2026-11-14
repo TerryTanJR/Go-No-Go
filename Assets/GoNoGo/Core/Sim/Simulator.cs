@@ -194,7 +194,7 @@ namespace GoNoGo.Core
             var scenario = data.Scenario(design.ScenarioId);
             var orbit = data.Orbit(design.OrbitId);
             string objective = scenario?.Objective ?? "";
-            double orbitMatch = orbit.ObjectiveMatch.TryGetValue(objective, out var om) ? om : 0;
+            double orbitMatch = Evaluator.OrbitMatch(orbit, objective);
             var inst = design.Instruments.Select(data.Part).Where(p => p != null).ToList();
             var health = inst.Select(_ => 1.0).ToList();
             var propulsion = data.Part(design.Get(PartCategory.Propulsion));

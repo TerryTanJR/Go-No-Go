@@ -22,6 +22,8 @@ namespace GoNoGo.UI
 
         static string _cat = PartCategory.Instrument;
         static string _sel;
+        /// <summary>知識卡（科普說明）翻開了沒。預設收著：買零件只要看一句功能，想知道原理再翻開。</summary>
+        static bool _cardOpen;
         VisualElement _preview;
 
         static readonly string[] Cats =
@@ -76,7 +78,7 @@ namespace GoNoGo.UI
             foreach (var p in parts)
             {
                 var id = p.Id;
-                var b = Ui.Btn("", () => { _sel = id; Sfx.Click(); Refresh(); }, "proc-item").Cls("proc-item--on", id == _sel).AddTo(list);
+                var b = Ui.Btn("", () => { _sel = id; _cardOpen = false; Sfx.Click(); Refresh(); }, "proc-item").Cls("proc-item--on", id == _sel).AddTo(list);
                 b.Clear();
                 var top = Ui.Row("proc-item-top").AddTo(b);
                 Ui.Text(p.Code, "man-code", "mono").AddTo(top);
@@ -109,8 +111,32 @@ namespace GoNoGo.UI
                 Ui.Text(Loc.T("ui.cat." + sel.Category), "eyebrow", "proc-info-cat").AddTo(text);
                 if (money) Ui.Text(Loc.T("ui.proc.price", ("money", Fmt.PartMoney(sel.CostMusd))), "body", "mono", "accent").AddTo(text);
                 Ui.Text(Loc.T(sel.Function), "body", "proc-func").AddTo(text);
-                Ui.Text(Loc.T(sel.Explainer), "body", "proc-explainer").AddTo(text);
                 if (sel.SunlitOnly) Ui.Text(Loc.T("ui.manual.sunlit"), "man-badge", "man-badge--warn").AddTo(text);
+                // 知識卡：原理和真實任務的故事。預設收著（不讀也能玩），翻開就收進圖鑑
+                bool has = Codex.Has(sel.Id);
+                var card = Ui.El("codex-card").Cls("codex-card--open", _cardOpen).AddTo(text);
+                var flip = Ui.Btn((_cardOpen ? "▾  " : "▸  ") + Loc.T(has ? "ui.codex.card" : "ui.codex.card_new"), () =>
+                {
+                    _cardOpen = !_cardOpen;
+                    if (_cardOpen) Codex.Unlock(D, sel.Id, true);
+                    Refresh();
+                }, "codex-flip").AddTo(card);
+                flip.EnableInClassList("codex-flip--new", !has);
+                // 翻開的內容放在中間的大預覽圖上（右邊這一欄很窄，放這裡要捲好幾次才看得完）
+                if (_cardOpen)
+                {
+                    var over = Ui.El("codex-overlay").AddTo(_preview);
+                    Ui.Text(Loc.T("ui.codex.card"), "eyebrow").AddTo(over);
+                    Ui.Text(Ui.NoOrphan(Loc.T(sel.Explainer)), "body", "codex-text").AddTo(over);
+                }
+                // 小零件：這個零件由什麼組成（買回來要在組裝工作台組）。只列名稱，一眼看完
+                var recipe = D.Recipe(sel);
+                if (recipe != null && M.Scenario?.Sandbox != true)
+                {
+                    Ui.Text(Loc.T("ui.proc.kit"), "eyebrow", "proc-kit-title").AddTo(text);
+                    var chips = Ui.Row("proc-kit").AddTo(text);
+                    foreach (var c in recipe.Components) Ui.Text(Loc.T(c.Name), "proc-kit-chip").AddTo(chips);
+                }
 
                 var act = Ui.Row("proc-info-actions").AddTo(info);
                 bool owned = s.Owned.Contains(sel.Id), inCart = s.Cart.Contains(sel.Id), inReq = s.Request?.Parts.Contains(sel.Id) == true;
@@ -148,7 +174,7 @@ namespace GoNoGo.UI
                 double after = SessionRules.Headroom(s, D) - cost;
                 double years = SessionRules.FundedYears(s, D, cost);
                 Ui.Text(Loc.T("ui.proc.cart_sum", ("cost", Fmt.PartMoney(cost)), ("left", Fmt.PartMoney(after)),
-                    ("years", Fmt.N(System.Math.Min(years, 99), 1)), ("target", s.Bench.MissionYears)), "small", after < 0 ? "over" : "dim").AddTo(cart);
+                    ("years", years >= 99 ? "∞" : Fmt.N(years, 1)), ("target", s.Bench.MissionYears)), "small", after < 0 ? "over" : "dim").AddTo(cart);
             }
             if (why != null && s.Cart.Count > 0) Ui.Text(Loc.T(why), "small", "over").AddTo(cart);
             var order = Ui.Btn(Loc.T(review ? "ui.proc.submit" : "ui.proc.order"), () =>

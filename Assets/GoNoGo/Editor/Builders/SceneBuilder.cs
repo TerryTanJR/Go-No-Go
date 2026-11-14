@@ -42,6 +42,16 @@ namespace GoNoGo.EditorTools
             return "built " + string.Join(", ", paths);
         }
 
+        /// <summary>只重建 Facility 場景（改了組裝區、中控室的擺設時用；其他場景不動）。</summary>
+        [MenuItem("GoNoGo/Build/Facility Scene Only")]
+        public static string BuildFacilityOnly()
+        {
+            var art = ArtBuilder.Build();
+            string path = Facility(art, HiSphere());
+            AssetDatabase.SaveAssets();
+            return "built " + path;
+        }
+
         // ================= 共用 =================
 
         static UnityEngine.SceneManagement.Scene NewScene() =>

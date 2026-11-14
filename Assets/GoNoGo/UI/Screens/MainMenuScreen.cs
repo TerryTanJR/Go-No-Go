@@ -14,7 +14,7 @@ namespace GoNoGo.UI
     /// </summary>
     public sealed class MainMenuScreen : GameScreen
     {
-        enum Page { Root, Missions, Join, Settings, Avatar }
+        enum Page { Root, Missions, Join, Settings, Avatar, Designs, Codex }
 
         static Page _page = Page.Root;
         static bool _multi;
@@ -42,7 +42,8 @@ namespace GoNoGo.UI
             if (_page != Page.Avatar)
             {
                 Ui.Text(Profile.Look.Name, "menu-me", "menu-me-name").AddTo(top);
-                AvatarHotspot();
+                // 寬版頁面（設計圖庫、圖鑑）蓋住右邊的太空人，不放換裝的點擊區
+                if (_page != Page.Designs && _page != Page.Codex) AvatarHotspot();
             }
 
             var left = Ui.El("menu-col", "fade-in").AddTo(Root);
@@ -54,6 +55,8 @@ namespace GoNoGo.UI
                 case Page.Join: Join(left); break;
                 case Page.Settings: Settings(left); break;
                 case Page.Avatar: AvatarEditor(left); break;
+                case Page.Designs: Designs(left); break;
+                case Page.Codex: CodexPage(left); break;
             }
 
             if (!string.IsNullOrEmpty(_error)) Ui.Text(Loc.T(_error), "small", "over", "menu-error").AddTo(left);
@@ -108,6 +111,12 @@ namespace GoNoGo.UI
             Item(col, "ui.menu.solo", "ui.menu.solo_desc", () => { _multi = false; Go(Page.Missions); });
             Item(col, "ui.menu.host", "ui.menu.host_desc", () => { _multi = true; Go(Page.Missions); });
             Item(col, "ui.menu.join", "ui.menu.join_desc", () => Go(Page.Join));
+            // 沙盒：沒有預設限制的自由設計
+            Item(col, "ui.menu.sandbox", "ui.menu.sandbox_desc", () => { Sfx.Confirm(); UIRoot.BeginLoading(false); GameSession.StartSandbox(); });
+            // 設計圖庫（儲存、分享、比較）和知識卡圖鑑：兩個並排，省一列
+            var pair = Ui.Row("menu-pair").AddTo(col);
+            Half(pair, Loc.T("ui.menu.designs") + "  " + DesignLibrary.All.Count, "ui.menu.designs_desc", () => { DesignsView.Open(); Go(Page.Designs); }).AddToClassList("menu-item--left");
+            Half(pair, Loc.T("ui.menu.codex") + "  " + Codex.Count(D) + "/" + Codex.Total(D), "ui.menu.codex_desc", () => Go(Page.Codex));
             Item(col, "ui.menu.settings", "", () => Go(Page.Settings));
             DescLine(col);
             Ui.Btn(Loc.T("ui.menu.title"), () => SceneFlow.Go(SceneFlow.Boot), "btn-ghost", "menu-back").AddTo(col);
@@ -119,6 +128,35 @@ namespace GoNoGo.UI
             b.Clear();
             Ui.Text(Loc.T(key), "h3").AddTo(b);
             if (!string.IsNullOrEmpty(desc)) Describe(b, Loc.T(desc));
+        }
+
+        /// <summary>半寬的選單項目（兩個並排）。</summary>
+        Button Half(VisualElement row, string text, string desc, System.Action click)
+        {
+            var b = Ui.Btn("", click, "menu-item", "menu-item--half").AddTo(row);
+            b.Clear();
+            Ui.Text(text, "h3").AddTo(b);
+            Describe(b, Loc.T(desc));
+            return b;
+        }
+
+        // ---------------- 設計圖庫、知識卡圖鑑（蓋滿整個畫面的寬版）
+
+        void Designs(VisualElement col)
+        {
+            col.AddToClassList("menu-col--full");
+            Back(col, Page.Root);
+            Ui.Text(Loc.T("ui.designs.title"), "h2").AddTo(col);
+            Ui.Text(Loc.T("ui.designs.intro"), "small", "dim", "menu-intro").AddTo(col);
+            DesignsView.Build(col, Rebuild);
+        }
+
+        void CodexPage(VisualElement col)
+        {
+            col.AddToClassList("menu-col--full");
+            Back(col, Page.Root);
+            Ui.Text(Loc.T("ui.codex.title"), "h2").AddTo(col);
+            CodexView.Build(col, Rebuild);
         }
 
         void Back(VisualElement col, Page to) => Ui.Btn("← " + Loc.T("ui.menu.back"), () => Go(to), "btn-ghost", "menu-back").AddTo(col);
@@ -381,6 +419,8 @@ namespace GoNoGo.UI
             _busy = false;
             Profile.SetPreview(null);
             if (_page == Page.Avatar && Profile.HasAvatar) _page = Page.Root;
+            // 從設計圖庫開了一局沙盒：下次回主選單從根選單開始
+            if (GameSession.HasMission && (_page == Page.Designs || _page == Page.Codex)) _page = Page.Root;
         }
     }
 

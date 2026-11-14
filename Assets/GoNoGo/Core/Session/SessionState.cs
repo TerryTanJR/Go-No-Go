@@ -126,6 +126,11 @@ namespace GoNoGo.Core
         /// 組裝區的零件架上只放得到這些；其他零件要先下單採購。
         /// </summary>
         public List<string> Owned { get; set; } = new List<string>();
+        /// <summary>
+        /// 已經在組裝工作台組好的零件。買來的零件是一箱小零件，要先組好才能裝上船；
+        /// 開局就在船上的零件本來就是組好的。組好之後拆下來、放回去都不用再組。
+        /// </summary>
+        public List<string> Built { get; set; } = new List<string>();
         /// <summary>組裝區採購終端的購物車（還沒下單）。</summary>
         public List<string> Cart { get; set; } = new List<string>();
         public List<OrderRecord> Orders { get; set; } = new List<OrderRecord>();

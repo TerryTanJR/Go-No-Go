@@ -46,9 +46,26 @@ namespace GoNoGo.Game
 
         static GameData D => GameDataProvider.Data;
 
-        public static string T(string key) => D.Text(key, Lang);
+        public static string T(string key) => Mark(D.Text(key, Lang));
 
-        public static string T(LocalizedText t) => t?.Get(Lang) ?? "";
+        public static string T(LocalizedText t) => Mark(t?.Get(Lang) ?? "");
+
+        /// <summary>重點字的顏色（和介面主色同一個色系，比內文亮）。</summary>
+        public const string MarkColor = "#7FE3FF";
+
+        /// <summary>
+        /// 字串裡用 [[…]] 包起來的是重點字：換成上色的 rich text。長句子只掃重點字也看得懂，
+        /// 不用把整句讀完（降低閱讀負擔，資訊一個字都沒少）。沒有 [[ 的字串原樣回傳。
+        /// </summary>
+        public static string Mark(string s)
+        {
+            if (string.IsNullOrEmpty(s) || s.IndexOf("[[", StringComparison.Ordinal) < 0) return s ?? "";
+            return s.Replace("[[", "<color=" + MarkColor + ">").Replace("]]", "</color>");
+        }
+
+        /// <summary>拿掉 [[…]] 記號（不支援 rich text 的地方用，例如寫進記錄檔）。</summary>
+        public static string Plain(string s) =>
+            string.IsNullOrEmpty(s) ? s ?? "" : s.Replace("[[", "").Replace("]]", "");
 
         public static string T(string key, IDictionary<string, string> args) => Format(T(key), k => args != null && args.TryGetValue(k, out var v) ? v : null);
 

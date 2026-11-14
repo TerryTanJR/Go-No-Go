@@ -34,10 +34,12 @@ namespace GoNoGo.UI
             int asked = s.Calls.Select(c => c.Department).Distinct().Count();
             bool orbit = s.Launches.Any(l => l.Reached);
             int turns = m.Plan?.Turns ?? m.Difficulty.Turns;
+            bool sandbox = m.Scenario != null && m.Scenario.Sandbox;
 
             var steps = new List<(string key, bool done, string sub)>
             {
-                ("calls", asked >= depts, Loc.T("ui.prog.calls_n", ("n", asked), ("total", depts))),
+                // 沙盒沒有處室需求：電話只是問建議，可問可不問
+                ("calls", sandbox || asked >= depts, sandbox ? Loc.T("ui.prog.optional") : Loc.T("ui.prog.calls_n", ("n", asked), ("total", depts))),
                 ("procure", s.Orders.Count > 0, s.Orders.Count == 0 ? Loc.T("ui.prog.not_yet") : Loc.T("ui.prog.orders_n", ("n", s.Orders.Count))),
                 ("launch", orbit, s.Launches.Count == 0 ? Loc.T("ui.prog.not_yet")
                     : orbit ? Loc.T("ui.prog.in_orbit") : Loc.T("ui.prog.failed_n", ("n", s.FailedLaunches))),
@@ -51,7 +53,7 @@ namespace GoNoGo.UI
             if (s.Phase == SessionPhase.Launch) current = 2;
             else if (s.Phase == SessionPhase.Ops) current = 3;
             else if (s.Phase == SessionPhase.Report) current = 4;
-            else if (s.Orders.Count == 0 && asked == 0) current = 0;
+            else if (s.Orders.Count == 0 && asked == 0 && !sandbox) current = 0;
             else current = s.Orders.Count == 0 ? 1 : 2;
 
             var row = Ui.Row("prog-stages").AddTo(parent);
@@ -80,6 +82,12 @@ namespace GoNoGo.UI
             Ui.Text(Loc.T("ui.prog.goals"), "eyebrow").AddTo(head);
             Ui.Spacer().AddTo(head);
 
+            // 沙盒：沒有處室需求，不用追蹤
+            if (m.Scenario != null && m.Scenario.Sandbox)
+            {
+                Ui.Text(Loc.T("ui.prog.goals_sandbox"), "small", "dim").AddTo(head);
+                return;
+            }
             if (diff.NotesMode == "none")
             {
                 Ui.Text(Loc.T("ui.prog.goals_none"), "small", "dim").AddTo(head);
