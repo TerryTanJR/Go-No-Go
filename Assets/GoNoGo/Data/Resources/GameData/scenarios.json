@@ -7,8 +7,8 @@
       "zh-TW": "看顧地球"
     },
     "briefing": {
-      "en": "Build a satellite that watches wildfires, floods and crops for at least 3 years. You have $140M, 42 months to launch, and room for up to 3 instruments. Every choice costs mass, power, money, data or time.",
-      "zh-TW": "打造一顆監測野火、洪水和農作物的衛星，至少運作 3 年。預算 1.4 億美元，42 個月內要發射，最多裝 3 台儀器。每個選擇都要付出質量、電力、金錢、資料或時間。"
+      "en": "Build a satellite that watches wildfires, floods and crops for at least 3 years. You have room for up to 3 instruments; the budget and launch deadline are below. Every choice costs mass, power, money, data or time.",
+      "zh-TW": "打造一顆監測野火、洪水和農作物的衛星，至少運作 3 年。最多裝 3 台儀器，預算和發射期限見下方。每個選擇都要付出質量、電力、金錢、資料或時間。"
     },
     "budget_musd": 140,
     "target_years": 3,
@@ -132,8 +132,8 @@
       "zh-TW": "繪製月球地圖"
     },
     "briefing": {
-      "en": "Map the lunar surface from a 100 km orbit for 2 years. Getting there is expensive, the orbit decays fast, and every byte must cross 384,000 km. Budget $250M, 48 months.",
-      "zh-TW": "從 100 公里高的月球軌道繪製月面地圖 2 年。到月球很貴、軌道掉得快，每筆資料都要飛 38 萬公里回家。預算 2.5 億美元，48 個月。"
+      "en": "Map the lunar surface from a 100 km orbit for 2 years. Getting there is expensive, the orbit decays fast, and every byte must cross 384,000 km.",
+      "zh-TW": "從 100 公里高的月球軌道繪製月面地圖 2 年。到月球很貴、軌道掉得快，每筆資料都要飛 38 萬公里回家。"
     },
     "budget_musd": 250,
     "target_years": 2,

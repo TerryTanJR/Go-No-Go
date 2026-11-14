@@ -38,6 +38,7 @@ def main():
         "ui.fail.category.": ["power", "launcher", "mass"],
         "ui.phone.notes_": sorted({d.get("notes_mode", "transcript") for d in diffs}),
         "ui.area.": ["assembly", "control", "lobby"],
+        "ui.hud.controls": ["", "_solo"],
         "ui.tut.": [k + t for k in ["move", "view", "pick", "install", "report", "dashboard", "call", "launch", "console", "judge"] for t in ["", ".t"]],
         "event.title.": ["solar_storm", "part_failure", "science_opportunity", "power_anomaly"],
         "event.diag.": ["solar_storm", "part_failure", "science_opportunity", "power_anomaly"],
@@ -46,7 +47,7 @@ def main():
     }
 
     code = ""
-    for folder in ["Assets/GoNoGo/UI", "Assets/GoNoGo/Game", "Assets/GoNoGo/Presentation", "Assets/GoNoGo/Launch", "Assets/GoNoGo/Net"]:
+    for folder in ["Assets/GoNoGo/UI", "Assets/GoNoGo/Game", "Assets/GoNoGo/Presentation", "Assets/GoNoGo/Launch", "Assets/GoNoGo/Net", "Assets/GoNoGo/Editor"]:
         for f in (ROOT / folder).rglob("*.cs"):
             code += f.read_text(encoding="utf-8") + "\n"
 

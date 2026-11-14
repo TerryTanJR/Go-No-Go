@@ -464,7 +464,8 @@ namespace GoNoGo.EditorTools
             // 用高細分的球冠（只做看得到的那一塊）：整顆球 192 段在離地 150 單位時地平線看得到稜角。
             // 火箭下方對準佛羅里達外海（北緯 26°、西經 74°），避開北極與經度 180° 的貼圖接縫。
             var site = GeoMath.LatLonToLocal(26f, -74f);
-            var cap = SphereCap("EarthCap_Launch", site, 34f, 160, 256);
+            // 離地 150、地心往前偏 900：看得到的範圍離發射點最多約 21°（地平線 12.7° + 偏移 8.6°），做到 24° 就夠
+            var cap = SphereCap("EarthCap_Launch", site, 24f, 113, 256);
             var faceUp = Quaternion.FromToRotation(site, Vector3.up);
             var earthCenter = new Vector3(0, -R - alt, 900f);
             MeshObj("Earth", space, cap, art.earth, earthCenter, R * 2f).transform.localRotation = faceUp;

@@ -44,13 +44,23 @@ namespace GoNoGo.Net
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void CommandLineJoin()
         {
-            var args = Environment.GetCommandLineArgs();
+            var args = new System.Collections.Generic.List<string>(Environment.GetCommandLineArgs());
+            // 瀏覽器版沒有命令列：網址加 ?gng-join=192.168.1.20&gng-name=名字 效果一樣
+            var url = Application.absoluteURL ?? "";
+            int q = url.IndexOf('?');
+            if (q >= 0)
+                foreach (var pair in url.Substring(q + 1).Split('&'))
+                {
+                    var kv = pair.Split('=');
+                    args.Add("-" + Uri.UnescapeDataString(kv[0]));
+                    if (kv.Length > 1) args.Add(Uri.UnescapeDataString(kv[1]));
+                }
             string Arg(string name)
             {
-                int i = Array.IndexOf(args, name);
-                return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+                int i = args.IndexOf(name);
+                return i >= 0 && i + 1 < args.Count ? args[i + 1] : null;
             }
-            if (Array.IndexOf(args, "-gng-host") >= 0)
+            if (args.Contains("-gng-host"))
             {
                 Multiplayer.HostDirect("earth_observation", "engineer", err => Debug.Log("[Net] command-line host: " + (string.IsNullOrEmpty(err) ? "listening" : err)));
                 return;
@@ -64,7 +74,7 @@ namespace GoNoGo.Net
                 look.Name = name;
                 Profile.Save(look);
             }
-            bool control = Array.IndexOf(args, "-gng-control") >= 0;
+            bool control = args.Contains("-gng-control");
             Multiplayer.JoinDirect(ip, err =>
             {
                 Debug.Log("[Net] command-line join: " + (string.IsNullOrEmpty(err) ? "connected as player " + GameSession.LocalPlayer : err));
@@ -187,7 +197,7 @@ namespace GoNoGo.Net
 #if UNITY_WEBGL && !UNITY_EDITOR
             return Task.FromResult("ui.net.err.web_host");
 #else
-            var nm = Manager();
+            var nm = Manager(true);
             Transport(nm).SetConnectionData("127.0.0.1", DirectPort, "0.0.0.0");
             if (!nm.StartHost()) return Task.FromResult("ui.net.err.port");
             StartAsHost(nm, null, LocalIp(), scenario, difficulty);
@@ -199,7 +209,7 @@ namespace GoNoGo.Net
         {
             ip = string.IsNullOrWhiteSpace(ip) ? "127.0.0.1" : ip.Trim();
             if (!IPAddress.TryParse(ip, out _)) return Task.FromResult("ui.net.err.ip");
-            var nm = Manager();
+            var nm = Manager(true);
             Transport(nm).SetConnectionData(ip, DirectPort);
             if (!nm.StartClient()) return Task.FromResult("ui.net.err.connect");
             return WaitForState(NetLinkClient(nm, null, ip));
@@ -236,7 +246,9 @@ namespace GoNoGo.Net
             return err;
         }
 
-        static NetworkManager Manager()
+        /// <param name="direct">同一個網路：一律走 WebSocket，瀏覽器才能加入桌面版或編輯器開的房間。
+        /// 房間碼（轉送）：瀏覽器用 WSS、桌面版用 DTLS，轉送伺服器兩種都接受。</param>
+        static NetworkManager Manager(bool direct = false)
         {
             var nm = NetworkManager.Singleton;
             if (nm == null)
@@ -258,10 +270,12 @@ namespace GoNoGo.Net
                 };
                 nm.SetSingleton();
             }
+            if (nm.IsListening) nm.Shutdown();
 #if UNITY_WEBGL && !UNITY_EDITOR
             Transport(nm).UseWebSockets = true;
+#else
+            Transport(nm).UseWebSockets = direct;
 #endif
-            if (nm.IsListening) nm.Shutdown();
             return nm;
         }
 

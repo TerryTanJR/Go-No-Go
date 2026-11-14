@@ -102,7 +102,7 @@ Shader "GoNoGo/Planet"
                 float3 col = albedo * (lit * sun.color + _Ambient);
                 // 海面太陽反光（Blinn-Phong）
                 float3 H = normalize(L + V);
-                float spec = pow(saturate(dot(N, H)), 60.0) * water * (1.0 - cloud) * _SpecStrength;
+                float spec = pow(saturate(dot(N, H)), 110.0) * water * (1.0 - cloud) * _SpecStrength;
                 col += spec * sun.color * day;
                 // 雲：受光的白、背光的暗
                 col = lerp(col, (lit * 0.95 + _Ambient) * sun.color, cloud);

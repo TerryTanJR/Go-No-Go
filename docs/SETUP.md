@@ -281,7 +281,7 @@ unity command build run -- --target WebGL --output-path Builds/WebGL --dry-run t
 unity command build run -- --target WebGL --output-path Builds/WebGL --confirm true
 ```
 
-建置期間不要改 `.cs` 檔。`Builds/` 不進版控。目標大小 30 MB 以內。
+建置期間不要改 `.cs` 檔。`Builds/` 不進版控。大小不設上限，但建完記到藍圖「發布用設定」的大小表。
 
 ---
 

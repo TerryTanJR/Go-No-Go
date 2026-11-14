@@ -504,5 +504,42 @@
     - 解法：房主連線時不推；客戶端註冊好處理器後送 `Join`，房主套用後廣播整包狀態（`Join` 重送也會回 Ok，所以一定會收到）。房間滿了回 `err.room_full`，客戶端顯示 `ui.net.err.full`。
 
 100. **Windows Player 開場一直報 `ScreenSpaceAmbientOcclusion` 資源找不到、`Blitter is already initialized`（一萬多次）**
-    - 原因：PC_Renderer 有啟用 SSAO，但建置時「剝除沒用到的後處理資源」把 SSAO 的資源拿掉了，URP 每幀重建管線都失敗。
-    - 狀態：多人測試不受影響（畫面還在跑），WebGL 建置時一起確認與修正（見後續條目）。
+    - 原因：PC_Renderer 有啟用 SSAO，但 URP 全域設定（`UniversalRenderPipelineGlobalSettings.asset`）裡還沒登記 SSAO 的資源，建置時被剝除，URP 每幀重建管線都失敗。
+    - 解法：第一次建置時 URP 自己把 SSAO 的兩筆資源登記進全域設定（已 commit）；之後的 Player 記錄 0 筆 SSAO／Blitter 錯誤。
+
+### WebGL 建置（3D 版）
+
+101. **WebGL 首次載入 32.2 MB，超過藍圖寫的 30 MB 目標**
+    - 原因：多人套件（Netcode、Transport、Multiplayer Services）讓 wasm 從 8.4 MB 變 9.3 MB；ISS 模型 17 萬個三角形（網格約 3.5 MB，未壓縮）。
+    - 解法（一項一項建置量測）：
+      - 四段 NASA 長音檔改 22.05 kHz、品質 0.45（低頻轟鳴和無線電語音聽不出差別）：−1.5 MB。
+      - 關掉 Unity 啟動畫面（Unity 6 的 Personal 授權可以關，第 71 條當時的說法已不成立）：−0.1 MB（Logo 本來就很好壓）。
+      - ISS 在 Blender 減面到 25%（4.4 萬個三角形），標題畫面上看不出差別。
+      - 雲層改 WebGL 專用的灰階 DXT1 Crunch；發射場景的地球球冠從 34° 縮到 24°（看得到的範圍最多約 21°）。
+      - ~~WebGL 程式碼剝除 Minimal → Low~~：試過，但有剝掉 Json.NET 反射用到的程式碼的風險。
+    - 後來決定（使用者）：**30 MB 只是經驗值，不設上限**，所以程式碼剝除改回 Minimal、刪掉 link.xml。上面其他幾項本身就是改善（雲和海面反光的修正、ISS 減面、音檔聽不出差別、少等啟動畫面），都保留。之後每次建置量一次記在藍圖。
+
+102. **`AudioImporter.SetOverrideSampleSettings` 對每個平台名稱都回傳 false**
+    - 原因：Unity 6000.6 的行為（試過 "WebGL"、"Web"、`BuildTargetGroup.WebGL`，連不改任何值也是 false）。
+    - 解法：直接改預設值（`defaultSampleSettings`）；遊戲主要發布在 WebGL，桌機版一起降也沒關係。
+
+103. **瀏覽器版加不進「同一個網路」的房間**
+    - 原因：直連預設走 UDP，瀏覽器只能用 WebSocket；桌面版房主沒有開 WebSocket。
+    - 解法：「同一個網路」一律用 WebSocket（房主和客戶端都是），房間碼（轉送）才依平台分 WSS／DTLS。瀏覽器版沒有命令列，測試參數改從網址讀：`?gng-join=192.168.1.20&gng-name=名字`。
+
+104. **標題的地球一直沒有雲，海面也沒有反光（舊問題，這次才發現）**
+    - 原因：`ConfigureTexture` 把雲和水域遮罩設成單通道貼圖，Unity 預設取 **Alpha** 通道（JPG 沒有透明度，整張是 255）存成 Alpha8；shader 讀 `.r` 拿到 0。之前做雲的 Crunch 實驗時畫面突然有雲才發現。
+    - 解法：單通道一律取 Red（存成 R8）。海面反光第一次看得到，強度原本沒調過，在 Bloom 下是一團白光：指數 60 → 110、強度 0.6 → 0.22。
+    - 連帶：先前「雲改 Crunch 反而變大」是假象：Alpha8 全是 255，Brotli 壓到幾乎 0；換成真的雲資料後 Crunch 才是對的。
+
+105. **刪掉沒用到的字串時誤刪 `ui.hud.controls_solo`，畫面左下角顯示字串鍵**
+    - 原因：程式是 `"ui.hud.controls" + (多人 ? "" : "_solo")`，`check_strings.py` 只認得完整字串，把它列成 unused。
+    - 解法：加回去，並在 `check_strings.py` 的 families 加 `"ui.hud.controls": ["", "_solo"]`；刪除前再全專案搜一次（另外兩個命中是 `science_bonus`、`redesigns` 的子字串，不算）。
+
+106. **換掉 ISS 的 .glb 之後，標題畫面的 ISS 不見了（0 個 Renderer）**
+    - 原因：Boot 場景存的是模型的 prefab 實例，重新匯入後模型內部物件的 fileID 變了。
+    - 解法：重跑 `GoNoGo/Build/All Scenes`。換模型檔一律要重建場景。
+
+107. **在使用者開著的 Blender 裡減面，匯出時多帶了三個不相干的物件（Cube.001 等）**
+    - 原因：`use_selection` 看的是目前 view layer 的選取，使用者檔案裡其他場景的物件也是選取狀態。
+    - 解法：在暫存場景匯入，匯出前把 view layer 裡不是 ISS 的物件都取消選取，加 `use_active_scene`；做完把暫存場景、物件、網格、材質全部刪掉，確認使用者的檔案回到原本的 2 個場景、14 個物件。

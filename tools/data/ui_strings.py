@@ -8,7 +8,7 @@ import pathlib
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from ui_strings_3d import UI3D, OBSOLETE_PREFIXES  # noqa: E402
+from ui_strings_3d import UI3D, OBSOLETE_PREFIXES, OBSOLETE_KEYS  # noqa: E402
 
 UI = {
     # 共用
@@ -257,6 +257,7 @@ def main():
     data = {k: v for k, v in data.items() if not k.startswith("ui.")}
     merged = {k: v for k, v in UI.items() if not k.startswith(OBSOLETE_PREFIXES)}
     merged.update(UI3D)
+    merged = {k: v for k, v in merged.items() if k not in OBSOLETE_KEYS}
     for k, (en, zh) in merged.items():
         data[k] = {"en": en, "zh-TW": zh}
     lines = ["{"]

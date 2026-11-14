@@ -47,7 +47,7 @@ Material:
     - _CloudOpacity: 0.85
     - _Exposure: 1.15
     - _NightIntensity: 1.6
-    - _SpecStrength: 0.6
+    - _SpecStrength: 0.22
     m_Colors:
     - _AtmoColor: {r: 0.34999996, g: 0.62, b: 1, a: 1}
   m_BuildTextureStacks: []

@@ -128,6 +128,14 @@ namespace GoNoGo.EditorTools
             var ti = (TextureImporter)AssetImporter.GetAtPath(path);
             if (ti == null) throw new System.Exception("找不到貼圖 " + path);
             ti.textureType = singleChannel ? TextureImporterType.SingleChannel : TextureImporterType.Default;
+            // 單通道貼圖存成 R8：shader 讀 .r（預設的 Alpha8 讀 .r 會是 0，雲和海面反光會整個不見）
+            if (singleChannel)
+            {
+                var settings = new TextureImporterSettings();
+                ti.ReadTextureSettings(settings);
+                settings.singleChannelComponent = TextureImporterSingleChannelComponent.Red;
+                ti.SetTextureSettings(settings);
+            }
             ti.sRGBTexture = srgb;
             ti.maxTextureSize = maxSize;
             ti.wrapModeU = wrap;
@@ -163,6 +171,9 @@ namespace GoNoGo.EditorTools
             PlayerSettings.stripUnusedMeshComponents = true;
             PlayerSettings.WebGL.wasm2023 = true; // 藍圖：WebAssembly 2023（較新的瀏覽器）
             EditorUserBuildSettings.SetPlatformSettings("WebGL", "CodeOptimization", "DiskSizeLTO");
+            // Unity 6 的 Personal 授權可以關掉啟動畫面：省掉 2.8 MB 的 Logo 貼圖，也少等幾秒
+            PlayerSettings.SplashScreen.showUnityLogo = false;
+            PlayerSettings.SplashScreen.show = false;
         }
 
         // ---------------- 相機與後處理 ----------------

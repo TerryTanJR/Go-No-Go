@@ -155,6 +155,9 @@ namespace GoNoGo.Presentation
         {
             float dt = Time.deltaTime;
             bool paused = OpsClock.Paused;
+            // 大螢幕的模型只有營運時每幀畫；其他階段當背景，每 4 幀畫一次省效能（WebGL）
+            if (cam != null)
+                cam.enabled = (GameSession.HasMission && GameSession.Mission.S.Phase == SessionPhase.Ops) || Time.frameCount % 4 == 0;
             // 暫停時（事件視窗）放慢但不完全停，畫面才不會死掉
             _phase += 360f / secondsPerOrbit * dt * (paused ? 0.15f : 1f);
             var pos = OrbitPoint(_phase);
