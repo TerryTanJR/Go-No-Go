@@ -81,10 +81,11 @@ namespace GoNoGo.EditorTools
         /// 這裡依 <see cref="GameSettings.TextScales"/> 為每個 N 算出各檔大小。
         /// :root 是預設值（世界螢幕也用它），UI 根元素掛 .fs-115 等 class 時換成對應大小。
         /// 40px 以上的大標題、大數字本來就夠大，Theme.uss 直接寫像素、不跟著縮放（放大會撐破固定大小的印章、時鐘）。
-        /// 介面（.fs-*）整體再乘 <see cref="UiBaseScale"/>：Theme.uss 的字級是照 1080p 大螢幕排的，筆電上太小；
+        /// 介面（.fs-*）整體再乘 <see cref="UiBaseScale"/>：Theme.uss 的字級是照 1080p 大螢幕排的，太小；
         /// :root（牆上螢幕用）維持原本大小，那些畫面是照 RenderTexture 的尺寸排的。
         /// </summary>
-        public const float UiBaseScale = 1.2f;
+        /// <summary>原本 Theme.uss 的字級 × 1.2 × 1.15：試玩後覺得舊的 115% 才剛好，就把它當成新的 100%。</summary>
+        public const float UiBaseScale = 1.38f;
 
         [MenuItem("GoNoGo/Build/UI Font Scale")]
         public static string BuildFontScale()

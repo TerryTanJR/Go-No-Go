@@ -154,8 +154,13 @@ namespace GoNoGo.UI
                 _answerText = Dialogue.Answer(D, M.S, dep2.Id, line, M.Dashboard, Loc.Lang);
                 _answer.text = _answerText.Substring(0, (int)System.Math.Min(_answerText.Length, _typed));
             }
+            // 問完直接翻筆記：筆記板就在電話旁邊，這裡給一個捷徑（個人模式的平板 T 也有筆記分頁）
             var notes = M.Difficulty.NotesMode;
-            Ui.Text(Loc.T("ui.phone.notes_" + notes), "small", "faint").AddTo(right);
+            var foot = Ui.Row("phone-foot").AddTo(right);
+            Ui.Text(Loc.T("ui.phone.notes_" + notes), "small", "faint").AddTo(foot);
+            Ui.Spacer().AddTo(foot);
+            if (notes != "none" && M.S.Calls.Count > 0)
+                Ui.Btn(Loc.T("ui.phone.open_notes"), () => { Hud.Signal("open:notes"); Hud.Open("notes"); }).AddTo(foot);
         }
 
         void Dial(string dept)

@@ -31,19 +31,17 @@ namespace GoNoGo.UI
         protected override void Build()
         {
             Sfx.SetAmbience(Sfx.Ambience.ControlRoom);
+            Sfx.SetMusic(Sfx.Music.Menu);
             PlayerControllerUnlock();
             if (!Profile.HasAvatar && _page != Page.Avatar) OpenAvatar();
 
             var top = Ui.El("topbar", "topbar--clear").AddTo(Root);
             Ui.Text("GO / NO-GO", "brand").AddTo(top);
             Ui.Spacer().AddTo(top);
-            // 右上：自己的名字，點了就改造型（語言在設定頁）
+            // 右上：自己的名字（改造型的按鈕在太空人腳下；語言在設定頁）
             if (_page != Page.Avatar)
             {
-                var me = Ui.Btn("", OpenAvatar, "menu-me").AddTo(top);
-                me.Clear();
-                Ui.Text(Profile.Look.Name, "menu-me-name").AddTo(me);
-                Ui.Text("✎  " + Loc.T("ui.menu.edit_avatar"), "small", "dim").AddTo(me);
+                Ui.Text(Profile.Look.Name, "menu-me", "menu-me-name").AddTo(top);
                 AvatarHotspot();
             }
 
