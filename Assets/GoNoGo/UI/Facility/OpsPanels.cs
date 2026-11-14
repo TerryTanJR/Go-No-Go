@@ -174,7 +174,7 @@ namespace GoNoGo.UI
             var e = s.Phase == SessionPhase.Ops ? M.CurrentEvent : null;
             var l = s.LastLaunch;
             var design = l?.Design ?? s.Reported;
-            var ev = Evaluator.EvaluateDesign(design, D);
+            var ev = Evaluator.EvaluateDesign(design, D, s.DifficultyId, false); // 讀數照這一局的難度
             var sample = e != null ? M.SampleAt(e.Day) : null;
             // 沒有事件時顯示正常讀數
             var readings = OpsTelemetry.For(_console, e, ev, design, D, sample);
