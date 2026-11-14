@@ -22,3 +22,5 @@ MonoBehaviour:
   fireball: {fileID: 2100000, guid: c2cf72d8dcf1bbe47a1910c288e75767, type: 2}
   debris: {fileID: 2100000, guid: 9f4a93f35642ccd4782011755e82a5a3, type: 2}
   trail: {fileID: 2100000, guid: 8bd3a6f402fe5fe4e8dcb548e5a32943, type: 2}
+  moon: {fileID: 2100000, guid: f11becc2ee9f72e4d87d83858efd2c6d, type: 2}
+  line: {fileID: 2100000, guid: 96b66c8de7dc3c041b0be95e5ccf27b5, type: 2}

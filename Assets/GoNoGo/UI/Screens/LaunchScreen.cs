@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using GoNoGo.Core;
 using GoNoGo.Game;
@@ -14,7 +15,8 @@ namespace GoNoGo.UI
     /// </summary>
     public sealed class LaunchScreen : GameScreen
     {
-        Label _clock, _alt, _vel, _thr, _stage, _next;
+        Label _clock, _alt, _vel, _thr, _stage, _next, _altKey;
+        bool _altMoon;
         VisualElement _log, _outcome, _speedRow;
         Button _skip;
         LaunchTimeline _tl;
@@ -40,9 +42,10 @@ namespace GoNoGo.UI
             _tl = last != null ? LaunchTimeline.Build(D, last.Design, last.Outcome, last.ReasonCode ?? "") : null;
 
             var tele = Ui.El("panel", "launch-tele").AddTo(Root);
-            _alt = Row(tele, "ui.launch.alt", "km");
-            _vel = Row(tele, "ui.launch.vel", "km/s");
-            _thr = Row(tele, "ui.launch.thr", "%");
+            _alt = Row(tele, "ui.launch.alt", "km", out _altKey);
+            _vel = Row(tele, "ui.launch.vel", "km/s", out _);
+            _thr = Row(tele, "ui.launch.thr", "%", out _);
+            _altMoon = false;
 
             _log = Ui.El("launch-log").AddTo(Root);
             foreach (var l in _lines) AddLine(l, false);
@@ -65,10 +68,10 @@ namespace GoNoGo.UI
             On(() => LaunchFeed.Callout += OnCallout, () => LaunchFeed.Callout -= OnCallout);
         }
 
-        static Label Row(VisualElement parent, string key, string unit)
+        static Label Row(VisualElement parent, string key, string unit, out Label keyLabel)
         {
             var r = Ui.Row("tele-row").AddTo(parent);
-            Ui.Text(Loc.T(key), "small", "dim", "tele-k").AddTo(r);
+            keyLabel = Ui.Text(Loc.T(key), "small", "dim", "tele-k").AddTo(r);
             Ui.Spacer().AddTo(r);
             var v = Ui.Text("0", "mono", "tele-v").AddTo(r);
             Ui.Text(unit, "small", "faint", "tele-u").AddTo(r);
@@ -158,6 +161,18 @@ namespace GoNoGo.UI
             _vel.text = LaunchFeed.VelocityKms.ToString("0.00");
             _thr.text = (LaunchFeed.Throttle * 100).ToString("0");
             _stage.text = string.IsNullOrEmpty(LaunchFeed.StageKey) ? "" : Loc.T(LaunchFeed.StageKey);
+            // 月球任務：地月轉移的縮時倍率；抵達月球後高度改成離月面
+            if (_tl != null && !LaunchFeed.Finished)
+            {
+                double rate = _tl.WarpRate(T) * (GameSession.HasMission ? Mathf.Max(1, M.S.LaunchSpeed) : 1);
+                if (rate > 1.5) _stage.text += "  ·  " + Loc.T("ui.launch.timelapse", ("x", RateText(rate)));
+            }
+            bool moon = _tl != null && _tl.MoonRelative(T);
+            if (moon != _altMoon && _altKey != null)
+            {
+                _altMoon = moon;
+                _altKey.text = Loc.T(moon ? "ui.launch.alt_moon" : "ui.launch.alt");
+            }
             _next.text = NextText(T);
             // 這一局已經結束（例如多人時房主斷線、正要回主選單）：速度和跳過按鈕不用再畫
             if (!GameSession.HasMission) return;
@@ -177,6 +192,13 @@ namespace GoNoGo.UI
                 _shownOutcome = true;
                 ShowOutcome(true);
             }
+        }
+
+        /// <summary>縮時倍率取兩位有效數字（×19,437 → ×19,000），數字才不會一直跳。</summary>
+        static string RateText(double rate)
+        {
+            double mag = Math.Pow(10, Math.Max(0, Math.Floor(Math.Log10(rate)) - 1));
+            return (Math.Round(rate / mag) * mag).ToString("#,0");
         }
 
         void ShowOutcome(bool sound)

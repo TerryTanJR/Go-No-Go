@@ -206,7 +206,7 @@ namespace GoNoGo.Launch
             return go;
         }
 
-        static Renderer Plume(Transform parent, Vector3 top, float radius, Material mat)
+        internal static Renderer Plume(Transform parent, Vector3 top, float radius, Material mat)
         {
             // 尾焰：旋轉體 y=0 接噴口、y=1 是尾端；繞 X 轉 180° 讓它往下長。長度由導演依推力與高度調整（縮放 Y）
             var go = Obj(parent, "plume", Lathe("Plume", new[] { new Vector2(0.9f, 0f), new Vector2(1.25f, 0.25f), new Vector2(1.5f, 0.65f), new Vector2(1.2f, 1f) }, 20, true), mat);
