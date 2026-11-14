@@ -18,6 +18,7 @@ namespace GoNoGo.UI
         VisualElement _hud, _labels, _modal, _phaseBar;
         VisualElement _info, _infoKeys;
         Label _infoTitle, _infoSub, _infoBody, _area, _held, _hint;
+        Button _mic;
         ProgressRing _ring;
         VisualElement _crosshair;
         FacPanel _panel;
@@ -45,8 +46,9 @@ namespace GoNoGo.UI
             _held = Ui.Text("", "hud-held").AddTo(tl);
             _phaseBar = Ui.El("hud-phase").AddTo(tl);
 
-            // 右上：語言
+            // 右上：麥克風（在語音頻道裡才顯示）、語言
             var tr = Ui.Row("hud-tr").AddTo(_hud);
+            _mic = Ui.Btn("", ToggleMic, "btn-small", "btn-ghost").AddTo(tr);
             Ui.Btn(Loc.IsZh ? "EN" : "中文", Loc.Toggle, "btn-small", "btn-ghost").AddTo(tr);
 
             // 中央：準星與進度環
@@ -200,6 +202,9 @@ namespace GoNoGo.UI
             // G / N：Go/No-Go 點名
             if (keys && _poll != null && _poll.CanVote && (kb.gKey.wasPressedThisFrame || kb.nKey.wasPressedThisFrame))
                 _poll.Vote(kb.gKey.wasPressedThisFrame);
+            // M：自己的麥克風靜音
+            else if (keys && kb.mKey.wasPressedThisFrame && Multiplayer.VoiceConnected)
+                ToggleMic();
             // T：個人模式的平板（手冊、儀表板）
             else if (keys && kb.tKey.wasPressedThisFrame && !M.S.Multiplayer)
             {
@@ -247,6 +252,11 @@ namespace GoNoGo.UI
             _ring.Value = Hud.Progress;
             _ring.style.display = Hud.Progress > 0 ? DisplayStyle.Flex : DisplayStyle.None;
 
+            _mic.style.display = Multiplayer.VoiceConnected ? DisplayStyle.Flex : DisplayStyle.None;
+            _mic.text = Loc.T(Multiplayer.MicMuted ? "ui.voice.muted" : "ui.voice.on") + "  [M]";
+            _mic.EnableInClassList("btn-danger", Multiplayer.MicMuted);
+            _mic.EnableInClassList("btn-ghost", !Multiplayer.MicMuted);
+
             _area.text = string.IsNullOrEmpty(Hud.Area) ? "" : Loc.T("ui.area." + Hud.Area) + (Hud.FirstPerson ? "  ·  " + Loc.T("ui.hud.first_person") : "");
             var held = M.S.HeldBy(GameSession.LocalPlayer);
             _held.text = held != null ? Loc.T("ui.hud.holding", ("code", D.Part(held)?.Code ?? "")) : "";
@@ -256,6 +266,8 @@ namespace GoNoGo.UI
 
         int _openedFrame;
         string _keysSig;
+
+        static void ToggleMic() => Multiplayer.SetMicMuted?.Invoke(!Multiplayer.MicMuted);
 
         /// <summary>場景裡的文字標籤：投影到畫面上（太遠、在背後、被牆擋住的不畫）。</summary>
         void DrawLabels()
