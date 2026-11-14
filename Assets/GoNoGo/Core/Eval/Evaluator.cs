@@ -22,7 +22,7 @@ namespace GoNoGo.Core
             var c = data.Constants;
             var ev = new Evaluation();
             var scenario = data.Scenario(design.ScenarioId);
-            var diff = data.Difficulty(difficultyId) ?? data.Difficulties.FirstOrDefault() ?? new DifficultyDef();
+            var diff = data.Difficulty(difficultyId) ?? data.DefaultDifficulty ?? new DifficultyDef();
             ev.DesignErrors = GameDataLoader.ValidateDesign(data, design, "design");
 
             var orbit = data.Orbit(design.OrbitId);

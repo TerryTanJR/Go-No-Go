@@ -51,7 +51,7 @@ namespace GoNoGo.Core
         public static Score Compute(Design design, GameData data, Evaluation ev, MissionResult r, MissionContext ctx)
         {
             var scenario = data.Scenario(design.ScenarioId);
-            var diff = data.Difficulty(ctx.DifficultyId) ?? data.Difficulties.FirstOrDefault() ?? new DifficultyDef();
+            var diff = data.Difficulty(ctx.DifficultyId) ?? data.DefaultDifficulty ?? new DifficultyDef();
             var s = new Score();
 
             s.Science = scenario != null && scenario.FireAlert ? FireScience(ev, r, scenario) : ScienceScore(r.ScienceTotal, scenario, design.MissionYears);

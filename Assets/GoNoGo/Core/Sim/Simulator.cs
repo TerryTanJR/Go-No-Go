@@ -34,7 +34,7 @@ namespace GoNoGo.Core
         public static MissionPlan PlanMission(Design design, GameData data, int seed, string difficultyId)
         {
             var rng = new Random(seed);
-            var diff = data.Difficulty(difficultyId) ?? data.Difficulties.FirstOrDefault() ?? new DifficultyDef();
+            var diff = data.Difficulty(difficultyId) ?? data.DefaultDifficulty ?? new DifficultyDef();
             var plan = new MissionPlan { Seed = seed, LaunchRoll = rng.NextDouble(), LaunchRoll2 = rng.NextDouble() };
             if (diff.GuaranteedLaunch) { plan.LaunchRoll = 0; plan.LaunchRoll2 = 1; }
 

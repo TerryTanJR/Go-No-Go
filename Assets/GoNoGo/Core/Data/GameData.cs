@@ -40,6 +40,11 @@ namespace GoNoGo.Core
         public LauncherDef Launcher(string id) => id != null && _launchers.TryGetValue(id, out var l) ? l : null;
         public ScenarioDef Scenario(string id) => id != null && _scenarios.TryGetValue(id, out var s) ? s : null;
         public DifficultyDef Difficulty(string id) => id != null && _difficulties.TryGetValue(id, out var d) ? d : null;
+        /// <summary>
+        /// 沒指定難度時用的基準難度（工程師：預算倍率 1）。不照 difficulty.json 的順序取第一個：
+        /// 那個順序是選單的排列（由易到難），調整選單不應該改到評估和模擬的基準。
+        /// </summary>
+        public DifficultyDef DefaultDifficulty => Difficulty("engineer") ?? Difficulties.FirstOrDefault();
         public DepartmentDef Department(string id) => Departments.Find(x => x.Id == id);
 
         /// <summary>選單上可以選的難度（不含新手訓練專用的）。</summary>
