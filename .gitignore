@@ -164,3 +164,7 @@ crashlytics-build.properties
 
 # GoNoGo blueprint docs stay out of the repo
 docs/unity-blueprint/
+
+# Design docs stay out of the repo (except the setup guide)
+/docs/*
+!/docs/SETUP.md
