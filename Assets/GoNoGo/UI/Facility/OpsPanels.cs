@@ -224,7 +224,8 @@ namespace GoNoGo.UI
             var m = GameSession.Mission;
             var link = GameSession.Link;
             var head = Ui.Row("lobby-head").AddTo(body);
-            Ui.Text(Loc.T("ui.lobby.code"), "small", "dim").AddTo(head);
+            bool ip = System.Net.IPAddress.TryParse(link?.RoomCode ?? "", out _);
+            Ui.Text(Loc.T(ip ? "ui.lobby.ip" : "ui.lobby.code"), "small", "dim").AddTo(head);
             Ui.Text(link?.RoomCode ?? "", "h2", "mono", "lobby-code").AddTo(head);
             Ui.Spacer().AddTo(head);
             Ui.Text(Loc.T(m.Scenario.Name) + " · " + Loc.T(m.Difficulty.Name), "h3").AddTo(head);

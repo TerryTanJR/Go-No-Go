@@ -46,7 +46,7 @@ def main():
     }
 
     code = ""
-    for folder in ["Assets/GoNoGo/UI", "Assets/GoNoGo/Game", "Assets/GoNoGo/Presentation", "Assets/GoNoGo/Launch"]:
+    for folder in ["Assets/GoNoGo/UI", "Assets/GoNoGo/Game", "Assets/GoNoGo/Presentation", "Assets/GoNoGo/Launch", "Assets/GoNoGo/Net"]:
         for f in (ROOT / folder).rglob("*.cs"):
             code += f.read_text(encoding="utf-8") + "\n"
 

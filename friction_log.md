@@ -477,3 +477,32 @@
 93. **在 Bash 用 heredoc 把一大段 USS 接到 `Theme.uss` 失敗：`unexpected EOF while looking for matching '''`**
     - 原因：同一個指令前面的 `grep` 參數有未成對的引號，整段被當成一個字串。
     - 解法：大段文字先用 Write 寫到暫存檔，再 `cat 暫存檔 >> Theme.uss`。
+
+## 3D 版（多人連線）
+
+94. **房間碼的連線服務即使選「直連」也要雲端專案**
+    - 原因：Multiplayer Services 的 session（`CreateSessionAsync(...).WithDirectNetwork()`）一樣要先登入、在雲端建立房間；專案的 `cloudProjectId` 是空的（還沒連結 Unity Cloud）。
+    - 解法：分兩條路。房間碼走 session＋轉送（`WithRelayNetwork`，WebGL 自動用 WSS）；「同一個網路」不經雲端，直接用 Netcode＋`UnityTransport.SetConnectionData`。沒連結雲端時建房會顯示 `ui.net.err.cloud`，引導改用同網路。
+
+95. **`SessionState` 名稱衝突**
+    - 原因：`Unity.Services.Multiplayer` 也有一個 `SessionState` 列舉，和 `GoNoGo.Core.SessionState` 同時 `using` 就編不過。
+    - 解法：`NetLink.cs` 加 `using SessionState = GoNoGo.Core.SessionState;`。
+
+96. **一台電腦、一個編輯器，沒辦法同時當房主和客戶端測試**
+    - 解法：建一個 Windows 開發版 Player（`Builds/NetTest`，約 2–4 分鐘），加測試用命令列參數：`-gng-host` 開起來就當房主，`-gng-join 127.0.0.1 -gng-name 名字 -gng-control` 自動加入並送一個操作。編輯器當另一端，用 script eval 送操作、查狀態、截圖。兩個方向都測過：大廳 → 設計（拿取、安裝、回報）→ 發射 → 營運（結束回合、下一回合）→ 房主斷線回主選單。
+
+97. **區網 IP 顯示成 VMware 虛擬網卡的 192.168.152.1**
+    - 原因：`Dns.GetHostEntry` 回傳的第一個 IPv4 不一定是實體網卡。
+    - 解法：改用 `NetworkInterface`，優先選有預設閘道、狀態是 Up 的網卡。
+
+98. **客戶端當機或直接關掉視窗，房主要 30 秒才把他移出房間**
+    - 原因：`UnityTransport.DisconnectTimeoutMS` 預設 30000。
+    - 解法：改成 10 秒；正常按「離開」會立刻斷線。
+
+99. **客戶端還沒註冊訊息處理就收到房主的狀態，訊息會被丟掉**
+    - 原因：用房間碼加入時，`JoinSessionByCodeAsync` 回來時 Netcode 已經連上；房主如果在「有人連線」時就推狀態，可能早於客戶端註冊 `gng.state`。
+    - 解法：房主連線時不推；客戶端註冊好處理器後送 `Join`，房主套用後廣播整包狀態（`Join` 重送也會回 Ok，所以一定會收到）。房間滿了回 `err.room_full`，客戶端顯示 `ui.net.err.full`。
+
+100. **Windows Player 開場一直報 `ScreenSpaceAmbientOcclusion` 資源找不到、`Blitter is already initialized`（一萬多次）**
+    - 原因：PC_Renderer 有啟用 SSAO，但建置時「剝除沒用到的後處理資源」把 SSAO 的資源拿掉了，URP 每幀重建管線都失敗。
+    - 狀態：多人測試不受影響（畫面還在跑），WebGL 建置時一起確認與修正（見後續條目）。
