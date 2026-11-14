@@ -1,0 +1,14 @@
+{
+    "name": "GoNoGo.Launch",
+    "rootNamespace": "GoNoGo.Launch",
+    "references": ["GoNoGo.Core", "GoNoGo.Game", "GoNoGo.Presentation", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime", "Unity.Cinemachine", "Unity.Timeline"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

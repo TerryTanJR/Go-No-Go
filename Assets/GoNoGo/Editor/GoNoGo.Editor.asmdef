@@ -1,0 +1,27 @@
+{
+    "name": "GoNoGo.Editor",
+    "rootNamespace": "GoNoGo.EditorTools",
+    "references": [
+        "GoNoGo.Core",
+        "GoNoGo.Game",
+        "GoNoGo.UI",
+        "GoNoGo.Presentation",
+        "GoNoGo.Launch",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.Cinemachine",
+        "Unity.Timeline",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

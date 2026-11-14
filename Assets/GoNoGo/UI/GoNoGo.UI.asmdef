@@ -1,0 +1,14 @@
+{
+    "name": "GoNoGo.UI",
+    "rootNamespace": "GoNoGo.UI",
+    "references": ["GoNoGo.Core", "GoNoGo.Game", "Unity.InputSystem"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -150,3 +150,33 @@
 
 33. **科學分數線性計算時，便宜小衛星只拿到 13 分，幾乎等於失敗；高科學型又遠超 100**
     - 解法：改成 `100 · √(科學點數 / 參考值)`，上限 100。預算剩越多效率分越高（25% 封頂），質量與電力餘裕 10–50% 最好。調完的中位數：便宜型 71（B）、均衡型 91、高科學型 97，三組都在不同分項領先（`BalanceTests`）。
+
+### 素材下載與匯入
+
+34. **eoimages.gsfc.nasa.gov（Blue Marble、Black Marble 原始網址）連線逾時**
+    - 原因：NASA Earth Observatory 圖庫已搬家。
+    - 解法：改從 `assets.science.nasa.gov/content/dam/science/esd/eo/images/...` 下載同一批檔案；雲層圖改用 SVS 4439 的全球雲圖。
+
+35. **google/fonts 的 Noto Sans TC 可變字型匯入後預設是 Thin（字重 100）**
+    - 原因：可變字型的預設軸值是最細的那一端，Unity 的 FontAsset 不會自動選字重。
+    - 解法：改用 noto-cjk 倉庫的靜態 OTF（`NotoSansTC-Regular.otf` / `-Bold.otf`）。
+
+36. **media.githubusercontent.com 抓 NASA-3D-Resources 的 .glb 回 404**
+    - 解法：改用 `raw.githubusercontent.com/nasa/NASA-3D-Resources/master/...`，它會自動轉 LFS 物件。
+
+37. **glTFast 匯入 NASA .glb 失敗：需要 `KHR_draco_mesh_compression`**
+    - 原因：NASA 大部分模型用 Draco 壓縮，而且列為 required extension。glTFast 本身不含解碼器。
+    - 解法：`unity command package add --name com.unity.cloud.draco@5.6.0 --confirm true --wait true`（不加 `--confirm true` 會被拒絕）。加完重新匯入 → 16 個模型都正常。
+
+38. **Sat_Terra.glb 匯入失敗（Failed to import ... see inspector），而且單位是毫米（26 km 大）、11.7 萬面**
+    - 解法：Terra 不是必要模型（地球觀測用 Landsat 8、碳監測用 OCO-2），直接移除，CREDITS 一起更新。Atlas 6（16.5 萬面）只放在發射場景遠景，不放進 WebGL 常駐場景。
+
+39. **NASA 模型尺度不一：SatelliteKit 零件只有 2–26 公分、Terra 是毫米、DSN 天線 34 m**
+    - 解法：場景建置腳本依 Renderer bounds 自動縮放到目標尺寸（`FitToSize`），不手調 Transform。
+
+40. **Python `-I`（隔離模式）找不到 Pillow；機器上沒有 ffmpeg 可以剪音訊；Unity 不能匯入 m4a**
+    - 原因：`-I` 會忽略使用者 site-packages。
+    - 解法：處理下載檔改用 `python -P -E`（一樣不從目前目錄載入程式碼）。音訊只抓 NASA 的 wav/mp3 原檔（不用 m4a），用 numpy 裁切：windowed-sinc 低通 → 降頻到 24 kHz → 淡入淡出 → 峰值正規化到 -1 dBFS。
+
+41. **IM-2 發射台麥克風原始錄音本身就削波（clipping）**
+    - 解法：峰值正規化到 -1 dBFS 後，在遊戲裡只用點火後那幾秒，AudioSource 音量壓低，並和遠方海灘的低頻轟鳴疊在一起蓋過削波的刺耳感。
