@@ -40,6 +40,7 @@ namespace GoNoGo.Game
         public static bool PanelOpen;
         /// <summary>剛關掉面板的那一幀（同一個 E 不要又打開控制台）。</summary>
         public static int ClosedFrame = -1;
+        /// <summary>遊戲選單（Tab / Esc）開著：角色不能動。多人時遊戲本身不會停。</summary>
         public static bool Paused;
         public static bool InputBlocked => PanelOpen || Paused || SceneFlow.Loading;
 
@@ -60,6 +61,7 @@ namespace GoNoGo.Game
         {
             Target = null;
             Progress = 0;
+            FirstPerson = false;
             PanelOpen = false;
             Paused = false;
             Area = "";

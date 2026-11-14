@@ -551,3 +551,15 @@
 109. **雲的貼圖警告：`RGB Crunched DXT1` 不能用在 SingleChannel 類型**
     - 原因：第 101 條把雲設成 WebGL 用 DXT1 Crunch，但雲的貼圖類型是單通道，Unity 不支援這個組合（雖然還是有套用）。
     - 解法：雲改用一般貼圖類型（shader 只讀 `.r`，一樣能用），WebGL 照樣用 DXT1 Crunch；水域遮罩維持單通道 R8。
+
+110. **遊戲中選單（Tab）：字串鍵和 USS class 撞名**
+    - 原因：主選單已經用了 `ui.menu.title`（回到標題）、`ui.menu.settings`、`ui.menu.back`，也有 `.menu-col`（主選單左欄，絕對定位）。新選單沿用同樣的名字會改到主選單的文字和版面。
+    - 解法：遊戲中選單的字串用 `ui.gmenu.*`、樣式用 `gm-*`。新增 key 或 class 前先搜一次整個專案。
+
+111. **測試按鍵時，輸入框焦點檢查看起來沒作用**
+    - 原因：場景裡有 5 個 UIDocument（中控室的世界螢幕也是），測試用的輸入框被加到別的文件，`UIRoot.IsTyping` 只看自己的面板，結果當然是 false。
+    - 解法：測試時用 `UIRoot.Instance` 的 UIDocument。實際遊戲裡的輸入框（筆記、房間碼）都在 UIRoot 裡，檢查是對的。另外：`unity command scene open` 只會選取場景資產，不會開啟，要用 `EditorSceneManager.OpenScene`；直接開 Launch 場景會被測試用的任務切回 Facility，要從 Facility 送 `Launch` 指令進去。
+
+112. **多人時別人按發射，自己還鎖著游標走路，進到發射畫面後滑鼠點不到按鈕（舊問題）**
+    - 原因：只有設施畫面管游標，換場景時沒有人把游標放開。
+    - 解法：`UIRoot` 換到設施以外的畫面時一律放開游標。

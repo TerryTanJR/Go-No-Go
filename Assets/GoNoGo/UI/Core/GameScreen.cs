@@ -37,6 +37,9 @@ namespace GoNoGo.UI
 
         public virtual void Tick(float dt) { }
 
+        /// <summary>按 Esc 時先問畫面（例如關掉開著的面板）。回傳 true = 已處理，不要打開遊戲選單。</summary>
+        public virtual bool HandleEscape() => false;
+
         public void Close()
         {
             DisposeSubscriptions();

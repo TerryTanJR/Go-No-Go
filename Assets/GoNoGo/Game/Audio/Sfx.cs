@@ -17,10 +17,27 @@ namespace GoNoGo.Game
         float _hoverCooldown;
         float _ambienceTarget, _ambience2Target;
 
+        /// <summary>主音量：所有聲音（包含發射場景的聲音）。</summary>
         public static float MasterVolume
         {
             get => PlayerPrefs.GetFloat("gonogo.volume", 0.8f);
             set { PlayerPrefs.SetFloat("gonogo.volume", Mathf.Clamp01(value)); AudioListener.volume = Mathf.Clamp01(value); }
+        }
+
+        static float? _ambienceVol, _effectsVol;
+
+        /// <summary>環境音（控制室底噪、太空背景音）的倍率 0–1。</summary>
+        public static float AmbienceVolume
+        {
+            get => _ambienceVol ??= Mathf.Clamp01(PlayerPrefs.GetFloat("gonogo.volume.ambience", 1f));
+            set { _ambienceVol = Mathf.Clamp01(value); PlayerPrefs.SetFloat("gonogo.volume.ambience", _ambienceVol.Value); }
+        }
+
+        /// <summary>介面與動作音效（按鈕、拿取、安裝、電話…）的倍率 0–1。</summary>
+        public static float EffectsVolume
+        {
+            get => _effectsVol ??= Mathf.Clamp01(PlayerPrefs.GetFloat("gonogo.volume.effects", 1f));
+            set { _effectsVol = Mathf.Clamp01(value); PlayerPrefs.SetFloat("gonogo.volume.effects", _effectsVol.Value); }
         }
 
         static Sfx I
@@ -39,7 +56,7 @@ namespace GoNoGo.Game
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => _i = null;
+        static void ResetStatics() { _i = null; _ambienceVol = null; _effectsVol = null; }
 
         void Init()
         {
@@ -60,8 +77,9 @@ namespace GoNoGo.Game
         {
             _hoverCooldown -= Time.unscaledDeltaTime;
             float k = 1f - Mathf.Exp(-Time.unscaledDeltaTime * 2.5f);
-            _ambience.volume = Mathf.Lerp(_ambience.volume, _ambienceTarget, k);
-            _ambience2.volume = Mathf.Lerp(_ambience2.volume, _ambience2Target, k);
+            float amb = AmbienceVolume;
+            _ambience.volume = Mathf.Lerp(_ambience.volume, _ambienceTarget * amb, k);
+            _ambience2.volume = Mathf.Lerp(_ambience2.volume, _ambience2Target * amb, k);
             if (_ambienceTarget <= 0 && _ambience.volume < 0.005f && _ambience.isPlaying) _ambience.Stop();
             if (_ambience2Target <= 0 && _ambience2.volume < 0.005f && _ambience2.isPlaying) _ambience2.Stop();
         }
@@ -102,7 +120,7 @@ namespace GoNoGo.Game
                 clip = Synthesize(id);
                 _synth[id] = clip;
             }
-            _ui.PlayOneShot(clip, vol);
+            _ui.PlayOneShot(clip, vol * EffectsVolume);
         }
 
         // ---------------- 環境音 ----------------

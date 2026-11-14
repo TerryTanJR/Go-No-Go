@@ -215,10 +215,11 @@ namespace GoNoGo.UI
             Back(col, Page.Root);
             Ui.Text(Loc.T("ui.menu.settings"), "h2").AddTo(col);
             Ui.Btn(Loc.IsZh ? "English" : "中文", Loc.Toggle, "btn-ghost").AddTo(col);
-            var vol = new Slider(Loc.T("ui.pause.volume"), 0, 1) { value = Sfx.MasterVolume };
-            vol.RegisterValueChangedCallback(e => Sfx.MasterVolume = e.newValue);
-            vol.AddToClassList("pause-slider");
-            col.Add(vol);
+            // 和遊戲中選單（Tab）同一組控制項
+            var box = Ui.El("gm-col", "gm-settings").AddTo(col);
+            GameMenu.SoundControls(box);
+            GameMenu.MouseControl(box);
+            box.RegisterCallback<DetachFromPanelEvent>(_ => GameSettings.Save());
         }
 
         // ---------------- avatar ----------------

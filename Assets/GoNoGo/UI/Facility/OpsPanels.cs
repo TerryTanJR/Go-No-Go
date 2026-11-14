@@ -61,7 +61,8 @@ namespace GoNoGo.UI
             if (M == null || M.S.Phase != SessionPhase.Ops) return;
             var limit = M.Difficulty.TurnSeconds;
             if (limit <= 0 || M.S.TurnResolved) { _timer.text = ""; return; }
-            _left -= dt;
+            // 個人模式打開選單（Tab / Esc）時回合計時暫停；多人時大家共用時間，不停
+            if (!(Hud.Paused && !M.S.Multiplayer)) _left -= dt;
             _timer.text = Fmt.Clock(_left);
             _timer.EnableInClassList("over", _left < 20);
             if (_left <= 0 && GameSession.IsHost)

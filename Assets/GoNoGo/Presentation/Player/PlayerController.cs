@@ -5,8 +5,9 @@ using UnityEngine.InputSystem;
 namespace GoNoGo.Presentation
 {
     /// <summary>
-    /// 本機玩家：WASD 移動、Shift 跑、滑鼠轉視角、Q 切換第一／第三人稱（預設第三人稱）。
-    /// 第三人稱鏡頭在角色後上方約 3 m，撞到牆時自動拉近。瀏覽器會鎖住滑鼠游標，Esc 放開（暫停）。
+    /// 本機玩家：WASD 移動、Shift 跑、滑鼠轉視角、Q 切換第一／第三人稱（預設第三人稱，選單也能切）。
+    /// 第三人稱鏡頭在角色正後上方約 3.8 m（角色在畫面正中偏下，準星在頭上方），撞到牆時自動拉近。
+    /// 瀏覽器會鎖住滑鼠游標，Esc 放開（打開選單）。滑鼠靈敏度乘上選單裡的 <see cref="GameSettings.MouseSensitivity"/>。
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
     public sealed class PlayerController : MonoBehaviour
@@ -32,12 +33,15 @@ namespace GoNoGo.Presentation
         public bool Frozen { get; set; }
 
         static readonly int IgnoreRaycast = 2;
+        /// <summary>第三人稱鏡頭相對視角的方向：x = 0 → 正後方不偏左右；y → 稍微高過頭。</summary>
+        static readonly Vector3 ThirdPersonOffset = new Vector3(0f, 0.25f, -1f).normalized;
 
         void Awake()
         {
             _cc = GetComponent<CharacterController>();
             gameObject.layer = IgnoreRaycast; // 準星和鏡頭碰撞都不會打到自己
             _camDist = thirdPersonDistance;
+            _firstPerson = Hud.FirstPerson; // 換場景後保留玩家選的視角
             _yaw = transform.eulerAngles.y;
             _lastPos = transform.position;
         }
@@ -82,9 +86,12 @@ namespace GoNoGo.Presentation
             if (look && mouse != null)
             {
                 var d = mouse.delta.ReadValue();
-                _yaw += d.x * mouseSensitivity;
-                _pitch = Mathf.Clamp(_pitch - d.y * mouseSensitivity, -70f, 75f);
+                float sens = mouseSensitivity * GameSettings.MouseSensitivity;
+                _yaw += d.x * sens;
+                _pitch = Mathf.Clamp(_pitch - d.y * sens, -70f, 75f);
             }
+            // 選單裡切換的視角（Q 也會同時改兩邊）
+            if (_firstPerson != Hud.FirstPerson) _firstPerson = Hud.FirstPerson;
             if (active && kb != null && kb.qKey.wasPressedThisFrame)
             {
                 _firstPerson = !_firstPerson;
@@ -147,9 +154,9 @@ namespace GoNoGo.Presentation
                 return;
             }
             cam.nearClipPlane = 0.1f;
-            // 第三人稱：肩後方；撞到牆就拉近
+            // 第三人稱：正後上方（左右置中）；撞到牆就拉近
             var pivot = Pivot + Vector3.up * 0.15f;
-            var dir = rot * new Vector3(0.55f, 0.42f, -1f).normalized;
+            var dir = rot * ThirdPersonOffset;
             float want = thirdPersonDistance;
             if (Physics.SphereCast(pivot, 0.22f, dir, out var hit, want, ~(1 << IgnoreRaycast), QueryTriggerInteraction.Ignore))
                 want = Mathf.Max(0.4f, hit.distance - 0.05f);

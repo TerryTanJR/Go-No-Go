@@ -2,14 +2,16 @@ using System;
 using System.Collections.Generic;
 using GoNoGo.Game;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 
 namespace GoNoGo.UI
 {
     /// <summary>
-    /// 唯一的 UI 根物件（跨場景存在）：一個 UIDocument，分三層——畫面、浮動層（提示、通知）、黑幕。
+    /// 唯一的 UI 根物件（跨場景存在）：一個 UIDocument，分四層——畫面、遊戲選單、浮動層（提示、通知）、黑幕。
     /// 場景載入時依場景名稱換上對應畫面；黑幕跨場景保留，所以轉場不會閃白。
+    /// 遊戲中（設施、發射、報告）按 Tab 或 Esc 打開 <see cref="GameMenu"/>。
     /// </summary>
     public sealed class UIRoot : MonoBehaviour
     {
@@ -17,9 +19,17 @@ namespace GoNoGo.UI
         public static UIRoot Instance => _i;
 
         UIDocument _doc;
-        VisualElement _screenLayer, _overlay, _fader, _toast, _tip;
+        VisualElement _screenLayer, _menuLayer, _overlay, _fader, _toast, _tip;
         Label _toastText, _tipText;
         GameScreen _current;
+        string _scene;
+        GameMenu _menu;
+        bool _wasLocked;
+        int _seenClosedFrame = -1;
+        float _lockGrace, _autoOpenedAt = -10f;
+
+        /// <summary>可以打開遊戲選單的場景（主選單、標題本身就是選單）。</summary>
+        static readonly HashSet<string> MenuScenes = new HashSet<string> { SceneFlow.Facility, SceneFlow.Launch, SceneFlow.Report };
         IVisualElementScheduledItem _toastHide;
 
         static readonly Dictionary<string, Func<GameScreen>> Screens = new Dictionary<string, Func<GameScreen>>
@@ -55,6 +65,10 @@ namespace GoNoGo.UI
             var root = _doc.rootVisualElement;
             root.AddToClassList("app");
             _screenLayer = Ui.El("screen").AddTo(root).Named("screenLayer");
+            _menuLayer = Ui.El("screen").AddTo(root).Named("menuLayer");
+            _menuLayer.pickingMode = PickingMode.Ignore;
+            // 關選單時只有在設施裡、沒開面板才把游標鎖回去（發射、報告畫面要用滑鼠點）
+            _menu = new GameMenu(_menuLayer, () => _scene == SceneFlow.Facility && !Hud.PanelOpen);
             _overlay = Ui.El("screen").AddTo(root).Named("overlay");
             _overlay.pickingMode = PickingMode.Ignore;
 
@@ -106,21 +120,93 @@ namespace GoNoGo.UI
             if (mode == LoadSceneMode.Single) ShowFor(s.name);
         }
 
-        void OnLangChanged() => _current?.Rebuild();
+        void OnLangChanged()
+        {
+            _current?.Rebuild();
+            _menu?.Rebuild();
+        }
 
         void ShowFor(string sceneName)
         {
             HideTip();
+            _menu.Close(relock: false);
             _current?.Close();
             _current = null;
+            _scene = sceneName;
+            _wasLocked = false;
             _screenLayer.Clear();
+            // 只有設施裡會鎖游標；其他畫面都要用滑鼠點（例如多人時別人按發射，自己還在走路）
+            if (sceneName != SceneFlow.Facility)
+            {
+                UnityEngine.Cursor.lockState = CursorLockMode.None;
+                UnityEngine.Cursor.visible = true;
+            }
             if (!Screens.TryGetValue(sceneName, out var make)) return;
             if (sceneName != SceneFlow.Boot && sceneName != SceneFlow.MainMenu) GameSession.EnsureMission();
             _current = make();
             _current.Attach(this, _screenLayer);
         }
 
-        void Update() => _current?.Tick(Time.unscaledDeltaTime);
+        void Update()
+        {
+            UpdateMenu();
+            _current?.Tick(Time.unscaledDeltaTime);
+        }
+
+        // ---------------- 遊戲選單（Tab / Esc） ----------------
+
+        bool MenuAllowed => _current != null && MenuScenes.Contains(_scene) && GameSession.HasMission && !SceneFlow.Loading;
+
+        void UpdateMenu()
+        {
+            if (!MenuAllowed)
+            {
+                if (_menu.IsOpen) _menu.Close(relock: false);
+                _wasLocked = false;
+                return;
+            }
+            var kb = Keyboard.current;
+            if (kb != null)
+            {
+                // Tab：開／關（在輸入框打字時不算）
+                if (kb.tabKey.wasPressedThisFrame && !IsTyping) _menu.Toggle();
+                // Esc：選單開著 → 回上一頁／關掉；畫面先處理（例如關面板）；都沒有 → 打開選單
+                else if (kb.escapeKey.wasPressedThisFrame)
+                {
+                    // 瀏覽器：同一次 Esc 可能先放開游標（下面自動打開選單）、下一幀才送來按鍵，不要又把選單關掉
+                    if (_menu.IsOpen) { if (Time.unscaledTime - _autoOpenedAt > 0.3f) _menu.Back(); }
+                    else if (!_current.HandleEscape()) _menu.Open();
+                }
+            }
+
+            // 瀏覽器按 Esc 會直接放開游標（遊戲不一定收得到 Esc）：
+            // 游標從鎖住變成放開、又沒開面板 → 打開選單。剛關面板或選單時瀏覽器重新鎖定要一點時間，先等 0.6 秒。
+            if (Hud.ClosedFrame != _seenClosedFrame)
+            {
+                _seenClosedFrame = Hud.ClosedFrame;
+                _lockGrace = 0.6f;
+            }
+            _lockGrace -= Time.unscaledDeltaTime;
+            bool locked = UnityEngine.Cursor.lockState == CursorLockMode.Locked;
+            if (_wasLocked && !locked && !_menu.IsOpen && !Hud.PanelOpen && _lockGrace <= 0 && Application.isFocused)
+            {
+                _menu.Open();
+                _autoOpenedAt = Time.unscaledTime;
+            }
+            _wasLocked = locked;
+        }
+
+        /// <summary>正在輸入框裡打字（這時 Tab、E、T 等快捷鍵不作用）。</summary>
+        public static bool IsTyping
+        {
+            get
+            {
+                var f = _i != null && _i._doc != null ? _i._doc.rootVisualElement?.panel?.focusController?.focusedElement as VisualElement : null;
+                for (; f != null; f = f.hierarchy.parent)
+                    if (f is TextField) return true;
+                return false;
+            }
+        }
 
         // ---------------- 黑幕 ----------------
 

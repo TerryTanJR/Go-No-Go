@@ -11,10 +11,11 @@ namespace GoNoGo.UI
     /// <summary>
     /// Facility 場景（大廳、組裝區、中控室）的介面：準星、資訊框與按鍵提示、安裝進度環、場景標籤，
     /// 以及按 E 打開的各種面板（儀表板、手冊、電話、控制台…）。面板開著時角色不能動、滑鼠放開。
+    /// Esc 先關面板；Tab／Esc 的遊戲選單在 <see cref="UIRoot"/>。個人模式按 T 叫出平板。
     /// </summary>
     public sealed class FacilityScreen : GameScreen
     {
-        VisualElement _hud, _labels, _modal, _pause, _phaseBar;
+        VisualElement _hud, _labels, _modal, _phaseBar;
         VisualElement _info, _infoKeys;
         Label _infoTitle, _infoSub, _infoBody, _area, _held, _hint;
         ProgressRing _ring;
@@ -68,9 +69,6 @@ namespace GoNoGo.UI
 
             _modal = Ui.El("modal-layer").AddTo(Root);
             _modal.style.display = DisplayStyle.None;
-            _pause = Ui.El("modal-layer").AddTo(Root);
-            _pause.style.display = DisplayStyle.None;
-            BuildPause();
 
             if (M.S.Tutorial) _coach = new TutorialCoach(Root);
 
@@ -93,7 +91,6 @@ namespace GoNoGo.UI
             _screens?.Dispose();
             _screens = null;
             if (_panel != null) Hud.PanelOpen = false;
-            Hud.Paused = false;
         }
 
         void OnToast(string text) => UIRoot.Toast(text);
@@ -166,7 +163,6 @@ namespace GoNoGo.UI
             _modal.style.display = DisplayStyle.None;
             Hud.PanelOpen = false;
             Hud.ClosedFrame = Time.frameCount;
-            _grace = 0.6f;
             // 關掉面板直接回到遊戲：重新鎖住游標（瀏覽器在按鈕事件裡允許）
             PlayerControllerCursor(true);
         }
@@ -177,31 +173,12 @@ namespace GoNoGo.UI
             UnityEngine.Cursor.visible = !locked;
         }
 
-        // ---------------- 暫停 ----------------
-
-        void BuildPause()
+        /// <summary>Esc：開著可以關的面板就關掉；否則交給遊戲選單。</summary>
+        public override bool HandleEscape()
         {
-            var card = Ui.El("modal", "modal--narrow").AddTo(_pause);
-            Ui.Text(Loc.T("ui.pause.title"), "h2").AddTo(card);
-            Ui.Text(Loc.T("ui.pause.hint"), "small", "dim").AddTo(card);
-            var col = Ui.El("pause-col").AddTo(card);
-            Ui.Btn(Loc.T("ui.pause.resume"), Resume, "btn-primary", "btn-big").AddTo(col);
-            Ui.Btn(Loc.IsZh ? "English" : "中文", Loc.Toggle, "btn-ghost").AddTo(col);
-            var vol = new Slider(Loc.T("ui.pause.volume"), 0, 1) { value = Sfx.MasterVolume };
-            vol.RegisterValueChangedCallback(e => Sfx.MasterVolume = e.newValue);
-            vol.AddToClassList("pause-slider");
-            vol.AddTo(col);
-            if (M.S.Tutorial) Ui.Btn(Loc.T("ui.pause.skip_tutorial"), () => { Hud.Paused = false; GameSession.EndMission(); }, "btn-ghost").AddTo(col);
-            Ui.Btn(Loc.T("ui.pause.quit"), () => { Hud.Paused = false; GameSession.EndMission(); }, "btn-danger").AddTo(col);
-        }
-
-        void Resume()
-        {
-            Hud.Paused = false;
-            _pause.style.display = DisplayStyle.None;
-            _grace = 0.6f;
-            Hud.ClosedFrame = Time.frameCount;
-            PlayerControllerCursor(true);
+            if (_panel == null || !_panel.Closable) return false;
+            ClosePanel();
+            return true;
         }
 
         // ---------------- 每幀 ----------------
@@ -212,29 +189,17 @@ namespace GoNoGo.UI
             _screens?.Tick();
             var kb = Keyboard.current;
 
-            // Esc：關面板 → 暫停；瀏覽器也會在 Esc 時放開游標
-            if (kb != null && kb.escapeKey.wasPressedThisFrame)
-            {
-                if (_panel != null) { if (_panel.Closable) ClosePanel(); }
-                else if (Hud.Paused) Resume();
-                else Hud.Paused = true;
-            }
-            // 游標被瀏覽器放開（Esc）、而且沒有開面板：顯示暫停選單（剛關面板時瀏覽器重新鎖定要一點時間）
-            _grace -= dt;
-            bool locked = UnityEngine.Cursor.lockState == CursorLockMode.Locked;
-            if (_panel == null && !Hud.Paused && !locked && _everLocked && _grace <= 0 && Application.isFocused && !SceneFlow.Loading)
-                Hud.Paused = true;
-            if (locked) _everLocked = true;
-            _pause.style.display = Hud.Paused ? DisplayStyle.Flex : DisplayStyle.None;
+            // 選單開著、或正在輸入框打字（例如筆記）時，快捷鍵都不作用
+            bool keys = kb != null && !Hud.Paused && !UIRoot.IsTyping;
 
-            // Tab：個人模式的平板
-            if (kb != null && kb.tabKey.wasPressedThisFrame && !M.S.Multiplayer && !Hud.Paused)
+            // T：個人模式的平板（手冊、儀表板）
+            if (keys && kb.tKey.wasPressedThisFrame && !M.S.Multiplayer)
             {
                 if (_panelId == "tablet") ClosePanel();
                 else if (_panel == null) OpenPanel("tablet", "");
             }
             // 在面板上按 E 也可以關（同一個鍵開關）
-            else if (kb != null && kb.eKey.wasPressedThisFrame && _panel != null && _panel.Closable && _panel.CloseWithE && _openedFrame != Time.frameCount)
+            else if (keys && kb.eKey.wasPressedThisFrame && _panel != null && _panel.Closable && _panel.CloseWithE && _openedFrame != Time.frameCount)
                 ClosePanel();
 
             _panel?.Tick(dt);
@@ -280,9 +245,7 @@ namespace GoNoGo.UI
             DrawLabels();
         }
 
-        bool _everLocked;
         int _openedFrame;
-        float _grace;
         string _keysSig;
 
         /// <summary>場景裡的文字標籤：投影到畫面上（太遠、在背後、被牆擋住的不畫）。</summary>
