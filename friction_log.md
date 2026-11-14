@@ -391,3 +391,22 @@
       - Editor 版本從 `ProjectSettings/ProjectVersion.txt` 讀，依序找 `UNITY_DOTNET` → Windows／macOS 預設安裝位置的內建 dotnet → PATH 上的 `dotnet`；
       - 有 `timeout` 用 `timeout`，有 `gtimeout` 用 `gtimeout`，都沒有就直接執行。
     - 安裝和協作流程寫在 `docs/SETUP.md`（Mac 那一節還沒在 Mac 上實測過）。
+
+---
+
+## 更新設計藍圖
+
+85. **藍圖寫的和實際做出來的對不上，照藍圖做不出現在的遊戲**
+    - 原因：實作過程中很多決定改了，但藍圖沒有跟著改。例如：
+      - 版本改用 6000.6.8f1；
+      - 發射從 Timeline 改成程式提示表；
+      - 多語從 Unity Localization 改成自寫 `Loc`；
+      - 音效改用 NASA IM-2 實況錄音；
+      - 後處理不只 Bloom；
+      - 太空船與火箭改成程序生成。
+      另外藍圖把還沒做的功能（線上房間、EVA、營運時進入影子畫面變暗）寫得像已經存在。
+    - 解法：
+      - 先讓兩個代理分頭讀完 Core／資料和 UI／場景／Builder 的程式，發射細節直接讀 `LaunchDirector`；
+      - 藍圖保留原本章節，內文改成描述現況；沒做的部分標〔未實作〕；
+      - 新增「附錄：重現規格」，放公式、資料表、發射時間軸、鏡頭與火箭參數、場景與後處理數值、驗證指令。
+    - 以後改了機制或數值，要同一個 commit 一起改藍圖附錄。藍圖的 PDF 版沒有自動產生，要另外手動匯出。
