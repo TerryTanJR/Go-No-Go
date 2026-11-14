@@ -180,7 +180,7 @@
   "ui.title.eyebrow": { "en": "NASA SPACE APPS · SATELLITE MISSION DESIGN", "zh-TW": "NASA SPACE APPS · 衛星任務設計" },
   "ui.title.tagline": { "en": "Build a satellite from real NASA data with your crew, call the departments, launch it, then handle every event from the control room.", "zh-TW": "用 NASA 的真實數據和隊友一起組裝衛星、打電話問各處室的需求、發射，然後在中控室處理每一個事件。" },
   "ui.title.history_badge": { "en": "REWRITE HISTORY", "zh-TW": "改寫歷史" },
-  "ui.title.credits": { "en": "Data: NASA DONKI, NOAA SWPC, NASA 3D Resources, NASA Earth Observatory, NASA audio, NASA CubeSat 101, JPL Concept Maturity Levels, Goddard Mission Design Lab, published mission specs (sources in each data file). Fan-made educational game: no NASA endorsement implied.", "zh-TW": "資料：NASA DONKI、NOAA SWPC、NASA 3D Resources、NASA Earth Observatory、NASA 錄音、NASA CubeSat 101、JPL 概念成熟度、Goddard 任務設計實驗室與公開任務規格（每筆資料都附來源）。教育用途的非官方作品，不代表 NASA 背書。" },
+  "ui.title.credits": { "en": "Data: NASA DONKI, NOAA SWPC, USGS, NASA 3D Resources, NASA Earth Observatory, NASA audio, NASA CubeSat 101, JPL Concept Maturity Levels, Goddard Mission Design Lab, published mission specs (sources in each data file). Fan-made educational game: no NASA endorsement implied.", "zh-TW": "資料：NASA DONKI、NOAA SWPC、USGS、NASA 3D Resources、NASA Earth Observatory、NASA 錄音、NASA CubeSat 101、JPL 概念成熟度、Goddard 任務設計實驗室與公開任務規格（每筆資料都附來源）。教育用途的非官方作品，不代表 NASA 背書。" },
   "ui.brief.title": { "en": "MISSION BRIEFING", "zh-TW": "任務簡報" },
   "ui.brief.budget": { "en": "Budget", "zh-TW": "預算" },
   "ui.brief.difficulty": { "en": "Difficulty", "zh-TW": "難度" },

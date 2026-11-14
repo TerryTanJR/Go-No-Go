@@ -86,6 +86,31 @@ namespace GoNoGo.Core
         /// <summary>這一關的預算（M$）。難度倍率已經併進 budget_musd；歷史關卡再乘上當年的預算上限比例。</summary>
         public static double Budget(ScenarioDef s) => (s?.BudgetMusd ?? 0) * (s?.Historical?.BudgetCap ?? 1.0);
 
+        /// <summary>
+        /// 營運時會抽到的太陽風暴。一般關卡用整個目錄（過去的真實事件當例子）；
+        /// 歷史關卡只用任務期間（當年起算、任務年數內）真的發生過的事件，不會在 2009 年的任務裡出現 2024 年的風暴。
+        /// 任務期間一個都沒有時才退回整個目錄。
+        /// </summary>
+        public List<SpaceWeatherEvent> StormsDuring(ScenarioDef s, int years)
+        {
+            if (s?.Historical == null || s.Historical.Year <= 0) return SpaceWeather;
+            int from = s.Historical.Year, to = s.Historical.Year + Math.Max(1, years);
+            var list = SpaceWeather.Where(e => StormYear(e) >= from && StormYear(e) <= to).ToList();
+            return list.Count > 0 ? list : SpaceWeather;
+        }
+
+        /// <summary>手冊列得出來的事件：歷史關卡只列到任務結束那一年為止（不列「未來」的事件）。</summary>
+        public List<SpaceWeatherEvent> StormsKnownBy(ScenarioDef s, int years)
+        {
+            if (s?.Historical == null || s.Historical.Year <= 0) return SpaceWeather;
+            int to = s.Historical.Year + Math.Max(1, years);
+            var list = SpaceWeather.Where(e => StormYear(e) <= to).ToList();
+            return list.Count > 0 ? list : SpaceWeather;
+        }
+
+        static int StormYear(SpaceWeatherEvent e) =>
+            e?.Date != null && e.Date.Length >= 4 && int.TryParse(e.Date.Substring(0, 4), out var y) ? y : 0;
+
         /// <summary>這支火箭飛不飛得到這個軌道（運力表上有這個軌道、而且大於 0）。評估和採購上限用同一個判斷。</summary>
         public static bool Reaches(LauncherDef l, string orbitId) =>
             l != null && orbitId != null && l.CapacityKg.TryGetValue(orbitId, out var cap) && cap > 0;
