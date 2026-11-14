@@ -40,6 +40,8 @@ namespace GoNoGo.Core
         public int Id { get; set; }
         public AvatarLook Look { get; set; } = new AvatarLook();
         public Station Station { get; set; }
+        /// <summary>大廳裡按了「準備」：準備好就不能換組（要換先取消準備）；全員準備好房主才能開始。</summary>
+        public bool Ready { get; set; }
     }
 
     /// <summary>一次發射：用了哪個設計、哪個種子、結果如何。因果鏈需要時用同樣的輸入重算（結果一模一樣）。</summary>

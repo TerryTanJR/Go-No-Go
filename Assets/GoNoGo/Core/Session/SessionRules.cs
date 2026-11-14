@@ -18,6 +18,8 @@ namespace GoNoGo.Core
         SetStrict, RunTest, Vote, SetLaunchSpeed, SkipLaunch,
         // 採購（組裝區）
         CartAdd, CartRemove, PlaceOrder,
+        // 大廳（加在最後，舊的編號不變）
+        SetReady,
     }
 
     /// <summary>
@@ -266,14 +268,25 @@ namespace GoNoGo.Core
                     if (ps == null) return "err.no_player";
                     // 嚴格分工時，開始之後位置就固定了
                     if (s.StrictRoles && s.Phase != SessionPhase.Lobby) return "err.phase";
+                    if (ps.Ready) return "err.ready_locked";
                     ps.Station = c.N == 1 ? Station.Control : Station.Assembly;
+                    return Ok;
+                case CommandType.SetReady:
+                    var pr = s.Player(c.Player);
+                    if (pr == null) return "err.no_player";
+                    if (s.Phase != SessionPhase.Lobby) return "err.phase";
+                    pr.Ready = c.N == 1;
                     return Ok;
                 case CommandType.StartMission:
                     if (s.Phase != SessionPhase.Lobby) return "err.phase";
+                    if (c.Player != HostPlayer) return "err.host_only";
                     if (s.StrictRoles && !BothStationsManned(s)) return "err.strict_need_both";
-                    s.Phase = SessionPhase.Briefing;
+                    if (s.Players.Count == 0 || s.Players.Any(p => !p.Ready)) return "err.not_ready";
+                    // 多人：簡報是每個人自己看（本機面板），不卡全隊；直接進設計階段
+                    s.Phase = SessionPhase.Design;
                     return Ok;
                 case CommandType.BeginDesign:
+                    if (s.Phase == SessionPhase.Design) return Ok;
                     if (s.Phase != SessionPhase.Briefing) return "err.phase";
                     s.Phase = SessionPhase.Design;
                     return Ok;

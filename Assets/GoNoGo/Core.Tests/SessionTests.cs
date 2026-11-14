@@ -42,6 +42,8 @@ namespace GoNoGo.Core.Tests
             Ok(s, Command.Of(CommandType.Join, 1));
             Ok(s, Command.Of(CommandType.Join, 2));
             if (strict) Ok(s, Command.Of(CommandType.SetStrict, 1, "", 1));
+            Ok(s, Command.Of(CommandType.SetReady, 1, "", 1));
+            Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
             Ok(s, Command.Of(CommandType.StartMission, 1));
             Ok(s, Command.Of(CommandType.BeginDesign, 1));
             return s;
@@ -120,6 +122,25 @@ namespace GoNoGo.Core.Tests
             Ok(s, Command.Of(CommandType.Vote, 2, "", 1));
             Ok(s, Command.Of(CommandType.Leave, 1));
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch), "剩下的人都喊 GO 了");
+        }
+
+        [Test]
+        public void ReadyLocksTheSideAndEveryoneMustBeReadyToStart()
+        {
+            var s = SessionRules.NewSession(_data, "earth_observation", "engineer", false, true);
+            Ok(s, Command.Of(CommandType.Join, 1));
+            Ok(s, Command.Of(CommandType.Join, 2));
+            Assert.That(Try(s, CommandType.StartMission, 1), Is.EqualTo("err.not_ready"));
+            Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
+            Assert.That(Try(s, CommandType.SetStation, 2, "", 0), Is.EqualTo("err.ready_locked"), "準備好就不能換組");
+            Ok(s, Command.Of(CommandType.SetReady, 1, "", 1));
+            Assert.That(Try(s, CommandType.StartMission, 2), Is.EqualTo("err.host_only"));
+            Ok(s, Command.Of(CommandType.SetReady, 2, "", 0));
+            Ok(s, Command.Of(CommandType.SetStation, 2, "", 0));
+            Assert.That(Try(s, CommandType.StartMission, 1), Is.EqualTo("err.not_ready"), "有人撤回準備就不能開始");
+            Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
+            Ok(s, Command.Of(CommandType.StartMission, 1));
+            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design));
         }
 
         [Test]
@@ -229,6 +250,8 @@ namespace GoNoGo.Core.Tests
             Ok(s, Command.Of(CommandType.Join, 2));
             Assert.That(s.Player(1).Station, Is.EqualTo(Station.Assembly));
             Assert.That(s.Player(2).Station, Is.EqualTo(Station.Control));
+            Ok(s, Command.Of(CommandType.SetReady, 1, "", 1));
+            Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
             Ok(s, Command.Of(CommandType.StartMission, 1));
             Ok(s, Command.Of(CommandType.BeginDesign, 1));
             Buy(s, "ant_xband_hr");
