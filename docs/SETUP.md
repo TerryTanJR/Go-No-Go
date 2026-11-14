@@ -1,0 +1,296 @@
+# GoNoGo 開發環境安裝流程（Windows）
+
+從一台乾淨的 Windows 電腦，到能用 Claude Code 開發這個 Unity 專案、用 Blender 做特效素材，需要安裝的所有東西和順序。
+
+版本以這台開發機實際在用的為準。指令預設在 **PowerShell** 執行；標明 **Bash** 的要在 Git Bash 執行。
+
+---
+
+## 總覽
+
+| # | 工具 | 版本 | 用途 | 必要？ |
+| --- | --- | --- | --- | --- |
+| 1 | Git + Git LFS | 2.46 / 3.5 | 版本控制；`.glb`、`.png`、音訊、字型走 LFS | 必要 |
+| 2 | GitHub CLI (`gh`) | 2.103 | 登入 GitHub、抓 NASA 3D 模型單檔 | 建議 |
+| 3 | Python + Pillow + numpy | 3.13 / 12.0 / 2.3 | `tools/` 裡的素材與資料腳本 | 建議 |
+| 4 | Claude Code | 2.1 | AI 開發助手 | 必要 |
+| 5 | Unity CLI | 1.0.0-beta.17 | 從命令列安裝 Editor、建置、操作開著的 Editor | 必要 |
+| 6 | Unity Editor | **6000.6.8f1** + Web Build Support | 遊戲本體 | 必要 |
+| 7 | Unity Hub | 最新版 | 圖形介面管理 Editor／專案 | 選用（CLI 可取代） |
+| 8 | Blender | 5.2.3 LTS | 煙霧序列圖、模型處理 | 做素材才需要 |
+| 9 | uv | 0.13 | 執行 Blender MCP 伺服器 (`uvx`) | 用 Blender MCP 才需要 |
+| 10 | Blender MCP（外掛 + MCP 伺服器） | — | 讓 Claude Code 操作 Blender | 用 Blender MCP 才需要 |
+
+> 藍圖（`docs/unity-blueprint/`）寫的是「Unity 6.3 LTS」，那段已過時。專案實際用 **6000.6.8f1**（見 `ProjectSettings/ProjectVersion.txt`），請裝這個版本，否則開專案時會被要求升級或降級。
+
+建議的安裝順序就是上表的順序：先裝基礎工具，再裝 Claude Code，最後裝 Unity 和 Blender（Unity 的 skill 會自動裝進 Claude Code，所以 Claude Code 要先裝）。
+
+---
+
+## 1. Git + Git LFS
+
+1. 下載安裝 Git for Windows：<https://git-scm.com/download/win>。安裝時保持預設，它會一起裝 **Git Bash** 和 **Git LFS**。
+2. 啟用 LFS（每台電腦做一次）：
+
+   ```powershell
+   git lfs install
+   ```
+
+3. 設定作者資訊：
+
+   ```powershell
+   git config --global user.name  "你的名字"
+   git config --global user.email "你的 email"
+   ```
+
+驗證：`git --version`、`git lfs version`。
+
+---
+
+## 2. GitHub CLI（建議）
+
+```powershell
+winget install --id GitHub.cli
+gh auth login        # 選 GitHub.com → HTTPS → 用瀏覽器登入
+```
+
+用途：
+- 推送到 `github.com/TerryTanJR/NASA_test` 時用它的認證。
+- 從 `nasa/NASA-3D-Resources` 抓單一模型（整個 repo 約 5 GB，不要 clone）：
+  `gh api "repos/nasa/NASA-3D-Resources/contents/3D%20Models/<模型資料夾>"`。
+  實際下載 `.glb` 要用 `raw.githubusercontent.com/nasa/NASA-3D-Resources/master/...`，它會自動轉成 LFS 實體檔。
+
+---
+
+## 3. Python + 套件（建議）
+
+1. 安裝 Python 3.13：<https://www.python.org/downloads/>（安裝時勾 **Add python.exe to PATH**），或 `winget install Python.Python.3.13`。
+2. 安裝腳本會用到的套件：
+
+   ```powershell
+   python -m pip install --user pillow numpy
+   ```
+
+用到 Python 的地方：
+
+| 腳本 | 用途 | 需要的套件 |
+| --- | --- | --- |
+| `tools/vfx/make_atlas.py`、`preview.py` | 把 Blender 算出的逐格 PNG 拼成 8×8 序列圖 | Pillow |
+| `tools/check_strings.py` | 檢查中英文字串表沒有缺鍵 | 無 |
+| `tools/data/fetch_donki.py` | 重抓 NASA DONKI 太空天氣事件 | 無 |
+| 音訊裁切（NASA 倒數錄音） | 低通、降頻、淡入淡出 | numpy |
+
+> 處理從網路下載的檔案時用 `python -P -E script.py`（不從目前目錄載入程式碼）。不要用 `-I`，它會忽略 `--user` 裝的 Pillow／numpy。
+>
+> 這台機器沒有 ffmpeg，也不需要：Unity 不能匯入 `.m4a`，NASA 音訊一律抓 `.mp3`／`.wav` 原檔。
+
+---
+
+## 4. Claude Code
+
+```powershell
+irm https://claude.ai/install.ps1 | iex
+claude               # 第一次執行會開瀏覽器登入
+```
+
+驗證：`claude --version`。
+
+小技巧：
+- 在終端機貼圖片用 **Alt+V**（不是 Ctrl+V），或直接把圖片檔拖進終端機。
+- 新增 MCP 伺服器後要**重開 Claude Code** 才看得到工具；`claude --continue` 可以接續上一段對話。
+
+---
+
+## 5. Unity CLI
+
+Unity CLI 可以取代 Unity Hub 的所有工作（登入、授權、安裝 Editor 和模組），而且 Claude Code 可以直接操作開著的 Editor（編譯、截圖、建置）。
+
+### 5.1 安裝
+
+```powershell
+$env:UNITY_CLI_CHANNEL = 'beta'
+irm https://public-cdn.cloud.unity3d.com/hub/prod/cli/install.ps1 | iex
+```
+
+- 裝在 `%LOCALAPPDATA%\Unity\bin`。裝完**重開終端機**，`unity --version` 應顯示 `1.0.0-beta.17` 或更新。
+- 安裝程式會**自動把 Unity skill 裝進 Claude Code**（`unity-cli`、`unity-pipeline`、`optimize-web` 等），不用另外跑 `unity skill install`。如果 Claude Code 裡看不到 Unity skill，再手動執行 `unity skill install`。
+
+### 5.2 登入與授權
+
+```powershell
+unity auth login                                   # 開瀏覽器登入 Unity 帳號
+unity license activate --personal --accept-eula    # 啟用免費 Personal 授權
+unity license status                               # 確認有授權
+```
+
+> 登入帳號 ≠ 啟用授權。沒做 `license activate` 的話，Editor 開不起來。`--accept-eula` 代表你本人同意 Unity 條款，請自己決定後再執行。
+
+### 5.3 Git Bash 裡也要找得到 `unity`
+
+Windows PowerShell 5.1 傳參數給程式時會吃掉雙引號，所以**帶 C# 程式碼的 `unity command script eval` 一律在 Git Bash 執行**。Git Bash 預設找不到 `unity`，在 `~/.bashrc` 加一行：
+
+```bash
+export PATH="$LOCALAPPDATA/Unity/bin:$PATH"
+```
+
+（`tools/unity-refresh.sh` 裡寫死了 `/c/Users/sheng/...` 的路徑，換電腦時要改成自己的使用者名稱。）
+
+---
+
+## 6. Unity Editor 6000.6.8f1 + Web Build Support
+
+專案最終輸出是 WebGL（網頁版），所以一定要裝 **Web Build Support**（模組 id：`webgl`）。
+
+```powershell
+unity install 6000.6.8f1 --module webgl --accept-eula
+```
+
+- 預設裝到 `C:\Program Files\Unity\Hub\Editor\6000.6.8f1\`（跟 Hub 的位置一樣，之後裝 Hub 也認得到）。
+- 已經裝好 Editor、只缺模組時：`unity install-modules --editor-version 6000.6.8f1 --module webgl --accept-eula`
+- 列出可裝的模組：`unity install-modules --editor-version 6000.6.8f1 --list`
+- 列出已安裝的 Editor：`unity editors`
+
+選用模組：
+- `visualstudio`（Visual Studio Community，約 1.6 GB）：想在 IDE 裡寫 C# 才需要。用 Rider 或 VS Code 也可以，專案已裝好 `com.unity.ide.rider` 和 `com.unity.ide.visualstudio` 套件。
+- `language-zh-hant`：Editor 介面繁體中文（Preview）。
+
+### 第一次開 Editor
+
+第一次開啟時會跳出 **Unity Editor 軟體條款** 視窗，必須由本人按 **Accept and Continue**。在這之前 `unity status` 會顯示 `STATUS_BLOCKED_BY_DIALOG_SOFTWARE_TERMS`，Claude Code 也無法操作 Editor。
+
+---
+
+## 7. Unity Hub（選用）
+
+只用 CLI 就能完成所有開發工作，這台開發機目前也沒有裝 Hub。想要圖形介面時：
+
+```powershell
+unity hub install
+```
+
+或從 <https://unity.com/download> 下載。裝好後在 Hub 裡 **Add → Add project from disk** 選 repo 根目錄，Hub 會自動用已安裝的 6000.6.8f1 開啟。
+
+---
+
+## 8. Blender 5.2.3 LTS
+
+1. 下載 Windows 安裝檔（`blender-5.2.3-windows-x64.msi`）：<https://www.blender.org/download/lts/>，或 `winget install BlenderFoundation.Blender`（裝完確認版本是 5.2.x）。
+2. 安裝時保持預設，裝到 `C:\Program Files\Blender Foundation\Blender 5.2\`。
+
+用途：`tools/vfx/blender/smoke_billow.blend` 的煙霧模擬 → 逐格算圖 → 拼成序列圖給 Unity 粒子用。重做流程見 `tools/vfx/README.md`。
+
+> Blender 5 的動畫改成 slotted actions，舊教學裡的 `action.fcurves` 不能用了。
+
+---
+
+## 9. uv
+
+Blender MCP 伺服器用 `uvx` 啟動，所以要先裝 uv：
+
+```powershell
+irm https://astral.sh/uv/install.ps1 | iex
+```
+
+裝在 `%USERPROFILE%\.local\bin`。重開終端機後 `uv --version` 確認。
+
+---
+
+## 10. Blender MCP（讓 Claude Code 操作 Blender）
+
+Blender MCP 分兩半，兩邊都要裝：
+
+| 部分 | 跑在哪裡 | 怎麼裝 |
+| --- | --- | --- |
+| BlenderMCP **外掛** (`addon.py`) | Blender 裡面，開一個本機 socket 等待指令 | Blender 介面安裝 |
+| `blender-mcp` **MCP 伺服器** | Claude Code 啟動時用 `uvx` 執行 | `claude mcp add` |
+
+### 10.1 安裝 Blender 外掛
+
+1. 從 <https://github.com/ahujasid/blender-mcp> 下載 `addon.py`，存到看得到的地方（例如 `Downloads`）。
+   > 不要存在 `C:\Users\<你>\AppData\...`：AppData 是隱藏資料夾，檔案選擇視窗裡找不到。
+2. 開 Blender → **Edit → Preferences → Add-ons**。
+3. 右上角下拉選單 → **Install from Disk…** → 選 `addon.py`。
+4. 在清單裡勾選 **Interface: Blender MCP** 啟用。
+
+> 外掛要在 Blender 介面裡**自己手動裝**。Claude Code 的自動模式會擋下「用命令列把網路下載的程式碼裝進 Blender 執行」。
+
+### 10.2 在 Blender 裡啟動連線
+
+1. **滑鼠移到 3D 視窗上**，按 `N` 打開側邊欄（快捷鍵只對滑鼠所在的區域有效；也可以用選單 **View → Sidebar**）。
+2. 點 **BlenderMCP** 分頁 → **Connect to MCP server**（預設 port 9876）。
+3. 要用素材庫時可在同一個面板勾選 Poly Haven、Sketchfab 等選項（Sketchfab 和 3D 生成需要各自的 API key）。
+
+每次重開 Blender 都要再按一次 Connect。
+
+### 10.3 把 MCP 伺服器加進 Claude Code
+
+```powershell
+claude mcp add blender -- uvx blender-mcp
+```
+
+- 這樣是 **local scope**（只對這台電腦的這個專案有效，不會寫進 repo）。
+- 加完**重開 Claude Code**，再執行 `claude mcp list`，應看到 `blender: uvx blender-mcp - ✔ Connected`。
+- 在 Claude Code 裡請它呼叫 `get_scene_info`，能回傳場景內容就代表整條線通了。
+
+> 長時間的烘焙（煙霧模擬）可能讓 MCP 回報 `No data received`，但 Blender 裡其實還在跑。算圖分批執行，每批控制在 2 分鐘內。
+
+---
+
+## 11. 取得專案並驗證
+
+### 11.1 Clone
+
+```powershell
+git clone https://github.com/TerryTanJR/NASA_test.git C:\NASA\NASA_test
+cd C:\NASA\NASA_test
+git lfs pull                 # 確保模型、圖片、音訊、字型都是實體檔不是指標
+```
+
+### 11.2 開專案
+
+```powershell
+unity open C:\NASA\NASA_test
+unity status --until-ready   # 第一次匯入會比較久（要建 Library/）
+```
+
+第一次開啟會自動下載 `Packages/manifest.json` 裡的套件，包括 URP 17.6、Cinemachine 3.1、glTFast 6.20 + Draco（匯入 NASA `.glb`）、Input System、Splines、Timeline、Newtonsoft JSON，以及讓 CLI 操作 Editor 的 **Pipeline 套件**（`com.unity.pipeline`）。這些**不用手動裝**。
+
+### 11.3 驗證清單
+
+```bash
+# 以下在 Git Bash 執行
+unity status                       # Editor 狀態是 ready
+bash tools/unity-refresh.sh        # 匯入 + 重新編譯，沒有錯誤印 OK
+bash tools/run-core-tests.sh       # 用 Unity 內建的 .NET SDK 跑核心測試（不用另外裝 .NET）
+python tools/check_strings.py      # 字串表沒缺
+unity command capture game_view --source camera --width 1280 --height 720 --output-path Screenshots/check.png
+```
+
+截圖會存到專案根目錄的 `Screenshots/`（不進版控）。
+
+### 11.4 建置 WebGL（選用）
+
+```bash
+unity command build run -- --target WebGL --output-path Builds/WebGL --dry-run true   # 先驗證
+unity command build run -- --target WebGL --output-path Builds/WebGL --confirm true
+```
+
+建置期間不要改 `.cs` 檔。`Builds/` 不進版控。目標大小 30 MB 以內。
+
+---
+
+## 常見問題速查
+
+| 症狀 | 解法 |
+| --- | --- |
+| `unity license status` 沒有授權 | `unity license activate --personal --accept-eula` |
+| `unity status` 卡在 `STATUS_BLOCKED_BY_DIALOG_SOFTWARE_TERMS` | 到 Editor 視窗按 Accept and Continue |
+| PowerShell 跑 `script eval` 出現 `CS0103: The name 'ok' does not exist` | 改在 Git Bash 執行（PowerShell 吃掉了雙引號） |
+| 新增 `.cs` 後 `unity recompile` 說 `up_to_date`，類別卻不存在 | 跑 `bash tools/unity-refresh.sh`（Editor 不在前景時不會自動偵測檔案變動） |
+| `unity command test run` 逾時、Editor 卡死 | 核心測試改用 `bash tools/run-core-tests.sh`；Editor 卡死用 `unity close <專案> --force` 再 `unity open` |
+| Claude Code 看不到 Blender 工具 | 重開 Claude Code；確認 Blender 裡按了 Connect；`claude mcp list` |
+| `claude mcp add` 後啟動失敗、找不到 `uvx` | 重開終端機讓 `%USERPROFILE%\.local\bin` 進 PATH |
+| 模型或圖片打開是幾百 bytes 的文字檔 | 沒裝 LFS：`git lfs install` 後 `git lfs pull` |
+| `python -I` 找不到 Pillow | 改用 `python -P -E` |
+
+更多問題和原因見 repo 根目錄的 `friction_log.md`。
