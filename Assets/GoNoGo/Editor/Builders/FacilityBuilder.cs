@@ -1075,9 +1075,8 @@ namespace GoNoGo.EditorTools
             Exhibit(ring, new Vector3(-3.4f, 0, -9.0f), 1, lm, art, fm);
             Exhibit(ring, new Vector3(3.4f, 0, -9.0f), 2, lm, art, fm);
 
-            // ---- 西牆（南段）：零件架、工作台、牆上螢幕、機械手臂 ----
+            // ---- 西牆（南段）：零件架、牆上螢幕 ----
             for (int i = 0; i < 2; i++) LobbyShelf(ring, new Vector3(W + 0.2f, 0, -7.6f - i * 2.9f), lm, art, fm);
-            RobotArm(ring, new Vector3(W + 3.6f, 0, -9.0f), 0f, fm.hazard, lm.steel, lm.dark);
 
             // ---- 東牆（南段）：熱真空艙 ----
             var tv = BuildUtil.Group("ThermalVacChamber", ring);
