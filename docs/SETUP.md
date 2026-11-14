@@ -1,8 +1,12 @@
-# GoNoGo 開發環境安裝流程（Windows）
+# GoNoGo 開發環境安裝流程
 
-從一台乾淨的 Windows 電腦，到能用 Claude Code 開發這個 Unity 專案、用 Blender 做特效素材，需要安裝的所有東西和順序。
+從一台乾淨的電腦，到能用 Claude Code 開發這個 Unity 專案、用 Blender 做特效素材，需要安裝的所有東西和順序。
 
-版本以這台開發機實際在用的為準。指令預設在 **PowerShell** 執行；標明 **Bash** 的要在 Git Bash 執行。
+- 第 1–11 節以 **Windows** 為主。指令預設在 **PowerShell** 執行；標明 **Bash** 的要在 Git Bash 執行。
+- **Mac** 同學先看第 12 節，它列出和 Windows 不同的地方，其餘照第 1–11 節做。
+- **多人協作**（加入 repo、commit、push 的規則）見第 13 節。
+
+版本以開發機實際在用的為準。
 
 ---
 
@@ -133,7 +137,7 @@ Windows PowerShell 5.1 傳參數給程式時會吃掉雙引號，所以**帶 C# 
 export PATH="$LOCALAPPDATA/Unity/bin:$PATH"
 ```
 
-（`tools/unity-refresh.sh` 裡寫死了 `/c/Users/sheng/...` 的路徑，換電腦時要改成自己的使用者名稱。）
+（`tools/unity-refresh.sh` 會自己把 `%LOCALAPPDATA%\Unity\bin` 加進 PATH，不加這行也能跑；加了是為了自己在 Git Bash 下指令方便。）
 
 ---
 
@@ -240,6 +244,8 @@ claude mcp add blender -- uvx blender-mcp
 
 ### 11.1 Clone
 
+repo 是私人的，要先被加成協作者才能 clone（見第 13 節）。
+
 ```powershell
 git clone https://github.com/TerryTanJR/NASA_test.git C:\NASA\NASA_test
 cd C:\NASA\NASA_test
@@ -279,6 +285,89 @@ unity command build run -- --target WebGL --output-path Builds/WebGL --confirm t
 
 ---
 
+## 12. Mac 安裝（和 Windows 不同的地方）
+
+遊戲程式碼沒有 Windows 專用的東西，Mac 上可以開 Editor、按 Play、改場景和程式碼，也可以建置 WebGL。以下是安裝步驟的差別；沒列到的照第 1–11 節做。
+
+> 這一節的指令還沒有在 Mac 上實際跑過。遇到問題請記到 `friction_log.md`，並更新這一節。
+
+先裝 Homebrew（<https://brew.sh>），之後很多工具都用它裝。指令都在內建的「終端機」執行，不需要 Git Bash。
+
+| 步驟 | Mac 的做法 |
+| --- | --- |
+| 1. Git + LFS | `brew install git git-lfs`，然後 `git lfs install` |
+| 2. GitHub CLI | `brew install gh`，然後 `gh auth login` |
+| 3. Python | 用 python.org 的 macOS 安裝檔，然後 `python3 -m pip install --user pillow numpy`。指令裡的 `python` 都改成 `python3` |
+| 4. Claude Code | `curl -fsSL https://claude.ai/install.sh \| bash` |
+| 5. Unity CLI | `curl -fsSL https://unity.com/install.sh \| bash`，開新的終端機後 `unity --version`。登入和授權跟 5.2 節一樣 |
+| 5.3 節 | 不用做。Mac 沒有 PowerShell 吃掉雙引號的問題 |
+| 6. Unity Editor | 一樣是 `unity install 6000.6.8f1 --module webgl --accept-eula`。M 系列晶片的 Mac 會自動裝 arm64 版。預設裝在 `/Applications/Unity/Hub/Editor/6000.6.8f1/` |
+| 8. Blender | 到 <https://www.blender.org/download/lts/> 下載 5.2 LTS 的 macOS 版（M 系列選 Apple Silicon），拖進「應用程式」 |
+| 9. uv | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| 10. Blender MCP | 外掛和 `claude mcp add blender -- uvx blender-mcp` 都跟 Windows 一樣 |
+| 11.2 開專案 | `unity open ~/路徑/NASA_test` |
+
+`tools/` 的腳本在 Mac 上的情況：
+
+- `tools/unity-refresh.sh`：可以直接跑。macOS 沒有 `timeout` 指令，腳本會改成直接執行；想要逾時保護可以 `brew install coreutils`。
+- `tools/run-core-tests.sh`：會先找 Unity 內建的 dotnet（`Unity.app/Contents/DotNetSdk/dotnet`）。找不到時改用系統的 `dotnet`，這時要 `brew install --cask dotnet-sdk`（需 .NET 8 以上）。也可以設定 `UNITY_DOTNET` 環境變數，直接指定 dotnet 的位置。
+
+---
+
+## 13. 多人協作
+
+### 13.1 加入 repo
+
+repo 是**私人**的，所以每位同學都要先被加成協作者：
+
+1. **repo 擁有者**（`TerryTanJR`）邀請同學，用網頁或指令都可以：
+   - 網頁：repo → **Settings → Collaborators → Add people**。
+   - 指令：`gh api -X PUT repos/TerryTanJR/NASA_test/collaborators/<同學的 GitHub 帳號>`
+2. **同學**到 email 或 <https://github.com/TerryTanJR/NASA_test/invitations> 接受邀請。
+3. 同學照第 1、2、11 節安裝工具並 clone。
+
+被加進來的協作者可以直接 push 到 `main`。
+
+### 13.2 每天的流程
+
+```bash
+git pull --rebase            # 開始工作前先拉最新版
+# …在 Unity 裡工作…
+git status                   # 確認要 commit 哪些檔案
+git add <檔案>               # .cs/.prefab/.unity 一定要連同它的 .meta 一起加
+git commit -m "說明改了什麼"
+git pull --rebase            # push 前再拉一次
+git push
+```
+
+- 小改動直接 push 到 `main`。
+- 大改動（新功能、大量改場景）開分支，再發 PR 合併：
+  `git switch -c <分支名>` → commit → `git push -u origin <分支名>` → `gh pr create`
+
+### 13.3 Unity 專案的規則
+
+1. **同一個場景（`.unity`）或 prefab，同一時間只有一個人改。** 這兩種檔案幾乎沒辦法手動合併。開始改之前先在群組說一聲「我在改 XXX 場景」。
+2. **`.meta` 檔要跟著原檔一起 commit、一起刪除。** 少了 `.meta`，別人那邊的引用會斷掉（Inspector 裡出現 Missing）。
+3. **所有人都用 Unity 6000.6.8f1。** Editor 問要不要升級專案時，一律選不要。
+4. **不要 commit `Library/`、`Temp/`、`Logs/`、`UserSettings/`、`Builds/`。** `.gitignore` 已經排除了，只要不要用 `git add -f` 就好。
+5. **大檔案會自動走 LFS**（`.glb`、`.png`、`.wav`、`.mp3`、字型等）。commit 後可以用 `git lfs ls-files` 確認新檔案有在清單裡。
+6. **pull 之後回到 Unity 視窗**，等它匯入完、右下角沒有轉圈，再繼續工作。
+
+### 13.4 場景衝突了怎麼辦
+
+`git pull --rebase` 時如果 `.unity` 或 `.prefab` 衝突，不要手動改檔案內容，直接選一個版本：
+
+```bash
+git checkout --theirs Assets/路徑/場景.unity   # 保留自己的版本（rebase 時 theirs = 自己的 commit）
+git checkout --ours   Assets/路徑/場景.unity   # 改用遠端的版本
+git add Assets/路徑/場景.unity
+git rebase --continue
+```
+
+被捨棄的那一邊，修改要在 Unity 裡重做一次。rebase 時 `--ours`／`--theirs` 的意思跟平常相反，很容易搞混，不確定的話先 `git rebase --abort` 回到原狀再問人。
+
+---
+
 ## 常見問題速查
 
 | 症狀 | 解法 |
@@ -292,5 +381,8 @@ unity command build run -- --target WebGL --output-path Builds/WebGL --confirm t
 | `claude mcp add` 後啟動失敗、找不到 `uvx` | 重開終端機讓 `%USERPROFILE%\.local\bin` 進 PATH |
 | 模型或圖片打開是幾百 bytes 的文字檔 | 沒裝 LFS：`git lfs install` 後 `git lfs pull` |
 | `python -I` 找不到 Pillow | 改用 `python -P -E` |
+| clone 時出現 `Repository not found` | repo 是私人的：確認已接受協作邀請，且 `gh auth status` 登入的是被邀請的帳號 |
+| push 被拒絕（`rejected … fetch first`） | 別人先 push 了：`git pull --rebase` 再 `git push` |
+| Inspector 出現 Missing 的引用 | 有人 commit 時漏了 `.meta`，請他補上 |
 
 更多問題和原因見 repo 根目錄的 `friction_log.md`。

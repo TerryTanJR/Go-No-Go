@@ -379,3 +379,15 @@
       - 上節繞自己的軸轉 90°，兩半改成在畫面上下方向分開；衛星的掛載點反向轉回來，展開鏡頭看到的方向不變；
       - 脫離後兩半保有 90% 的箭體位移，慢慢落後、往外飄；
       - 太空鏡頭改瞄準「上節＋整流罩」的中段，並拉遠（貼身追蹤 1.7 倍、側面 1.7 倍），整個打開、脫離、飄走的過程都在畫面裡。
+
+---
+
+## 安裝文件與跨平台
+
+84. **`tools/` 的 Bash 腳本只能在這台 Windows 電腦上跑，同學和 Mac 不能用**
+    - 原因：`unity-refresh.sh` 寫死了 `/c/Users/sheng/AppData/Local/Unity/bin` 和 `C:\NASA\NASA_test`；`run-core-tests.sh` 寫死了 Windows 版 Unity 內建 dotnet 的路徑；macOS 預設沒有 `timeout` 指令。
+    - 解法：
+      - 專案路徑從腳本位置推算，Windows 上用 `cygpath -w` 轉成 Windows 格式；Unity CLI 的位置從 `%LOCALAPPDATA%` 推算；
+      - Editor 版本從 `ProjectSettings/ProjectVersion.txt` 讀，依序找 `UNITY_DOTNET` → Windows／macOS 預設安裝位置的內建 dotnet → PATH 上的 `dotnet`；
+      - 有 `timeout` 用 `timeout`，有 `gtimeout` 用 `gtimeout`，都沒有就直接執行。
+    - 安裝和協作流程寫在 `docs/SETUP.md`（Mac 那一節還沒在 Mac 上實測過）。
