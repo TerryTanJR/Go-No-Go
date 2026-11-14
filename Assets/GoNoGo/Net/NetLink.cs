@@ -358,6 +358,7 @@ namespace GoNoGo.Net
             {
                 _session.RemovedFromSession -= OnRemoved;
                 _session.Deleted -= OnRemoved;
+                VoiceChat.Leave();
             }
             _ = Close(_nm, _session);
         }
