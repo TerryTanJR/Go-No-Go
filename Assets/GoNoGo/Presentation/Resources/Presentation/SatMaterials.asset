@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc54e962e1ca4e147b3d4abf8f678d9d, type: 3}
+  m_Name: SatMaterials
+  m_EditorClassIdentifier: GoNoGo.Presentation::GoNoGo.Presentation.SatMaterials
+  mliGold: {fileID: 2100000, guid: 62a72b892e3ec1949a276abc4103be0c, type: 2}
+  mliSilver: {fileID: 2100000, guid: 743d5b091d7dae14cb0604559d344d2f, type: 2}
+  paintWhite: {fileID: 2100000, guid: 9643bc1a48559d7449fbd271f59df53f, type: 2}
+  frameDark: {fileID: 2100000, guid: 0e4d27dc9bc926e41830d1af2cf6e535, type: 2}
+  solarCell: {fileID: 2100000, guid: 75e098b19178c5d47acb9bf9819ae614, type: 2}
+  dish: {fileID: 2100000, guid: 5c5a42d7ab346664d89c0a2b428f1840, type: 2}
+  lens: {fileID: 2100000, guid: 610483b8b630e2042b6e4481fae99c5c, type: 2}
+  metal: {fileID: 2100000, guid: 5d7b961f0c26840459c201ca5d89d8ff, type: 2}
+  accent: {fileID: 2100000, guid: dae5d167b3f2a1e4fb67ec6126913b24, type: 2}

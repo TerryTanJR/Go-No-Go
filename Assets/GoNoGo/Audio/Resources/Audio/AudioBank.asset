@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0f6c285eebf3bf04d85841dd7a6e7525, type: 3}
+  m_Name: AudioBank
+  m_EditorClassIdentifier: GoNoGo.Game::GoNoGo.Game.AudioBank
+  countdownNet: {fileID: 8300000, guid: fbed9a825ebb0e249980334163d7b70e, type: 3}
+  countdownTerminalStart: 43
+  padRoar: {fileID: 8300000, guid: 6ce49b24589114a40920f87217e0ece9, type: 3}
+  padIgnitionAt: 8
+  distantRumble: {fileID: 8300000, guid: d70fbee13398e664cb07cf1fe09c7527, type: 3}
+  liftoffCommentary: {fileID: 0}
+  weRiseTogether: {fileID: 0}
+  spaceAmbience: {fileID: 8300000, guid: 87115d6761a6361479e715d5c124aa46, type: 3}

@@ -36,6 +36,12 @@ Notes:
 | earth_water_mask_5400x2700.png | 5400x2700 L | 93,202 B | Made from https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bathymetry/gebco_08_rev_bath_5400x2700.jpg | NASA Earth Observatory (BMNG), GEBCO_08 bathymetry. Made locally with a Pillow threshold: ocean = 255, land = 0. Use as a specular/water mask |
 | earth_clouds_svs4439_4096x2048.jpg | 4096x2048 L | 1,248,445 B | Made from https://svs.gsfc.nasa.gov/vis/a000000/a004400/a004439/frames/4096x2048_1x1_30p/clouds_cpc/flat_cpc_clouds_4096x2048.01000.tif | NASA Scientific Visualization Studio (SVS 4439, "Monsoons: Wet, Dry, Repeat..."), NOAA CPC merged IR clouds. Made locally: alpha channel only, with levels (v-60)*255/150 to remove haze. Covers about 60°N to 60°S; the poles are empty |
 
+## Moon texture (`Art/Textures/Moon/`, NASA, equirectangular 2:1)
+
+| File | Size | Source |
+|---|---|---|
+| moon_lroc_color_svs4720_2048x1024.jpg | 2048x1024 | NASA Scientific Visualization Studio, "CGI Moon Kit" (SVS 4720), `lroc_color_2k.jpg`, built from Lunar Reconnaissance Orbiter Camera (LROC) data. Credit: NASA's Scientific Visualization Studio. https://svs.gsfc.nasa.gov/4720/ . Re-encoded locally (JPEG q92), no other changes. |
+
 ## 3D models (`Art/Models/NASA/`, NASA 3D Resources, glTF binary)
 
 Repo: https://github.com/nasa/NASA-3D-Resources (NASA media usage guidelines). Raw base: `https://raw.githubusercontent.com/nasa/NASA-3D-Resources/master/3D%20Models/`.

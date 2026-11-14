@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 470662203d998584993803d7dbc1e39a, type: 3}
+  m_Name: LaunchKit
+  m_EditorClassIdentifier: GoNoGo.Launch::GoNoGo.Launch.LaunchKit
+  paintWhite: {fileID: 2100000, guid: c4b1277011153084d83e1b2a3de1ab06, type: 2}
+  paintBlack: {fileID: 2100000, guid: f267e582fc4c9664598b1da1938acce7, type: 2}
+  paintTeal: {fileID: 2100000, guid: d4e584e37975d264788c4ecd6c369e13, type: 2}
+  metal: {fileID: 2100000, guid: 9f7c24addb2125f4f95b80dce5646287, type: 2}
+  interstage: {fileID: 2100000, guid: 5f7037ca90a4d3c46b6d8307f1044fde, type: 2}
+  plume: {fileID: 2100000, guid: 190a2dd33b86da249942ea367b837c8e, type: 2}
+  smoke: {fileID: 2100000, guid: 4c4b62ced2c73b34fa29899040a689e3, type: 2}
+  fireball: {fileID: 2100000, guid: c2cf72d8dcf1bbe47a1910c288e75767, type: 2}
+  debris: {fileID: 2100000, guid: 9f4a93f35642ccd4782011755e82a5a3, type: 2}
+  trail: {fileID: 2100000, guid: 8bd3a6f402fe5fe4e8dcb548e5a32943, type: 2}

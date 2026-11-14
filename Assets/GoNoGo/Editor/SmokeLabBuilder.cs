@@ -83,7 +83,7 @@ namespace GoNoGo.Launch.EditorTools
         public static string SimulateTo(float seconds)
         {
             int n = 0;
-            foreach (var ps in Object.FindObjectsByType<ParticleSystem>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
+            foreach (var ps in Object.FindObjectsByType<ParticleSystem>(FindObjectsInactive.Exclude))
             {
                 ps.Simulate(seconds, true, true, true);
                 n++;

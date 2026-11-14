@@ -1,0 +1,243 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace GoNoGo.Launch
+{
+    /// <summary>程序化火箭的各個部位（發射導演用來分離、點火、拋整流罩）。</summary>
+    public sealed class RocketParts
+    {
+        public Transform root;
+        public Transform firstStage;
+        public Transform upperStage;
+        public Transform fairingLeft, fairingRight;
+        public Transform payloadMount;
+        public readonly List<Renderer> firstStagePlumes = new List<Renderer>();
+        public readonly List<Renderer> upperPlumes = new List<Renderer>();
+        public Transform firstStageNozzles;
+        public float height;
+        public float diameter;
+        public float fairingBase;
+        public float fairingRadius;
+    }
+
+    /// <summary>
+    /// 依火箭 id 組出外形比例接近真實的通用火箭（不使用任何公司塗裝）：
+    /// 長度與直徑取自公開規格，單位公尺。Falcon Heavy 有兩支側推進器、Delta II 有固體助推器。
+    /// </summary>
+    public static class RocketBuilder
+    {
+        struct Spec
+        {
+            public float height, diameter, fairingD, fairingLen, upperLen, boosters, boosterLen, boosterD;
+            public int engines;
+            public string body; // white / black / teal
+        }
+
+        static Spec SpecFor(string id)
+        {
+            switch (id)
+            {
+                case "electron": return new Spec { height = 18f, diameter = 1.2f, fairingD = 1.2f, fairingLen = 2.5f, upperLen = 2.4f, engines = 9, body = "black" };
+                case "falcon_heavy": return new Spec { height = 70f, diameter = 3.66f, fairingD = 5.2f, fairingLen = 13f, upperLen = 12.6f, engines = 9, boosters = 2, boosterLen = 44f, boosterD = 3.66f, body = "white" };
+                case "taurus_xl": return new Spec { height = 31.5f, diameter = 2.35f, fairingD = 1.6f, fairingLen = 5.1f, upperLen = 6f, engines = 1, body = "white" };
+                case "delta_ii": return new Spec { height = 38.9f, diameter = 2.44f, fairingD = 2.9f, fairingLen = 8.5f, upperLen = 6f, engines = 1, boosters = 9, boosterLen = 13f, boosterD = 1.0f, body = "teal" };
+                default: return new Spec { height = 70f, diameter = 3.66f, fairingD = 5.2f, fairingLen = 13f, upperLen = 12.6f, engines = 9, body = "white" }; // falcon9
+            }
+        }
+
+        public static RocketParts Build(string launcherId, LaunchKit kit, Transform parent)
+        {
+            var sp = SpecFor(launcherId);
+            var p = new RocketParts { height = sp.height, diameter = sp.diameter };
+            var root = new GameObject("Rocket_" + launcherId).transform;
+            root.SetParent(parent, false);
+            p.root = root;
+
+            var bodyMat = sp.body == "black" ? kit.paintBlack : sp.body == "teal" ? kit.paintTeal : kit.paintWhite;
+            float r = sp.diameter / 2f;
+            float firstLen = sp.height - sp.upperLen - sp.fairingLen;
+
+            // ---- 第一節 ----
+            p.firstStage = new GameObject("FirstStage").transform;
+            p.firstStage.SetParent(root, false);
+            Cyl(p.firstStage, new Vector3(0, firstLen / 2, 0), r, firstLen, bodyMat);
+            // 段間環
+            Cyl(p.firstStage, new Vector3(0, firstLen - 0.6f, 0), r * 1.01f, 1.2f, kit.interstage);
+            // 引擎段與噴嘴
+            p.firstStageNozzles = new GameObject("Engines").transform;
+            p.firstStageNozzles.SetParent(p.firstStage, false);
+            Cyl(p.firstStage, new Vector3(0, 0.3f, 0), r * 0.98f, 0.6f, kit.metal);
+            foreach (var pos in EnginePattern(sp.engines, r * 0.62f))
+            {
+                float nr = sp.engines > 1 ? r * 0.2f : r * 0.55f;
+                Nozzle(p.firstStageNozzles, new Vector3(pos.x, -nr * 0.9f, pos.y), nr, nr * 1.8f, kit.metal);
+                p.firstStagePlumes.Add(Plume(p.firstStageNozzles, new Vector3(pos.x, -nr * 1.8f, pos.y), nr * 0.95f, kit.plume));
+            }
+            // 助推器（Falcon Heavy 側核心 / Delta II 固體）
+            if (sp.boosters > 0)
+            {
+                int n = Mathf.RoundToInt(sp.boosters);
+                for (int i = 0; i < n; i++)
+                {
+                    float a = (n == 2 ? (i == 0 ? 0 : 180) : i * 360f / n) * Mathf.Deg2Rad;
+                    float br = sp.boosterD / 2f;
+                    var c = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * (r + br + 0.05f);
+                    var b = new GameObject("Booster" + i).transform;
+                    b.SetParent(p.firstStage, false);
+                    b.localPosition = c;
+                    Cyl(b, new Vector3(0, sp.boosterLen / 2, 0), br, sp.boosterLen, sp.boosters == 2 ? bodyMat : kit.paintWhite);
+                    Nose(b, new Vector3(0, sp.boosterLen, 0), br, br * (sp.boosters == 2 ? 0.2f : 2.2f), sp.boosters == 2 ? kit.interstage : kit.paintWhite);
+                    Nozzle(b, new Vector3(0, -br * 0.4f, 0), br * 0.6f, br * 1.1f, kit.metal);
+                    p.firstStagePlumes.Add(Plume(b, new Vector3(0, -br * 1.0f, 0), br * 0.6f, kit.plume));
+                }
+            }
+
+            // ---- 上節 ----
+            p.upperStage = new GameObject("UpperStage").transform;
+            p.upperStage.SetParent(root, false);
+            p.upperStage.localPosition = new Vector3(0, firstLen, 0);
+            Cyl(p.upperStage, new Vector3(0, sp.upperLen / 2, 0), r, sp.upperLen, bodyMat);
+            var mvac = Nozzle(p.upperStage, new Vector3(0, -r * 0.5f, 0), r * 0.55f, r * 1.2f, kit.metal);
+            p.upperPlumes.Add(Plume(p.upperStage, new Vector3(0, -r * 1.1f, 0), r * 0.6f, kit.plume));
+
+            // ---- 整流罩（兩半，可以分開） ----
+            float fr = sp.fairingD / 2f;
+            p.fairingRadius = fr;
+            float fBase = sp.upperLen;
+            p.fairingBase = firstLen + fBase;
+            p.payloadMount = new GameObject("PayloadMount").transform;
+            p.payloadMount.SetParent(p.upperStage, false);
+            p.payloadMount.localPosition = new Vector3(0, fBase + 0.3f, 0);
+            if (fr > r + 0.05f) Cone(p.upperStage, new Vector3(0, fBase - 0.6f, 0), r, fr, 0.6f, bodyMat); // 擴張段
+            p.fairingLeft = Half(p.upperStage, fBase, fr, sp.fairingLen, kit.paintWhite, true);
+            p.fairingRight = Half(p.upperStage, fBase, fr, sp.fairingLen, kit.paintWhite, false);
+
+            foreach (var pr in p.firstStagePlumes) pr.enabled = false;
+            foreach (var pr in p.upperPlumes) pr.enabled = false;
+            return p;
+        }
+
+        static IEnumerable<Vector2> EnginePattern(int n, float ring)
+        {
+            if (n <= 1) { yield return Vector2.zero; yield break; }
+            yield return Vector2.zero;
+            for (int i = 0; i < n - 1; i++)
+            {
+                float a = i / (float)(n - 1) * Mathf.PI * 2;
+                yield return new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * ring;
+            }
+        }
+
+        // ---------------- 幾何 ----------------
+
+        static Mesh _cyl;
+        static Mesh CylMesh => _cyl ??= Resources.GetBuiltinResource<Mesh>("Cylinder.fbx");
+
+        static GameObject Obj(Transform parent, string name, Mesh mesh, Material mat)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = mat;
+            return go;
+        }
+
+        static GameObject Cyl(Transform parent, Vector3 center, float radius, float height, Material mat)
+        {
+            var go = Obj(parent, "cyl", CylMesh, mat);
+            go.transform.localPosition = center;
+            go.transform.localScale = new Vector3(radius * 2, height / 2, radius * 2);
+            return go;
+        }
+
+        static GameObject Nozzle(Transform parent, Vector3 center, float radius, float length, Material mat)
+        {
+            var go = Obj(parent, "nozzle", Lathe("Nozzle", new[] { new Vector2(0.35f, 1f), new Vector2(0.55f, 0.6f), new Vector2(0.85f, 0.25f), new Vector2(1f, 0f) }, 20), mat);
+            go.transform.localPosition = center - new Vector3(0, length / 2, 0);
+            go.transform.localScale = new Vector3(radius, length, radius);
+            return go;
+        }
+
+        static Renderer Plume(Transform parent, Vector3 top, float radius, Material mat)
+        {
+            // 尾焰：旋轉體 y=0 接噴口、y=1 是尾端；繞 X 轉 180° 讓它往下長。長度由導演依推力與高度調整（縮放 Y）
+            var go = Obj(parent, "plume", Lathe("Plume", new[] { new Vector2(0.9f, 0f), new Vector2(1.25f, 0.25f), new Vector2(1.5f, 0.65f), new Vector2(1.2f, 1f) }, 20, true), mat);
+            go.transform.localPosition = top;
+            go.transform.localScale = new Vector3(radius, radius * 9f, radius);
+            go.transform.localRotation = Quaternion.Euler(180, 0, 0);
+            var mr = go.GetComponent<MeshRenderer>();
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            return mr;
+        }
+
+        static void Nose(Transform parent, Vector3 baseCenter, float radius, float length, Material mat)
+        {
+            var go = Obj(parent, "nose", Lathe("Nose", new[] { new Vector2(1f, 0f), new Vector2(0.92f, 0.35f), new Vector2(0.65f, 0.7f), new Vector2(0.25f, 0.95f), new Vector2(0.02f, 1f) }, 20), mat);
+            go.transform.localPosition = baseCenter;
+            go.transform.localScale = new Vector3(radius, length, radius);
+        }
+
+        static void Cone(Transform parent, Vector3 baseCenter, float r0, float r1, float length, Material mat)
+        {
+            var go = Obj(parent, "flare", Lathe("Flare", new[] { new Vector2(r0 / r1, 0f), new Vector2(1f, 1f) }, 20), mat);
+            go.transform.localPosition = baseCenter;
+            go.transform.localScale = new Vector3(r1, length, r1);
+        }
+
+        /// <summary>整流罩的半邊：圓柱段 + 尖拱，鉸鏈在底部外側，分離時繞鉸鏈往外倒。</summary>
+        static Transform Half(Transform parent, float baseY, float radius, float length, Material mat, bool left)
+        {
+            float side = left ? -1 : 1;
+            var hinge = new GameObject(left ? "FairingL" : "FairingR").transform;
+            hinge.SetParent(parent, false);
+            hinge.localPosition = new Vector3(side * radius, baseY, 0);
+            var prof = new[] { new Vector2(1f, 0f), new Vector2(1f, 0.45f), new Vector2(0.93f, 0.62f), new Vector2(0.76f, 0.78f), new Vector2(0.5f, 0.91f), new Vector2(0.2f, 0.985f), new Vector2(0.02f, 1f) };
+            var go = Obj(hinge, "shell", Lathe("FairingHalf", prof, 24, false, left ? 90f : -90f, 180f), mat);
+            go.transform.localPosition = new Vector3(-side * radius, 0, 0);
+            go.transform.localScale = new Vector3(radius, length, radius);
+            return hinge;
+        }
+
+        /// <summary>
+        /// 旋轉體網格：profile 是 (半徑比例, 高度比例) 由下往上；可只做部分角度（整流罩半邊）。
+        /// </summary>
+        static Mesh Lathe(string name, Vector2[] profile, int seg, bool open = false, float startDeg = 0f, float sweepDeg = 360f)
+        {
+            var v = new List<Vector3>();
+            var uv = new List<Vector2>();
+            var t = new List<int>();
+            int rows = profile.Length;
+            for (int i = 0; i <= seg; i++)
+            {
+                float a = (startDeg + sweepDeg * i / seg) * Mathf.Deg2Rad;
+                for (int j = 0; j < rows; j++)
+                {
+                    v.Add(new Vector3(Mathf.Cos(a) * profile[j].x, profile[j].y, Mathf.Sin(a) * profile[j].x));
+                    uv.Add(new Vector2(i / (float)seg, profile[j].y));
+                }
+            }
+            for (int i = 0; i < seg; i++)
+                for (int j = 0; j < rows - 1; j++)
+                {
+                    int a = i * rows + j, b = a + 1, c = a + rows, d = c + 1;
+                    t.AddRange(new[] { a, b, c, b, d, c });
+                }
+            // 內面（半邊整流罩、噴嘴從裡面看也要有東西）
+            int n = v.Count;
+            var verts = new List<Vector3>(v);
+            verts.AddRange(v);
+            var uvs = new List<Vector2>(uv);
+            uvs.AddRange(uv);
+            var all = new List<int>(t);
+            for (int k = 0; k < t.Count; k += 3) all.AddRange(new[] { t[k] + n, t[k + 2] + n, t[k + 1] + n });
+            var mesh = new Mesh { name = name };
+            mesh.SetVertices(verts);
+            mesh.SetUVs(0, uvs);
+            mesh.SetTriangles(open ? t : all, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+    }
+}

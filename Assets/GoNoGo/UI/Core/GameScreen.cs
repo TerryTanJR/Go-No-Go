@@ -1,0 +1,87 @@
+using System;
+using System.Collections.Generic;
+using GoNoGo.Game;
+using UnityEngine.UIElements;
+
+namespace GoNoGo.UI
+{
+    /// <summary>
+    /// 一個場景的介面。UIRoot 依場景名稱建立對應的畫面；切語言時整個重建（狀態都在 GameState，重建不會遺失）。
+    /// 用 <see cref="On"/> 訂閱的事件會在畫面關閉時自動取消，避免場景切換後還收到事件。
+    /// </summary>
+    public abstract class GameScreen
+    {
+        protected VisualElement Root { get; private set; }
+        protected UIRoot Host { get; private set; }
+        protected static GameState S => GameSession.State;
+        readonly List<Action> _unsubscribe = new List<Action>();
+
+        public void Attach(UIRoot host, VisualElement root)
+        {
+            Host = host;
+            Root = root;
+            Build();
+        }
+
+        public void Rebuild()
+        {
+            DisposeSubscriptions();
+            Root.Clear();
+            Build();
+        }
+
+        protected abstract void Build();
+
+        public virtual void Tick(float dt) { }
+
+        public void Close()
+        {
+            DisposeSubscriptions();
+            OnClose();
+            Root?.Clear();
+        }
+
+        protected virtual void OnClose() { }
+
+        /// <summary>訂閱事件，畫面關閉或重建時自動取消。</summary>
+        protected void On(Action subscribe, Action unsubscribe)
+        {
+            subscribe();
+            _unsubscribe.Add(unsubscribe);
+        }
+
+        void DisposeSubscriptions()
+        {
+            foreach (var u in _unsubscribe)
+            {
+                try { u(); } catch { /* 物件可能已被銷毀 */ }
+            }
+            _unsubscribe.Clear();
+        }
+
+        /// <summary>每個畫面共用的頂部列：品牌、任務名、預算、語言切換。</summary>
+        protected VisualElement TopBar(string missionLabel, bool showLang = true)
+        {
+            var bar = Ui.El("topbar").AddTo(Root);
+            Ui.Text("GO / NO-GO", "brand").AddTo(bar);
+            if (!string.IsNullOrEmpty(missionLabel)) Ui.Text(missionLabel, "mission").AddTo(bar);
+            Ui.Spacer().AddTo(bar);
+            var right = Ui.Row().AddTo(bar).Named("topRight");
+            if (showLang)
+            {
+                var lang = Ui.Btn(Loc.IsZh ? "EN" : "中文", () => Loc.Toggle(), "btn-small", "btn-ghost");
+                lang.tooltip = Loc.T("ui.lang");
+                lang.AddTo(bar);
+            }
+            return right;
+        }
+
+        protected static VisualElement StatPill(VisualElement parent, string key, string value, string valueClass = null)
+        {
+            var p = Ui.Row("stat-pill").AddTo(parent);
+            Ui.Text(key, "k").AddTo(p);
+            Ui.Text(value, "mono", valueClass).AddTo(p);
+            return p;
+        }
+    }
+}

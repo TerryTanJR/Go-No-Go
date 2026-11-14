@@ -156,5 +156,8 @@ crashlytics-build.properties
 !/tools/CoreTests/CoreTests.csproj
 !/tools/UnityApiCheck/UnityApiCheck.csproj
 
+# 驗證用截圖（本機）
+/[Ss]creenshots/
+
 # GoNoGo blueprint docs stay out of the repo
 docs/unity-blueprint/

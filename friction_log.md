@@ -180,3 +180,117 @@
 
 41. **IM-2 發射台麥克風原始錄音本身就削波（clipping）**
     - 解法：峰值正規化到 -1 dBFS 後，在遊戲裡只用點火後那幾秒，AudioSource 音量壓低，並和遠方海灘的低頻轟鳴疊在一起蓋過削波的刺耳感。
+
+### 程式架構與 Unity API
+
+42. **發射動畫用 Timeline 還是程式提示表（cue list）？**
+    - 原因：發射有 5 種結局（正常、低軌、爆炸、整流罩故障、速度不足），每種的鏡頭和事件時間不同。Timeline 得做 5 條或用大量條件軌，改一個時間點要動好幾條。
+    - 解法：`LaunchDirector` 用程式的 `Cue(t, action)` 清單，依結局組出不同清單；Cinemachine 3 負責鏡頭切換與混合。「跳過發射」直接用小步長快轉同一份清單，所有分離、展開都會正確發生。
+
+43. **一個 .cs 檔放兩個 MonoBehaviour，場景掛上去後顯示 Missing Script**
+    - 原因：Unity 要求 MonoBehaviour/ScriptableObject 的類別名稱和檔名一致，一檔一類。
+    - 解法：拆成各自的檔案（純 C# 類別可以放在一起）。
+
+44. **`new MaterialPropertyBlock()` 寫在 MonoBehaviour 欄位初始化子，進 Play 時丟 `UnityException: CreateImpl is not allowed to be called from a MonoBehaviour constructor`**
+    - 解法：欄位只宣告，在 `Awake()` 裡建立。
+
+45. **直接改 `renderer.sharedMaterial` 的顏色或參數，會改到磁碟上的材質資產（離開 Play 也不會復原），git 一直出現材質變更**
+    - 解法：每個物件不同的值（推力、發光強度）一律用 `MaterialPropertyBlock`；共用材質只在建置腳本裡設定。
+
+46. **`TextSettings.defaultFontAsset` 已標成過時（obsolete）；`FindObjectsSortMode` 參數版本的 `FindObjectsByType` 也出現棄用警告**
+    - 解法：預設字型改由 Theme.uss 的 `:root { -unity-font-definition: ... }` 指定，中文字型放在 PanelTextSettings 的 `fallbackFontAssets`；`SmokeLabBuilder` 的搜尋改用不帶排序參數的 `FindObjectsByType<T>(FindObjectsInactive.Exclude)`（排序參數已被棄用），編譯保持 0 警告。
+
+47. **WebGL 預設品質等級沒有跟著 QualitySettings 的「預設」走**
+    - 原因：每個平台各自有預設品質（`m_PerPlatformDefaultQuality`），WebGL 預設是最高那一級。
+    - 解法：建置腳本用 `SerializedObject` 直接把 WebGL 的預設品質設成 1（中等），PC 維持高品質。
+
+### UI Toolkit
+
+48. **USS 寫 `Label { white-space: normal; }`、`Button { ... }` 完全沒有作用，按鈕是灰色預設樣式、文字全部不換行**
+    - 原因：自訂的 .tss 匯入了 `unity-theme://default`，預設主題用的是類別選擇器（`.unity-label`、`.unity-button`、`.unity-button:hover:enabled`），類別的權重比型別選擇器（`Label`）高，所以永遠蓋過我們的設定。
+    - 解法：一律改寫成 `.unity-label`、`.unity-button`；hover/active 要同時寫 `:hover` 與 `:hover:enabled`（例如 `.btn-go:hover:enabled`），否則預設主題的 `:hover:enabled` 又贏。
+
+49. **改成所有文字都可以換行之後，大數字（倒數時鐘、總分、Day 數）被拆成兩行**
+    - 解法：在 Theme.uss 最後加一條 nowrap 清單（`.ops-day, .launch-clock, .total-num, .title-logo, .tele-v, .verdict, .chip …`），只對「必須單行」的元素關掉換行。
+
+50. **設計室的「任務年限」數值有時是空的**
+    - 原因：切到總監分頁時，`Refresh()` 先寫入年限文字、再因為軌道變了重建分類清單，重建把那個 Label 換掉了。
+    - 解法：`Refresh()` 一開始先做「需要重建就重建」，之後才設定卡片狀態與文字。
+
+51. **3D 場景的滑鼠拖曳（旋轉衛星、轉地球）在 UI 面板上也會觸發**
+    - 解法：根節點與畫面層設 `pickingMode = Ignore`，`PointerHooks.OverUI` 用 `RuntimePanelUtils.ScreenToPanel` + `panel.Pick()` 判斷游標下是不是 UI（注意螢幕座標 y 要翻轉：`Screen.height - y`）。
+
+### 燈光、材質與畫面
+
+52. **發射台整個過曝，而且高光偏青綠色**
+    - 原因：三盞探照燈強度 9000、顏色偏藍；ACES 色調映射會把過曝的偏藍高光推向青色。
+    - 解法：強度降到 1200、改成暖白色 (1, 0.94, 0.85)。
+
+53. **程序天空（Skybox/Procedural）黃昏時天空中段變成橄欖綠**
+    - 原因：`_SkyTint` 偏藍加上大氣厚度 1.35，太陽仰角低時散射算出來偏綠。
+    - 解法：SkyTint 用中性灰 (0.5, 0.5, 0.5)、大氣厚度 1.12、曝光 1.2。
+
+54. **設計室畫面整片偏青色、底座過曝**
+    - 原因：底座上方 0.4 m 有一盞點光源，離表面太近。
+    - 解法：拿掉點光源，改成從地面往上打的聚光燈（強度 3、角度 50°）。
+
+55. **任務控制中心地板上有一條垂直的光柱**
+    - 原因：光滑地板（smoothness 高）把天花板燈的鏡面反射拉成一長條。
+    - 解法：地板和階梯改用霧面材質 `M_FloorMatte`（smoothness 0.35 + 格線貼圖），鏡頭也稍微抬高。
+
+56. **底座的圓環看得出多邊形稜角**
+    - 原因：Unity 內建 Cylinder 只有 24 段。
+    - 解法：建置腳本自己產生 96 段的圓柱（`HiCylinder`）和 160 段的圓環（`Annulus`），存成 Mesh 資產。
+
+57. **太空鏡頭裡地球有一條細細的亮線，地平線邊緣看得到稜角**
+    - 原因：火箭剛好在北極上方，經度 ±180° 的貼圖接縫和所有經線都在極點收斂；而且 192 段的整顆球放大到半徑 6000 後，地平線每段約 100 單位，近看就是折線。
+    - 解法：只產生看得到的那一塊球冠（`SphereCap`：以北緯 26°、西經 74° 為中心、半角 34°、160×256 段），再旋轉讓它朝上。頂點集中在畫面裡，物件空間方向仍是經緯度，所以行星 shader 不用改。
+
+58. **支柱的混凝土貼圖看起來像軟木塞**
+    - 解法：改用金屬飾條材質 `art.trim`。
+
+### 發射鏡頭（Cinemachine 3）
+
+59. **切到太空場景的前一秒只看得到星空**
+    - 原因：火箭瞬間移動了約 2 萬公尺，跟隨鏡頭的阻尼還在從發射台「飛」上來。
+    - 解法：切換前對 `camSpace / camSide / camDeploy` 設 `PreviousStateIsValid = false`，阻尼狀態作廢。
+
+60. **從側面鏡頭混合（blend）到衛星展開鏡頭時，鏡頭路徑穿過上節箭體**
+    - 解法：改成硬切（`Cut`）。
+
+61. **硬切之後，展開鏡頭前三秒畫面一半是白色上節**
+    - 原因：展開鏡頭在衛星後側方 5.5 m，剛好貼著上節側面。把鏡頭移到衛星前方往回拍也不行：30 m 外的上節正面變成畫面左邊一大片米色圓盤。
+    - 解法：鏡頭維持在後側方，硬切的同一個影格把上節往後移 `6 + 8k` 公尺（k = 火箭高度 / 70），退到鏡頭後面；已經飄走的整流罩也一起隱藏。硬切看不出瞬移，畫面就像分離已經完成。
+
+62. **塔邊鏡頭被導焰槽的煙整個蓋住；往上移之後又太貼近箭身，畫面只剩一根白柱子**
+    - 解法：放在塔的斜後方 (-16, 14, 24) 低角度仰拍，`RotationComposer.TargetOffset` 由導演依火箭高度瞄準箭身中段（高度 × 0.35）。
+
+63. **長焦追蹤鏡頭裡，火箭加速時衝出畫面上緣；天空中沒有排氣尾跡，畫面很空**
+    - 原因：瞄準點是火箭底部，卻放在畫面中線偏上（ScreenPosition y = -0.08，Cinemachine 3 的 y 正值是往下），阻尼 0.6 又追不上加速度。
+    - 解法：ScreenPosition 改成 (0, 0.2)（中線偏下）、阻尼 0.25；升空時在第一節底部掛 `TrailRenderer`（9 秒、寬度由 1.3 倍到 10 倍直徑、寬度方向柔和淡出的程序貼圖），爆炸時停止發射但保留在空中慢慢散掉；切到太空前先 `Clear()`，否則火箭瞬移會畫出一條橫跨天空的直線。Electron（18 m）在 1.6 km 外只剩幾個像素，長焦 FOV 依火箭高度乘 `clamp(k × 1.3, 0.4, 1)`。
+
+64. **速度不足／整流罩故障的墜落段：上節甩出畫面，有時鏡頭轉到只拍到星空、看不到地球**
+    - 原因：翻滾是繞火箭底部（root）旋轉，上節離支點約 40 m，甩出一個大弧；鏡頭又跟著上節的軸心（會跟著翻滾的那一端）走。
+    - 解法：開始下墜時算出上節 Renderer 的幾何中心，改用 `RotateAround(中心)` 翻滾；鏡頭改追一個不旋轉的 `FallFocus` 點（每格放在上節中心），並在 3 秒內把跟隨距離拉遠到 1.8 倍。
+
+65. **整流罩打開後一直鉸在上節上，上節翻滾時把它甩到鏡頭前；正常入軌時也會飄進展開鏡頭**
+    - 解法：打開動畫結束（2.5 秒）後把兩半改掛到 `SpaceAnchor`，保留往外與稍微往後的速度並慢慢翻轉；展開鏡頭硬切時隱藏。
+
+66. **墜落時遙測高度從 397 km 跳到 628 km 再往下掉，速度直接歸零**
+    - 原因：失敗結局的高度曲線終點還是目標軌道高度（700 km）；下墜時每個影格減一個固定量（跟影格率有關），速度每格減 0.01 很快就到 0。
+    - 解法：失敗結局的曲線終點改成次軌道頂點 150 km；下墜用開始下墜那一刻的高度與速度當起點，`alt = h0 − 1.6·t²`、`vel = v0 + 0.04·t`，跟影格率無關。
+
+### 命令列工具（Unity CLI / Bash）
+
+67. **`unity command script eval` 的各種小陷阱**
+    - `-- --code "..."` 會回「Give either code or file」：程式碼要當位置參數直接傳。
+    - 擷圖參數是 `--output-path`，不是 `--save_path`。
+    - eval 裡 `.Q()`、`.Query()` 擴充方法解析不到：要寫 `UQueryExtensions.Q(root, ...)`。
+    - `objectReferenceInstanceIDValue` 已過時：用 `objectReferenceEntityIdValue != EntityId.None`。
+
+68. **`unity command job wait` 的條件寫 `"op":"gt"` 會失敗**
+    - 原因：只接受 `equals, notEquals, greaterThan, lessThan, contains, changed`。錯誤只寫在 Editor console，命令列這邊看起來像「立刻等到了」，結果擷圖時間全部錯開。
+    - 解法：改用 `greaterThan`／`lessThan`。另外，等靜態欄位（例如 `LaunchFeed.T`）前要先等它被新場景重設（先等 `lessThan 0`），否則讀到的是上一次發射留下的值。
+
+69. **Bash heredoc 內容有大量引號時出現 `unexpected EOF`（又發生一次）**
+    - 解法：較長的修改一律先用 Write 寫成暫存資料夾裡的 Python 腳本，再用 `python -P -E script.py <專案路徑>` 執行；腳本先檢查每段原文在檔案裡恰好出現一次，否則中止，不會改到一半。

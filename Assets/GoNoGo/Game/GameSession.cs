@@ -20,6 +20,9 @@ namespace GoNoGo.Game
             }
         }
 
+        /// <summary>已經建立過（OnDisable/OnDestroy 裡用這個判斷，避免關閉遊戲時又建立新物件）。</summary>
+        public static bool Exists => _instance != null;
+
         public static GameState State => Instance._state;
         public static IRoomSync Room => Instance._room;
 
