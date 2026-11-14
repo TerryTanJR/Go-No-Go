@@ -9,7 +9,7 @@ namespace GoNoGo.Presentation
     /// </summary>
     public sealed class ConsoleTarget : Interactable
     {
-        [Tooltip("面板 id：dashboard、manual、bay_manual、test、phone、mission、launch、failures、ops_desk、ops:power…；report = 直接回報設計")]
+        [Tooltip("面板 id：dashboard、procure、manual、bay_manual、test、goals、phone、mission、launch、failures、ops_desk、ops:power…")]
         public string panel = "";
         public string titleKey = "";
         public string bodyKey = "";
@@ -22,13 +22,13 @@ namespace GoNoGo.Presentation
         MaterialPropertyBlock _mpb;
 
         /// <summary>
-        /// 嚴格分工時這個控制台屬於哪一區（依面板 id）：回報台、測試台、組裝手冊是組裝區的；
-        /// 儀表板、軌道與火箭、電話、筆記、發射、中控室手冊是中控室的。失敗看板兩邊都能看。
+        /// 嚴格分工時這個控制台屬於哪一區（依面板 id）：採購終端、儀表板大螢幕、測試台、組裝手冊是組裝區的；
+        /// 任務目標與預算、軌道與火箭、電話、筆記、發射、中控室手冊（型錄）是中控室的。失敗看板兩邊都能看。
         /// </summary>
         public static Station? StationOf(string panel) => panel switch
         {
-            "report" or "test" or "bay_manual" => Station.Assembly,
-            "dashboard" or "mission" or "phone" or "notes" or "launch" or "manual" => Station.Control,
+            "report" or "test" or "bay_manual" or "procure" or "dashboard" => Station.Assembly,
+            "goals" or "mission" or "phone" or "notes" or "launch" or "manual" => Station.Control,
             // 後排的手冊各章（manual:payload…）也是中控室的
             _ when panel != null && panel.StartsWith("manual:") => Station.Control,
             _ => null,

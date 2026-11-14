@@ -407,9 +407,9 @@ namespace GoNoGo.EditorTools
 
         static void BuildBayConsoles(ArtBuilder.Art art, FacMats fm, Transform bay)
         {
-            // 回報台：把台上的設計送到中控室
-            var rep = Console(art, fm, bay, "ReportConsole", new Vector3(4.2f, 0, -3.2f), -45f, "report", "ui.fac.report", "ui.fac.report_body", "design", art.consoleScreens[0], 1.3f);
-            rep.actionKey = "ui.hint.report";
+            // 採購終端：組裝區下單買零件（沒有價格，價格在中控室的型錄）
+            var proc = Console(art, fm, bay, "ProcureConsole", new Vector3(4.2f, 0, -3.2f), -45f, "procure", "ui.fac.procure", "ui.fac.procure_body", "design,briefing", art.consoleScreens[0], 1.3f);
+            proc.actionKey = "ui.hint.procure";
             // 環境測試台（振動／熱真空）：和回報台對稱，在整合台的另一邊
             var test = Console(art, fm, bay, "TestConsole", new Vector3(-4.2f, 0, -3.2f), 45f, "test", "ui.fac.test", "ui.fac.test_body", "design", art.consoleScreens[2], 1.3f);
             test.actionKey = "ui.hint.test";
@@ -424,6 +424,15 @@ namespace GoNoGo.EditorTools
             ct.bodyKey = "ui.fac.failures_body";
             ct.actionKey = "ui.hint.read";
             fb.AddComponent<BoxCollider>().size = new Vector3(3.5f, 2.2f, 0.12f);
+
+            // 東牆（門的北邊）：儀表板大螢幕，整合台上這艘船現在的數字
+            var ds = WallScreen(art, fm, bay, "BayDashboard", "dashboard", new Vector3(BayX1 - 0.08f, 2.4f, 5.2f), 90f, new Vector2(3.4f, 2.1f), new Vector2Int(1024, 640));
+            var dt = ds.AddComponent<ConsoleTarget>();
+            dt.panel = "dashboard";
+            dt.titleKey = "ui.fac.dashboard";
+            dt.bodyKey = "ui.fac.dashboard_body";
+            dt.actionKey = "ui.hint.read";
+            ds.AddComponent<BoxCollider>().size = new Vector3(3.5f, 2.2f, 0.12f);
         }
 
         const string ControlRoomModel = "Assets/GoNoGo/Art/Models/Room/FacilityControlRoom.glb";
@@ -498,7 +507,8 @@ namespace GoNoGo.EditorTools
                 {
                     m = fm.screenOff;
                     var ws = r.gameObject.AddComponent<WorldScreen>();
-                    ws.id = n.Substring(5);
+                    // 儀表板搬到組裝區：中控室影像牆原本的儀表板改顯示任務目標與預算
+                    ws.id = n.Substring(5) == "dashboard" ? "goals" : n.Substring(5);
                     ws.resolution = new Vector2Int(1280, 690);
                     ws.target = r;
                 }
@@ -537,6 +547,7 @@ namespace GoNoGo.EditorTools
             {
                 string key = r.gameObject.name.Substring(7);
                 string panel = key.Replace('-', ':');
+                if (panel == "dashboard") panel = "goals"; // 儀表板搬到組裝區，這一席改看任務目標與預算
                 var ct = r.gameObject.AddComponent<ConsoleTarget>();
                 r.gameObject.AddComponent<BoxCollider>();
                 ct.panel = panel;

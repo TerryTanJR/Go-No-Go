@@ -166,6 +166,11 @@ namespace GoNoGo.Core
             co.OpsPerYearMusd = c.OpsBaseCostMusdPerYear + (gs?.OpsCostMusdPerYear ?? 0);
             co.OpsTotalMusd = co.OpsPerYearMusd * years;
             costContrib.Add(new Contribution("operations", co.OpsTotalMusd));
+            if (design.ProcurementMusd > 0)
+            {
+                co.DevelopmentMusd += design.ProcurementMusd;
+                costContrib.Add(new Contribution("procurement", design.ProcurementMusd));
+            }
             co.TotalMusd = co.DevelopmentMusd + co.LaunchMusd + co.OpsTotalMusd;
             co.BudgetMusd = (scenario?.BudgetMusd ?? 0) * GameData.BudgetMultiplier(scenario, diff) * (scenario?.Historical?.BudgetCap ?? 1.0);
             AddResource(ev, ResourceId.Budget, co.TotalMusd, co.BudgetMusd, "M$",
@@ -185,7 +190,8 @@ namespace GoNoGo.Core
                 longest = Math.Max(longest, launcher.LeadMonths);
             }
             timeContrib.Add(new Contribution("integration", c.IntegrationMonths));
-            ev.ScheduleMonths = longest + c.IntegrationMonths;
+            if (design.ProcurementMonths > 0) timeContrib.Add(new Contribution("procurement", design.ProcurementMonths));
+            ev.ScheduleMonths = longest + c.IntegrationMonths + design.ProcurementMonths;
             double deadline = scenario?.DeadlineMonths ?? 0;
             AddResource(ev, ResourceId.Time, ev.ScheduleMonths, deadline, "mo",
                 deadline > 0 ? (deadline - ev.ScheduleMonths) / deadline : -1, timeContrib);

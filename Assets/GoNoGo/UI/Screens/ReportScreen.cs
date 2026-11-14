@@ -127,11 +127,11 @@ namespace GoNoGo.UI
             Fact(you, "ui.report.f.cost", Fmt.Money(ev.Cost.TotalMusd) + " / " + Fmt.Money(ev.Cost.BudgetMusd));
             Fact(you, "ui.report.f.mass", Fmt.N(ev.Mass.WetKg) + " kg");
 
-            var cmp = Ui.Panel(right, Loc.T("ui.report.real_missions"), out _);
-            foreach (var id in M.Scenario.ComparisonMissions)
+            // 沒有對照任務的關卡（月球、野火）不放空的面板
+            var missions = M.Scenario.ComparisonMissions.Select(id => D.Missions.FirstOrDefault(x => x.Id == id)).Where(x => x != null).ToList();
+            var cmp = missions.Count > 0 ? Ui.Panel(right, Loc.T("ui.report.real_missions"), out _) : null;
+            foreach (var m in missions)
             {
-                var m = D.Missions.FirstOrDefault(x => x.Id == id);
-                if (m == null) continue;
                 var card = Ui.El("mission-card").AddTo(cmp);
                 var head = Ui.Row().AddTo(card);
                 Ui.Text(Loc.T(m.Name), "h3").AddTo(head);

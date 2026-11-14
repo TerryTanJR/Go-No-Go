@@ -50,6 +50,18 @@ namespace GoNoGo.Core
         public bool Reached { get; set; }
     }
 
+    /// <summary>一次採購（組裝區下單）：買了哪些零件、這次的價格倍率（補單有急件費）。</summary>
+    public sealed class OrderRecord
+    {
+        public int N { get; set; }
+        public int By { get; set; }
+        public List<string> Parts { get; set; } = new List<string>();
+        /// <summary>這次採購的價格倍率：第 1 次 1.0，補單 1 + 急件費。</summary>
+        public double PriceFactor { get; set; } = 1.0;
+        /// <summary>發射失敗後給的重建採購。</summary>
+        public bool Rebuild { get; set; }
+    }
+
     /// <summary>打過的電話：哪個處室、問了哪一題。</summary>
     public sealed class CallRecord
     {
@@ -93,6 +105,14 @@ namespace GoNoGo.Core
         /// <summary>最後一次從回報台送到中控室的設計（儀表板看的是它）。</summary>
         public Design Reported { get; set; } = new Design();
         public int Reports { get; set; }
+        /// <summary>
+        /// 手上有的零件（不含地面站）：開局設計上的零件（倉庫現成的，裝上才算錢）加上買過的。
+        /// 組裝區的零件架上只放得到這些；其他零件要先下單採購。
+        /// </summary>
+        public List<string> Owned { get; set; } = new List<string>();
+        /// <summary>組裝區採購終端的購物車（還沒下單）。</summary>
+        public List<string> Cart { get; set; } = new List<string>();
+        public List<OrderRecord> Orders { get; set; } = new List<OrderRecord>();
         /// <summary>誰手上拿著哪個零件（玩家 id → 零件 id）。</summary>
         public Dictionary<int, string> Held { get; set; } = new Dictionary<int, string>();
 

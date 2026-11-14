@@ -152,6 +152,7 @@ namespace GoNoGo.Core.Tests
             "site.forest", "site.grassland", "site.desert", "site.glint",
             "event.fire.reported", "event.fire.partial", "event.fire.stuck",
             "event.false_fire.reported", "event.false_fire.flagged", "event.false_fire.ignored",
+            "err.owned", "err.not_owned", "err.cart_empty", "err.no_orders", "cause.success_latency", "suggest.fire_tradeoff",
         };
 
         [Test]
@@ -229,6 +230,9 @@ namespace GoNoGo.Core.Tests
                 Assert.That(data.PartByCode(p.Code), Is.SameAs(p));
                 Assert.That(p.Function.En.Length * p.Function.ZhTW.Length, Is.GreaterThan(0), p.Id);
                 Assert.That(p.Function.ZhTW, Does.Not.Match("[0-9]"), p.Id + "：功能說明不放數字");
+                // 採購終端的科普說明：組裝區看不到數字
+                Assert.That(p.Explainer.En.Length * p.Explainer.ZhTW.Length, Is.GreaterThan(0), p.Id + "：缺科普說明");
+                Assert.That(p.Explainer.ZhTW, Does.Not.Match("[0-9]"), p.Id + "：科普說明不放數字");
             }
         }
 

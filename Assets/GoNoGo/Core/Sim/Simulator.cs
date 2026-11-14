@@ -395,7 +395,7 @@ namespace GoNoGo.Core
         {
             r.Score = Scoring.Compute(design, data, ev, r, ctx);
             r.Causes = Causality.Build(design, data, ev, r);
-            r.SuggestionCode = Causality.Suggest(r.Causes, ev);
+            r.SuggestionCode = Causality.Suggest(r.Causes, ev, data.Scenario(design.ScenarioId)?.FireAlert ?? false);
         }
     }
 }

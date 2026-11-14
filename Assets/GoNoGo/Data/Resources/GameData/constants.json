@@ -27,6 +27,7 @@
   "contact_gap_factor": 2.0,
   "storage_safety_factor": 1.5,
   "ground_processing_min": 5,
+  "rush_order_months": 3,
   "science_year_scale": 1.0,
   "sources": {
     "earth_mu_km3_s2": { "title": "NASA NTRS: Introduction to Orbits (2021)", "url": "https://ntrs.nasa.gov/api/citations/20210016427/downloads/Introduction%20to%20Orbits%202021.pptx.pdf", "note": "sourced: standard gravitational parameter of Earth (km^3/s^2)" },
@@ -47,6 +48,7 @@
     "downlink": { "title": "OCO launch press kit (NASA/JPL 2009)", "url": "https://www.jpl.nasa.gov/news/press_kits/oco-launch.pdf", "note": "GB/day = Mbps x contact minutes x 60 / 8 / 1000 x link efficiency; OCO: 150 Mbit/s x 6.75 min/day" },
     "contact_gap_factor": { "title": "OCO launch press kit", "url": "https://www.jpl.nasa.gov/news/press_kits/oco-launch.pdf", "note": "estimate: passes cluster in a few consecutive orbits, so the longest gap is about twice the average gap" },
     "storage_safety_factor": { "title": "Design practice", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/small-spacecraft-avionics", "note": "estimate: 50% storage margin for missed passes" },
+    "rush_order_months": { "title": "NASA SST State-of-the-Art, ch. 10 Integration, Launch and Deployment", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/integration-launch-and-deployment", "note": "estimate: a late re-order means re-qualifying and re-integrating the new parts, about one test campaign (3 months) per extra order" },
     "ground_processing_min": { "title": "NASA FIRMS: Fire Information for Resource Management System, near real-time data", "url": "https://www.earthdata.nasa.gov/data/tools/firms", "note": "estimate: FIRMS delivers near-real-time active fires within about 3 hours globally and much faster from direct broadcast; 5 min for an automated check and alert once the data is on the ground" },
     "rocket_equation": { "title": "NASA Glenn: Ideal Rocket Equation", "url": "https://www1.grc.nasa.gov/beginners-guide-to-aeronautics/ideal-rocket-equation/", "note": "dv = Isp * g0 * ln(m0/m1)" }
   }

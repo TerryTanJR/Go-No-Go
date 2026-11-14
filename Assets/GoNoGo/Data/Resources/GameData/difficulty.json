@@ -25,7 +25,9 @@
       "science_opportunity"
     ],
     "turn_seconds": 180,
-    "guaranteed_launch": false
+    "guaranteed_launch": false,
+    "orders": 2,
+    "rush_fee": 0.3
   },
   {
     "id": "cadet",
@@ -52,7 +54,9 @@
       "science_opportunity"
     ],
     "turn_seconds": 0,
-    "guaranteed_launch": false
+    "guaranteed_launch": false,
+    "orders": 3,
+    "rush_fee": 0.0
   },
   {
     "id": "director",
@@ -81,7 +85,9 @@
       "power_anomaly"
     ],
     "turn_seconds": 90,
-    "guaranteed_launch": false
+    "guaranteed_launch": false,
+    "orders": 1,
+    "rush_fee": 0.3
   },
   {
     "id": "tutorial",
@@ -111,6 +117,8 @@
     "guaranteed_launch": true,
     "start_parts": {
       "solar": "solar_deployable"
-    }
+    },
+    "orders": 3,
+    "rush_fee": 0.0
   }
 ]

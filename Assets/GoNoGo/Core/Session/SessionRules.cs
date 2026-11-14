@@ -16,6 +16,8 @@ namespace GoNoGo.Core
         Judge, Act, EndTurn, NextTurn,
         // 團隊合作（加在最後，舊的編號不變）
         SetStrict, RunTest, Vote, SetLaunchSpeed, SkipLaunch,
+        // 採購（組裝區）
+        CartAdd, CartRemove, PlaceOrder,
     }
 
     /// <summary>
@@ -60,7 +62,77 @@ namespace GoNoGo.Core
                 Phase = multiplayer ? SessionPhase.Lobby : SessionPhase.Briefing,
                 Bench = start.Clone(),
                 Reported = start.Clone(),
+                // 開局設計上的零件是倉庫現成的
+                Owned = start.AllPartIds().Where(id => data.Part(id)?.Category != PartCategory.GroundStation).Distinct().ToList(),
             };
+        }
+
+        // ---------------------------------------------------------------- 採購
+
+        /// <summary>這一局總共可以採購幾次：難度給的次數，個人模式多 1 次，每次發射失敗再給 1 次重建採購。</summary>
+        public static int OrderAllowance(SessionState s, GameData data) =>
+            s.Difficulty(data).Orders + (s.Multiplayer ? 0 : 1) + s.FailedLaunches;
+
+        public static int OrdersLeft(SessionState s, GameData data) => Math.Max(0, OrderAllowance(s, data) - s.Orders.Count);
+
+        /// <summary>下一次採購的價格倍率：第 1 次原價，之後（補單）加急件費；重建採購不加。</summary>
+        public static double NextPriceFactor(SessionState s, GameData data) =>
+            s.Orders.Count == 0 || RebuildPending(s) ? 1.0 : 1.0 + s.Difficulty(data).RushFee;
+
+        /// <summary>發射失敗後還沒用掉的重建採購。</summary>
+        public static bool RebuildPending(SessionState s) => s.FailedLaunches > s.Orders.Count(o => o.Rebuild);
+
+        /// <summary>
+        /// 採購的額外開銷寫進整合台與中控室的設計：買了沒裝上去的零件全額、裝上去的只算急件費（原價已經算在設計裡）。
+        /// 補單（第 2 次以後、不含重建採購）每次讓時程延後。
+        /// </summary>
+        static void RefreshProcurement(SessionState s, GameData data)
+        {
+            var installed = new HashSet<string>(s.Bench.AllPartIds());
+            double extra = 0;
+            foreach (var o in s.Orders)
+                foreach (var id in o.Parts)
+                {
+                    var p = data.Part(id);
+                    if (p == null) continue;
+                    extra += p.CostMusd * o.PriceFactor - (installed.Contains(id) ? p.CostMusd : 0);
+                }
+            int rush = s.Orders.Count(o => o.N > 1 && !o.Rebuild);
+            s.Bench.ProcurementMusd = Math.Max(0, extra);
+            s.Bench.ProcurementMonths = rush * data.Constants.RushOrderMonths;
+        }
+
+        static string CartChange(SessionState s, GameData data, string partId, bool add)
+        {
+            if (s.Phase != SessionPhase.Design && s.Phase != SessionPhase.Briefing) return "err.phase";
+            if (s.DesignLocked(data)) return "err.locked";
+            if (!add) { s.Cart.Remove(partId); return Ok; }
+            var part = data.Part(partId);
+            if (part == null || part.Category == PartCategory.GroundStation) return "err.unknown";
+            if (s.Owned.Contains(partId)) return "err.owned";
+            if (!ShelfParts(data, s).Any(p => p.Id == partId)) return "err.not_allowed";
+            if (!s.Cart.Contains(partId)) s.Cart.Add(partId);
+            return Ok;
+        }
+
+        static string PlaceOrder(SessionState s, GameData data, int player)
+        {
+            if (s.Phase != SessionPhase.Design && s.Phase != SessionPhase.Briefing) return "err.phase";
+            if (s.DesignLocked(data)) return "err.locked";
+            if (s.Cart.Count == 0) return "err.cart_empty";
+            if (OrdersLeft(s, data) <= 0) return "err.no_orders";
+            bool rebuild = RebuildPending(s);
+            s.Orders.Add(new OrderRecord
+            {
+                N = s.Orders.Count + 1,
+                By = player,
+                Parts = new List<string>(s.Cart),
+                PriceFactor = NextPriceFactor(s, data),
+                Rebuild = rebuild,
+            });
+            foreach (var id in s.Cart) if (!s.Owned.Contains(id)) s.Owned.Add(id);
+            s.Cart.Clear();
+            return Ok;
         }
 
         public static ScenarioDef Scenario(this SessionState s, GameData data) => data.Scenario(s.ScenarioId);
@@ -71,11 +143,11 @@ namespace GoNoGo.Core
         public static bool DesignLocked(this SessionState s, GameData data) =>
             s.Scenario(data)?.Historical != null && s.Launches.Count == 0;
 
-        /// <summary>這個難度架上有的零件（加上目前船上裝的，拆下來才有地方放）。</summary>
+        /// <summary>這一局的型錄：這個難度可以採購的零件，加上手上有的。零件架上只放得到 Owned 的。</summary>
         public static List<PartDef> ShelfParts(GameData data, SessionState s)
         {
             var shelf = new HashSet<string>(data.ShelfFor(s.Scenario(data), s.Difficulty(data)).Select(p => p.Id));
-            var onShip = new HashSet<string>(s.Bench.AllPartIds());
+            var onShip = new HashSet<string>(s.Bench.AllPartIds().Concat(s.Owned));
             return data.Parts.Where(p => p.Category != PartCategory.GroundStation && (shelf.Contains(p.Id) || onShip.Contains(p.Id))).ToList();
         }
 
@@ -102,7 +174,16 @@ namespace GoNoGo.Core
         public static string Apply(SessionState s, GameData data, Command c)
         {
             string r = ApplyInner(s, data, c);
-            if (r == Ok) s.Revision++;
+            if (r == Ok)
+            {
+                // 儀表板在組裝區的大螢幕上，直接看整合台：中控室那份設計（Reported）永遠跟著整合台
+                if (s.Phase == SessionPhase.Design || s.Phase == SessionPhase.Briefing || s.Phase == SessionPhase.Lobby)
+                {
+                    RefreshProcurement(s, data);
+                    s.Reported = s.Bench.Clone();
+                }
+                s.Revision++;
+            }
             return r;
         }
 
@@ -113,7 +194,8 @@ namespace GoNoGo.Core
 
         /// <summary>組裝區的操作（嚴格分工時只有組裝區的人能做）。</summary>
         public static bool IsAssemblyCommand(CommandType t) =>
-            t == CommandType.Pick || t == CommandType.Drop || t == CommandType.Install || t == CommandType.Report || t == CommandType.RunTest;
+            t == CommandType.Pick || t == CommandType.Drop || t == CommandType.Install || t == CommandType.Report || t == CommandType.RunTest
+            || t == CommandType.CartAdd || t == CommandType.CartRemove || t == CommandType.PlaceOrder;
 
         /// <summary>中控室的操作（嚴格分工時只有中控室的人能做）。</summary>
         public static bool IsControlCommand(CommandType t) =>
@@ -137,7 +219,7 @@ namespace GoNoGo.Core
 
         /// <summary>點名中不能改設計（要改就喊 NO-GO）。</summary>
         static bool ChangesDesign(CommandType t) =>
-            t == CommandType.Install || t == CommandType.Report || t == CommandType.RunTest
+            t == CommandType.Install || t == CommandType.Report || t == CommandType.RunTest || t == CommandType.PlaceOrder
             || t == CommandType.SetOrbit || t == CommandType.SetLauncher || t == CommandType.SetGroundStation || t == CommandType.SetYears;
 
         static string ApplyInner(SessionState s, GameData data, Command c)
@@ -191,6 +273,9 @@ namespace GoNoGo.Core
                     return Ok;
 
                 case CommandType.Pick: return Pick(s, data, c.Player, c.A);
+                case CommandType.CartAdd: return CartChange(s, data, c.A, true);
+                case CommandType.CartRemove: return CartChange(s, data, c.A, false);
+                case CommandType.PlaceOrder: return PlaceOrder(s, data, c.Player);
                 case CommandType.Drop:
                     if (!s.Held.Remove(c.Player)) return "err.nothing_held";
                     return Ok;
@@ -309,7 +394,7 @@ namespace GoNoGo.Core
                 if (part.Category == PartCategory.Instrument) s.Bench.Instruments.Remove(partId);
                 else s.Bench.Parts.Remove(part.Category);
             }
-            else if (!ShelfParts(data, s).Any(p => p.Id == partId)) return "err.not_allowed";
+            else if (!s.Owned.Contains(partId)) return "err.not_owned";
             s.Held[player] = partId;
             return Ok;
         }

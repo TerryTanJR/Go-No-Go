@@ -336,6 +336,79 @@ namespace GoNoGo.UI
                 Ui.Text(Loc.T("ui.manual.check_on"), "small", "faint").AddTo(check);
                 Ui.Text(Loc.T(dash), "man-chip").AddTo(check);
             }
+            QuickTables(parent);
+        }
+
+        // ---------------------------------------------------------------- 快查表
+
+        /// <summary>
+        /// 中控室試算用的快查表。儀表板（組裝區）只看得到船上現在的數字，換零件之前要靠這些表推算。
+        /// 每張表只有一個變數；組合起來（例如這條軌道 × 這個負載要多大電池）留給玩家。
+        /// </summary>
+        static void QuickTables(VisualElement parent)
+        {
+            var m = GameSession.Mission;
+            var data = GameSession.Data;
+            var k = data.Constants;
+            var orbits = data.OrbitsFor(m.Scenario).ToList();
+            if (orbits.Count == 0) return;
+            Ui.Text(Loc.T("ui.manual.quick"), "eyebrow", "man-sec").AddTo(parent);
+            Ui.Text(Loc.T("ui.manual.quick_hint"), "small", "dim").AddTo(parent);
+
+            double Period(OrbitDef o) => OrbitMath.PeriodMinutes(o.AltitudeKm, o.Body == "moon" ? k.MoonRadiusKm : k.EarthRadiusKm, o.Body == "moon" ? k.MoonMuKm3S2 : k.EarthMuKm3S2);
+            double Eclipse(OrbitDef o) => Period(o) * OrbitMath.EclipseFraction(o.AltitudeKm, o.Body == "moon" ? k.MoonRadiusKm : k.EarthRadiusKm, o.BetaDeg);
+
+            // 1. 軌道：每圈多久、地影多長、每座地面站每天過站幾次
+            var t1 = Table(parent, "ui.manual.q.orbits", new[] { "ui.manual.q.period", "ui.manual.q.eclipse", "ui.manual.q.passes" });
+            foreach (var o in orbits)
+                TableRow(t1, Loc.T(o.Name), Fmt.N(Period(o)) + " min", Fmt.N(Eclipse(o), 1) + " min",
+                    o.ContactFraction > 0 ? Fmt.Pct(o.ContactFraction) : Fmt.N(o.PassesPerDayPerStation));
+
+            // 2. 電池：地影中每 10 W 的負載，撐過一次要多少、在安全放電深度下要多少
+            var t2 = Table(parent, "ui.manual.q.battery", new[] { "ui.manual.q.survive", "ui.manual.q.safe" });
+            foreach (var o in orbits)
+            {
+                double wh = 10 * Eclipse(o) / 60 / k.BatteryEfficiency;
+                TableRow(t2, Loc.T(o.Name), Fmt.N(wh, 1) + " Wh", Fmt.N(wh / o.BatteryDod, 1) + " Wh (" + Fmt.Pct(o.BatteryDod) + ")");
+            }
+
+            // 3. 天線：每次過站能傳多少資料（依軌道的過站時間）
+            var antennas = SessionRules.ShelfParts(data, m.S).Where(p => p.Category == PartCategory.Antenna).OrderBy(p => p.Tier).ToList();
+            var passOrbits = orbits.Where(o => o.ContactFraction <= 0).ToList();
+            if (antennas.Count > 0 && passOrbits.Count > 0)
+            {
+                var t3 = Table(parent, "ui.manual.q.downlink", passOrbits.Select(o => Loc.T(o.Name)).ToArray(), raw: true);
+                foreach (var a in antennas)
+                    TableRow(t3, a.Code + " " + Loc.T(a.Name), passOrbits.Select(o =>
+                        Fmt.N(a.DownlinkMbps * o.DownlinkRateFactor * o.PassMinutes * 60 / 8 / 1000 * k.LinkEfficiency, 1)).ToArray());
+            }
+
+            // 4. 野火關卡：地面站數量 → 平均等過站的時間
+            if (m.Scenario != null && m.Scenario.LatencyLimitMin > 0 && passOrbits.Count > 0)
+            {
+                var gs = data.PartsIn(PartCategory.GroundStation).ToList();
+                var t4 = Table(parent, "ui.manual.q.wait", passOrbits.Select(o => Loc.T(o.Name)).ToArray(), raw: true);
+                foreach (var g in gs)
+                    TableRow(t4, Loc.T("ui.manual.q.stations", ("n", g.Stations)),
+                        passOrbits.Select(o => Fmt.N(1440.0 / (g.Stations * o.PassesPerDayPerStation) / 2)).ToArray());
+            }
+        }
+
+        static VisualElement Table(VisualElement parent, string titleKey, string[] cols, bool raw = false)
+        {
+            var box = Ui.El("man-qt").AddTo(parent);
+            Ui.Text(Loc.T(titleKey), "h3").AddTo(box);
+            var head = Ui.Row("man-mx-row", "man-mx-row--head").AddTo(box);
+            Ui.Text("", "man-mx-event").AddTo(head);
+            foreach (var c in cols) Ui.Text(raw ? c : Loc.T(c), "man-mx-cell").AddTo(head);
+            return box;
+        }
+
+        static void TableRow(VisualElement table, string name, params string[] cells)
+        {
+            var row = Ui.Row("man-mx-row").AddTo(table);
+            Ui.Text(name, "man-mx-event").AddTo(row);
+            foreach (var c in cells) Ui.Text(c, "man-mx-cell", "mono").AddTo(row);
         }
 
         // ---------------------------------------------------------------- 異常判讀

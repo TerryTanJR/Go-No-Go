@@ -175,11 +175,14 @@ namespace GoNoGo.Core
             // 沒有問題時，說明成功的原因
             if (!chains.Any(c => c.Impact >= 5))
             {
+                bool fire = scenario != null && scenario.FireAlert;
+                // 野火關卡的主角是火點儀（看偵測率），其他關卡看科學值
                 var best = d.Instruments.Select(data.Part).Where(p => p != null)
-                    .OrderByDescending(p => p.ScienceValue).FirstOrDefault();
+                    .OrderByDescending(p => fire ? p.FireDetection : p.ScienceValue).FirstOrDefault();
                 var good = Chain("success", 0,
                     new CauseStep("cause.success_instrument", ("part", Part(best?.Id ?? ""))),
-                    new CauseStep("cause.success_return", ("pct", Pct(r.ReturnFraction))),
+                    fire ? new CauseStep("cause.success_latency", ("min", N(ev.Fire.LatencyMin)), ("limit", N(scenario.LatencyLimitMin)))
+                         : new CauseStep("cause.success_return", ("pct", Pct(r.ReturnFraction))),
                     new CauseStep("cause.success_science", ("score", N(r.Score?.Science ?? 0))));
                 good.Positive = true;
                 chains.Insert(0, good);
@@ -229,7 +232,9 @@ namespace GoNoGo.Core
             }
         }
 
-        public static string Suggest(List<CausalChain> chains, Evaluation ev)
+        public static string Suggest(List<CausalChain> chains, Evaluation ev) => Suggest(chains, ev, false);
+
+        public static string Suggest(List<CausalChain> chains, Evaluation ev, bool fire)
         {
             var top = chains.FirstOrDefault(c => !c.Positive && c.Impact >= 2);
             if (top != null)
@@ -259,6 +264,8 @@ namespace GoNoGo.Core
                     case "false_fire": return "suggest.false_fire";
                 }
             }
+            // 野火關卡沒出問題時：提示另一種正解的取捨（不叫人換軌道，下午軌道本來就是對的）
+            if (fire) return "suggest.fire_tradeoff";
             return ev[ResourceId.Budget].Margin > 0.25 ? "suggest.more_science" : "suggest.try_orbit";
         }
 

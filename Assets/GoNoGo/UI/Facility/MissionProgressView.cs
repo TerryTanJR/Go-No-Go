@@ -40,7 +40,7 @@ namespace GoNoGo.UI
             var steps = new List<(string key, bool done, string sub)>
             {
                 ("calls", asked >= depts, Loc.T("ui.prog.calls_n", ("n", asked), ("total", depts))),
-                ("report", s.Reports > 0, s.Reports > 0 ? Loc.T("ui.dash.report_n", ("n", s.Reports)) : Loc.T("ui.prog.not_yet")),
+                ("procure", s.Orders.Count > 0, Loc.T("ui.proc.left", ("n", SessionRules.OrdersLeft(s, data)))),
                 ("test", tested, t == null ? Loc.T("ui.prog.not_yet") : tested ? Loc.T("ui.prog.test_ok", ("n", t.N)) : Loc.T("ui.prog.retest")),
                 ("launch", orbit, s.Launches.Count == 0 ? Loc.T("ui.prog.not_yet")
                     : orbit ? Loc.T("ui.prog.in_orbit") : Loc.T("ui.prog.failed_n", ("n", s.FailedLaunches))),
@@ -54,7 +54,7 @@ namespace GoNoGo.UI
             if (s.Phase == SessionPhase.Launch) current = 3;
             else if (s.Phase == SessionPhase.Ops) current = 4;
             else if (s.Phase == SessionPhase.Report) current = 5;
-            else if (s.Reports == 0 && asked == 0) current = 0;
+            else if (s.Orders.Count == 0 && asked == 0) current = 0;
             else
             {
                 current = 3;
@@ -110,10 +110,12 @@ namespace GoNoGo.UI
                 return;
             }
 
+            // 船上的實際數字在組裝區的大螢幕：中控室只看得到目標（學員難度例外，直接顯示現在做到多少）
             var list = Ui.El("prog-goals").AddTo(parent);
             foreach (var (dept, req) in heard)
             {
                 var g = Measure(req, m, data, diff);
+                if (!verdict) { g.Now = ""; g.Target = Target(req, data, diff); }
                 bool ok = Requirements.IsMetPreLaunch(req, m.Dashboard, m.S.Reported, data, diff);
                 string state = verdict ? (ok ? "go" : "over") : "neutral";
 
@@ -125,13 +127,15 @@ namespace GoNoGo.UI
                 Ui.Text(Loc.T("ui.prog.type." + req.Type), "prog-goal-name").AddTo(top);
                 if (!compact) Ui.Text(Fmt.Dept(dept), "small", "faint", "prog-goal-dept").AddTo(top);
                 Ui.Spacer().AddTo(top);
-                Ui.Text(g.Now, "prog-goal-now", "mono").AddTo(top);
-                Ui.Text(" / " + g.Target, "prog-goal-target", "mono").AddTo(top);
-                if (verdict) Ui.Text(ok ? "✔" : "✘", "prog-goal-mark", ok ? "go" : "over").AddTo(top);
-
-                var track = Ui.El("prog-track").AddTo(row);
-                var fill = Ui.El("prog-fill", "prog-fill--" + state).AddTo(track);
-                fill.style.width = Length.Percent((float)(Math.Clamp(g.Fraction, 0, 1) * 100));
+                if (verdict) Ui.Text(g.Now, "prog-goal-now", "mono").AddTo(top);
+                Ui.Text((verdict ? " / " : "") + g.Target, "prog-goal-target", "mono").AddTo(top);
+                if (verdict)
+                {
+                    Ui.Text(ok ? "✔" : "✘", "prog-goal-mark", ok ? "go" : "over").AddTo(top);
+                    var track = Ui.El("prog-track").AddTo(row);
+                    var fill = Ui.El("prog-fill", "prog-fill--" + state).AddTo(track);
+                    fill.style.width = Length.Percent((float)(Math.Clamp(g.Fraction, 0, 1) * 100));
+                }
                 if (!compact) Ui.Text(Loc.T(req.Text), "small", "dim", "prog-goal-text").AddTo(row);
             }
         }
@@ -141,6 +145,22 @@ namespace GoNoGo.UI
             public string Now, Target;
             public double Fraction;
         }
+
+        /// <summary>只有目標（不看船）：給工程師、任務主管難度的中控室。</summary>
+        static string Target(RequirementDef req, GameData data, DifficultyDef diff) => req.Type switch
+        {
+            "budget_reserve" => req.Value > 0 ? "≥ " + Fmt.Pct(req.Value) : Loc.T("ui.prog.within_budget"),
+            "lifetime_target" => Fmt.Years(GameSession.Mission.Scenario?.TargetYears ?? 0),
+            "mass_power_margin" => "≥ " + Fmt.Pct(req.Value > 0 ? req.Value : diff.RequiredMargin),
+            "science_threshold" => "≥ " + Fmt.N(req.Value),
+            "instrument_required" => data.Part(req.PartId)?.Code ?? req.PartId,
+            "instrument_any" => string.Join(" / ", req.PartIds.Select(id => data.Part(id)?.Code ?? id)),
+            "orbit_required" => Loc.Orbit(req.OrbitId),
+            "battery_eclipse" => "≤ 100%",
+            "latency" => "≤ " + Fmt.N(req.Value) + " min",
+            "data_return" => "≥ " + Fmt.Pct(req.Value),
+            _ => "—",
+        };
 
         /// <summary>需求目前的數值和目標（和 Requirements.IsMetPreLaunch 用同一套算法）。</summary>
         static Gauge Measure(RequirementDef req, MissionSession m, GameData data, DifficultyDef diff)

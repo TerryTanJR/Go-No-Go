@@ -27,7 +27,7 @@ def main():
     families = {
         "ui.cat.": ["instrument", "solar", "battery", "antenna", "groundstation", "computer", "adcs",
                     "propulsion", "shielding", "orbit", "launcher", "years"],
-        "ui.contrib.": ["bus", "structure", "propellant", "operations", "integration"],
+        "ui.contrib.": ["bus", "structure", "propellant", "operations", "integration", "procurement"],
         "ui.difficulty.": [d["id"] for d in diffs],
         "ui.objective.": sorted({s["objective"] for s in scen}),
         "ui.ops.end.": ["missioncomplete", "propellant", "battery", "radiation", "launchfailure"],
@@ -40,7 +40,7 @@ def main():
         "ui.phone.notes_": sorted({d.get("notes_mode", "transcript") for d in diffs}),
         "ui.area.": ["assembly", "control", "lobby"],
         "ui.hud.controls": ["", "_solo"],
-        "ui.tut.": [k + t for k in ["move", "view", "pick", "install", "report", "dashboard", "call", "launch", "console", "judge"] for t in ["", ".t"]],
+        "ui.tut.": [k + t for k in ["move", "view", "procure", "pick", "install", "dashboard", "call", "launch", "console", "judge"] for t in ["", ".t"]],
         "event.title.": ["solar_storm", "part_failure", "science_opportunity", "power_anomaly", "big_fire", "false_fire"],
         "event.diag.": ["solar_storm", "part_failure", "science_opportunity", "power_anomaly", "big_fire", "false_fire"],
         "ops.console.": ["payload", "power", "attitude", "comms"],

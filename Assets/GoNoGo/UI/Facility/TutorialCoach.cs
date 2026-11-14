@@ -18,17 +18,17 @@ namespace GoNoGo.UI
             public SessionPhase Phase;
         }
 
-        // 順序照遊戲的核心：先問需求（電話、筆記板），再到組裝區設計、回報、測試，
-        // 回中控室看儀表板的目標進度、到後排查手冊，最後發射。玩家一開始就站在中控室。
+        // 順序照遊戲的核心：先問需求（電話、筆記板），再到組裝區採購、安裝、測試、看大螢幕，
+        // 回中控室到後排查型錄（價格與規格），最後發射。玩家一開始就站在中控室。
         static readonly Step[] Steps =
         {
             new Step { Key = "move", Phase = SessionPhase.Design, Done = s => s == "move" },
             new Step { Key = "view", Phase = SessionPhase.Design, Done = s => s == "view" },
             new Step { Key = "call", Phase = SessionPhase.Design, Done = s => s.StartsWith("call:") },
             new Step { Key = "notes", Phase = SessionPhase.Design, Done = s => s == "open:notes" },
+            new Step { Key = "procure", Phase = SessionPhase.Design, Done = s => s == "order" },
             new Step { Key = "pick", Phase = SessionPhase.Design, Done = s => s.StartsWith("pick:") },
             new Step { Key = "install", Phase = SessionPhase.Design, Done = s => s == "install" },
-            new Step { Key = "report", Phase = SessionPhase.Design, Done = s => s == "report" },
             new Step { Key = "test", Phase = SessionPhase.Design, Done = s => s == "test" },
             new Step { Key = "dashboard", Phase = SessionPhase.Design, Done = s => s == "open:dashboard" || s == "open:tablet" },
             // 後排北座的手冊 2・電力（組裝區的完整手冊也算，裡面一樣翻得到第 2 章）

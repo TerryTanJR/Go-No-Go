@@ -71,6 +71,8 @@ namespace GoNoGo.Core
         /// <summary>一句白話功能，組裝區看零件時顯示（不含任何數值）。</summary>
         public LocalizedText Function { get; set; } = new LocalizedText();
         public LocalizedText Description { get; set; } = new LocalizedText();
+        /// <summary>採購終端的科普說明：這東西怎麼運作、真實任務怎麼用它。不含數字（數字在中控室的型錄）。</summary>
+        public LocalizedText Explainer { get; set; } = new LocalizedText();
 
         // 共通
         public double MassKg { get; set; }
@@ -322,6 +324,10 @@ namespace GoNoGo.Core
         public bool GuaranteedLaunch { get; set; }
         /// <summary>開局時換掉情境預設設計的零件（類別 → 零件 id）。歷史關卡不套用（當年的設計不能改）。</summary>
         public Dictionary<string, string> StartParts { get; set; } = new Dictionary<string, string>();
+        /// <summary>採購次數（組裝區下單）。個人模式多 1 次；每次發射失敗另給 1 次重建採購。</summary>
+        public int Orders { get; set; } = 2;
+        /// <summary>第 2 次以後的採購（補單）加收的急件費比例。</summary>
+        public double RushFee { get; set; } = 0.3;
     }
 
     /// <summary>NASA DONKI 的歷史太空天氣事件（賽前抓的快照）。</summary>
@@ -415,6 +421,8 @@ namespace GoNoGo.Core
         /// <summary>過境分布不均：最長空檔 = 平均空檔 × 這個倍數。</summary>
         public double ContactGapFactor { get; set; } = 2.0;
         public double StorageSafetyFactor { get; set; } = 1.5;
+        /// <summary>每次補單（第 2 次以後的採購）讓時程延後的月數。</summary>
+        public double RushOrderMonths { get; set; } = 3;
         /// <summary>火點資料落地後，地面處理、確認、通知消防單位的時間（分鐘）。</summary>
         public double GroundProcessingMin { get; set; } = 5;
         /// <summary>軌道上的科學分數換算：每年每點科學值。</summary>

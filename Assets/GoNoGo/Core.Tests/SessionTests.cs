@@ -19,6 +19,13 @@ namespace GoNoGo.Core.Tests
         }
 
         void Ok(SessionState s, Command c) => Assert.That(SessionRules.Apply(s, _data, c), Is.EqualTo(SessionRules.Ok), c.Type + " " + c.A);
+
+        /// <summary>組裝區下一張訂單（零件要先買才放得上架）。</summary>
+        void Buy(SessionState s, params string[] parts)
+        {
+            foreach (var p in parts) Ok(s, Command.Of(CommandType.CartAdd, 1, p));
+            Ok(s, Command.Of(CommandType.PlaceOrder, 1));
+        }
         string Try(SessionState s, CommandType t, int player, string a = "", int n = 0) => SessionRules.Apply(s, _data, Command.Of(t, player, a, n));
 
         /// <summary>做完環境測試再發射（發射前一定要測過目前的設計）。</summary>
@@ -51,6 +58,7 @@ namespace GoNoGo.Core.Tests
             Ok(s, Command.Of(CommandType.SetYears, 1, "", 5));
             Ok(s, Command.Of(CommandType.SetGroundStation, 1, "gs_6"));
             Assert.That(EnvTests.IsCurrent(s), Is.True);
+            Buy(s, "batt_large");
             Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
             Ok(s, Command.Of(CommandType.Install, 1));
             Assert.That(Try(s, CommandType.Launch, 1), Is.EqualTo("err.retest"));
@@ -174,15 +182,15 @@ namespace GoNoGo.Core.Tests
         {
             var s = Solo();
             Assert.That(s.Bench.Get(PartCategory.Battery), Is.EqualTo("batt_small"));
+            Assert.That(Try(s, CommandType.Pick, 1, "batt_large"), Is.EqualTo("err.not_owned"), "沒買的零件不在架上");
+            Buy(s, "batt_large");
             Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
             Assert.That(SessionRules.Apply(s, _data, Command.Of(CommandType.Pick, 1, "batt_small")), Is.EqualTo("err.hands_full"));
             Assert.That(SessionRules.WouldReplace(s, _data, "batt_large"), Is.EqualTo("batt_small"));
             Ok(s, Command.Of(CommandType.Install, 1));
             Assert.That(s.Bench.Get(PartCategory.Battery), Is.EqualTo("batt_large"));
             Assert.That(s.HeldBy(1), Is.Null);
-            // 還沒回報，中控室看到的是舊的
-            Assert.That(s.Reported.Get(PartCategory.Battery), Is.EqualTo("batt_small"));
-            Ok(s, Command.Of(CommandType.Report, 1));
+            // 大螢幕在組裝區，直接看整合台
             Assert.That(s.Reported.Get(PartCategory.Battery), Is.EqualTo("batt_large"));
 
             // 從船上拆下儀器，再裝回去
@@ -198,7 +206,9 @@ namespace GoNoGo.Core.Tests
         {
             var s = Solo();
             int max = _data.Scenario("earth_observation").MaxInstruments;
-            foreach (var p in SessionRules.ShelfParts(_data, s).Where(p => p.Category == PartCategory.Instrument && !s.Bench.Instruments.Contains(p.Id)))
+            var more = SessionRules.ShelfParts(_data, s).Where(p => p.Category == PartCategory.Instrument && !s.Bench.Instruments.Contains(p.Id)).ToList();
+            Buy(s, more.Select(p => p.Id).ToArray());
+            foreach (var p in more)
             {
                 Ok(s, Command.Of(CommandType.Pick, 1, p.Id));
                 var r = SessionRules.Apply(s, _data, Command.Of(CommandType.Install, 1));
@@ -221,6 +231,7 @@ namespace GoNoGo.Core.Tests
             Assert.That(s.Player(2).Station, Is.EqualTo(Station.Control));
             Ok(s, Command.Of(CommandType.StartMission, 1));
             Ok(s, Command.Of(CommandType.BeginDesign, 1));
+            Buy(s, "ant_xband_hr");
             Ok(s, Command.Of(CommandType.Pick, 1, "ant_xband_hr"));
             Assert.That(SessionRules.Apply(s, _data, Command.Of(CommandType.Pick, 2, "ant_xband_hr")), Is.EqualTo("err.taken"));
             Ok(s, Command.Of(CommandType.Leave, 1));
@@ -245,12 +256,12 @@ namespace GoNoGo.Core.Tests
         public void TheBenchDesignIsWhatFlies()
         {
             var s = Solo();
-            // 沒回報：中控室看到的是小電池，實際裝的是大電池
+            Buy(s, "batt_large");
             Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
             Ok(s, Command.Of(CommandType.Install, 1));
             Fly(s);
             Assert.That(s.LastLaunch.Design.Get(PartCategory.Battery), Is.EqualTo("batt_large"));
-            Assert.That(s.Reported.Get(PartCategory.Battery), Is.EqualTo("batt_small"));
+            Assert.That(s.LastLaunch.Design.ProcurementMusd, Is.EqualTo(0).Within(1e-9), "第一張訂單原價，買的都裝上了：沒有額外開銷");
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch));
         }
 
@@ -268,6 +279,9 @@ namespace GoNoGo.Core.Tests
 
             // 換一個一定能入軌的設計
             var good = TestData.Balanced();
+            Assert.That(SessionRules.RebuildPending(s), "發射失敗給一次重建採購");
+            Buy(s, new[] { PartCategory.Propulsion, PartCategory.Shielding, PartCategory.Solar, PartCategory.Battery, PartCategory.Adcs, PartCategory.Computer, PartCategory.Antenna }
+                .Select(good.Get).Where(id => !s.Owned.Contains(id)).Distinct().ToArray());
             foreach (var cat in new[] { PartCategory.Propulsion, PartCategory.Shielding, PartCategory.Solar, PartCategory.Battery, PartCategory.Adcs, PartCategory.Computer, PartCategory.Antenna })
             {
                 if (s.Bench.Get(cat) == good.Get(cat)) continue;
@@ -354,11 +368,80 @@ namespace GoNoGo.Core.Tests
         public void SnapshotRoundTripsExactly()
         {
             var s = Solo();
+            Buy(s, "batt_large");
+            Ok(s, Command.Of(CommandType.CartAdd, 1, "ant_xband_hr"));
             Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
             Ok(s, Command.Of(CommandType.Call, 1, "engineering", 1));
             var copy = SessionState.FromJson(s.ToJson());
             Assert.That(copy.ToJson(), Is.EqualTo(s.ToJson()));
             Assert.That(copy.HeldBy(1), Is.EqualTo("batt_large"));
+            Assert.That(copy.Cart, Is.EqualTo(new[] { "ant_xband_hr" }));
+            Assert.That(copy.Orders.Single().Parts, Is.EqualTo(new[] { "batt_large" }));
+        }
+
+        // ---------------------------------------------------------------- 採購
+
+        [Test]
+        public void OrdersAreLimitedByDifficultyAndModePlusRebuilds()
+        {
+            Assert.That(SessionRules.OrdersLeft(Solo("earth_observation", "cadet"), _data), Is.EqualTo(4), "學員 3 + 個人模式 1");
+            Assert.That(SessionRules.OrdersLeft(Solo("earth_observation", "engineer"), _data), Is.EqualTo(3));
+            Assert.That(SessionRules.OrdersLeft(Solo("earth_observation", "director"), _data), Is.EqualTo(2));
+            Assert.That(SessionRules.OrdersLeft(Duo(false), _data), Is.EqualTo(2), "多人沒有額外的一次");
+
+            var s = Solo("earth_observation", "director");
+            Assert.That(Try(s, CommandType.PlaceOrder, 1), Is.EqualTo("err.cart_empty"));
+            Assert.That(Try(s, CommandType.CartAdd, 1, "batt_small"), Is.EqualTo("err.owned"), "開局設計上的零件已經有了");
+            Buy(s, "batt_large");
+            Buy(s, "batt_medium");
+            Ok(s, Command.Of(CommandType.CartAdd, 1, "ant_xband_hr"));
+            Assert.That(Try(s, CommandType.PlaceOrder, 1), Is.EqualTo("err.no_orders"));
+
+            // 發射失敗：多一次重建採購（不加急件費）
+            Ok(s, Command.Of(CommandType.SetOrbit, 1, "geo"));
+            Fly(s);
+            Assume.That(s.LastLaunch.Reached, Is.False);
+            Ok(s, Command.Of(CommandType.FinishLaunch, 1));
+            Assert.That(SessionRules.OrdersLeft(s, _data), Is.EqualTo(1));
+            Assert.That(SessionRules.NextPriceFactor(s, _data), Is.EqualTo(1.0));
+            Ok(s, Command.Of(CommandType.PlaceOrder, 1));
+            Assert.That(s.Orders.Last().Rebuild);
+        }
+
+        [Test]
+        public void UnusedPartsAndRushOrdersCostMoneyAndTime()
+        {
+            var s = Solo("earth_observation", "engineer");
+            var before = Evaluator.EvaluateDesign(s.Bench, _data);
+            // 第 1 張：買了大電池但沒裝 → 全額浪費
+            Buy(s, "batt_large");
+            var p = _data.Part("batt_large").CostMusd;
+            Assert.That(s.Bench.ProcurementMusd, Is.EqualTo(p).Within(1e-9));
+            Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
+            Ok(s, Command.Of(CommandType.Install, 1));
+            Assert.That(s.Bench.ProcurementMusd, Is.EqualTo(0).Within(1e-9), "裝上去就只算在設計裡");
+
+            // 第 2 張是補單：加急件費、時程延後
+            Buy(s, "ant_xband_hr");
+            Ok(s, Command.Of(CommandType.Pick, 1, "ant_xband_hr"));
+            Ok(s, Command.Of(CommandType.Install, 1));
+            double rush = _data.Difficulty("engineer").RushFee;
+            Assert.That(s.Bench.ProcurementMusd, Is.EqualTo(_data.Part("ant_xband_hr").CostMusd * rush).Within(1e-9));
+            Assert.That(s.Bench.ProcurementMonths, Is.EqualTo(_data.Constants.RushOrderMonths));
+            var after = Evaluator.EvaluateDesign(s.Reported, _data);
+            Assert.That(after.ScheduleMonths, Is.GreaterThan(before.ScheduleMonths));
+            Assert.That(after[ResourceId.Budget].Contributions.Select(c => c.Key), Has.Member("procurement"));
+        }
+
+        [Test]
+        public void ProcurementBelongsToTheAssemblyBay()
+        {
+            var s = Duo(true);
+            Assert.That(Try(s, CommandType.CartAdd, 2, "batt_large"), Is.EqualTo("err.strict_assembly"));
+            Ok(s, Command.Of(CommandType.CartAdd, 1, "batt_large"));
+            Assert.That(Try(s, CommandType.PlaceOrder, 2), Is.EqualTo("err.strict_assembly"));
+            Ok(s, Command.Of(CommandType.PlaceOrder, 1));
+            Assert.That(s.Owned, Has.Member("batt_large"));
         }
 
         [Test]

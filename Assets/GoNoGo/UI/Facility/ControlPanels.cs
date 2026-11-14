@@ -18,7 +18,10 @@ namespace GoNoGo.UI
         protected override void Build(VisualElement body) => DashboardView.Build(Scroll(body), false);
     }
 
-    /// <summary>儀表板內容（面板、平板、牆上螢幕共用）。只顯示數值；學員難度加上紅黃綠。</summary>
+    /// <summary>
+    /// 組裝區的大螢幕：整合台上這艘船「現在」的物理數字（質量、電力、資料、地影、壽命…）。
+    /// 不顯示目標、錢和時程（那些在中控室的任務目標與預算），也不能試算別的零件。學員難度加上紅黃綠。
+    /// </summary>
     public static class DashboardView
     {
         public static void Build(VisualElement body, bool compact)
@@ -29,25 +32,15 @@ namespace GoNoGo.UI
             var d = m.S.Reported;
             var data = GameSession.Data;
 
-            // 任務進度：現在在哪一步、問到的需求各自做到多少。
-            // 影像牆上（compact）放不下上下兩段，改成左右兩欄：左邊進度、右邊設計數據。
-
-            if (compact)
-            {
-                var cols = Ui.Row("dash-wall").AddTo(body);
-                MissionProgressView.Build(Ui.El("dash-wall-left").AddTo(cols), true);
-                body = Ui.El("dash-wall-right").AddTo(cols);
-            }
-            else MissionProgressView.Build(body, false);
-
             var head = Ui.Row("dash-head").AddTo(body);
             Ui.Text(Loc.T("ui.dash.design_data"), "eyebrow", "dash-sec").AddTo(head);
-            Ui.Text(m.S.Reports == 0 ? Loc.T("ui.dash.no_report") : Loc.T("ui.dash.report_n", ("n", m.S.Reports)), "small", "dim").AddTo(head);
+            Ui.Text(Loc.T("ui.proc.left", ("n", SessionRules.OrdersLeft(m.S, data))), "small", "dim").AddTo(head);
             Ui.Spacer().AddTo(head);
             if (!compact) Ui.Text(Loc.Orbit(d.OrbitId) + " · " + Loc.Launcher(d.LauncherId) + " · " + Fmt.Years(d.MissionYears), "small", "dim").AddTo(head);
 
             var grid = Ui.El("dash-grid").AddTo(body);
-            foreach (ResourceId id in new[] { ResourceId.Mass, ResourceId.Power, ResourceId.Budget, ResourceId.Data, ResourceId.Comms, ResourceId.Time })
+            // 預算與時程在中控室（組裝區看不到價格）
+            foreach (ResourceId id in new[] { ResourceId.Mass, ResourceId.Power, ResourceId.Data, ResourceId.Comms })
             {
                 var r = ev[id];
                 Row(grid, Loc.T("res." + id.ToString().ToLowerInvariant()), Fmt.Resource(r), Fmt.Pct(r.Margin), colors ? Status(r.Status) : null);
@@ -67,7 +60,8 @@ namespace GoNoGo.UI
             {
                 var f = ev.Fire;
                 double lim = sc.LatencyLimitMin;
-                Row(grid, Loc.T("ui.dash.latency"), Fmt.N(f.LatencyMin, 1) + " / " + Fmt.N(lim) + " min",
+                // 時限是通訊部的需求，只有中控室知道；這裡只有實際延遲（學員難度的燈號會提示）
+                Row(grid, Loc.T("ui.dash.latency"), Fmt.N(f.LatencyMin, 1) + " min",
                     Loc.T("ui.dash.latency_x", ("wait", Fmt.N(f.WaitMin)), ("down", Fmt.N(f.DownlinkMin, 1)), ("ground", Fmt.N(f.ProcessingMin))),
                     colors ? (f.LatencyMin <= lim ? "go" : f.LatencyMin <= lim * 1.5 ? "tight" : "over") : null);
                 Row(grid, Loc.T("ui.dash.detection"), Fmt.Pct(f.Detection),
@@ -337,7 +331,6 @@ namespace GoNoGo.UI
                     ("vib", TestView.LevelText(t.Worst(EnvTests.Vibration))), ("tv", TestView.LevelText(t.Worst(EnvTests.Thermal)))));
                 if (worst != TestLevel.Pass) Ui.Text(Loc.T("ui.launchp.test_warn"), "small", "tight").AddTo(gate);
             }
-            if (s.Reports == 0) Gate(gate, "tight", Loc.T("ui.launchp.no_report"));
             if (poll) Gate(gate, "dim", Loc.T("ui.launchp.poll_note", ("n", s.Players.Count)));
 
             var why = SessionRules.CanLaunch(s);
@@ -439,15 +432,16 @@ namespace GoNoGo.UI
 
         protected override void Build(VisualElement body)
         {
-            Tabs(body, new[] { "ui.tablet.dashboard", "ui.manual.tab.parts", "ui.manual.tab.rules", "ui.notes.title", "ui.fail.title", "ui.test.short" }, _tab, i => { _tab = i; Refresh(); });
+            Tabs(body, new[] { "ui.tablet.dashboard", "ui.goals.title", "ui.manual.tab.parts", "ui.manual.tab.rules", "ui.notes.title", "ui.fail.title", "ui.test.short" }, _tab, i => { _tab = i; Refresh(); });
             var sv = Scroll(body);
             switch (_tab)
             {
                 case 0: DashboardView.Build(sv, false); break;
-                case 1: ManualView.BuildAllParts(sv); break;
-                case 2: ManualView.Build(sv, "rules"); break;
-                case 3: NotesView.Build(sv, true); break;
-                case 4: FailureBoardView.Build(sv); break;
+                case 1: GoalsView.Build(sv, false); break;
+                case 2: ManualView.BuildAllParts(sv); break;
+                case 3: ManualView.Build(sv, "rules"); break;
+                case 4: NotesView.Build(sv, true); break;
+                case 5: FailureBoardView.Build(sv); break;
                 default: TestView.Build(sv, false); break;
             }
             Ui.Text(Loc.T("ui.tablet.readonly"), "small", "faint").AddTo(body);

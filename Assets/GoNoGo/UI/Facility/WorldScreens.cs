@@ -89,8 +89,14 @@ namespace GoNoGo.UI
                     FailureBoardView.Build(body);
                     break;
                 case "dashboard":
+                    // 組裝區的大螢幕
                     Ui.Text(Loc.T("ui.dash.title"), "eyebrow", "wscreen-title").AddTo(body);
                     DashboardView.Build(body, true);
+                    break;
+                case "goals":
+                    // 中控室影像牆：任務目標與預算
+                    Ui.Text(Loc.T("ui.goals.title"), "eyebrow", "wscreen-title").AddTo(body);
+                    GoalsView.Build(body, true);
                     break;
                 case "notes":
                     NotesView.Build(body, true);

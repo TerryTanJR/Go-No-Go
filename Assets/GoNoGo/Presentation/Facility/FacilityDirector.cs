@@ -59,6 +59,7 @@ namespace GoNoGo.Presentation
             GameSession.EnsureMission();
             var m = GameSession.Mission;
             BuildShelves(m);
+            PartPreviewStage.Create(transform);
             SpawnLocal(m);
             m.Changed += OnChanged;
             m.PhaseChanged += OnPhase;
@@ -162,7 +163,9 @@ namespace GoNoGo.Presentation
             stand.Refresh(m, true);
             var installed = new HashSet<string>(m.S.Bench.AllPartIds());
             var held = new HashSet<string>(m.S.Held.Values);
-            foreach (var kv in _items) kv.Value.SetVisible(!installed.Contains(kv.Key) && !held.Contains(kv.Key));
+            // 架上只有買過（或開局就有）的零件；其他位置空著，等組裝區下單
+            var owned = new HashSet<string>(m.S.Owned);
+            foreach (var kv in _items) kv.Value.SetVisible(owned.Contains(kv.Key) && !installed.Contains(kv.Key) && !held.Contains(kv.Key));
 
             // 本機手上的零件
             var mine = m.S.HeldBy(GameSession.LocalPlayer);
