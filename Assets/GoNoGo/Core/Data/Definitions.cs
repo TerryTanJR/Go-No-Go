@@ -187,7 +187,6 @@ namespace GoNoGo.Core
         /// <summary>軌道 id → 運力（kg）。沒有的軌道代表到不了。</summary>
         public Dictionary<string, double> CapacityKg { get; set; } = new Dictionary<string, double>();
         public double CostMusd { get; set; }
-        public double Reliability { get; set; }
         public double FairingDiameterM { get; set; }
         public double LeadMonths { get; set; }
         /// <summary>歷史火箭只在歷史任務關卡出現。</summary>

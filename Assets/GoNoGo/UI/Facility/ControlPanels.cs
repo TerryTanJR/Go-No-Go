@@ -371,7 +371,7 @@ namespace GoNoGo.UI
                 l.CapacityKg.TryGetValue(d.OrbitId, out var cap);
                 bool rideshareBlocked = SessionRules.OrbitLauncherCheck(D, d.OrbitId, id) != SessionRules.Ok;
                 string sub = (rideshareBlocked ? Loc.T("err.rideshare_orbit") : cap > 0 ? Fmt.N(cap) + " kg → " + Loc.Orbit(d.OrbitId) : Loc.T("ui.mc.cannot_reach"))
-                             + " · " + Fmt.Money(l.CostMusd) + " · " + Fmt.Pct(l.Reliability);
+                             + " · " + Fmt.Money(l.CostMusd);
                 var lb = Choice(lCol, Loc.T(l.Name), sub, id == d.LauncherId, locked, () => GameSession.Send(CommandType.SetLauncher, id));
                 if (rideshareBlocked && id != d.LauncherId) lb.SetEnabled(false);
             }

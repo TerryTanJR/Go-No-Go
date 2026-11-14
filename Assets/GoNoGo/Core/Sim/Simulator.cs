@@ -127,12 +127,10 @@ namespace GoNoGo.Core
 
         public static LaunchResult ResolveLaunch(Design design, GameData data, Evaluation ev, MissionPlan plan)
         {
-            var launcher = data.Launcher(design.LauncherId);
             var scenario = data.Scenario(design.ScenarioId);
             var r = new LaunchResult
             {
                 MassMargin = ev[ResourceId.Mass].Margin,
-                Reliability = launcher?.Reliability ?? 0,
                 Roll = plan.LaunchRoll,
             };
             var hist = scenario?.Historical;
@@ -140,7 +138,8 @@ namespace GoNoGo.Core
             else if (r.MassMargin < 0) { r.Outcome = LaunchOutcome.Failure; r.ReasonCode = "launch.overweight"; }
             else if (hist != null && hist.ScriptedLauncherId == design.LauncherId && hist.ScriptedEvents.Contains("fairing_stuck"))
             { r.Outcome = LaunchOutcome.FairingFailure; r.ReasonCode = "launch.fairing"; }
-            else if (plan.LaunchRoll > r.Reliability) { r.Outcome = LaunchOutcome.Failure; r.ReasonCode = "launch.anomaly"; }
+            // 火箭不會隨機爆炸，也沒有可靠度：火箭不是玩家做的，失敗只來自玩家的設計和選擇。
+            // 發射骰照擲（記在 Roll），亂數順序不變，其他結果才不會跟著變。
             // 電池撐不過一次地影：部署後第一次進地影就斷電（原本由 Go/No-Go 點名擋下，點名拿掉後改成發射後果）
             else if (ev.Power.ActualDod > 1.0) { r.Outcome = LaunchOutcome.DeadOnOrbit; r.ReasonCode = "launch.dead_on_orbit"; }
             else if (r.MassMargin < 0.05 && plan.LaunchRoll2 < 0.5) { r.Outcome = LaunchOutcome.LowerOrbit; r.ReasonCode = "launch.lower_orbit"; }

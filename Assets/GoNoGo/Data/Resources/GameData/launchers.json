@@ -9,7 +9,6 @@
     "tier": 1,
     "capacity_kg": { "leo_400": 300, "sso_700": 150, "llo_100": 25, "sso_dawn_dusk": 150, "sso_1330": 150 },
     "cost_musd": 9.1,
-    "reliability": 0.96,
     "fairing_diameter_m": 1.2,
     "lead_months": 9,
     "flight_record": "95 / 99",
@@ -58,7 +57,6 @@
     "tier": 2,
     "capacity_kg": { "leo_400": 17400, "sso_700": 11000, "geo": 3100, "llo_100": 2500 },
     "cost_musd": 69.85,
-    "reliability": 0.995,
     "fairing_diameter_m": 5.2,
     "lead_months": 18,
     "flight_record": "698 / 701",
@@ -130,7 +128,6 @@
     "tier": 3,
     "capacity_kg": { "leo_400": 30000, "sso_700": 20000, "geo": 4500, "llo_100": 3600 },
     "cost_musd": 97,
-    "reliability": 0.94,
     "fairing_diameter_m": 5.2,
     "lead_months": 30,
     "flight_record": "14 / 14",
@@ -138,7 +135,7 @@
     "source": {
       "title": "Wikipedia: Falcon Heavy (SpaceX list price, 2022); KeepTrack: Falcon Heavy launch history (2018-2026)",
       "url": "https://en.wikipedia.org/wiki/Falcon_Heavy",
-      "note": "All capacities are for the recoverable configuration that the $97M list price buys; the famous 63,800 kg LEO / 26,700 kg GTO figures need all three cores expended. sourced: $97M list price (2022) for payloads up to 8 t to GTO (SpaceX price-list threshold); 14 of 14 successful (ViaSat-3 F3, Roman and NROL-97 flew in 2026; count as of November 2026). derived: reliability 0.94 = (14+1)/(14+2) (Laplace rule: few flights = more uncertainty); GEO 4,500 kg = 8,000 kg GTO x exp(-1.8 km/s / (320 s x g0)). estimate: LEO 30,000 kg and SSO 20,000 kg (SpaceX publishes no recoverable figures), TLI ~4,800 kg (expendable ~16 t scaled by the 8/26.7 GTO ratio) -> lunar orbit 3,600 kg, 30-month lead time"
+      "note": "All capacities are for the recoverable configuration that the $97M list price buys; the famous 63,800 kg LEO / 26,700 kg GTO figures need all three cores expended. sourced: $97M list price (2022) for payloads up to 8 t to GTO (SpaceX price-list threshold); 14 of 14 successful (ViaSat-3 F3, Roman and NROL-97 flew in 2026; count as of November 2026). derived: GEO 4,500 kg = 8,000 kg GTO x exp(-1.8 km/s / (320 s x g0)). estimate: LEO 30,000 kg and SSO 20,000 kg (SpaceX publishes no recoverable figures), TLI ~4,800 kg (expendable ~16 t scaled by the 8/26.7 GTO ratio) -> lunar orbit 3,600 kg, 30-month lead time"
     },
     "flight": {
       "stages": 2,
@@ -194,7 +191,6 @@
     "tier": 2,
     "capacity_kg": { "leo_400": 1350, "sso_700": 800 },
     "cost_musd": 70,
-    "reliability": 0.86,
     "fairing_diameter_m": 1.6,
     "lead_months": 24,
     "historical": true,
@@ -245,7 +241,6 @@
     "tier": 3,
     "capacity_kg": { "leo_400": 2800, "sso_700": 1500 },
     "cost_musd": 137,
-    "reliability": 0.98,
     "fairing_diameter_m": 3.0,
     "lead_months": 24,
     "historical": true,
@@ -292,13 +287,12 @@
     "tier": 1,
     "capacity_kg": { "sso_dawn_dusk": 200 },
     "cost_musd": 1.4,
-    "reliability": 0.995,
     "fairing_diameter_m": 5.2,
     "lead_months": 12,
     "flight_record": "Transporter-1 – 18",
     "model": "rocket_medium",
     "orbit_lock": "sso_dawn_dusk",
-    "source": { "title": "New Space Economy: SpaceX rideshare pricing as of February 2026; NASASpaceFlight.com: Transporter-18 (October 2026)", "url": "https://newspaceeconomy.ca/2026/02/27/spacex-rideshare-pricing-as-of-february-2026-what-it-costs-whats-included-and-how-buyers-budget-a-mission/", "note": "sourced (secondary): Transporter rideshare to SSO, $350,000 for the first 50 kg and $7,000/kg after (2026 list); Transporter-18 flew on 2026-10-01 (https://www.nasaspaceflight.com/2026/10/transporter-18/). derived: a 200 kg slot = $1.4M. estimate: the destination is fixed by the mission (dawn-dusk SSO in this game), Falcon 9 reliability and timeline" },
+    "source": { "title": "New Space Economy: SpaceX rideshare pricing as of February 2026; NASASpaceFlight.com: Transporter-18 (October 2026)", "url": "https://newspaceeconomy.ca/2026/02/27/spacex-rideshare-pricing-as-of-february-2026-what-it-costs-whats-included-and-how-buyers-budget-a-mission/", "note": "sourced (secondary): Transporter rideshare to SSO, $350,000 for the first 50 kg and $7,000/kg after (2026 list); Transporter-18 flew on 2026-10-01 (https://www.nasaspaceflight.com/2026/10/transporter-18/). derived: a 200 kg slot = $1.4M. estimate: the destination is fixed by the mission (dawn-dusk SSO in this game), Falcon 9 timeline" },
     "flight": {
       "stages": 2,
       "ascent": [

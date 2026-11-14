@@ -263,7 +263,6 @@ namespace GoNoGo.Core
             foreach (var l in d.Launchers)
             {
                 string w = $"火箭 {l.Id}";
-                Check(l.Reliability > 0 && l.Reliability <= 1, $"{w}：可靠度必須在 (0,1]");
                 Check(l.CapacityKg.Count > 0, $"{w}：沒有任何軌道運力");
                 foreach (var k in l.CapacityKg.Keys) Check(d.Orbit(k) != null, $"{w}：運力表有未知軌道 {k}");
                 if (!string.IsNullOrEmpty(l.OrbitLock))

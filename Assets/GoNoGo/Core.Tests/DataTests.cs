@@ -140,7 +140,7 @@ namespace GoNoGo.Core.Tests
                 "event.power.handled", "event.power.drained", "event.failure.instrument_contained", "event.failure.computer_contained",
                 "event.failure.adcs_contained", "event.failure.antenna_contained",
                 "opp.wildfire", "opp.volcano", "opp.flood", "opp.hurricane",
-                "suggest.launcher_reach", "suggest.mass", "suggest.launcher", "suggest.history_launcher", "suggest.mass_margin",
+                "suggest.launcher_reach", "suggest.mass", "suggest.history_launcher", "suggest.mass_margin",
                 "suggest.downlink", "suggest.storage", "suggest.power", "suggest.propellant", "suggest.battery", "suggest.shielding",
                 "suggest.storm_procedure", "suggest.battery_eclipse", "suggest.power_procedure", "suggest.redundancy", "suggest.more_science", "suggest.try_orbit",
             });
@@ -189,7 +189,7 @@ namespace GoNoGo.Core.Tests
         /// <summary>Causality.cs 裡寫死的鍵（有些情況測試不一定跑得到）。</summary>
         static readonly string[] CausalKeysInSource =
         {
-            "cause.mission_lost", "cause.launch_unreachable", "cause.mass_total", "cause.launch_overweight", "cause.launch_reliability",
+            "cause.mission_lost", "cause.launch_unreachable", "cause.mass_total", "cause.launch_overweight",
             "cause.launch_anomaly", "cause.fairing", "cause.fairing_mass", "cause.mass_margin", "cause.lower_orbit", "cause.drag_doubled",
             "cause.data_generated", "cause.storage_capacity", "cause.downlink_capacity", "cause.data_lost", "cause.power_load",
             "cause.array_eol", "cause.duty", "cause.ended_early", "cause.orbit_drag", "cause.propellant_out", "cause.eclipses",

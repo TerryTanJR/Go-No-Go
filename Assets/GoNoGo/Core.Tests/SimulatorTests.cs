@@ -134,13 +134,14 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
-        public void LaunchRollAboveReliabilityIsAnAnomaly()
+        public void HighLaunchRollDoesNotBlowUpTheRocket()
         {
+            // 火箭不是玩家做的：發射骰再高也不會爆炸
             var d = TestData.CheapSmallsat();
             int seed = Enumerable.Range(1, 2000).First(s => Simulator.PlanMission(d, _data, s, null).LaunchRoll > 0.96);
             var r = Simulator.SimulateMission(d, _data, seed, null);
-            Assert.That(r.Launch.Outcome, Is.EqualTo(LaunchOutcome.Failure));
-            Assert.That(r.Launch.ReasonCode, Is.EqualTo("launch.anomaly"));
+            Assert.That(r.Launch.ReasonCode, Is.Not.EqualTo("launch.anomaly"));
+            Assert.That(r.Launch.Outcome, Is.Not.EqualTo(LaunchOutcome.Failure));
         }
 
         [Test]

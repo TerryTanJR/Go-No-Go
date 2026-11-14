@@ -13,7 +13,6 @@ namespace GoNoGo.Core
         /// <summary>多語鍵，說明為什麼是這個結果。</summary>
         public string ReasonCode { get; set; } = "";
         public double MassMargin { get; set; }
-        public double Reliability { get; set; }
         public double Roll { get; set; }
         public bool Success => Outcome == LaunchOutcome.Nominal || Outcome == LaunchOutcome.LowerOrbit;
         /// <summary>太空船有被送進軌道並部署（發射演出要播到展開太陽能板）。</summary>
