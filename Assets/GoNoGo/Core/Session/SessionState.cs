@@ -70,7 +70,10 @@ namespace GoNoGo.Core
     /// <summary>多人的採購單：組裝區送審，等中控室批准（下單）或退回。</summary>
     public sealed class OrderRequest
     {
+        /// <summary>批准後會是第幾單（跟採購紀錄的編號一致；退回再送還是同一個號碼）。</summary>
         public int N { get; set; }
+        /// <summary>第幾次送審（每送一次加一），畫面用來分辨是不是新的一張單。</summary>
+        public int Seq { get; set; }
         public int By { get; set; }
         public List<string> Parts { get; set; } = new List<string>();
     }

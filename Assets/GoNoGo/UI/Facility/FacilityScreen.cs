@@ -146,7 +146,7 @@ namespace GoNoGo.UI
                 UIRoot.Toast(Loc.T("ui.restart.toast"));
             }
             var team = s.Player(GameSession.LocalPlayer)?.Station;
-            int rejected = s.Rejected?.N ?? 0;
+            int rejected = s.Rejected?.Seq ?? 0;
             if (s.Multiplayer && _requestsSeen >= 0)
             {
                 if (s.Requests > _requestsSeen && s.Request != null && team == Station.Control)
@@ -157,7 +157,7 @@ namespace GoNoGo.UI
                 if (rejected != 0 && rejected != _rejectedSeen && team == Station.Assembly)
                 {
                     Sfx.NoGo();
-                    UIRoot.Toast(Loc.T("ui.proc.rejected", ("n", rejected)));
+                    UIRoot.Toast(Loc.T("ui.proc.rejected", ("n", s.Rejected.N)));
                 }
                 if (s.Orders.Count > _ordersSeen && s.Orders.Count > 0 && s.Orders[s.Orders.Count - 1].ApprovedBy != 0 && team == Station.Assembly)
                 {

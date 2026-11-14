@@ -510,14 +510,21 @@ namespace GoNoGo.Core.Tests
             Assert.That(s.Request, Is.Null);
             Assert.That(s.Cart.Count, Is.EqualTo(2));
 
-            // 批准才下單
+            // 批准才下單。退回、撤回過幾次，單號都還是「批准後是第幾單」，跟採購紀錄對得上
             Ok(s, Command.Of(CommandType.PlaceOrder, 1));
+            Assert.That(s.Request.N, Is.EqualTo(1));
+            Assert.That(s.Request.Seq, Is.EqualTo(3), "第三次送審");
             Ok(s, Command.Of(CommandType.ApproveOrder, 2));
+            Assert.That(s.Orders.Single().N, Is.EqualTo(1));
             Assert.That(s.Request, Is.Null);
             Assert.That(s.Owned, Is.SupersetOf(new[] { "batt_large", "batt_medium" }));
             Assert.That(s.Orders.Single().By, Is.EqualTo(1));
             Assert.That(s.Orders.Single().ApprovedBy, Is.EqualTo(2));
             Assert.That(Try(s, CommandType.ApproveOrder, 2), Is.EqualTo("err.no_request"));
+
+            Ok(s, Command.Of(CommandType.CartAdd, 1, "ant_sband"));
+            Ok(s, Command.Of(CommandType.PlaceOrder, 1));
+            Assert.That(s.Request.N, Is.EqualTo(2), "下一張是第 2 單");
         }
 
         [Test]

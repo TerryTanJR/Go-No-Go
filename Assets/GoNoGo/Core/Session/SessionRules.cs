@@ -173,7 +173,7 @@ namespace GoNoGo.Core
             if (NeedsApproval(s))
             {
                 if (s.Request != null) return "err.request_pending";
-                s.Request = new OrderRequest { N = ++s.Requests, By = player, Parts = new List<string>(s.Cart) };
+                s.Request = new OrderRequest { N = s.Orders.Count + 1, Seq = ++s.Requests, By = player, Parts = new List<string>(s.Cart) };
                 s.Rejected = null;
                 s.Cart.Clear();
                 return Ok;

@@ -213,14 +213,20 @@ namespace GoNoGo.UI
             var s = m.S;
             bool colors = m.Difficulty.DashboardColors;
 
+            // 多人：組裝區送來的採購單放在最上面，中控室一打開就看得到批准／退回，不用往下捲
             VisualElement right = body;
             if (compact)
             {
                 var cols = Ui.Row("dash-wall").AddTo(body);
                 MissionProgressView.Build(Ui.El("dash-wall-left").AddTo(cols), true);
                 right = Ui.El("dash-wall-right").AddTo(cols);
+                if (s.Request != null) Review(right, s, data, true);
             }
-            else MissionProgressView.Build(body, false);
+            else
+            {
+                if (s.Request != null) Review(body, s, data, false);
+                MissionProgressView.Build(body, false);
+            }
 
             // 錢：開銷對預算。採購機制 v2：開發費 = 基本開發費 + 擁有的所有零件（開局零件和買過的），裝不裝都一樣
             var head = Ui.Row("dash-head").AddTo(right);
@@ -245,9 +251,6 @@ namespace GoNoGo.UI
                 funded >= years ? null : funded <= 0 ? "over" : "tight");
             var t = ev[ResourceId.Time];
             Row(grid, Loc.T("res.time"), Fmt.Resource(t), Fmt.Pct(t.Margin), colors ? Status(t.Status) : null);
-
-            // 多人：組裝區送來的採購單，中控室批准或退回
-            if (s.Request != null) Review(right, s, data, compact);
 
             // 採購紀錄：每一單買了什麼、花多少（價格只在中控室看得到）
             if (s.Orders.Count > 0)

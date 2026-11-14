@@ -170,11 +170,13 @@ namespace GoNoGo.UI
             Ui.Text(Loc.T("ui.launch.result.eyebrow"), "eyebrow").AddTo(card);
             Ui.Text(Loc.T(FailureBoardView.OutcomeKey(l?.Outcome ?? LaunchOutcome.Nominal)), "h2", ok ? "go" : "over").AddTo(card);
             if (l != null) Ui.Text(Loc.T(l.ReasonCode), "body").AddTo(card);
-            if (!ok) Ui.Text(Loc.T("ui.launch.redesign_note"), "small", "dim").AddTo(card);
+            // 採購機制 v2：一般關卡失敗就整個任務重來；歷史關卡保留設計，回去重新設計
+            bool restart = M.S.Scenario(D)?.Historical == null;
+            if (!ok) Ui.Text(Loc.T(restart ? "ui.launch.restart_note" : "ui.launch.redesign_note"), "small", "dim").AddTo(card);
             var row = Ui.Row("outcome-actions").AddTo(card);
             Ui.Spacer().AddTo(row);
             if (GameSession.IsHost)
-                Ui.Btn(Loc.T(ok ? "ui.launch.to_ops" : "ui.launch.to_redesign"), Continue, ok ? "btn-go" : "btn-primary", "btn-big").AddTo(row);
+                Ui.Btn(Loc.T(ok ? "ui.launch.to_ops" : restart ? "ui.launch.to_restart" : "ui.launch.to_redesign"), Continue, ok ? "btn-go" : "btn-primary", "btn-big").AddTo(row);
             else Ui.Text(Loc.T("ui.launch.wait_host"), "small", "dim").AddTo(row);
             if (sound) { if (ok) Sfx.Go(); else Sfx.NoGo(); }
         }
