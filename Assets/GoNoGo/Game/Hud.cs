@@ -44,7 +44,9 @@ namespace GoNoGo.Game
         public static int ClosedFrame = -1;
         /// <summary>遊戲選單（Tab / Esc）開著：角色不能動。多人時遊戲本身不會停。</summary>
         public static bool Paused;
-        public static bool InputBlocked => PanelOpen || Paused || SceneFlow.Loading;
+        /// <summary>進場過場蓋著畫面（UI 層寫入）：場景已經載好也還不能動，等進度條跑完。</summary>
+        public static bool Covered;
+        public static bool InputBlocked => PanelOpen || Paused || Covered || SceneFlow.Loading;
 
         /// <summary>互動物件要求打開某個面板（面板 id、參數）。</summary>
         public static event Action<string, string> PanelRequested;
@@ -66,6 +68,7 @@ namespace GoNoGo.Game
             FirstPerson = false;
             PanelOpen = false;
             Paused = false;
+            Covered = false;
             Area = "";
             PanelRequested = null;
             ToastRequested = null;

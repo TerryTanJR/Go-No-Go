@@ -19,6 +19,8 @@ namespace GoNoGo.Presentation
         public float mouseSensitivity = 0.11f;
         public float thirdPersonDistance = 3.8f;
         public float firstPersonFov = 72f;
+        [Tooltip("第一人稱的眼睛高度（m）。角色是 1.2 m 的 Q 版太空人，但中控台、螢幕是照真人尺寸做的，用成人視線高度才看得到桌面和螢幕。")]
+        public float eyeHeight = 1.55f;
         public Camera cam;
         public AvatarRig rig;
 
@@ -32,6 +34,8 @@ namespace GoNoGo.Presentation
         public float Speed { get; private set; }
         public bool FirstPerson => _firstPerson;
         public float Yaw => _yaw;
+        /// <summary>第一人稱鏡頭的位置。</summary>
+        public Vector3 Eye => transform.position + Vector3.up * eyeHeight;
         /// <summary>鏡頭樞紐（大約在頭的高度）。</summary>
         public Vector3 Pivot => transform.position + Vector3.up * 1.0f;
         /// <summary>鏡頭動作被鎖住（看動畫、過場）。</summary>
@@ -170,7 +174,7 @@ namespace GoNoGo.Presentation
             var rot = Quaternion.Euler(_pitch, _yaw, 0);
             if (_firstPerson)
             {
-                cam.transform.SetPositionAndRotation(transform.position + Vector3.up * 1.0f + (Quaternion.Euler(0, _yaw, 0) * Vector3.forward) * 0.12f, rot);
+                cam.transform.SetPositionAndRotation(Eye + (Quaternion.Euler(0, _yaw, 0) * Vector3.forward) * 0.12f, rot);
                 cam.nearClipPlane = 0.05f;
                 _camDist = 0.3f;
                 return;

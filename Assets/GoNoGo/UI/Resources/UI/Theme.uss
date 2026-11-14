@@ -373,12 +373,12 @@
     bottom: 0;
     align-items: center;
     justify-content: center;
-    background-color: rgba(3, 6, 12, 0.94);
+    background-color: #03060C;
     opacity: 1;
     transition-property: opacity;
     transition-duration: 0.3s;
 }
-.loading--out { opacity: 0; }
+.loading--out { opacity: 0; transition-duration: 0.5s; }
 .loading-col { width: 640px; }
 .loading-title { font-size: var(--fs-26); letter-spacing: 6px; -unity-font-style: bold; color: var(--c-text); margin-bottom: 28px; }
 .loading-track {
@@ -734,20 +734,26 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     top: 26%;
     width: 24%;
     height: 56%;
-    justify-content: flex-end;
-    align-items: center;
 }
-.menu-avatar-hint {
-    padding: 4px 12px;
-    border-radius: 4px;
-    font-size: var(--fs-15);
+.menu-avatar-btn {
+    position: absolute;
+    left: 73%;
+    top: 84%;
+    translate: -50% 0;
+    padding: 12px 32px;
+    border-radius: 24px;
+    font-size: var(--fs-20);
+    letter-spacing: 2px;
     color: var(--c-text);
-    background-color: rgba(4, 8, 16, 0.75);
-    opacity: 0;
-    transition-property: opacity;
-    transition-duration: 0.2s;
+    background-color: rgba(57, 198, 244, 0.18);
+    border-width: 2px;
+    border-color: var(--c-accent);
 }
-.menu-avatar-hit:hover .menu-avatar-hint { opacity: 1; }
+.menu-avatar-btn:hover, .menu-avatar-btn:hover:enabled, .menu-avatar-btn--hot {
+    background-color: rgba(57, 198, 244, 0.85);
+    border-color: #8BE3FF;
+    color: #04121D;
+}
 .code-field { margin: 6px 0 10px 0; }
 .code-field > .unity-text-field__input, .code-field .unity-base-text-field__input {
     background-color: rgba(4, 10, 20, 0.9);

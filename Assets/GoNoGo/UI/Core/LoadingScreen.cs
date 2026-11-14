@@ -7,7 +7,8 @@ namespace GoNoGo.UI
     /// <summary>
     /// 進場過場：一條進度條，小火箭沿著它往右飛。開房、加入房間、開始任務時蓋住整個畫面，期間點不到任何介面。
     /// 連線那段沒有真實進度，用越走越慢的假進度（停在 60% 前）；換場景那段接 <see cref="SceneFlow.Progress"/>。
-    /// 場景載入完就跑到底、淡出。連線失敗時由呼叫端 <see cref="End"/> 收起來。
+    /// 場景載入完後進度條先跑到 100%，停一下再淡出，下一幕才露出來；期間 <see cref="Hud.Covered"/> 擋住角色操作。
+    /// 連線失敗時由呼叫端 <see cref="End"/> 收起來。
     /// </summary>
     public sealed class LoadingScreen
     {
@@ -46,6 +47,7 @@ namespace GoNoGo.UI
         public void Begin(bool network)
         {
             _active = true;
+            Hud.Covered = true;
             _network = network;
             _sawLoad = false;
             _t = 0;
@@ -62,6 +64,7 @@ namespace GoNoGo.UI
         {
             if (!_active) return;
             _active = false;
+            Hud.Covered = false;
             _root.AddToClassList("loading--out");
             _root.schedule.Execute(() => { if (!_active) _root.style.display = DisplayStyle.None; }).StartingIn(350);
         }
@@ -97,7 +100,7 @@ namespace GoNoGo.UI
 
             if (_sawLoad && !SceneFlow.Loading && _shown >= 0.999f)
             {
-                if (_doneFor < 0) _doneFor = 0.35f;
+                if (_doneFor < 0) _doneFor = 0.4f;
                 _doneFor -= dt;
                 if (_doneFor <= 0) End();
             }

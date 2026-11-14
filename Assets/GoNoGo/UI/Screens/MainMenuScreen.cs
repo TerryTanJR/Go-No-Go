@@ -62,12 +62,17 @@ namespace GoNoGo.UI
             if (!string.IsNullOrEmpty(_error)) Ui.Text(Loc.T(_error), "small", "over", "menu-error").AddTo(left);
         }
 
-        /// <summary>右邊 3D 太空人站的位置：點下去也是改造型，滑鼠指到時出現提示。</summary>
+        /// <summary>
+        /// 右邊 3D 太空人：整塊都能點；腳下的平台下方常駐一顆「編輯造型」按鈕（大廳遊戲的換裝入口都放在角色腳下），
+        /// 滑鼠指到太空人時按鈕亮起來。
+        /// </summary>
         void AvatarHotspot()
         {
             var hit = Ui.El("menu-avatar-hit").AddTo(Root);
-            Ui.Text(Loc.T("ui.menu.avatar_hint"), "menu-avatar-hint").AddTo(hit).pickingMode = PickingMode.Ignore;
             hit.RegisterCallback<ClickEvent>(_ => { Sfx.Click(); OpenAvatar(); });
+            var btn = Ui.Btn("✎  " + Loc.T("ui.menu.edit_avatar"), OpenAvatar, "menu-avatar-btn").AddTo(Root);
+            hit.RegisterCallback<PointerEnterEvent>(_ => btn.AddToClassList("menu-avatar-btn--hot"));
+            hit.RegisterCallback<PointerLeaveEvent>(_ => btn.RemoveFromClassList("menu-avatar-btn--hot"));
         }
 
         /// <summary>選單下方的說明列：滑鼠指到哪一項就顯示那一項的說明，移開就回到 <paramref name="fallback"/>。</summary>
