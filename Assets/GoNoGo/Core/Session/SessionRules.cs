@@ -139,7 +139,11 @@ namespace GoNoGo.Core
         {
             var installed = new HashSet<string>(s.Bench.AllPartIds());
             s.Bench.ProcurementMusd = s.Owned.Distinct().Where(id => !installed.Contains(id)).Sum(id => data.Part(id)?.CostMusd ?? 0);
+            s.Bench.CallMonths = CallMonths(s, data);
         }
+
+        /// <summary>打電話花掉的時程：問過的不同問題數 × 每題的月數（同一題再問一次不算）。</summary>
+        public static double CallMonths(SessionState s, GameData data) => s.Calls.Count * data.Constants.CallMonths;
 
         static string CartChange(SessionState s, GameData data, string partId, bool add)
         {

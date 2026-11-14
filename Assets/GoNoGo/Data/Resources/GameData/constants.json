@@ -23,6 +23,7 @@
   "bus_base_cost_musd": 8,
   "ops_base_cost_musd_per_year": 1.5,
   "integration_months": 8,
+  "call_months": 0.5,
   "link_efficiency": 0.8,
   "contact_gap_factor": 2.0,
   "storage_safety_factor": 1.5,

@@ -138,6 +138,22 @@ namespace GoNoGo.UI
 
         protected override void Build(VisualElement body)
         {
+            // 問需求要花時程：最上面寫清楚每題多少、已經花了多少、時程還剩多少
+            double per = D.Constants.CallMonths;
+            var t = M.Dashboard[ResourceId.Time];
+            bool late = t.Capacity > 0 && t.Used > t.Capacity;
+            var cost = Ui.El("phone-cost").Cls("phone-cost--late", late).AddTo(body);
+            Ui.Text(Loc.T("ui.phone.cost", ("m", Fmt.N(per, 1))), "phone-cost-rule").AddTo(cost);
+            Ui.Text(Loc.T("ui.phone.cost_used", ("used", Fmt.N(SessionRules.CallMonths(M.S, D), 1)), ("now", Fmt.N(t.Used, 1)), ("deadline", Fmt.N(t.Capacity, 0)))
+                    + (late ? "　" + Loc.T("ui.phone.late") : ""), "small", late ? "over" : "dim").AddTo(cost);
+
+            // 需求問到幾條、哪個處室還有沒問到的（任務主管難度要自己記，不顯示）
+            bool track = M.Difficulty.NotesMode != "none";
+            bool tags = M.Difficulty.RequirementTags;
+            var heard = Dialogue.Heard(D, M.S);
+            int total = Departments.Active(M.Scenario, M.Difficulty).Count;
+            if (track) Ui.Text(Loc.T("ui.phone.req_count", ("n", heard.Count), ("total", total)), "small", heard.Count >= total ? "go" : "tight").AddTo(cost);
+
             var wrap = Ui.Row("phone-wrap").AddTo(body);
             var left = Ui.El("phone-list").AddTo(wrap);
             foreach (var dep in D.Departments)
@@ -153,6 +169,7 @@ namespace GoNoGo.UI
                 int asked = M.S.Calls.Count(x => x.Department == d.Id);
                 int open = D.Lines(M.Scenario, d).Count(l => GameData.LineOpen(l, M.Difficulty));
                 if (asked > 0) Ui.Text(Loc.T("ui.phone.asked", ("n", asked), ("total", open)), "small", "faint").AddTo(col);
+                if (track && Dialogue.Unheard(D, M.S, d.Id, heard) > 0) Ui.Text(Loc.T("ui.phone.pending"), "phone-pending").AddTo(col);
             }
 
             var right = Ui.El("phone-call").AddTo(wrap);
@@ -167,14 +184,18 @@ namespace GoNoGo.UI
             var qs = Ui.El("phone-qs").AddTo(right);
             // 關卡可以有自己的對話；有些題目要到某個難度才問得到（索引照完整清單，房主那邊才對得上）
             var lines = D.Lines(M.Scenario, dep2);
-            for (int i = 0; i < lines.Count; i++)
+            var shown = Enumerable.Range(0, lines.Count).Where(i => GameData.LineOpen(lines[i], M.Difficulty)).ToList();
+            // 題目分兩組：需求（回答列入評分）在上、建議在下。學員照這一關實際有沒有那條需求分；
+            // 工程師照題目的類型分（這類題目可能有需求，回答也可能是「沒有硬性規定」）；任務主管不分，自己判斷
+            if (track)
             {
-                int k = i;
-                var line = lines[i];
-                if (!GameData.LineOpen(line, M.Difficulty)) continue;
-                bool asked = M.S.Calls.Any(x => x.Department == dep2.Id && x.LineId == line.Id);
-                Ui.Btn(Loc.T(line.Question), () => Ask(k), "phone-q").Cls("phone-q--on", k == _line).Cls("phone-q--asked", asked).AddTo(qs);
+                bool IsReq(int i) => tags ? Dialogue.Revealed(D, M.S, dep2.Id, lines[i]).Count > 0 : lines[i].Reveals.Count > 0;
+                var req = shown.Where(IsReq).ToList();
+                var tips = shown.Where(i => !IsReq(i)).ToList();
+                if (req.Count > 0) Group(qs, Loc.T(tags ? "ui.phone.group_req" : "ui.phone.group_req_maybe"), "phone-group--req", req, lines, dep2.Id, per);
+                if (tips.Count > 0) Group(qs, Loc.T("ui.phone.group_tips"), "phone-group--tips", tips, lines, dep2.Id, per);
             }
+            else Group(qs, null, null, shown, lines, dep2.Id, per);
             _answer = Ui.Text("", "phone-answer").AddTo(right);
             if (_line >= 0 && _line < lines.Count)
             {
@@ -191,6 +212,25 @@ namespace GoNoGo.UI
                 Ui.Btn(Loc.T("ui.phone.open_notes"), () => { Hud.Signal("open:notes"); Hud.Open("notes"); }).AddTo(foot);
         }
 
+        /// <summary>一組題目：標題（null = 不分組）、每題的題目與還沒問過要花多少時程（問過的再問不用）。</summary>
+        void Group(VisualElement parent, string title, string cls, List<int> idx, List<DialogueLine> lines, string dept, double per)
+        {
+            var g = Ui.El("phone-group", cls).AddTo(parent);
+            if (title != null) Ui.Text(title, "phone-group-title").AddTo(g);
+            foreach (int i in idx)
+            {
+                int k = i;
+                var line = lines[i];
+                bool asked = M.S.Calls.Any(x => x.Department == dept && x.LineId == line.Id);
+                var q = Ui.Btn("", () => Ask(k), "phone-q").Cls("phone-q--on", k == _line).Cls("phone-q--asked", asked).AddTo(g);
+                q.Clear();
+                var qr = Ui.Row("phone-q-row").AddTo(q);
+                Ui.Text(Loc.T(line.Question), "phone-q-text").AddTo(qr);
+                Ui.Spacer().AddTo(qr);
+                Ui.Text(asked ? Loc.T("ui.phone.q_asked") : Loc.T("ui.phone.q_cost", ("m", Fmt.N(per, 1))), asked ? "phone-q-done" : "phone-q-cost", "mono").AddTo(qr);
+            }
+        }
+
         void Dial(string dept)
         {
             if (dept == _dept) return;
@@ -204,7 +244,11 @@ namespace GoNoGo.UI
         {
             _line = i;
             _typed = 0;
+            var lines = D.Lines(M.Scenario, D.Department(_dept));
+            bool fresh = i >= 0 && i < lines.Count && !M.S.Calls.Any(x => x.Department == _dept && x.LineId == lines[i].Id);
             GameSession.Send(CommandType.Call, _dept, i);
+            if (fresh)
+                Hud.Toast(Loc.T("ui.phone.cost_toast", ("m", Fmt.N(D.Constants.CallMonths, 1)), ("used", Fmt.N(SessionRules.CallMonths(M.S, D), 1))));
             Hud.Signal("call:" + _dept);
             Refresh();
         }

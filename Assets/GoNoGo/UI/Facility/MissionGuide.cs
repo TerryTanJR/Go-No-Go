@@ -35,10 +35,10 @@ namespace GoNoGo.UI
 
             if (s.Poll != null) return Make("vote");
 
-            // 中控室：先把各處室問完
+            // 中控室：每個處室至少問一題（每題都花時程，不用全部問）
             int depts = data.Departments.Count;
             int asked = s.Calls.Select(c => c.Department).Distinct().Count();
-            if (ctl && asked < depts) return Make("call", "Screen_phone", ("n", depts - asked));
+            if (ctl && asked < depts) return Make("call", "Screen_phone", ("n", depts - asked), ("m", Fmt.N(data.Constants.CallMonths, 1)));
 
             // 多人：組裝區送來的採購單在等中控室（任務目標與預算的控制台，場景物件叫 Screen_dashboard）
             if (s.Request != null)
@@ -56,14 +56,17 @@ namespace GoNoGo.UI
 
             // 儀表板有超出的項目 → 看儀表板；只剩問到的需求沒達成 → 看任務目標（學員難度那裡列出每一條現在做到多少，
             // 科學成果、資料回傳這些在儀表板上沒有）
+            // 再接一句「可以打給哪個處室問哪一題」：建議類的題目在這時候才派得上用場
             var over = Over(m);
             if (over.Count > 0)
             {
-                if (asm) return Make("fix", "BayDashboard", ("list", List(over)));
-                return Make("fix_ctl", "", ("list", List(over)));
+                string list = List(over.Select(id => Loc.T("res." + id)).ToList());
+                var step = asm ? Make("fix", "BayDashboard", ("list", list)) : Make("fix_ctl", "", ("list", list));
+                return WithAdvice(step, s, data, over);
             }
             var unmet = Unmet(m, data);
-            if (unmet.Count > 0) return Make("fix_goals", "Screen_dashboard", ("list", List(unmet)));
+            if (unmet.Count > 0)
+                return WithAdvice(Make("fix_goals", "Screen_dashboard", ("list", List(unmet.Select(t => Loc.T("ui.prog.type." + t)).ToList()))), s, data, unmet);
 
             return ctl ? Make("launch", "LaunchButton") : Make("ready_asm");
         }
@@ -76,25 +79,59 @@ namespace GoNoGo.UI
             return acted ? Make("ops_end", "Screen_ops_desk") : Make("ops_act", "Screen_ops-power");
         }
 
-        /// <summary>儀表板上超出的資源（紅燈）。</summary>
+        /// <summary>儀表板上超出的資源（紅燈），用小寫的 ResourceId（"data"、"budget"…）。</summary>
         static List<string> Over(MissionSession m) =>
             m.Dashboard.Resources.Where(kv => kv.Value.Status == ResourceStatus.Over)
-                .Select(kv => Loc.T("res." + kv.Key.ToString().ToLowerInvariant())).ToList();
+                .Select(kv => kv.Key.ToString().ToLowerInvariant()).ToList();
 
-        /// <summary>問到但還沒達成的需求（同一條只列一次）。</summary>
+        /// <summary>問到但還沒達成的需求種類（同一種只列一次）。</summary>
         static List<string> Unmet(MissionSession m, GameData data)
         {
             var list = new List<string>();
-            var seen = new HashSet<string>();
-            foreach (var n in Dialogue.Notes(data, m.S, m.Dashboard, Loc.Lang))
-                foreach (var req in n.Requirements)
-                {
-                    if (!seen.Add(req.Id)) continue;
-                    if (Requirements.IsMetPreLaunch(req, m.Dashboard, m.S.Reported, data, m.Difficulty)) continue;
-                    string name = Loc.T("ui.prog.type." + req.Type);
-                    if (!list.Contains(name)) list.Add(name);
-                }
+            var heard = Dialogue.Heard(data, m.S);
+            foreach (var a in Departments.Active(m.Scenario, m.Difficulty))
+            {
+                var req = a.Requirement;
+                if (!heard.Contains(req.Id) || list.Contains(req.Type)) continue;
+                if (!Requirements.IsMetPreLaunch(req, m.Dashboard, m.S.Reported, data, m.Difficulty)) list.Add(req.Type);
+            }
             return list;
+        }
+
+        /// <summary>
+        /// 出問題時可以問的建議題：超出的資源（小寫 ResourceId）或沒達成的需求種類 → 處室與題目 id。
+        /// 質量、電力沒有對應的建議題（要看手冊的規格），不列。
+        /// </summary>
+        static readonly Dictionary<string, (string dept, string line)> Advice = new Dictionary<string, (string, string)>
+        {
+            ["data"] = ("comms", "storage"),
+            ["comms"] = ("comms", "stations"),
+            ["budget"] = ("budget_office", "costs"),
+            ["time"] = ("mission_lead", "deadline"),
+            ["budget_reserve"] = ("budget_office", "costs"),
+            ["battery_eclipse"] = ("engineering", "battery"),
+            ["lifetime_target"] = ("engineering", "lifetime"),
+            ["data_return"] = ("comms", "stations"),
+            ["latency"] = ("comms", "stations"),
+            ["science_threshold"] = ("science", "orbit"),
+            ["orbit_required"] = ("science", "orbit"),
+            ["instrument_required"] = ("science", "instrument"),
+            ["instrument_any"] = ("science", "instrument"),
+        };
+
+        /// <summary>第一個有建議題、而且還沒問過的問題，接在說明後面（這一關沒有那一題、或難度沒開放就略過）。</summary>
+        static Step WithAdvice(Step step, SessionState s, GameData data, List<string> keys)
+        {
+            foreach (var k in keys)
+            {
+                if (!Advice.TryGetValue(k, out var a)) continue;
+                var dep = data.Department(a.dept);
+                var line = data.Lines(s.Scenario(data), dep).FirstOrDefault(l => l.Id == a.line);
+                if (line == null || !GameData.LineOpen(line, s.Difficulty(data))) continue;
+                if (s.Calls.Any(c => c.Department == a.dept && c.LineId == a.line)) continue;
+                return new Step(step.Key, step.Body + Loc.T("ui.guide.ask_hint", ("dept", Loc.T(dep.Name)), ("q", Loc.T(line.Question))), step.Target);
+            }
+            return step;
         }
 
         static string List(List<string> items) => string.Join(Loc.IsZh ? "、" : ", ", items.Take(3));
