@@ -6,61 +6,16 @@ using UnityEngine.UIElements;
 
 namespace GoNoGo.UI
 {
-    // ======================================================================== 任務簡報
-
-    public sealed class BriefingPanel : FacPanel
-    {
-        public override string Title => Loc.T("ui.brief.title");
-        public override bool Closable => false;
-        public override string WideClass => "modal--wide";
-
-        protected override void Build(VisualElement body)
-        {
-            var sc = M.Scenario;
-            var diff = M.Difficulty;
-            Ui.Text(Loc.T(sc.Name), "h2").AddTo(body);
-            if (M.IsHistorical)
-            {
-                Ui.Text(Loc.T("ui.brief.history", ("year", sc.Historical.Year)), "eyebrow", "tight").AddTo(body);
-                Ui.Text(Loc.T(sc.Historical.Background), "body").AddTo(body);
-            }
-            Ui.Text(Loc.T(sc.Briefing), "body", "brief-text").AddTo(body);
-            var stats = Ui.Row("brief-stats").AddTo(body);
-            double budget = sc.BudgetMusd * (sc.Historical != null ? sc.Historical.BudgetCap : diff.BudgetMultiplier);
-            Stat(stats, "ui.brief.budget", Fmt.Money(budget));
-            Stat(stats, "ui.brief.years", Fmt.Years(sc.TargetYears));
-            Stat(stats, "ui.brief.deadline", Fmt.N(sc.DeadlineMonths) + " " + Fmt.Unit("mo"));
-            Stat(stats, "ui.brief.difficulty", Loc.T(diff.Name));
-
-            var how = Ui.El("brief-how").AddTo(body);
-            Ui.Text(Loc.T("ui.brief.how_title"), "eyebrow").AddTo(how);
-            Ui.Text(Loc.T(M.S.Multiplayer ? "ui.brief.how_multi" : "ui.brief.how_solo"), "body").AddTo(how);
-
-            var row = Ui.Row("modal-actions").AddTo(body);
-            Ui.Spacer().AddTo(row);
-            Ui.Btn(Loc.T("ui.brief.start"), () =>
-            {
-                Sfx.Confirm();
-                GameSession.Send(CommandType.BeginDesign);
-            }, "btn-primary", "btn-big").AddTo(row);
-        }
-
-        static void Stat(VisualElement parent, string key, string value)
-        {
-            var s = Ui.El("brief-stat").AddTo(parent);
-            Ui.Text(Loc.T(key), "small", "dim").AddTo(s);
-            Ui.Text(value, "h3", "mono").AddTo(s);
-        }
-    }
+    // 任務簡報（BriefingPanel）在 BriefingPanel.cs
 
     // ======================================================================== 儀表板
 
     public sealed class DashboardPanel : FacPanel
     {
         public override string Title => Loc.T("ui.dash.title");
-        public override string WideClass => "modal--wide";
+        public override string WideClass => "modal--dash";
 
-        protected override void Build(VisualElement body) => DashboardView.Build(body, false);
+        protected override void Build(VisualElement body) => DashboardView.Build(Scroll(body), false);
     }
 
     /// <summary>儀表板內容（面板、平板、牆上螢幕共用）。只顯示數值；學員難度加上紅黃綠。</summary>
@@ -74,10 +29,22 @@ namespace GoNoGo.UI
             var d = m.S.Reported;
             var data = GameSession.Data;
 
+            // 任務進度：現在在哪一步、問到的需求各自做到多少。
+            // 影像牆上（compact）放不下上下兩段，改成左右兩欄：左邊進度、右邊設計數據。
+
+            if (compact)
+            {
+                var cols = Ui.Row("dash-wall").AddTo(body);
+                MissionProgressView.Build(Ui.El("dash-wall-left").AddTo(cols), true);
+                body = Ui.El("dash-wall-right").AddTo(cols);
+            }
+            else MissionProgressView.Build(body, false);
+
             var head = Ui.Row("dash-head").AddTo(body);
+            Ui.Text(Loc.T("ui.dash.design_data"), "eyebrow", "dash-sec").AddTo(head);
             Ui.Text(m.S.Reports == 0 ? Loc.T("ui.dash.no_report") : Loc.T("ui.dash.report_n", ("n", m.S.Reports)), "small", "dim").AddTo(head);
             Ui.Spacer().AddTo(head);
-            Ui.Text(Loc.Orbit(d.OrbitId) + " · " + Loc.Launcher(d.LauncherId) + " · " + Fmt.Years(d.MissionYears), "small", "dim").AddTo(head);
+            if (!compact) Ui.Text(Loc.Orbit(d.OrbitId) + " · " + Loc.Launcher(d.LauncherId) + " · " + Fmt.Years(d.MissionYears), "small", "dim").AddTo(head);
 
             var grid = Ui.El("dash-grid").AddTo(body);
             foreach (ResourceId id in new[] { ResourceId.Mass, ResourceId.Power, ResourceId.Budget, ResourceId.Data, ResourceId.Comms, ResourceId.Time })

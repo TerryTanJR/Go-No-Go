@@ -18,16 +18,21 @@ namespace GoNoGo.UI
             public SessionPhase Phase;
         }
 
+        // 順序照遊戲的核心：先問需求（電話、筆記板），再到組裝區設計、回報、測試，
+        // 回中控室看儀表板的目標進度、到後排查手冊，最後發射。玩家一開始就站在中控室。
         static readonly Step[] Steps =
         {
             new Step { Key = "move", Phase = SessionPhase.Design, Done = s => s == "move" },
             new Step { Key = "view", Phase = SessionPhase.Design, Done = s => s == "view" },
+            new Step { Key = "call", Phase = SessionPhase.Design, Done = s => s.StartsWith("call:") },
+            new Step { Key = "notes", Phase = SessionPhase.Design, Done = s => s == "open:notes" },
             new Step { Key = "pick", Phase = SessionPhase.Design, Done = s => s.StartsWith("pick:") },
             new Step { Key = "install", Phase = SessionPhase.Design, Done = s => s == "install" },
             new Step { Key = "report", Phase = SessionPhase.Design, Done = s => s == "report" },
             new Step { Key = "test", Phase = SessionPhase.Design, Done = s => s == "test" },
             new Step { Key = "dashboard", Phase = SessionPhase.Design, Done = s => s == "open:dashboard" || s == "open:tablet" },
-            new Step { Key = "call", Phase = SessionPhase.Design, Done = s => s.StartsWith("call:") },
+            // 後排北座的手冊 2・電力（組裝區的完整手冊也算，裡面一樣翻得到第 2 章）
+            new Step { Key = "manual", Phase = SessionPhase.Design, Done = s => s == "open:manual:power" || s == "open:bay_manual" },
             new Step { Key = "launch", Phase = SessionPhase.Design, Done = s => s == "launch" },
             new Step { Key = "console", Phase = SessionPhase.Ops, Done = s => s.StartsWith("act:") },
             new Step { Key = "judge", Phase = SessionPhase.Ops, Done = s => s == "end_turn" },

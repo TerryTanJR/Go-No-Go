@@ -843,6 +843,213 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 }
 .brief-how { margin-top: 14px; padding: 10px 12px; border-radius: 4px; background-color: rgba(57, 198, 244, 0.07); border-left-width: 3px; border-color: var(--c-accent); }
 
+/* ---------- 任務簡報（BriefingPanel）：主任視訊交代任務 ---------- */
+.modal--brief { width: 1500px; max-width: 96%; max-height: 94%; padding: 20px 26px; }
+.brief-wrap { flex-direction: row; align-items: stretch; }
+.brief-feed {
+    width: 400px;
+    flex-shrink: 0;
+    margin-right: 24px;
+    padding: 10px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: var(--c-line-hi);
+    background-color: #050A12;
+}
+.brief-feed-bar { flex-direction: row; align-items: center; margin-bottom: 8px; }
+.brief-live { width: 12px; height: 12px; border-radius: 6px; background-color: var(--c-over); margin-right: 6px; }
+.brief-live--off { background-color: var(--c-faint); }
+.brief-live-text { font-size: var(--fs-14); color: var(--c-over); -unity-font-style: bold; letter-spacing: 2px; }
+.brief-channel { font-size: var(--fs-13); color: var(--c-dim); letter-spacing: 1px; }
+.brief-screen {
+    height: 300px;
+    border-radius: 6px;
+    overflow: hidden;
+    background-color: #0C1C30;
+    border-width: 1px;
+    border-color: #17304C;
+    justify-content: space-between;
+}
+.brief-scan { height: 1px; background-color: rgba(120, 190, 255, 0.07); flex-shrink: 0; }
+.brief-figure { position: absolute; left: 0; right: 0; bottom: 0; height: 250px; align-items: center; justify-content: flex-end; }
+.brief-head {
+    width: 96px;
+    height: 112px;
+    border-radius: 48px;
+    background-color: #1E3A5C;
+    border-width: 2px;
+    border-color: #2C527C;
+    margin-bottom: -10px;
+}
+.brief-headset {
+    position: absolute;
+    bottom: 140px;
+    width: 116px;
+    height: 70px;
+    border-top-left-radius: 58px;
+    border-top-right-radius: 58px;
+    border-top-width: 6px;
+    border-left-width: 6px;
+    border-right-width: 6px;
+    border-color: #39C6F4;
+    opacity: 0.85;
+}
+.brief-body {
+    width: 250px;
+    height: 120px;
+    border-top-left-radius: 90px;
+    border-top-right-radius: 90px;
+    background-color: #17314F;
+    border-width: 2px;
+    border-bottom-width: 0;
+    border-color: #2C527C;
+    align-items: center;
+}
+.brief-collar { width: 0; height: 0; margin-top: 4px; border-left-width: 30px; border-right-width: 30px; border-top-width: 46px; border-left-color: rgba(0, 0, 0, 0); border-right-color: rgba(0, 0, 0, 0); border-top-color: #DDE6F0; }
+.brief-badge { position: absolute; left: 52px; top: 40px; width: 26px; height: 26px; border-radius: 13px; background-color: var(--c-tight); border-width: 3px; border-color: #FFD89A; }
+.brief-rec { position: absolute; right: 10px; top: 8px; font-size: var(--fs-13); color: var(--c-over); }
+.brief-id { margin-top: 10px; padding-left: 4px; }
+.brief-name { font-size: var(--fs-22); -unity-font-style: bold; color: var(--c-text); }
+.brief-wave { flex-direction: row; align-items: center; justify-content: space-between; height: 40px; margin-top: 10px; padding: 0 4px; }
+.brief-wave-bar { width: 8px; height: 8%; border-radius: 3px; background-color: var(--c-accent); }
+
+.brief-talk { flex-grow: 1; flex-shrink: 1; }
+.brief-talk-head { flex-direction: row; align-items: flex-start; margin-bottom: 12px; }
+.brief-mission { margin-top: 4px; }
+.brief-tag { padding: 4px 12px; border-radius: 14px; border-width: 1px; border-color: var(--c-line-hi); color: var(--c-dim); font-size: var(--fs-15); flex-shrink: 0; }
+.brief-log { max-height: 230px; overflow: hidden; justify-content: flex-end; }
+.brief-log--all { max-height: none; }
+.brief-past { font-size: var(--fs-18); color: #8FA6C0; margin-bottom: 8px; padding-left: 14px; border-left-width: 2px; border-color: var(--c-line); white-space: normal; }
+.brief-line {
+    margin-top: 6px;
+    min-height: 150px;
+    padding: 16px 20px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-left-width: 4px;
+    border-color: var(--c-line-hi);
+    border-left-color: var(--c-accent);
+    background-color: rgba(57, 198, 244, 0.07);
+}
+.brief-who { font-size: var(--fs-14); letter-spacing: 3px; color: var(--c-accent); -unity-font-style: bold; margin-bottom: 8px; }
+.brief-say { font-size: var(--fs-24); color: var(--c-text); white-space: normal; }
+.brief-ctl { flex-direction: row; align-items: center; margin-top: 14px; }
+.brief-ctl .unity-button { margin-left: 10px; font-size: var(--fs-18); padding: 10px 22px; }
+.brief-dots { flex-direction: row; align-items: center; }
+.brief-dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 6px; background-color: var(--c-line); }
+.brief-dot--done { background-color: var(--c-accent); }
+.brief-dot--now { width: 26px; background-color: var(--c-accent); }
+.brief-foot { margin-top: 14px; }
+.brief-todo {
+    flex-direction: row;
+    align-items: center;
+    padding: 14px 18px;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: var(--c-tight);
+    background-color: rgba(255, 181, 71, 0.08);
+}
+.brief-todo-icon { font-size: var(--fs-38); color: var(--c-tight); margin-right: 16px; }
+.brief-todo-text { flex-shrink: 1; }
+.brief-todo-text .eyebrow { color: var(--c-tight); font-size: var(--fs-15); margin-bottom: 4px; }
+.modal--brief .body { font-size: var(--fs-18); color: var(--c-text); }
+.modal--brief .small { font-size: var(--fs-15); }
+.modal--brief .eyebrow { font-size: var(--fs-15); }
+.modal--brief .h2 { font-size: var(--fs-34); }
+.brief-dossier { margin-top: 12px; padding: 12px 16px; border-radius: 8px; border-left-width: 4px; border-color: var(--c-line-hi); background-color: rgba(255, 255, 255, 0.03); }
+
+/* 任務進度（MissionProgressView）：階段列 + 任務目標進度條 */
+.prog { margin-bottom: 14px; padding: 12px 14px; border-radius: 6px; border-width: 1px; border-color: var(--c-line); background-color: rgba(57, 198, 244, 0.04); }
+.prog-stages { flex-direction: row; align-items: flex-start; margin-bottom: 12px; }
+.prog-stage { flex-grow: 1; flex-basis: 0; padding: 6px 8px; border-radius: 6px; border-width: 1px; border-color: rgba(0, 0, 0, 0); }
+.prog-stage-top { flex-direction: row; align-items: center; }
+.prog-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    border-width: 2px;
+    border-color: var(--c-faint);
+    color: var(--c-faint);
+    font-size: var(--fs-13);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    flex-shrink: 0;
+}
+.prog-stage-name { margin-left: 8px; font-size: var(--fs-15); color: var(--c-faint); -unity-font-style: bold; }
+.prog-stage-sub { margin: 4px 0 0 32px; font-size: var(--fs-12); color: var(--c-faint); }
+.prog-stage--done .prog-dot { background-color: var(--c-go); border-color: var(--c-go); color: #03170B; }
+.prog-stage--done .prog-stage-name { color: var(--c-text); }
+.prog-stage--done .prog-stage-sub { color: var(--c-dim); }
+.prog-stage--now { border-color: var(--c-accent); background-color: var(--c-accent-dim); }
+.prog-stage--now .prog-dot { background-color: var(--c-accent); border-color: var(--c-accent); color: #04121D; }
+.prog-stage--now .prog-stage-name { color: var(--c-text); }
+.prog-stage--now .prog-stage-sub { color: var(--c-accent); }
+.prog-link { width: 14px; height: 2px; margin-top: 18px; background-color: var(--c-line); flex-shrink: 0; }
+.prog-link--done { background-color: var(--c-go); }
+.prog-goals-head { flex-direction: row; align-items: center; margin-bottom: 6px; }
+.prog-empty { margin: 4px 0; }
+.prog-goals { flex-direction: row; flex-wrap: wrap; }
+.prog-goal {
+    width: 49%;
+    margin: 0 1% 8px 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-left-width: 3px;
+    border-color: var(--c-line);
+    border-left-color: var(--c-accent);
+    background-color: rgba(255, 255, 255, 0.025);
+}
+.prog-goal--go { border-left-color: var(--c-go); }
+.prog-goal--over { border-left-color: var(--c-over); }
+.prog-goal-top { flex-direction: row; align-items: center; }
+.prog-dept { width: 10px; height: 10px; border-radius: 5px; margin-right: 8px; background-color: var(--c-accent); flex-shrink: 0; }
+.prog-goal-name { font-size: var(--fs-15); -unity-font-style: bold; }
+.prog-goal-dept { margin-left: 8px; }
+.prog-goal-now { font-size: var(--fs-17); -unity-font-style: bold; color: var(--c-text); }
+.prog-goal-target { font-size: var(--fs-13); color: var(--c-dim); }
+.prog-goal-mark { margin-left: 8px; font-size: var(--fs-16); -unity-font-style: bold; }
+.prog-track { height: 8px; margin-top: 6px; border-radius: 4px; background-color: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.prog-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background-color: var(--c-accent); }
+.prog-fill--go { background-color: var(--c-go); }
+.prog-fill--over { background-color: var(--c-over); }
+.prog-goal-text { margin-top: 5px; }
+.dash-sec { margin-right: 12px; }
+/* 影像牆上的精簡版：字放大、目標一欄一條 */
+.wscreen .prog { padding: 10px 12px; margin-bottom: 10px; }
+.wscreen .prog-goal { padding: 5px 10px; margin-bottom: 6px; }
+.wscreen .prog-goal-name { font-size: var(--fs-17); }
+.wscreen .prog-goal-now { font-size: var(--fs-18); }
+.dash-wall { flex-direction: row; flex-grow: 1; align-items: flex-start; }
+.dash-wall-left { width: 52%; margin-right: 2%; flex-shrink: 0; }
+.dash-wall-right { flex-grow: 1; flex-shrink: 1; }
+.dash-wall-left .prog { margin-bottom: 0; }
+.wscreen .prog-goal { width: 100%; margin-right: 0; }
+.wscreen .prog-stage { padding: 4px 2px; }
+.wscreen .prog-stage-top { flex-direction: column; align-items: center; }
+.wscreen .prog-stage-name { margin: 4px 0 0 0; white-space: nowrap; font-size: var(--fs-14); -unity-text-align: middle-center; }
+.wscreen .prog-link { width: 6px; }
+.wscreen .prog > *, .wscreen .prog-goals > *, .wscreen .dash-grid > *, .dash-wall-right > * { flex-shrink: 0; }
+.wscreen .dash-k { width: 120px; }
+.wscreen .dash-row { padding: 3px 0; }
+
+/* 儀表板面板（modal--dash）：和手冊一樣用較大的字 */
+.modal--dash .dash-k { font-size: var(--fs-18); width: 180px; }
+.modal--dash .dash-v { font-size: var(--fs-20); min-width: 220px; }
+.modal--dash .dash-row { padding: 7px 0; }
+.modal--dash .dash-lamp { width: 12px; height: 12px; border-radius: 6px; }
+.modal--dash .prog-dot { width: 30px; height: 30px; border-radius: 15px; font-size: var(--fs-16); }
+.modal--dash .prog-stage-name { font-size: var(--fs-19); margin-left: 10px; }
+.modal--dash .prog-stage-sub { font-size: var(--fs-15); margin-left: 40px; }
+.modal--dash .prog-link { margin-top: 21px; }
+.modal--dash .prog-goal { padding: 12px 14px; }
+.modal--dash .prog-goal-name { font-size: var(--fs-19); }
+.modal--dash .prog-goal-now { font-size: var(--fs-22); }
+.modal--dash .prog-goal-target { font-size: var(--fs-16); }
+.modal--dash .prog-goal-mark { font-size: var(--fs-20); }
+.modal--dash .prog-track { height: 10px; border-radius: 5px; margin-top: 8px; }
+.modal--dash .code-chip { font-size: var(--fs-15); }
+
 /* 儀表板 */
 .dash-head { flex-direction: row; align-items: center; margin-bottom: 8px; }
 .dash-grid { flex-direction: column; }
@@ -860,14 +1067,14 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 /* 手冊（ManualPanels.cs）：章節標題列、零件卡、規則卡、症狀表、步驟鏈。
    參考解析度 1920×1080；手冊字多，用自己的寬面板（modal--manual）和較大的字級。 */
 .rule { margin-bottom: 12px; padding: 8px 10px; border-left-width: 2px; border-color: var(--c-line-hi); }
-.modal--manual { width: 1560px; max-width: 96%; max-height: 94%; padding: 20px 26px; }
-.modal--manual .modal-head .unity-label { font-size: var(--fs-16); }
-.modal--manual .small { font-size: var(--fs-16); }
-.modal--manual .body { font-size: var(--fs-19); color: #B9C9DC; }
-.modal--manual .h3 { font-size: var(--fs-22); }
-.modal--manual .h2 { font-size: var(--fs-34); letter-spacing: 3px; }
-.modal--manual .eyebrow { font-size: var(--fs-15); }
-.modal--manual .faint { color: #7890AC; }
+.modal--dash, .modal--manual { width: 1560px; max-width: 96%; max-height: 94%; padding: 20px 26px; }
+.modal--dash .modal-head .unity-label, .modal--manual .modal-head .unity-label { font-size: var(--fs-16); }
+.modal--dash .small, .modal--manual .small { font-size: var(--fs-16); }
+.modal--dash .body, .modal--manual .body { font-size: var(--fs-19); color: #B9C9DC; }
+.modal--dash .h3, .modal--manual .h3 { font-size: var(--fs-22); }
+.modal--dash .h2, .modal--manual .h2 { font-size: var(--fs-34); letter-spacing: 3px; }
+.modal--dash .eyebrow, .modal--manual .eyebrow { font-size: var(--fs-15); }
+.modal--dash .faint, .modal--manual .faint { color: #7890AC; }
 .man-scroll { flex-grow: 1; flex-shrink: 1; min-height: 240px; }
 .man-scroll .unity-scroll-view__content-container { padding-right: 12px; }
 
