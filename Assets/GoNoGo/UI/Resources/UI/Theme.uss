@@ -1228,6 +1228,10 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .dash-k { width: 180px; color: var(--c-dim); font-size: var(--fs-15); }
 .dash-v { font-size: var(--fs-16); color: var(--c-text); width: 300px; flex-shrink: 0; }
 .dash-x { flex-grow: 1; -unity-text-align: middle-right; }
+/* 有燈號時（學員）：正常的列變淡，吃緊、超出的列加底色，一眼看得出要處理哪一項 */
+.dash-row--ok { opacity: 0.45; }
+.dash-row--tight { background-color: rgba(255, 181, 71, 0.10); }
+.dash-row--over { background-color: rgba(255, 77, 94, 0.14); }
 .dash-parts { margin-top: 10px; }
 .dash-part-row { flex-direction: row; flex-wrap: wrap; margin-top: 4px; }
 

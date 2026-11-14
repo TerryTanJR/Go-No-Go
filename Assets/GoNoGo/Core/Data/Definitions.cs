@@ -315,6 +315,11 @@ namespace GoNoGo.Core
         public List<string> DecoyCategories { get; set; } = new List<string>();
         /// <summary>儀表板加上紅黃綠（學員）。</summary>
         public bool DashboardColors { get; set; }
+        /// <summary>
+        /// 儀表板、任務目標只列會判定成敗的項目（學員、新手訓練）：不列地影、科學值、資料回傳、偵測率這些參考數字，
+        /// 經費也不拆零件／發射／營運細項。
+        /// </summary>
+        public bool DashboardBasic { get; set; }
         /// <summary>筆記板：checklist（整理成發射條件清單）、transcript（記下對話原文）、none（不自動記錄）。</summary>
         public string NotesMode { get; set; } = "transcript";
         /// <summary>開放到第幾組互相衝突的處室需求。</summary>
