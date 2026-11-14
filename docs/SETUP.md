@@ -352,8 +352,8 @@ git push
 4. **不要 commit `Library/`、`Temp/`、`Logs/`、`UserSettings/`、`Builds/`。** `.gitignore` 已經排除了，只要不要用 `git add -f` 就好。
 5. **大檔案會自動走 LFS**（`.glb`、`.png`、`.wav`、`.mp3`、字型等）。commit 後可以用 `git lfs ls-files` 確認新檔案有在清單裡。
 6. **pull 之後回到 Unity 視窗**，等它匯入完、右下角沒有轉圈，再繼續工作。
-7. **commit 前先看 `git status`，只 add 自己真的有改的檔案**，不要直接 `git add -A`。Unity 打開專案時會自己改寫下面這 5 個檔案，看到了用 `git restore <檔案>` 丟掉，不要 commit：
-   - `Assets/GoNoGo/UI/Resources/UI/Fonts/` 底下 4 個字型 `.asset`：動態字型的貼圖被清空，執行時會重新產生，diff 很大但沒有影響。
+7. **commit 前先看 `git status`，只 add 自己真的有改的檔案**，不要直接 `git add -A`。Unity 可能會自己改寫下面這些檔案，看到了用 `git restore <檔案>` 丟掉，不要 commit：
+   - `Assets/GoNoGo/UI/Resources/UI/Fonts/` 底下 4 個字型 `.asset`：repo 裡存的是**清空的**動態字型（圖集 1×1），字是執行時才畫進去的；關閉 Unity 時也會清回這個狀態，所以平常不會有 diff。如果 Play 之後存檔，畫好字的版本會暫時寫進檔案（diff 是大量新增），丟掉就好。
    - `Assets/Settings/UniversalRenderPipelineGlobalSettings.asset`：`m_RuntimeSettings` 被清空，是 URP 在全新 `Library/` 上做的設定遷移。
 8. **Windows：第一次 pull 到 `.gitattributes` 加了 `*.mat` 那一版之後，執行一次 `git restore -- "*.mat"`。** 在這之前 clone 的材質是 CRLF 換行，Unity 存檔時一律寫 LF，git 就會把內容沒變的材質列成已修改。執行前先確認自己沒有還沒 commit 的材質修改，這個指令會把它們丟掉。
 

@@ -13,6 +13,7 @@ dotnet=""
 for cand in \
   "${UNITY_DOTNET:-}" \
   "/c/Program Files/Unity/Hub/Editor/$ver/Editor/Data/DotNetSdk/dotnet.exe" \
+  "/Applications/Unity/Hub/Editor/$ver/Unity.app/Contents/Resources/Scripting/DotNetSdk/dotnet" \
   "/Applications/Unity/Hub/Editor/$ver/Unity.app/Contents/DotNetSdk/dotnet"; do
   if [ -n "$cand" ] && [ -x "$cand" ]; then dotnet="$cand"; break; fi
 done
