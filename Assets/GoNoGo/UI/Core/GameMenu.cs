@@ -6,13 +6,13 @@ using UnityEngine.UIElements;
 namespace GoNoGo.UI
 {
     /// <summary>
-    /// 遊戲中的選單（設施、發射、報告場景按 Tab 或 Esc 打開）：繼續遊戲、聲音、基本設定、返回主選單。
+    /// 遊戲中的選單（設施、發射、報告場景按 Tab 或 Esc 打開）：繼續遊戲、聲音、基本設定、按鍵說明、返回主選單。
     /// 由 <see cref="UIRoot"/> 擁有，蓋在所有畫面之上，切換場景時自動關閉。
     /// 開著時 <see cref="Hud.Paused"/> = true：角色不能動、營運回合計時（個人模式）暫停；多人時其他人的遊戲照常進行。
     /// </summary>
     public sealed class GameMenu
     {
-        enum Page { Main, Sound, Settings, Quit }
+        enum Page { Main, Sound, Settings, Controls, Quit }
 
         readonly VisualElement _layer;
         readonly Func<bool> _canRelockCursor;
@@ -103,6 +103,7 @@ namespace GoNoGo.UI
                 case Page.Main: BuildMain(body); break;
                 case Page.Sound: BuildSound(body); break;
                 case Page.Settings: BuildSettings(body); break;
+                case Page.Controls: BuildControls(body); break;
                 case Page.Quit: BuildQuit(body); break;
             }
         }
@@ -111,6 +112,7 @@ namespace GoNoGo.UI
         {
             Page.Sound => Loc.T("ui.gmenu.sound"),
             Page.Settings => Loc.T("ui.gmenu.settings"),
+            Page.Controls => Loc.T("ui.gmenu.controls"),
             Page.Quit => Loc.T("ui.gmenu.quit"),
             _ => Loc.T("ui.gmenu.title"),
         };
@@ -119,10 +121,17 @@ namespace GoNoGo.UI
 
         void BuildMain(VisualElement body)
         {
+            // 這一局的任務和難度（HUD 上不再常駐顯示）
+            if (GameSession.HasMission)
+            {
+                var m = GameSession.Mission;
+                Ui.Text(Loc.T(m.Scenario.Name) + " · " + Loc.T(m.Difficulty.Name), "h3", "gm-mission").AddTo(body);
+            }
             if (Multiplayer) Ui.Text(Loc.T("ui.gmenu.hint_mp"), "small", "dim").AddTo(body);
             Ui.Btn(Loc.T("ui.gmenu.resume"), () => Close(), "btn-primary", "gm-btn").AddTo(body);
             Ui.Btn(Loc.T("ui.gmenu.sound"), () => Show(Page.Sound), "gm-btn").AddTo(body);
             Ui.Btn(Loc.T("ui.gmenu.settings"), () => Show(Page.Settings), "gm-btn").AddTo(body);
+            if (GameSession.HasMission) Ui.Btn(Loc.T("ui.gmenu.controls"), () => Show(Page.Controls), "gm-btn").AddTo(body);
             Ui.Btn(Loc.T("ui.gmenu.quit"), () => Show(Page.Quit), "btn-danger", "gm-btn").AddTo(body);
         }
 
@@ -183,6 +192,33 @@ namespace GoNoGo.UI
 
             MouseControl(body);
             BackButton(body);
+        }
+
+        /// <summary>按鍵說明（原本常駐在畫面左下角，改放這裡）。只列這一局用得到的鍵。</summary>
+        void BuildControls(VisualElement body)
+        {
+            var s = GameSession.HasMission ? GameSession.Mission.S : null;
+            bool mp = s != null && s.Multiplayer;
+            KeyRow(body, "W A S D", "ui.keys.move");
+            KeyRow(body, "Shift", "ui.keys.run");
+            KeyRow(body, Loc.T("ui.keys.mouse"), "ui.keys.look");
+            KeyRow(body, "Q", "ui.keys.view");
+            KeyRow(body, "E", "ui.keys.use");
+            KeyRow(body, "C", "ui.keys.pick");
+            KeyRow(body, "V", "ui.keys.install");
+            if (!mp) KeyRow(body, "T", "ui.keys.tablet");
+            if (mp) KeyRow(body, "M", "ui.keys.mic");
+            if (mp) KeyRow(body, "G / N", "ui.keys.vote");
+            if (s != null && s.Tutorial) KeyRow(body, "H", "ui.keys.tut");
+            KeyRow(body, "Tab", "ui.keys.menu");
+            BackButton(body);
+        }
+
+        static void KeyRow(VisualElement body, string key, string label)
+        {
+            var row = Ui.Row("gm-key-row").AddTo(body);
+            Ui.Text(key, "keycap", "gm-keycap").AddTo(row);
+            Ui.Text(Loc.T(label), "gm-key-label").AddTo(row);
         }
 
         void SetView(bool firstPerson)
