@@ -26,7 +26,6 @@ namespace GoNoGo.Presentation
         float _ringT = -1;
         Renderer _ringRenderer;
         SatPart _aimed;
-        int _testSeen = -1;
         float _shakeT = -1;
         Vector3 _rigPos;
 
@@ -49,10 +48,6 @@ namespace GoNoGo.Presentation
         {
             rig.Show(m.S.Bench, m.Data, m.BenchEval, animate);
             _ghostFor = null; // 船變了，預覽重算
-            // 新的環境測試：船在台上抖一陣（振動測試），最後一圈光環（熱真空）
-            int n = m.S.LastTest?.N ?? 0;
-            if (_testSeen >= 0 && n > _testSeen) { _shakeT = 0; Sfx.Whoosh(); }
-            _testSeen = n;
         }
 
         public float DistanceTo(Vector3 p)

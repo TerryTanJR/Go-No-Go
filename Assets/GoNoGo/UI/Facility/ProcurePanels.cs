@@ -11,8 +11,9 @@ namespace GoNoGo.UI
 
     /// <summary>
     /// 組裝區的採購終端：左邊零件清單、中間轉動的 3D 模型、右邊科普說明。
-    /// 這裡沒有任何數字（價格、規格都在中控室的型錄），所以「買哪個」「買得起嗎」都要問中控室。
-    /// 加進購物車後按「下單」，零件就上架；採購次數有限，補單要加急件費、時程延後。
+    /// 採購機制 v2：只用錢當代價，買幾次都行，上限是「錢要留一支飛得到目前軌道的最便宜火箭」。
+    /// 個人模式顯示價錢、還能買多少、營運撐得了幾年，按「下單」立刻扣錢上架。
+    /// 多人模式不顯示任何金額（錢在中控室），按「送審」把採購單交給中控室批准或退回。
     /// </summary>
     public sealed class ProcurePanel : FacPanel
     {
@@ -32,20 +33,38 @@ namespace GoNoGo.UI
         protected override void Build(VisualElement body)
         {
             var s = M.S;
+            bool money = !s.Multiplayer;          // 多人：組裝區看得到船、看不到錢
+            bool review = SessionRules.NeedsApproval(s);
+            bool open = s.Phase == SessionPhase.Design || s.Phase == SessionPhase.Briefing;
             var catalog = SessionRules.ShelfParts(D, s);
             var cats = Cats.Where(c => catalog.Any(p => p.Category == c)).ToList();
             if (!cats.Contains(_cat)) _cat = cats.FirstOrDefault() ?? PartCategory.Instrument;
             var parts = catalog.Where(p => p.Category == _cat).OrderBy(p => p.Tier).ThenBy(p => p.Code).ToList();
             if (_sel == null || parts.All(p => p.Id != _sel)) _sel = parts.FirstOrDefault()?.Id;
 
-            // 上方：剩幾次採購、下一次是原價還是補單
-            int left = SessionRules.OrdersLeft(s, D);
+            // 上方：個人模式是錢包；多人是採購單的狀態
             var head = Ui.Row("proc-head").AddTo(body);
-            Ui.Text(Loc.T("ui.proc.left", ("n", left)), "h3", left > 0 ? "accent" : "over").AddTo(head);
-            Ui.Text(Loc.T(left == 0 ? "ui.proc.none_left" : SessionRules.RebuildPending(s) ? "ui.proc.next_rebuild"
-                : s.Orders.Count == 0 ? "ui.proc.next_first" : "ui.proc.next_rush"), "small", "dim", "proc-head-note").AddTo(head);
-            Ui.Spacer().AddTo(head);
-            Ui.Text(Loc.T("ui.proc.no_prices"), "small", "faint").AddTo(head);
+            if (money)
+            {
+                double room = SessionRules.Headroom(s, D);
+                Ui.Text(Loc.T("ui.proc.room", ("money", Fmt.PartMoney(room))), "h3", room > 0 ? "accent" : "over").AddTo(head);
+                Ui.Text(Loc.T("ui.proc.room_x", ("budget", Fmt.Money(SessionRules.Budget(s, D))), ("spent", Fmt.PartMoney(SessionRules.DevelopmentMusd(s, D))),
+                    ("rocket", Loc.Launcher(SessionRules.ReserveLauncher(s, D)?.Id ?? ""))), "small", "dim", "proc-head-note").AddTo(head);
+            }
+            else if (s.Request != null)
+            {
+                Ui.Text(Loc.T("ui.proc.pending", ("n", s.Request.N)), "h3", "tight").AddTo(head);
+                Ui.Text(string.Join(" ", s.Request.Parts.Select(id => D.Part(id)?.Code ?? id)), "small", "mono", "dim", "proc-head-note").AddTo(head);
+                Ui.Spacer().AddTo(head);
+                var w = Ui.Btn(Loc.T("ui.proc.withdraw"), () => { Sfx.Click(); GameSession.Send(CommandType.WithdrawOrder); }, "btn-ghost").AddTo(head);
+                w.SetEnabled(open);
+            }
+            else if (s.Rejected != null)
+            {
+                Ui.Text(Loc.T("ui.proc.rejected", ("n", s.Rejected.N)), "h3", "over").AddTo(head);
+                Ui.Text(Loc.T("ui.proc.rejected_x"), "small", "dim", "proc-head-note").AddTo(head);
+            }
+            else Ui.Text(Loc.T(review ? "ui.proc.no_prices_review" : "ui.proc.no_prices"), "small", "faint").AddTo(head);
 
             Tabs(body, cats.Select(c => "ui.cat." + c).ToArray(), cats.IndexOf(_cat), i => { _cat = cats[i]; _sel = null; Refresh(); });
 
@@ -62,7 +81,13 @@ namespace GoNoGo.UI
                 var top = Ui.Row("proc-item-top").AddTo(b);
                 Ui.Text(p.Code, "man-code", "mono").AddTo(top);
                 Ui.Text(Loc.T(p.Name), "proc-item-name").AddTo(top);
-                Ui.Text(Loc.T(StateKey(s, id, installed)), "small", StateClass(s, id, installed), "proc-item-state").AddTo(b);
+                var st = Ui.Row("proc-item-state").AddTo(b);
+                Ui.Text(Loc.T(StateKey(s, id, installed)), "small", StateClass(s, id, installed)).AddTo(st);
+                if (money)
+                {
+                    Ui.Spacer().AddTo(st);
+                    Ui.Text(Fmt.PartMoney(p.CostMusd), "small", "mono", s.Owned.Contains(id) ? "faint" : "dim").AddTo(st);
+                }
             }
 
             // 中：3D 模型
@@ -82,13 +107,15 @@ namespace GoNoGo.UI
                 Ui.Text(sel.Code, "man-code", "mono").AddTo(top);
                 Ui.Text(Loc.T(sel.Name), "h2", "proc-info-name").AddTo(top);
                 Ui.Text(Loc.T("ui.cat." + sel.Category), "eyebrow", "proc-info-cat").AddTo(text);
+                if (money) Ui.Text(Loc.T("ui.proc.price", ("money", Fmt.PartMoney(sel.CostMusd))), "body", "mono", "accent").AddTo(text);
                 Ui.Text(Loc.T(sel.Function), "body", "proc-func").AddTo(text);
                 Ui.Text(Loc.T(sel.Explainer), "body", "proc-explainer").AddTo(text);
                 if (sel.SunlitOnly) Ui.Text(Loc.T("ui.manual.sunlit"), "man-badge", "man-badge--warn").AddTo(text);
 
                 var act = Ui.Row("proc-info-actions").AddTo(info);
-                bool owned = s.Owned.Contains(sel.Id), inCart = s.Cart.Contains(sel.Id);
+                bool owned = s.Owned.Contains(sel.Id), inCart = s.Cart.Contains(sel.Id), inReq = s.Request?.Parts.Contains(sel.Id) == true;
                 if (owned) Ui.Text(Loc.T(installed.Contains(sel.Id) ? "ui.proc.state.installed" : "ui.proc.owned_hint"), "body", "go").AddTo(act);
+                else if (inReq) Ui.Text(Loc.T("ui.proc.state.request"), "body", "tight").AddTo(act);
                 else
                 {
                     var btn = Ui.Btn(Loc.T(inCart ? "ui.proc.remove" : "ui.proc.add"), () =>
@@ -96,48 +123,62 @@ namespace GoNoGo.UI
                         Sfx.Click();
                         GameSession.Send(inCart ? CommandType.CartRemove : CommandType.CartAdd, sel.Id);
                     }, inCart ? "btn-ghost" : "btn-primary").AddTo(act);
-                    btn.SetEnabled(s.Phase == SessionPhase.Design || s.Phase == SessionPhase.Briefing);
+                    btn.SetEnabled(open);
                 }
             }
 
-            // 下：購物車、下單、採購紀錄
+            // 下：購物車、下單（多人是送審）
             var cart = Ui.Row("proc-cart").AddTo(body);
             Ui.Text(Loc.T("ui.proc.cart"), "eyebrow").AddTo(cart);
             if (s.Cart.Count == 0) Ui.Text(Loc.T("ui.proc.cart_empty"), "small", "dim", "proc-cart-empty").AddTo(cart);
             foreach (var id in s.Cart)
             {
                 var pid = id;
-                Ui.Btn((D.Part(id)?.Code ?? id) + "  ✕", () => GameSession.Send(CommandType.CartRemove, pid), "chip", "chip--on", "mono").AddTo(cart);
+                var label = (D.Part(id)?.Code ?? id) + (money ? " " + Fmt.PartMoney(D.Part(id)?.CostMusd ?? 0) : "") + "  ✕";
+                Ui.Btn(label, () => GameSession.Send(CommandType.CartRemove, pid), "chip", "chip--on", "mono").AddTo(cart);
             }
             Ui.Spacer().AddTo(cart);
-            var why = s.Cart.Count == 0 ? "err.cart_empty" : left == 0 ? "err.no_orders" : null;
+            // 多人送審不檢查上限（錯誤訊息會讓組裝區知道錢的狀況），由中控室審查時決定
+            string why = s.Cart.Count == 0 ? "err.cart_empty"
+                : review ? (s.Request != null ? "err.request_pending" : null)
+                : SessionRules.CanOrder(s, D, s.Cart) != SessionRules.Ok ? "err.order_over_cap" : null;
+            if (money && s.Cart.Count > 0)
+            {
+                double cost = SessionRules.PartsMusd(s, D, s.Cart);
+                double after = SessionRules.Headroom(s, D) - cost;
+                double years = SessionRules.FundedYears(s, D, cost);
+                Ui.Text(Loc.T("ui.proc.cart_sum", ("cost", Fmt.PartMoney(cost)), ("left", Fmt.PartMoney(after)),
+                    ("years", Fmt.N(System.Math.Min(years, 99), 1)), ("target", s.Bench.MissionYears)), "small", after < 0 ? "over" : "dim").AddTo(cart);
+            }
             if (why != null && s.Cart.Count > 0) Ui.Text(Loc.T(why), "small", "over").AddTo(cart);
-            var order = Ui.Btn(Loc.T("ui.proc.order"), () =>
+            var order = Ui.Btn(Loc.T(review ? "ui.proc.submit" : "ui.proc.order"), () =>
             {
                 Sfx.Confirm();
                 GameSession.Send(CommandType.PlaceOrder);
-                Hud.Toast(Loc.T("ui.proc.ordered"));
+                Hud.Toast(Loc.T(review ? "ui.proc.submitted" : "ui.proc.ordered"));
                 Hud.Signal("order");
             }, "btn-go", "btn-big").AddTo(cart);
-            order.SetEnabled(why == null && (s.Phase == SessionPhase.Design || s.Phase == SessionPhase.Briefing));
+            order.SetEnabled(why == null && open);
 
             if (s.Orders.Count > 0)
             {
                 var hist = Ui.Row("proc-hist").AddTo(body);
                 foreach (var o in s.Orders)
-                    Ui.Text(Loc.T(o.Rebuild ? "ui.proc.hist_rebuild" : o.N > 1 ? "ui.proc.hist_rush" : "ui.proc.hist", ("n", o.N))
-                            + "  " + string.Join(" ", o.Parts.Select(id => D.Part(id)?.Code ?? id)), "small", "dim", "mono", "proc-hist-item").AddTo(hist);
+                    Ui.Text(Loc.T("ui.proc.hist", ("n", o.N)) + "  " + string.Join(" ", o.Parts.Select(id => D.Part(id)?.Code ?? id))
+                            + (money ? "  " + Fmt.PartMoney(o.Parts.Sum(id => D.Part(id)?.CostMusd ?? 0)) : ""), "small", "dim", "mono", "proc-hist-item").AddTo(hist);
             }
         }
 
         static string StateKey(SessionState s, string id, HashSet<string> installed) =>
             installed.Contains(id) ? "ui.proc.state.installed"
             : s.Owned.Contains(id) ? "ui.proc.state.shelf"
+            : s.Request?.Parts.Contains(id) == true ? "ui.proc.state.request"
             : s.Cart.Contains(id) ? "ui.proc.state.cart"
             : "ui.proc.state.catalog";
 
         static string StateClass(SessionState s, string id, HashSet<string> installed) =>
-            installed.Contains(id) ? "go" : s.Owned.Contains(id) ? "accent" : s.Cart.Contains(id) ? "tight" : "faint";
+            installed.Contains(id) ? "go" : s.Owned.Contains(id) ? "accent"
+            : s.Request?.Parts.Contains(id) == true || s.Cart.Contains(id) ? "tight" : "faint";
 
         public override void Tick(float dt) => _preview?.MarkDirtyRepaint();
 
@@ -181,7 +222,7 @@ namespace GoNoGo.UI
             }
             else MissionProgressView.Build(body, false);
 
-            // 錢：開銷對預算
+            // 錢：開銷對預算。採購機制 v2：開發費 = 基本開發費 + 擁有的所有零件（開局零件和買過的），裝不裝都一樣
             var head = Ui.Row("dash-head").AddTo(right);
             Ui.Text(Loc.T("ui.goals.money"), "eyebrow", "dash-sec").AddTo(head);
             Ui.Spacer().AddTo(head);
@@ -190,14 +231,23 @@ namespace GoNoGo.UI
             var b = ev[ResourceId.Budget];
             Row(grid, Loc.T("res.budget"), Fmt.Resource(b), Fmt.Pct(b.Margin), colors ? Status(b.Status) : null);
             var co = ev.Cost;
-            double parts = co.DevelopmentMusd - s.Reported.ProcurementMusd;
-            Row(grid, Loc.T("ui.goals.dev"), Fmt.Money(parts), "", null);
+            Row(grid, Loc.T("ui.goals.dev"), Fmt.PartMoney(co.DevelopmentMusd), Loc.T("ui.goals.dev_x"), null);
             Row(grid, Loc.T("ui.goals.launch"), Fmt.Money(co.LaunchMusd), Loc.Launcher(s.Reported.LauncherId), null);
             Row(grid, Loc.T("ui.goals.ops"), Fmt.Money(co.OpsTotalMusd), Fmt.Money(co.OpsPerYearMusd) + "/yr", null);
-            Row(grid, Loc.T("ui.goals.waste"), Fmt.Money(s.Reported.ProcurementMusd), Loc.T("ui.goals.waste_x"), s.Reported.ProcurementMusd > 0.005 ? "tight" : null);
+            // 零件還能買多少：預算 − 已花 − 預留的火箭（飛得到目前軌道的最便宜一支）
+            double room = SessionRules.Headroom(s, data);
+            Row(grid, Loc.T("ui.goals.room"), Fmt.PartMoney(room), Loc.T("ui.goals.room_x", ("rocket", Loc.Launcher(SessionRules.ReserveLauncher(s, data)?.Id ?? ""))),
+                room > 0.005 ? null : "over");
+            // 營運經費撐得了幾年（用目前選的火箭和地面站）：不夠的話任務會提前結束
+            double funded = SessionRules.FundedYears(s, data);
+            int years = s.Reported.MissionYears;
+            Row(grid, Loc.T("ui.goals.funded"), funded >= 99 ? "—" : Fmt.Years(funded), Loc.T("ui.goals.funded_x", ("years", years)),
+                funded >= years ? null : funded <= 0 ? "over" : "tight");
             var t = ev[ResourceId.Time];
             Row(grid, Loc.T("res.time"), Fmt.Resource(t), Fmt.Pct(t.Margin), colors ? Status(t.Status) : null);
-            Row(grid, Loc.T("ui.goals.orders"), Loc.T("ui.proc.left", ("n", SessionRules.OrdersLeft(s, data))), "", null);
+
+            // 多人：組裝區送來的採購單，中控室批准或退回
+            if (s.Request != null) Review(right, s, data, compact);
 
             // 採購紀錄：每一單買了什麼、花多少（價格只在中控室看得到）
             if (s.Orders.Count > 0)
@@ -206,17 +256,57 @@ namespace GoNoGo.UI
                 var hist = Ui.El("dash-grid").AddTo(right);
                 foreach (var o in s.Orders)
                 {
-                    double cost = o.Parts.Sum(id => (data.Part(id)?.CostMusd ?? 0) * o.PriceFactor);
-                    string label = Loc.T(o.Rebuild ? "ui.proc.hist_rebuild" : o.N > 1 ? "ui.proc.hist_rush" : "ui.proc.hist", ("n", o.N));
-                    Row(hist, label, Fmt.Money(cost), string.Join(" ", o.Parts.Select(id => data.Part(id)?.Code ?? id)), null);
+                    double cost = o.Parts.Sum(id => data.Part(id)?.CostMusd ?? 0);
+                    Row(hist, Loc.T("ui.proc.hist", ("n", o.N)), Fmt.PartMoney(cost), string.Join(" ", o.Parts.Select(id => data.Part(id)?.Code ?? id)), null);
                 }
             }
-            if (s.Cart.Count > 0)
+            if (s.Cart.Count > 0 && s.Request == null)
             {
-                double cart = s.Cart.Sum(id => data.Part(id)?.CostMusd ?? 0) * SessionRules.NextPriceFactor(s, data);
-                Row(right, Loc.T("ui.goals.cart"), Fmt.Money(cart), string.Join(" ", s.Cart.Select(id => data.Part(id)?.Code ?? id)), "tight");
+                double cart = SessionRules.PartsMusd(s, data, s.Cart);
+                Row(right, Loc.T("ui.goals.cart"), Fmt.PartMoney(cart), string.Join(" ", s.Cart.Select(id => data.Part(id)?.Code ?? id)), "tight");
             }
             if (!compact) Ui.Text(Loc.T("ui.goals.ask_bay"), "small", "faint").AddTo(right);
+        }
+
+        /// <summary>
+        /// 審查採購單：每一項的價格、合計、下單後還能花多少、營運撐得了幾年。超過上限只能退回。
+        /// 牆上的大螢幕（compact）只顯示，按鈕在「任務目標與預算」的控制台。
+        /// </summary>
+        static void Review(VisualElement parent, SessionState s, GameData data, bool compact)
+        {
+            var req = s.Request;
+            double cost = SessionRules.PartsMusd(s, data, req.Parts);
+            double after = SessionRules.Headroom(s, data) - cost;
+            bool ok = SessionRules.CanOrder(s, data, req.Parts) == SessionRules.Ok;
+            var by = s.Player(req.By)?.Look?.Name;
+            Ui.Text(Loc.T("ui.review.title", ("n", req.N)) + (string.IsNullOrEmpty(by) ? "" : " · " + by), "eyebrow", "dash-sec", "tight").AddTo(parent);
+            var grid = Ui.El("dash-grid").AddTo(parent);
+            if (!compact)
+                foreach (var id in req.Parts)
+                {
+                    var p = data.Part(id);
+                    Row(grid, p?.Code ?? id, Fmt.PartMoney(p?.CostMusd ?? 0), p != null ? Loc.T(p.Name) : "", null);
+                }
+            Row(grid, Loc.T("ui.review.total"), Fmt.PartMoney(cost), compact ? string.Join(" ", req.Parts.Select(id => data.Part(id)?.Code ?? id)) : "", null);
+            Row(grid, Loc.T("ui.review.after"), Fmt.PartMoney(after),
+                Loc.T("ui.goals.room_x", ("rocket", Loc.Launcher(SessionRules.ReserveLauncher(s, data)?.Id ?? ""))), ok ? null : "over");
+            double years = SessionRules.FundedYears(s, data, cost);
+            int target = s.Reported.MissionYears;
+            Row(grid, Loc.T("ui.review.funded"), years >= 99 ? "—" : Fmt.Years(years), Loc.T("ui.goals.funded_x", ("years", target)),
+                years >= target ? null : years <= 0 ? "over" : "tight");
+            if (compact)
+            {
+                Ui.Text(Loc.T("ui.review.go_console"), "small", "tight").AddTo(parent);
+                return;
+            }
+            if (!ok) Ui.Text(Loc.T("ui.review.over"), "small", "over").AddTo(parent);
+            bool open = s.Phase == SessionPhase.Design || s.Phase == SessionPhase.Briefing;
+            var row = Ui.Row("modal-actions").AddTo(parent);
+            var rj = Ui.Btn(Loc.T("ui.review.reject"), () => { Sfx.Click(); GameSession.Send(CommandType.RejectOrder); }, "btn-ghost", "btn-big").AddTo(row);
+            rj.SetEnabled(open);
+            Ui.Spacer().AddTo(row);
+            var ap = Ui.Btn(Loc.T("ui.review.approve"), () => { Sfx.Confirm(); GameSession.Send(CommandType.ApproveOrder); }, "btn-go", "btn-big").AddTo(row);
+            ap.SetEnabled(ok && open);
         }
 
         static string Status(ResourceStatus st) => st == ResourceStatus.Over ? "over" : st == ResourceStatus.Tight ? "tight" : "go";

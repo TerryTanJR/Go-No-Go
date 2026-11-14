@@ -818,9 +818,7 @@ namespace GoNoGo.EditorTools
             // 採購終端：組裝區下單買零件（沒有價格，價格在中控室的型錄）
             var proc = Console(art, fm, bay, "ProcureConsole", new Vector3(6.2f, 0, -4.6f), -52f, "procure", "ui.fac.procure", "ui.fac.procure_body", "design,briefing", art.consoleScreens[0], 2.4f);
             proc.actionKey = "ui.hint.procure";
-            // 環境測試台（振動／熱真空）：和採購終端左右對稱，夾著進門的走道，兩台都面向整合台
-            var test = Console(art, fm, bay, "TestConsole", new Vector3(6.2f, 0, 5.6f), -128f, "test", "ui.fac.test", "ui.fac.test_body", "design", art.consoleScreens[2], 2.4f);
-            test.actionKey = "ui.hint.test";
+            // （環境測試台在採購機制 v2 拿掉了：發射前不再檢查）
 
             // 東牆（門的南邊）：失敗原因看板
             var fb = WallScreen(art, fm, bay, "FailureBoard", "failures", new Vector3(BayX1 - 0.08f, 3.4f, -6.2f), 90f, new Vector2(6.6f, 4.1f), new Vector2Int(1024, 640));

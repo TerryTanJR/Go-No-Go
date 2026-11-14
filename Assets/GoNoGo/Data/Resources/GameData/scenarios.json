@@ -2,6 +2,7 @@
   {
     "id": "earth_observation",
     "objective": "earth_observation",
+    "difficulty": "cadet",
     "name": {
       "en": "Eyes on Earth",
       "zh-TW": "看顧地球"
@@ -10,7 +11,7 @@
       "en": "Build a satellite that watches wildfires, floods and crops for at least 3 years. You have room for up to 3 instruments; the budget and launch deadline are below. Every choice costs mass, power, money, data or time.",
       "zh-TW": "打造一顆監測野火、洪水和農作物的衛星，至少運作 3 年。最多裝 3 台儀器，預算和發射期限見下方。每個選擇都要付出質量、電力、金錢、資料或時間。"
     },
-    "budget_musd": 140,
+    "budget_musd": 210,
     "target_years": 3,
     "deadline_months": 42,
     "max_instruments": 3,
@@ -127,6 +128,7 @@
   {
     "id": "lunar_mapping",
     "objective": "lunar_mapping",
+    "difficulty": "engineer",
     "name": {
       "en": "Map the Moon",
       "zh-TW": "繪製月球地圖"
@@ -268,6 +270,7 @@
   {
     "id": "wildfire",
     "objective": "wildfire",
+    "difficulty": "director",
     "name": {
       "en": "Wildfire Watch",
       "zh-TW": "野火偵測"
@@ -291,9 +294,6 @@
     "science_reference": 100,
     "science_model": "fire_alert",
     "latency_limit_min": 30,
-    "budget_multiplier_override": {
-      "director": 1.0
-    },
     "requirements": {
       "mission_lead": [
         {
@@ -686,6 +686,7 @@
   {
     "id": "hist_oco",
     "objective": "carbon_monitoring",
+    "difficulty": "engineer",
     "name": {
       "en": "Rewrite History: Orbiting Carbon Observatory (2009)",
       "zh-TW": "改寫歷史：軌道碳觀測衛星（2009）"

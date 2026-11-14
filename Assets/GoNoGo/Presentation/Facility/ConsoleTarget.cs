@@ -9,7 +9,7 @@ namespace GoNoGo.Presentation
     /// </summary>
     public sealed class ConsoleTarget : Interactable
     {
-        [Tooltip("面板 id：dashboard、procure、manual、bay_manual、test、goals、phone、mission、launch、failures、ops_desk、ops:power…")]
+        [Tooltip("面板 id：dashboard、procure、manual、bay_manual、goals、phone、mission、launch、failures、ops_desk、ops:power…")]
         public string panel = "";
         public string titleKey = "";
         public string bodyKey = "";
@@ -21,13 +21,19 @@ namespace GoNoGo.Presentation
 
         MaterialPropertyBlock _mpb;
 
+        /// <summary>環境測試台在採購機制 v2 拿掉了；場景裡舊的測試台直接隱藏（重建場景時 FacilityBuilder 不再產生它）。</summary>
+        void Awake()
+        {
+            if (panel == "test") gameObject.SetActive(false);
+        }
+
         /// <summary>
-        /// 嚴格分工時這個控制台屬於哪一區（依面板 id）：採購終端、儀表板大螢幕、測試台、組裝手冊是組裝區的；
+        /// 嚴格分工時這個控制台屬於哪一區（依面板 id）：採購終端、儀表板大螢幕、組裝手冊是組裝區的；
         /// 任務目標與預算、軌道與火箭、電話、筆記、發射、中控室手冊（型錄）是中控室的。失敗看板兩邊都能看。
         /// </summary>
         public static Station? StationOf(string panel) => panel switch
         {
-            "report" or "test" or "bay_manual" or "procure" or "dashboard" => Station.Assembly,
+            "report" or "bay_manual" or "procure" or "dashboard" => Station.Assembly,
             "goals" or "mission" or "phone" or "notes" or "launch" or "manual" => Station.Control,
             // 後排的手冊各章（manual:payload…）也是中控室的
             _ when panel != null && panel.StartsWith("manual:") => Station.Control,

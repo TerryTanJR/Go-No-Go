@@ -32,16 +32,13 @@ namespace GoNoGo.UI
             var data = GameSession.Data;
             int depts = data.Departments.Count;
             int asked = s.Calls.Select(c => c.Department).Distinct().Count();
-            var t = s.LastTest;
-            bool tested = EnvTests.IsCurrent(s);
             bool orbit = s.Launches.Any(l => l.Reached);
             int turns = m.Plan?.Turns ?? m.Difficulty.Turns;
 
             var steps = new List<(string key, bool done, string sub)>
             {
                 ("calls", asked >= depts, Loc.T("ui.prog.calls_n", ("n", asked), ("total", depts))),
-                ("procure", s.Orders.Count > 0, Loc.T("ui.proc.left", ("n", SessionRules.OrdersLeft(s, data)))),
-                ("test", tested, t == null ? Loc.T("ui.prog.not_yet") : tested ? Loc.T("ui.prog.test_ok", ("n", t.N)) : Loc.T("ui.prog.retest")),
+                ("procure", s.Orders.Count > 0, s.Orders.Count == 0 ? Loc.T("ui.prog.not_yet") : Loc.T("ui.prog.orders_n", ("n", s.Orders.Count))),
                 ("launch", orbit, s.Launches.Count == 0 ? Loc.T("ui.prog.not_yet")
                     : orbit ? Loc.T("ui.prog.in_orbit") : Loc.T("ui.prog.failed_n", ("n", s.FailedLaunches))),
                 ("ops", s.Phase == SessionPhase.Report, s.Phase == SessionPhase.Ops ? Loc.T("ui.ops.turn", ("n", s.OpsTurn + 1), ("total", turns))
@@ -51,15 +48,11 @@ namespace GoNoGo.UI
 
             // 現在這一步：設計階段是第一個還沒完成的（問需求沒問完不擋後面，所以從回報開始找），其他階段照階段
             int current;
-            if (s.Phase == SessionPhase.Launch) current = 3;
-            else if (s.Phase == SessionPhase.Ops) current = 4;
-            else if (s.Phase == SessionPhase.Report) current = 5;
+            if (s.Phase == SessionPhase.Launch) current = 2;
+            else if (s.Phase == SessionPhase.Ops) current = 3;
+            else if (s.Phase == SessionPhase.Report) current = 4;
             else if (s.Orders.Count == 0 && asked == 0) current = 0;
-            else
-            {
-                current = 3;
-                for (int i = 1; i <= 3; i++) if (!steps[i].done) { current = i; break; }
-            }
+            else current = s.Orders.Count == 0 ? 1 : 2;
 
             var row = Ui.Row("prog-stages").AddTo(parent);
             for (int i = 0; i < steps.Count; i++)

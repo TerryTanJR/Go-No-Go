@@ -56,7 +56,6 @@ namespace GoNoGo.UI
                 "failures" => new FailuresPanel(),
                 "tablet" => new TabletPanel(),
                 "ops_desk" => new OpsDeskPanel(),
-                "test" => new TestPanel(),
                 // 組裝區的手冊：嚴格分工時只有代號與用途（數字在中控室）
                 "bay_manual" => M.S.StrictRoles && M.S.Multiplayer ? new BayManualPanel() : new ManualPanel(),
                 _ => null,
