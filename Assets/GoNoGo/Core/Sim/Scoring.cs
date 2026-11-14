@@ -18,11 +18,17 @@ namespace GoNoGo.Core
         public double Efficiency { get; set; }
         /// <summary>處室需求：80 × 達成比例 + 第一次發射就成功入軌加 20。</summary>
         public double Departments { get; set; }
-        /// <summary>營運處置：每回合「判斷對」50% +「處置步驟完成比例」50%，各回合平均。</summary>
+        /// <summary>營運處置：每回合「判斷對」50% +「處置步驟完成比例」50% − 多餘操作扣分，各回合平均。</summary>
         public double Ops { get; set; }
         public double Total { get; set; }
         /// <summary>S、A、B、C 或 FAIL。</summary>
         public string Grade { get; set; } = "C";
+        /// <summary>這一局的科學門檻（處室的 science_threshold；沒有就用 <see cref="Scoring.DefaultScienceThreshold"/>）。</summary>
+        public double ScienceThreshold { get; set; }
+        /// <summary>總分夠高，但科學分沒達門檻，評等被壓到 C。</summary>
+        public bool GradeCapped { get; set; }
+        /// <summary>科學分不到門檻的一半而判 FAIL（入軌了，但成果不算數）。</summary>
+        public bool ScienceFail { get; set; }
         public bool FirstLaunchBonus { get; set; }
         public List<RequirementResult> Requirements { get; set; } = new List<RequirementResult>();
     }
@@ -31,6 +37,16 @@ namespace GoNoGo.Core
     public static class Scoring
     {
         public const double WScience = 0.35, WLifetime = 0.20, WEfficiency = 0.15, WDepartments = 0.15, WOps = 0.15;
+        /// <summary>關卡（或這個難度）沒有科學門檻需求時用的門檻。一半（15）以下 FAIL，和以前的 FAIL 線一樣。</summary>
+        public const double DefaultScienceThreshold = 30;
+
+        /// <summary>這一局的科學門檻：生效的 science_threshold 需求值，沒有就用預設值。</summary>
+        public static double ScienceThreshold(IEnumerable<ActiveRequirement> active)
+        {
+            var req = (active ?? Enumerable.Empty<ActiveRequirement>())
+                .FirstOrDefault(a => a.Requirement?.Type == "science_threshold")?.Requirement;
+            return req != null && req.Value > 0 ? req.Value : DefaultScienceThreshold;
+        }
 
         public static Score Compute(Design design, GameData data, Evaluation ev, MissionResult r, MissionContext ctx)
         {
@@ -38,7 +54,7 @@ namespace GoNoGo.Core
             var diff = data.Difficulty(ctx.DifficultyId) ?? data.Difficulties.FirstOrDefault() ?? new DifficultyDef();
             var s = new Score();
 
-            s.Science = scenario != null && scenario.FireAlert ? FireScience(ev, r, scenario) : ScienceScore(r.ScienceTotal, scenario);
+            s.Science = scenario != null && scenario.FireAlert ? FireScience(ev, r, scenario) : ScienceScore(r.ScienceTotal, scenario, design.MissionYears);
             s.Efficiency = EfficiencyScore(ev);
             s.Lifetime = r.ReachedOrbit ? Clamp(100.0 * Math.Min(1.0, r.ActualYears / Math.Max(1e-6, r.TargetYears))) : 0;
 
@@ -56,7 +72,8 @@ namespace GoNoGo.Core
             int allowed = diff.FreeFirstFailure ? 1 : 0;
             s.FirstLaunchBonus = r.ReachedOrbit && ctx.FailedLaunchesBefore <= allowed;
             s.Departments = Clamp(80.0 * s.Requirements.Count(x => x.Met) / n + (s.FirstLaunchBonus ? 20 : 0));
-            s.Ops = OpsScore(r);
+            s.Ops = OpsScore(r, diff.ExtraActionPenalty);
+            s.ScienceThreshold = ScienceThreshold(ctx.Requirements);
 
             if (!r.ReachedOrbit)
             {
@@ -66,21 +83,33 @@ namespace GoNoGo.Core
             }
             s.Total = Math.Round(WScience * s.Science + WLifetime * s.Lifetime + WEfficiency * s.Efficiency
                                  + WDepartments * s.Departments + WOps * s.Ops, 1);
-            s.Grade = s.Science < 15 ? "FAIL"
-                : s.Total >= 90 ? "S"
+            string byTotal = s.Total >= 90 ? "S"
                 : s.Total >= 78 ? "A"
                 : s.Total >= 62 ? "B"
                 : "C";
+            // 科學門檻：不到一半 FAIL，不到門檻評等最高 C（其他分項再好，任務目的沒達成就不算好任務）
+            s.ScienceFail = s.Science < s.ScienceThreshold * 0.5;
+            s.GradeCapped = !s.ScienceFail && s.Science < s.ScienceThreshold && byTotal != "C";
+            s.Grade = s.ScienceFail ? "FAIL" : s.GradeCapped ? "C" : byTotal;
             return s;
         }
 
         /// <summary>營運處置分數；沒有遇到任何事件（任務提早結束）時，入軌就算滿分。</summary>
-        public static double OpsScore(MissionResult r)
+        public static double OpsScore(MissionResult r) => OpsScore(r, 0);
+
+        /// <summary>
+        /// 每回合：判斷對 50 + 50 × 步驟完成比例 − 每個多餘操作 penalty，下限 0；誤報的回合 0。各回合平均。
+        /// </summary>
+        public static double OpsScore(MissionResult r, double penalty)
         {
             if (!r.ReachedOrbit) return 0;
             if (r.Events.Count == 0) return 100;
-            return Clamp(r.Events.Average(e => e.Voided ? 0.0 : (e.JudgedCorrect ? 50.0 : 0.0) + 50.0 * e.StepsFraction));
+            return Clamp(r.Events.Average(e => TurnOpsScore(e, penalty)));
         }
+
+        public static double TurnOpsScore(EventOutcome e, double penalty) =>
+            e.Voided ? 0.0
+            : Math.Max(0, (e.JudgedCorrect ? 50.0 : 0.0) + 50.0 * e.StepsFraction - penalty * e.WrongActions.Count);
 
         /// <summary>
         /// 野火關卡的科學成果 = 100 × 偵測率 × 及時通報比例 × 工作比例。
@@ -105,9 +134,19 @@ namespace GoNoGo.Core
         /// 科學分數 = 100 · √(科學點數 / 參考值)，上限 100。
         /// 開根號讓小任務也拿得到分數，大任務則邊際效益遞減（多帶一台儀器不會讓分數翻倍）。
         /// </summary>
-        public static double ScienceScore(double scienceTotal, ScenarioDef scenario)
+        public static double ScienceScore(double scienceTotal, ScenarioDef scenario) =>
+            ScienceScore(scienceTotal, scenario, 0);
+
+        /// <summary>
+        /// 任務年數超過目標時，參考值依比例放大：科學分看的是每年的表現，多做幾年不會白拿分，
+        /// 只會多付營運費、多承擔壽命風險（中途結束就拿不到那幾年的科學）。短於目標不縮小（短任務本來就少拿）。
+        /// missionYears ≤ 0 表示用目標年數。
+        /// </summary>
+        public static double ScienceScore(double scienceTotal, ScenarioDef scenario, double missionYears)
         {
             double reference = scenario != null && scenario.ScienceReference > 0 ? scenario.ScienceReference : 100;
+            double target = scenario != null && scenario.TargetYears > 0 ? scenario.TargetYears : 0;
+            if (target > 0 && missionYears > target) reference *= missionYears / target;
             return Clamp(100.0 * Math.Sqrt(Math.Max(0, scienceTotal) / reference));
         }
 

@@ -190,7 +190,7 @@ namespace GoNoGo.UI
                 case "science_threshold":
                 {
                     double expected = ev.SciencePerYear * Math.Min(d.MissionYears, ev.Lifetime.Years) * ev.Data.ReturnFraction;
-                    double v = sc != null ? Scoring.ScienceScore(expected, sc) : 0;
+                    double v = sc != null ? Scoring.ScienceScore(expected, sc, d.MissionYears) : 0;
                     return new Gauge { Now = Fmt.N(v), Target = "≥ " + Fmt.N(req.Value), Fraction = req.Value > 0 ? v / req.Value : 1 };
                 }
                 case "instrument_required":

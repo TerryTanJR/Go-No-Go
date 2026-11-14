@@ -289,9 +289,12 @@ namespace GoNoGo.Core
                 StepsRequired = Procedures.Required(e.Kind).Count,
                 StepsDone = Procedures.Done(e.Kind, actions),
                 WrongActions = Procedures.Wrong(e.Kind, actions),
+                ConflictedActions = Procedures.Conflicted(actions),
             };
             double f = o.StepsFraction;
-            bool Did(string a) => actions.Contains(a);
+            // 互相衝突的操作沒有效果（也不算步驟）；多餘操作的停機懲罰照算（按了就是按了）
+            var effective = Procedures.Effective(actions);
+            bool Did(string a) => effective.Contains(a);
 
             // 不必要的操作也有代價：沒事進安全模式、關掉儀器都會少觀測幾天
             if (o.WrongActions.Contains(OpsActions.SafeMode)) { safeDays += 3; o.LostDays += 3; }

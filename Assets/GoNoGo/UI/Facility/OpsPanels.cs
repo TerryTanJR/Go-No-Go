@@ -139,7 +139,10 @@ namespace GoNoGo.UI
                 Ui.Text(Loc.T(judgedOk ? "ui.ops.judged_ok" : "ui.ops.judged_wrong"), "body", judgedOk ? "go" : "over").AddTo(body);
                 Ui.Text(Loc.T("ui.ops.steps", ("done", o.StepsDone), ("total", o.StepsRequired)), "body", o.StepsDone == o.StepsRequired ? "go" : "tight").AddTo(body);
                 if (o.WrongActions.Count > 0)
-                    Ui.Text(Loc.T("ui.ops.wrong", ("list", string.Join("、", o.WrongActions.Select(a => Loc.T("ops.action." + a))))), "small", "tight").AddTo(body);
+                    Ui.Text(Loc.T("ui.ops.wrong", ("list", string.Join("、", o.WrongActions.Select(a => Loc.T("ops.action." + a)))),
+                        ("pts", Fmt.N(M.Difficulty.ExtraActionPenalty * o.WrongActions.Count))), "small", "tight").AddTo(body);
+                if (o.ConflictedActions.Count > 0)
+                    Ui.Text(Loc.T("ui.ops.conflicted", ("list", string.Join("、", o.ConflictedActions.Select(a => Loc.T("ops.action." + a)))))), "small", "over").AddTo(body);
                 Ui.Text(Loc.T(o.ResultCode, ("part", "part:" + (o.AffectedPartId ?? ""))), "body").AddTo(body);
                 if (o.LostDays > 0) Ui.Text(Loc.T("ui.ops.lost_days", ("d", o.LostDays)), "small", "dim").AddTo(body);
                 if (o.ScienceDelta > 0) Ui.Text(Loc.T("ui.ops.science_bonus", ("v", Fmt.N(o.ScienceDelta, 1))), "small", "go").AddTo(body);

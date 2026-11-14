@@ -290,8 +290,10 @@ namespace GoNoGo.UI
             var yr = Ui.Row("years-row").AddTo(lCol);
             Ui.Btn("−", () => GameSession.Send(CommandType.SetYears, "", d.MissionYears - 1), "btn-small").AddTo(yr).SetEnabled(!locked);
             Ui.Text(Fmt.Years(d.MissionYears), "h3", "mono", "years-value").AddTo(yr);
-            Ui.Btn("+", () => GameSession.Send(CommandType.SetYears, "", d.MissionYears + 1), "btn-small").AddTo(yr).SetEnabled(!locked);
-            Ui.Text(Loc.T("ui.mc.years_hint", ("target", Fmt.Years(M.Scenario.TargetYears))), "small", "faint").AddTo(lCol);
+            Ui.Btn("+", () => GameSession.Send(CommandType.SetYears, "", d.MissionYears + 1), "btn-small").AddTo(yr)
+                .SetEnabled(!locked && d.MissionYears < SessionRules.MaxMissionYears(M.Scenario));
+            Ui.Text(Loc.T("ui.mc.years_hint", ("target", Fmt.Years(M.Scenario.TargetYears)),
+                ("max", Fmt.Years(SessionRules.MaxMissionYears(M.Scenario)))), "small", "faint").AddTo(lCol);
         }
 
         static Button Choice(VisualElement parent, string name, string sub, bool on, bool locked, System.Action pick)

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
@@ -191,6 +192,62 @@ namespace GoNoGo.Core.Tests
             // 判斷正確、只做一步：50 + 50/3
             Assert.That(Ops(Scripted.Partial(1)), Is.EqualTo(50 + 50.0 / 3).Within(1e-9));
             Assert.That(Ops(Scripted.Partial(2)), Is.GreaterThan(Ops(Scripted.Partial(1))));
+        }
+
+        [Test]
+        public void PressingEveryButtonIsWorseThanFollowingTheManual()
+        {
+            var d = TestData.Balanced();
+            int seed = Enumerable.Range(1, 200).First(s => Simulator.PlanMission(d, _data, s, "engineer").LaunchRoll < 0.9);
+            var ctx = new MissionContext { DifficultyId = "engineer" };
+            // 判斷正確，但把所有非野火的操作都按下去：步驟一定做滿，多出來 7 個操作
+            var all = new Scripted(e => new EventResponse
+            {
+                Judged = OpsEvents.Key(e.Kind),
+                Actions = OpsActions.All.Where(a => !OpsActions.FireOnly(a)).ToList(),
+            });
+            var r = Simulator.SimulateMission(d, _data, seed, all, ctx);
+            Assert.That(r.Events.All(e => e.WrongActions.Count == 7));
+            // 衝突：太陽風暴的安全模式、儀器關機被抵銷；科學機會的三步全被抵銷；零件故障的步驟沒有衝突
+            foreach (var e in r.Events)
+            {
+                int expectDone = e.Event.Kind == EventKind.SolarStorm ? 1
+                    : e.Event.Kind == EventKind.ScienceOpportunity ? 0
+                    : e.Event.Kind == EventKind.PowerAnomaly ? 1
+                    : 3;
+                Assert.That(e.StepsDone, Is.EqualTo(expectDone), e.Event.Kind.ToString());
+                Assert.That(e.ConflictedActions, Is.EquivalentTo(new[]
+                    { OpsActions.InstrumentsOff, OpsActions.HighResMode, OpsActions.BatteryProtect, OpsActions.SafeMode, OpsActions.PointTarget, OpsActions.PriorityDownlink }));
+            }
+            // 工程師每個多餘操作 −10，每回合下限 0
+            Assert.That(r.Score.Ops, Is.EqualTo(r.Events.Average(e => Math.Max(0, 50 + 50.0 * e.StepsDone / e.StepsRequired - 70))).Within(1e-9));
+            Assert.That(r.Score.Ops, Is.LessThan(Simulator.SimulateMission(d, _data, seed, Scripted.Partial(1), ctx).Score.Ops),
+                "全部按下去要比判斷對、只做一步還差");
+            // 學員扣得輕（−5），但衝突照樣讓步驟做不滿
+            var cadet = Simulator.SimulateMission(d, _data, seed, all, new MissionContext { DifficultyId = "cadet" });
+            Assert.That(cadet.Score.Ops, Is.LessThan(50));
+            // 每回合下限 0
+            var none = new EventOutcome { Event = r.Events[0].Event, JudgedCorrect = false, StepsRequired = 3, StepsDone = 0,
+                WrongActions = new List<string> { "a", "b" } };
+            Assert.That(Scoring.TurnOpsScore(none, 10), Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ManualProceduresNeverConflictWithThemselves()
+        {
+            foreach (var k in OpsEvents.All)
+                Assert.That(Procedures.Conflicted(Procedures.Required(k)), Is.Empty, "照手冊做不能自己抵銷：" + k);
+        }
+
+        [Test]
+        public void LongerMissionsDoNotInflateTheScienceScore()
+        {
+            var s = _data.Scenario("earth_observation");      // 目標 3 年、參考值 360
+            Assert.That(Scoring.ScienceScore(90, s, 3), Is.EqualTo(50).Within(1e-9));
+            // 5 年做出 5/3 倍的科學點數，分數一樣：參考值跟著放大
+            Assert.That(Scoring.ScienceScore(150, s, 5), Is.EqualTo(50).Within(1e-9));
+            // 短於目標不縮小參考值
+            Assert.That(Scoring.ScienceScore(60, s, 2), Is.EqualTo(Scoring.ScienceScore(60, s, 3)).Within(1e-9));
         }
 
         [Test]

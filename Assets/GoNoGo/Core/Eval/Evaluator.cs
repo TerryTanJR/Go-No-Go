@@ -142,13 +142,18 @@ namespace GoNoGo.Core
             else gapHours = oi.ContactsPerDay > 0 ? Math.Min(24.0, c.ContactGapFactor * 24.0 / oi.ContactsPerDay) : 24.0;
             gapHours = Math.Max(1.0, gapHours);
             double storageRaw = dt.GeneratedGbPerDay * gapHours / 24.0;
+            dt.StorageRawGb = storageRaw;
             dt.StorageNeededGb = storageRaw * c.StorageSafetyFactor;
             dt.StorageGb = computer?.StorageGb ?? 0;
             double linkFrac = dt.GeneratedGbPerDay > 0 ? Math.Min(1, dt.DownlinkGbPerDay / dt.GeneratedGbPerDay) : 1;
             double storeFrac = storageRaw > 0 ? Math.Min(1, dt.StorageGb / storageRaw) : 1;
             dt.ReturnFraction = linkFrac * storeFrac;
-            AddResource(ev, ResourceId.Data, dt.StorageNeededGb, dt.StorageGb, "GB",
-                dt.StorageGb > 0 ? (dt.StorageGb - dt.StorageNeededGb) / dt.StorageGb : (dt.StorageNeededGb > 0 ? -1 : 1), dataContrib);
+            // 儲存燈號分兩層：比原始需求小 = 紅（真的會掉資料）；比含安全係數的需求小 = 黃（漏接或電腦故障時會掉）
+            double storageMargin = dt.StorageGb > 0 ? (dt.StorageGb - storageRaw) / dt.StorageGb : (storageRaw > 0 ? -1 : 1);
+            var storageStatus = storageMargin < 0 ? ResourceStatus.Over
+                : dt.StorageGb < dt.StorageNeededGb ? ResourceStatus.Tight
+                : ResourceStatus.Ok;
+            AddResource(ev, ResourceId.Data, dt.StorageNeededGb, dt.StorageGb, "GB", storageMargin, dataContrib, storageStatus);
             AddResource(ev, ResourceId.Comms, dt.GeneratedGbPerDay, dt.DownlinkGbPerDay, "GB/day",
                 dt.DownlinkGbPerDay > 0 ? (dt.DownlinkGbPerDay - dt.GeneratedGbPerDay) / dt.DownlinkGbPerDay : (dt.GeneratedGbPerDay > 0 ? -1 : 1),
                 new List<Contribution>(dataContrib));
@@ -262,7 +267,7 @@ namespace GoNoGo.Core
         }
 
         static void AddResource(Evaluation ev, ResourceId id, double used, double capacity, string unit,
-            double margin, List<Contribution> contrib)
+            double margin, List<Contribution> contrib, ResourceStatus? status = null)
         {
             if (double.IsNaN(margin) || double.IsInfinity(margin)) margin = -1;
             ev.Resources[id] = new ResourceReport
@@ -272,7 +277,7 @@ namespace GoNoGo.Core
                 Capacity = capacity,
                 Unit = unit,
                 Margin = margin,
-                Status = margin < 0 ? ResourceStatus.Over : margin < TightMargin ? ResourceStatus.Tight : ResourceStatus.Ok,
+                Status = status ?? (margin < 0 ? ResourceStatus.Over : margin < TightMargin ? ResourceStatus.Tight : ResourceStatus.Ok),
                 Contributions = contrib.Where(x => Math.Abs(x.Amount) > 1e-9).OrderByDescending(x => x.Amount).ToList(),
             };
         }
@@ -304,7 +309,8 @@ namespace GoNoGo.Core
                         w.Values["over"] = r.Used - r.Capacity;
                         break;
                     case ResourceId.Data:
-                        w.Code = "warn.storage";
+                        w.Code = r.Status == ResourceStatus.Over ? "warn.storage" : "warn.storage_tight";
+                        w.Values["raw"] = ev.Data.StorageRawGb;
                         w.Values["return_pct"] = ev.Data.ReturnFraction * 100;
                         break;
                     case ResourceId.Comms:

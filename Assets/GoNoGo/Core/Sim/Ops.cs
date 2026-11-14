@@ -98,10 +98,37 @@ namespace GoNoGo.Core
             _ => new string[0],
         };
 
-        /// <summary>做到幾個必要步驟（不看順序，重複的只算一次）。</summary>
-        public static int Done(EventKind k, IEnumerable<string> actions)
+        /// <summary>
+        /// 互相衝突的操作：同一回合兩個都送出，兩個都無效（不算步驟、也沒有效果）。
+        /// 讓「全部按下去」連必要步驟都做不滿。
+        /// </summary>
+        public static readonly (string a, string b)[] Conflicts =
+        {
+            (OpsActions.SafeMode, OpsActions.PointTarget),        // 安全模式鎖定對日姿態，不能指向目標
+            (OpsActions.SafeMode, OpsActions.HighResMode),        // 安全模式下儀器關機
+            (OpsActions.InstrumentsOff, OpsActions.HighResMode),  // 儀器關了就不能高解析拍攝
+            (OpsActions.BatteryProtect, OpsActions.PriorityDownlink), // 下傳要用發射功率，和省電互斥
+        };
+
+        /// <summary>這回合因為互相衝突而無效的操作。</summary>
+        public static List<string> Conflicted(IEnumerable<string> actions)
         {
             var set = new HashSet<string>(actions ?? Enumerable.Empty<string>());
+            return OpsActions.All.Where(a => Conflicts.Any(c => (c.a == a && set.Contains(c.b)) || (c.b == a && set.Contains(c.a))) && set.Contains(a)).ToList();
+        }
+
+        /// <summary>真正生效的操作（去掉互相衝突的）。</summary>
+        public static List<string> Effective(IEnumerable<string> actions)
+        {
+            var list = (actions ?? Enumerable.Empty<string>()).Distinct().ToList();
+            var bad = new HashSet<string>(Conflicted(list));
+            return list.Where(a => !bad.Contains(a)).ToList();
+        }
+
+        /// <summary>做到幾個必要步驟（不看順序，重複的只算一次；互相衝突的不算）。</summary>
+        public static int Done(EventKind k, IEnumerable<string> actions)
+        {
+            var set = new HashSet<string>(Effective(actions));
             return Required(k).Count(set.Contains);
         }
 

@@ -67,6 +67,12 @@ namespace GoNoGo.Core
             };
         }
 
+        /// <summary>
+        /// 任務年數上限 = 關卡目標年數 + 2。科學點數隨年數線性成長，不設上限的話「把年數調到壽命允許的最大值」永遠最好。
+        /// </summary>
+        public static int MaxMissionYears(ScenarioDef scenario) =>
+            Math.Max(1, (int)Math.Floor(scenario?.TargetYears ?? 8) + 2);
+
         // ---------------------------------------------------------------- 採購
 
         /// <summary>這一局總共可以採購幾次：難度給的次數，個人模式多 1 次，每次發射失敗再給 1 次重建採購。</summary>
@@ -305,7 +311,7 @@ namespace GoNoGo.Core
                 case CommandType.SetGroundStation:
                     return Control(s, data, d => d.Parts[PartCategory.GroundStation] = c.A, () => data.Part(c.A)?.Category == PartCategory.GroundStation);
                 case CommandType.SetYears:
-                    return Control(s, data, d => d.MissionYears = Math.Max(1, Math.Min(10, c.N)), () => true);
+                    return Control(s, data, d => d.MissionYears = Math.Max(1, Math.Min(MaxMissionYears(s.Scenario(data)), c.N)), () => true);
                 case CommandType.Call:
                     var dep = data.Department(c.A);
                     if (dep == null) return "err.unknown";

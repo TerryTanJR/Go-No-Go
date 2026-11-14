@@ -63,8 +63,18 @@ namespace GoNoGo.Core.Tests
             var ev = Evaluator.EvaluateDesign(d, _data);
             double gap = 2.0 * 24.0 / 9.0;               // 9 次過境，最長空檔是平均的兩倍
             Assert.That(ev.Data.StorageNeededGb, Is.EqualTo(33 * gap / 24 * 1.5).Within(1e-9));
-            Assert.That(ev[ResourceId.Data].Status, Is.EqualTo(ResourceStatus.Over), "8 GB 不夠存 5.3 小時的影像");
+            Assert.That(ev.Data.StorageRawGb, Is.EqualTo(33 * gap / 24).Within(1e-9));
+            // 7.3 GB 存得下 8 GB，但低於含安全係數的 11 GB → 黃燈，不掉資料
+            Assert.That(ev[ResourceId.Data].Status, Is.EqualTo(ResourceStatus.Tight), "8 GB 存得下 5.3 小時的影像，但沒有安全餘裕");
+            Assert.That(ev.Warnings.Select(w => w.Code), Does.Contain("warn.storage_tight"));
+            Assert.That(ev.Data.ReturnFraction, Is.EqualTo(1.0).Within(1e-9));
+
+            // 換成資料量更大的多光譜（41 GB/天 → 空檔 9.1 GB）就真的存不下：紅燈、會掉資料
+            d.Instruments[0] = "inst_multispectral";
+            ev = Evaluator.EvaluateDesign(d, _data);
+            Assert.That(ev[ResourceId.Data].Status, Is.EqualTo(ResourceStatus.Over), "8 GB 存不下 9.1 GB");
             Assert.That(ev.Warnings.Select(w => w.Code), Does.Contain("warn.storage"));
+            Assert.That(ev.Data.ReturnFraction, Is.EqualTo(8 / (41 * gap / 24)).Within(1e-9));
         }
 
         [Test]

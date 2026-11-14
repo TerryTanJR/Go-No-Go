@@ -172,6 +172,15 @@ namespace GoNoGo.Core
             var scenario = data.Scenario(d.ScenarioId);
             if (scenario != null && scenario.FireAlert) FireChains(chains, d, data, ev, r, scenario, O);
 
+            // 科學門檻：評等被壓到 C 或判 FAIL 時一定要說明，不然總分 70 拿 C 看不懂
+            var sc = r.Score;
+            if (sc != null && (sc.GradeCapped || sc.ScienceFail))
+            {
+                chains.Add(Chain("science_low", 40,
+                    new CauseStep("cause.science_low", ("score", N(sc.Science)), ("need", N(sc.ScienceThreshold))),
+                    new CauseStep(sc.ScienceFail ? "cause.science_fail" : "cause.grade_capped")));
+            }
+
             // 沒有問題時，說明成功的原因
             if (!chains.Any(c => c.Impact >= 5))
             {
@@ -236,7 +245,9 @@ namespace GoNoGo.Core
 
         public static string Suggest(List<CausalChain> chains, Evaluation ev, bool fire)
         {
-            var top = chains.FirstOrDefault(c => !c.Positive && c.Impact >= 2);
+            // 「科學分不夠」是結果；建議優先針對造成它的原因（其他因果鏈），沒有才給通用建議
+            var top = chains.FirstOrDefault(c => !c.Positive && c.Impact >= 2 && c.Code != "science_low");
+            if (top == null && chains.Any(c => c.Code == "science_low")) return "suggest.science_low";
             if (top != null)
             {
                 switch (top.Code)

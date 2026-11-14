@@ -66,7 +66,7 @@ namespace GoNoGo.Core
                     return ev[ResourceId.Mass].Margin >= need && ev[ResourceId.Power].Margin >= need;
                 case "science_threshold":
                     double expected = ev.SciencePerYear * Math.Min(d.MissionYears, ev.Lifetime.Years) * ev.Data.ReturnFraction;
-                    return s != null && Scoring.ScienceScore(expected, s) >= req.Value;
+                    return s != null && Scoring.ScienceScore(expected, s, d.MissionYears) >= req.Value;
                 case "instrument_required": return d.Instruments.Contains(req.PartId);
                 case "data_return": return ev.Data.ReturnFraction >= req.Value;
                 case "instrument_any": return d.Instruments.Any(req.PartIds.Contains);

@@ -28,7 +28,8 @@
     "turn_seconds": 180,
     "guaranteed_launch": false,
     "orders": 2,
-    "rush_fee": 0.3
+    "rush_fee": 0.3,
+    "extra_action_penalty": 10
   },
   {
     "id": "cadet",
@@ -58,7 +59,8 @@
     "turn_seconds": 0,
     "guaranteed_launch": false,
     "orders": 3,
-    "rush_fee": 0.0
+    "rush_fee": 0.0,
+    "extra_action_penalty": 5
   },
   {
     "id": "director",
@@ -90,7 +92,8 @@
     "turn_seconds": 90,
     "guaranteed_launch": false,
     "orders": 1,
-    "rush_fee": 0.3
+    "rush_fee": 0.3,
+    "extra_action_penalty": 10
   },
   {
     "id": "tutorial",
@@ -122,6 +125,7 @@
       "solar": "solar_deployable"
     },
     "orders": 3,
-    "rush_fee": 0.0
+    "rush_fee": 0.0,
+    "extra_action_penalty": 5
   }
 ]

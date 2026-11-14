@@ -5,8 +5,8 @@ using NUnit.Framework;
 namespace GoNoGo.Core.Tests
 {
     /// <summary>
-    /// 藍圖的平衡原則：每個情境至少 3 組明顯不同的設計都能「任務成功」，
-    /// 而且各自在不同分項拿高分。
+    /// 藍圖的平衡原則：每個情境有多組明顯不同的設計都能「任務成功」，而且各自在不同分項拿高分。
+    /// 科學分沒達處室門檻的設計（例如只帶一台可見光相機的便宜型）評等最高 C，不算成功。
     /// </summary>
     public class BalanceTests
     {
@@ -57,6 +57,14 @@ namespace GoNoGo.Core.Tests
             var reached = runs.Where(r => r.ReachedOrbit).ToList();
             Assert.That(reached.Count, Is.GreaterThanOrEqualTo(27), "火箭可靠度內大多數種子都要入軌");
             Assert.That(reached.Select(r => r.Score.Grade), Has.None.EqualTo("FAIL"), "入軌後不能失敗");
+            if (which == "cheap")
+            {
+                // 只帶一台可見光相機：資源都綠燈，但科學分沒達處室門檻 60，評等壓在 C
+                Assert.That(reached.All(r => r.Score.Grade == "C" && r.Score.GradeCapped && r.Score.Science < r.Score.ScienceThreshold),
+                    "便宜型科學不夠，評等上限 C：" + string.Join(" ", reached.Select(r => r.Score.Grade)));
+                Assert.That(reached.All(r => r.Causes.Any(c => c.Code == "science_low")), "評等被壓要說明原因");
+                return;
+            }
             Assert.That(reached.All(r => Passing(r.Score.Grade)), "任務成功至少要 B：" + string.Join(" ", reached.Select(r => r.Score.Grade)));
         }
 
@@ -84,9 +92,13 @@ namespace GoNoGo.Core.Tests
         {
             var s = _data.Scenario("earth_observation");
             var ev = Evaluator.EvaluateDesign(s.DefaultDesign, _data);
-            var over = ev.Resources.Values.Where(r => r.Status == ResourceStatus.Over).Select(r => r.Id).ToList();
-            Assert.That(over, Is.EqualTo(new[] { ResourceId.Data }), "預設設計刻意只有一個紅燈（儲存），讓玩家第一次就看到解法");
-            Assert.That(ev.Warnings.Single(w => w.Code == "warn.storage").Fixes.Count, Is.EqualTo(2));
+            // 儲存燈號分兩層之後：7.3 GB 存得下（不會真的掉資料）但低於 ×1.5 的建議值 → 只有儲存一個黃燈，沒有紅燈
+            Assert.That(ev.AnyOver, Is.False);
+            var notOk = ev.Resources.Values.Where(r => r.Status != ResourceStatus.Ok).Select(r => r.Id).ToList();
+            Assert.That(notOk, Is.EqualTo(new[] { ResourceId.Data }), "預設設計刻意只有一個問題（儲存沒有安全餘裕）");
+            Assert.That(ev[ResourceId.Data].Status, Is.EqualTo(ResourceStatus.Tight));
+            Assert.That(ev.Warnings.Select(w => w.Code), Does.Contain("warn.storage_tight"));
+            Assert.That(ev.Data.ReturnFraction, Is.EqualTo(1.0).Within(1e-9), "黃燈不掉資料");
         }
 
         [Test]

@@ -340,6 +340,8 @@ namespace GoNoGo.Core
         public int Orders { get; set; } = 2;
         /// <summary>第 2 次以後的採購（補單）加收的急件費比例。</summary>
         public double RushFee { get; set; } = 0.3;
+        /// <summary>營運時每個多餘操作從那一回合的營運分扣掉的分數（每回合下限 0）。讓「全部按下去」不再是最佳解。</summary>
+        public double ExtraActionPenalty { get; set; } = 10;
     }
 
     /// <summary>NASA DONKI 的歷史太空天氣事件（賽前抓的快照）。</summary>

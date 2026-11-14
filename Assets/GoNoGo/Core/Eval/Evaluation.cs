@@ -76,7 +76,10 @@ namespace GoNoGo.Core
     {
         public double GeneratedGbPerDay { get; set; }
         public double DownlinkGbPerDay { get; set; }
+        /// <summary>建議儲存量 = 最長空檔的資料量 × 安全係數（1.5）。</summary>
         public double StorageNeededGb { get; set; }
+        /// <summary>最長空檔的資料量（不含安全係數）：儲存比這小就真的會掉資料。</summary>
+        public double StorageRawGb { get; set; }
         public double StorageGb { get; set; }
         /// <summary>預估資料傳回率（0–1）。</summary>
         public double ReturnFraction { get; set; }

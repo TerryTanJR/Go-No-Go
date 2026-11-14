@@ -338,14 +338,28 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
+        public void MissionYearsAreCappedAtTargetPlusTwo()
+        {
+            var s = Solo();                                   // 地球觀測：目標 3 年
+            Assert.That(SessionRules.MaxMissionYears(s.Scenario(_data)), Is.EqualTo(5));
+            Ok(s, Command.Of(CommandType.SetYears, 1, "", 10));
+            Assert.That(s.Bench.MissionYears, Is.EqualTo(5), "年數不能超過目標 + 2");
+            Assert.That(s.Reported.MissionYears, Is.EqualTo(5));
+            Ok(s, Command.Of(CommandType.SetYears, 1, "", 0));
+            Assert.That(s.Bench.MissionYears, Is.EqualTo(1));
+            Assert.That(SessionRules.MaxMissionYears(_data.Scenario("lunar_mapping")), Is.EqualTo(4));
+        }
+
+        [Test]
         public void TutorialStartsWithFoldOutSolarWingsAndKeepsItsLesson()
         {
             var s = SessionRules.NewSession(_data, "earth_observation", "tutorial", true, false);
             Assert.That(s.Bench.Get(PartCategory.Solar), Is.EqualTo("solar_deployable"), "新手訓練的衛星要有展開式太陽能翼（發射動畫看得到展開）");
             Assert.That(s.Reported.Get(PartCategory.Solar), Is.EqualTo("solar_deployable"));
             var ev = Evaluator.EvaluateDesign(s.Bench, _data);
-            var over = ev.Resources.Values.Where(r => r.Status == ResourceStatus.Over).Select(r => r.Id).ToList();
-            Assert.That(over, Is.EqualTo(new[] { ResourceId.Data }), "教學重點不變：只有儲存一個紅燈");
+            var notOk = ev.Resources.Values.Where(r => r.Status != ResourceStatus.Ok).Select(r => r.Id).ToList();
+            Assert.That(notOk, Is.EqualTo(new[] { ResourceId.Data }), "教學重點不變：只有儲存一個問題（黃燈：沒有安全餘裕）");
+            Assert.That(ev.AnyOver, Is.False);
             Assert.That(EnvTests.Run(s.Bench, _data, "tutorial").Any(f => f.Level == TestLevel.Fail), Is.False);
             // 其他難度、歷史關卡不受影響
             Assert.That(SessionRules.NewSession(_data, "earth_observation", "engineer", false, false).Bench.Get(PartCategory.Solar), Is.EqualTo("solar_body"));

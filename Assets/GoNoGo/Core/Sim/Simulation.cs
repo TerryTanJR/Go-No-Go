@@ -112,6 +112,8 @@ namespace GoNoGo.Core
         public int StepsDone { get; set; }
         /// <summary>做了但這個事件不需要的操作。</summary>
         public List<string> WrongActions { get; set; } = new List<string>();
+        /// <summary>互相衝突而沒有生效的操作（見 Procedures.Conflicts）。</summary>
+        public List<string> ConflictedActions { get; set; } = new List<string>();
         public double StepsFraction => StepsRequired > 0 ? (double)StepsDone / StepsRequired : 1;
         /// <summary>多語鍵，例如 event.storm.safe。</summary>
         public string ResultCode { get; set; } = "";

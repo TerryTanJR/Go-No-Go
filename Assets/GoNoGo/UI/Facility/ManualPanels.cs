@@ -500,6 +500,13 @@ namespace GoNoGo.UI
                     Ui.Text(Loc.T("ops.console." + console), "man-chip", "man-chip--" + console).AddTo(col);
                 }
             }
+
+            // 互相衝突的指令：同一回合一起送出，兩個都無效
+            var conf = Ui.El("man-proc").AddTo(parent);
+            Ui.Text(Loc.T("ui.manual.conflicts"), "h3").AddTo(conf);
+            Ui.Text(Loc.T("ui.manual.conflicts_body"), "small", "dim").AddTo(conf);
+            foreach (var (a, b) in Procedures.Conflicts)
+                Ui.Text(Loc.T("ops.action." + a) + "  ✕  " + Loc.T("ops.action." + b), "body").AddTo(conf);
         }
 
         // ---------------------------------------------------------------- 太空天氣（DONKI）
