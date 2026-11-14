@@ -124,7 +124,7 @@ namespace GoNoGo.UI
 
                 var actions = Ui.Row("modal-actions").AddTo(body);
                 Ui.Spacer().AddTo(actions);
-                Ui.Btn(Loc.T("ui.ops.end_turn"), () => { Sfx.Confirm(); GameSession.Send(CommandType.EndTurn); }, "btn-primary", "btn-big").AddTo(actions);
+                Ui.Btn(Loc.T("ui.ops.end_turn"), () => { Sfx.Confirm(); GameSession.Send(CommandType.EndTurn); Hud.Signal("end_turn"); }, "btn-primary", "btn-big").AddTo(actions);
                 return;
             }
 

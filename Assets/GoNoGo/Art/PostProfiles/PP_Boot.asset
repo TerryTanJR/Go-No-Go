@@ -1,77 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-9212272345978828049
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 29fa0085f50d5e54f8144f766051a691, type: 3}
-  m_Name: FilmGrain
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.FilmGrain
-  active: 1
-  type:
-    m_OverrideState: 1
-    m_Value: 0
-  intensity:
-    m_OverrideState: 1
-    m_Value: 0.12
-  response:
-    m_OverrideState: 1
-    m_Value: 0.8
-  texture:
-    m_OverrideState: 1
-    m_Value: {fileID: 0}
---- !u!114 &-669893900286453930
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 899c54efeace73346a0a16faa3afe726, type: 3}
-  m_Name: Vignette
-  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.Vignette
-  active: 1
-  color:
-    m_OverrideState: 1
-    m_Value: {r: 0, g: 0, b: 0, a: 1}
-  center:
-    m_OverrideState: 1
-    m_Value: {x: 0.5, y: 0.5}
-  intensity:
-    m_OverrideState: 1
-    m_Value: 0.34
-  smoothness:
-    m_OverrideState: 1
-    m_Value: 0.45
-  rounded:
-    m_OverrideState: 1
-    m_Value: 0
---- !u!114 &11400000
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d7fd9488000d3734a9e00ee676215985, type: 3}
-  m_Name: PP_Boot
-  m_EditorClassIdentifier: Unity.RenderPipelines.Core.Runtime::UnityEngine.Rendering.VolumeProfile
-  components:
-  - {fileID: 5112877144116710194}
-  - {fileID: 4494522581950913663}
-  - {fileID: 689299046406783717}
-  - {fileID: -669893900286453930}
-  - {fileID: -9212272345978828049}
---- !u!114 &689299046406783717
+--- !u!114 &-9186522284263500989
 MonoBehaviour:
   m_ObjectHideFlags: 3
   m_CorrespondingSourceObject: {fileID: 0}
@@ -99,7 +28,7 @@ MonoBehaviour:
   saturation:
     m_OverrideState: 1
     m_Value: 4
---- !u!114 &4494522581950913663
+--- !u!114 &-5848962458617137717
 MonoBehaviour:
   m_ObjectHideFlags: 3
   m_CorrespondingSourceObject: {fileID: 0}
@@ -149,7 +78,60 @@ MonoBehaviour:
   dirtIntensity:
     m_OverrideState: 1
     m_Value: 0
---- !u!114 &5112877144116710194
+--- !u!114 &-2669532617357042777
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 899c54efeace73346a0a16faa3afe726, type: 3}
+  m_Name: Vignette
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.Vignette
+  active: 1
+  color:
+    m_OverrideState: 1
+    m_Value: {r: 0, g: 0, b: 0, a: 1}
+  center:
+    m_OverrideState: 1
+    m_Value: {x: 0.5, y: 0.5}
+  intensity:
+    m_OverrideState: 1
+    m_Value: 0.34
+  smoothness:
+    m_OverrideState: 1
+    m_Value: 0.45
+  rounded:
+    m_OverrideState: 1
+    m_Value: 0
+--- !u!114 &-2336357253447173182
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 29fa0085f50d5e54f8144f766051a691, type: 3}
+  m_Name: FilmGrain
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.FilmGrain
+  active: 1
+  type:
+    m_OverrideState: 1
+    m_Value: 0
+  intensity:
+    m_OverrideState: 1
+    m_Value: 0.12
+  response:
+    m_OverrideState: 1
+    m_Value: 0.8
+  texture:
+    m_OverrideState: 1
+    m_Value: {fileID: 0}
+--- !u!114 &-1300982017448821051
 MonoBehaviour:
   m_ObjectHideFlags: 3
   m_CorrespondingSourceObject: {fileID: 0}
@@ -189,3 +171,21 @@ MonoBehaviour:
   maxNits:
     m_OverrideState: 1
     m_Value: 1000
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d7fd9488000d3734a9e00ee676215985, type: 3}
+  m_Name: PP_Boot
+  m_EditorClassIdentifier: Unity.RenderPipelines.Core.Runtime::UnityEngine.Rendering.VolumeProfile
+  components:
+  - {fileID: -1300982017448821051}
+  - {fileID: -5848962458617137717}
+  - {fileID: -9186522284263500989}
+  - {fileID: -2669532617357042777}
+  - {fileID: -2336357253447173182}

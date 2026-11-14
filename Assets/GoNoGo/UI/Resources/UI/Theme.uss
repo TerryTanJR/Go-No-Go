@@ -986,3 +986,11 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .wscreen .dash-k { font-size: 18px; width: 200px; }
 .wscreen .dash-v { font-size: 22px; }
 .wscreen .body { font-size: 18px; }
+.coach-title { margin-top: 4px; }
+.coach-body { margin-top: 4px; font-size: 14px; }
+.coach-dots { flex-direction: row; margin-top: 10px; }
+.coach-dot { width: 18px; height: 4px; margin-right: 4px; border-radius: 2px; background-color: var(--c-line); }
+.coach-dot--done { background-color: var(--c-go); }
+.coach-dot--now { background-color: var(--c-accent); }
+.coach--done { border-color: var(--c-go); }
+.coach--done .coach-title { color: var(--c-go); }
