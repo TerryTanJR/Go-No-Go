@@ -44,6 +44,9 @@ def main():
         "event.title.": ["solar_storm", "part_failure", "science_opportunity", "power_anomaly", "big_fire", "false_fire"],
         "event.diag.": ["solar_storm", "part_failure", "science_opportunity", "power_anomaly", "big_fire", "false_fire"],
         "ops.console.": ["payload", "power", "attitude", "comms"],
+        "ui.avatar.helmet.": ["0", "1", "2"],
+        "ui.avatar.lower.": ["0", "1", "2", "3", "4"],
+        "ui.avatar.acc.": ["0", "1", "2", "3", "4"],
         "res.": ["mass", "power", "budget", "data", "comms", "time"],
     }
 

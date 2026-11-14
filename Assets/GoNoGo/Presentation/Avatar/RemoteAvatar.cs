@@ -17,7 +17,7 @@ namespace GoNoGo.Presentation
         public void Apply(AvatarLook look, string held, GameData data)
         {
             look = (look ?? new AvatarLook()).Sanitized();
-            string key = $"{look.Suit}/{look.Helmet}/{look.Visor}/{look.Accessory}";
+            string key = $"{look.Suit}/{look.Helmet}/{look.Visor}/{look.Accessory}/{look.Accent}/{look.Lower}";
             if (key != _lookKey)
             {
                 _lookKey = key;

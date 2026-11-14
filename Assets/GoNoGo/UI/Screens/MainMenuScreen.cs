@@ -228,33 +228,58 @@ namespace GoNoGo.UI
         void OpenAvatar()
         {
             _edit = Profile.Look.Clone();
+            _avatarTab = 0;
             Profile.SetPreview(_edit);
             _page = Page.Avatar;
             _error = "";
             if (Root != null && Root.childCount > 0) Rebuild();
         }
 
+        static int _avatarTab;
+
         void AvatarEditor(VisualElement col)
         {
+            col.AddToClassList("menu-col--wide");
             Ui.Text(Loc.T(Profile.HasAvatar ? "ui.avatar.edit" : "ui.avatar.first"), "eyebrow").AddTo(col);
             Ui.Text(Loc.T("ui.avatar.title"), "h2").AddTo(col);
 
-            Ui.Text(Loc.T("ui.avatar.name"), "small", "dim").AddTo(col);
+            var nameRow = Ui.Row("avatar-name").AddTo(col);
             var name = new TextField { value = _edit.Name, maxLength = AvatarLook.MaxName };
             name.AddToClassList("code-field");
+            name.style.flexGrow = 1;
             name.RegisterValueChangedCallback(e => { _edit.Name = e.newValue; Profile.SetPreview(_edit); });
-            col.Add(name);
+            nameRow.Add(name);
+            Ui.Btn(Loc.T("ui.avatar.random"), () =>
+            {
+                var rnd = new System.Random();
+                _edit.Suit = rnd.Next(AvatarLook.Suits); _edit.Accent = rnd.Next(AvatarLook.Accents);
+                _edit.Helmet = rnd.Next(AvatarLook.Helmets); _edit.Visor = rnd.Next(AvatarLook.Visors);
+                _edit.Lower = rnd.Next(AvatarLook.Lowers); _edit.Accessory = rnd.Next(AvatarLook.Accessories);
+                Profile.SetPreview(_edit);
+                Rebuild();
+            }, "btn-small").AddTo(nameRow);
 
-            Ui.Text(Loc.T("ui.avatar.suit"), "small", "dim").AddTo(col);
-            Swatches(col, AvatarLookColors.Suits, _edit.Suit, i => _edit.Suit = i);
-            Ui.Text(Loc.T("ui.avatar.helmet"), "small", "dim").AddTo(col);
-            Options(col, new[] { "ui.avatar.helmet.0", "ui.avatar.helmet.1", "ui.avatar.helmet.2" }, _edit.Helmet, i => _edit.Helmet = i);
-            Ui.Text(Loc.T("ui.avatar.visor"), "small", "dim").AddTo(col);
-            Swatches(col, AvatarLookColors.Visors, _edit.Visor, i => _edit.Visor = i);
-            Ui.Text(Loc.T("ui.avatar.accessory"), "small", "dim").AddTo(col);
-            Options(col, new[] { "ui.avatar.acc.0", "ui.avatar.acc.1", "ui.avatar.acc.2", "ui.avatar.acc.3" }, _edit.Accessory, i => _edit.Accessory = i);
+            // 分頁：切換時只重畫下面的內容，不整頁重建
+            var tabs = Ui.Row("tabs").AddTo(col);
+            var scroll = new ScrollView(ScrollViewMode.Vertical);
+            scroll.AddToClassList("avatar-scroll");
+            string[] tabKeys = { "ui.avatar.tab.look", "ui.avatar.tab.colors", "ui.avatar.tab.gear" };
+            var tabBtns = new Button[tabKeys.Length];
+            for (int i = 0; i < tabKeys.Length; i++)
+            {
+                int k = i;
+                tabBtns[i] = Ui.Btn(Loc.T(tabKeys[i]), () =>
+                {
+                    _avatarTab = k;
+                    for (int j = 0; j < tabBtns.Length; j++) tabBtns[j].Cls("tab--on", j == k);
+                    scroll.contentContainer.Clear();
+                    AvatarTab(scroll.contentContainer);
+                }, "tab").Cls("tab--on", i == _avatarTab).AddTo(tabs);
+            }
+            col.Add(scroll);
+            AvatarTab(scroll.contentContainer);
 
-            var row = Ui.Row("modal-actions").AddTo(col);
+            var row = Ui.Row("modal-actions", "avatar-actions").AddTo(col);
             if (Profile.HasAvatar) Ui.Btn(Loc.T("ui.avatar.cancel"), () => { Profile.SetPreview(null); Go(Page.Root); }, "btn-ghost").AddTo(row);
             Ui.Spacer().AddTo(row);
             Ui.Btn(Loc.T("ui.avatar.ok"), () =>
@@ -266,24 +291,63 @@ namespace GoNoGo.UI
             }, "btn-primary", "btn-big").AddTo(row);
         }
 
-        void Swatches(VisualElement col, string[] colors, int current, System.Action<int> set)
+        void AvatarTab(VisualElement c)
         {
-            var row = Ui.Row("swatches").AddTo(col);
-            for (int i = 0; i < colors.Length; i++)
+            switch (_avatarTab)
             {
-                int k = i;
-                var b = Ui.Btn("", () => { set(k); Profile.SetPreview(_edit); Rebuild(); }, "swatch").Cls("swatch--on", i == current).AddTo(row);
-                if (ColorUtility.TryParseHtmlString(colors[i], out var c)) b.style.backgroundColor = c;
+                case 0:
+                    Cards(c, "ui.avatar.helmet", "helmet", "ui.avatar.helmet.", AvatarLook.Helmets, _edit.Helmet, i => _edit.Helmet = i);
+                    Cards(c, "ui.avatar.lower", "lower", "ui.avatar.lower.", AvatarLook.Lowers, _edit.Lower, i => _edit.Lower = i);
+                    break;
+                case 1:
+                    Swatches(c, "ui.avatar.suit", AvatarLookColors.Suits, _edit.Suit, i => _edit.Suit = i);
+                    Swatches(c, "ui.avatar.accent", AvatarLookColors.Accents, _edit.Accent, i => _edit.Accent = i);
+                    Swatches(c, "ui.avatar.visor", AvatarLookColors.Visors, _edit.Visor, i => _edit.Visor = i);
+                    break;
+                default:
+                    Cards(c, "ui.avatar.accessory", "acc", "ui.avatar.acc.", AvatarLook.Accessories, _edit.Accessory, i => _edit.Accessory = i);
+                    break;
             }
         }
 
-        void Options(VisualElement col, string[] keys, int current, System.Action<int> set)
+        /// <summary>縮圖選項卡：圖 + 名稱，點了立刻換預覽（不重建整頁）。</summary>
+        void Cards(VisualElement col, string titleKey, string prefix, string labelPrefix, int count, int current, System.Action<int> set)
         {
-            var row = Ui.Row().AddTo(col);
-            for (int i = 0; i < keys.Length; i++)
+            Ui.Text(Loc.T(titleKey), "small", "dim", "avatar-section").AddTo(col);
+            var grid = Ui.Row("opt-grid").AddTo(col);
+            var cards = new Button[count];
+            for (int i = 0; i < count; i++)
             {
                 int k = i;
-                Ui.Btn(Loc.T(keys[i]), () => { set(k); Profile.SetPreview(_edit); Rebuild(); }, "chip").Cls("chip--on", i == current).AddTo(row);
+                var b = Ui.Btn("", () =>
+                {
+                    set(k); Sfx.Click(); Profile.SetPreview(_edit);
+                    for (int j = 0; j < count; j++) cards[j].Cls("opt-card--on", j == k);
+                }, "opt-card").Cls("opt-card--on", i == current).AddTo(grid);
+                b.Clear();
+                var img = Ui.El("opt-img").AddTo(b);
+                var tex = Resources.Load<Texture2D>($"UI/AvatarOptions/{prefix}_{i}");
+                if (tex != null) img.style.backgroundImage = new StyleBackground(tex);
+                Ui.Text(Loc.T(labelPrefix + i), "small", "opt-label").AddTo(b);
+                cards[i] = b;
+            }
+        }
+
+        void Swatches(VisualElement col, string titleKey, string[] colors, int current, System.Action<int> set)
+        {
+            Ui.Text(Loc.T(titleKey), "small", "dim", "avatar-section").AddTo(col);
+            var row = Ui.Row("swatches").AddTo(col);
+            var all = new Button[colors.Length];
+            for (int i = 0; i < colors.Length; i++)
+            {
+                int k = i;
+                var b = Ui.Btn("", () =>
+                {
+                    set(k); Sfx.Click(); Profile.SetPreview(_edit);
+                    for (int j = 0; j < all.Length; j++) all[j].Cls("swatch--on", j == k);
+                }, "swatch", "swatch--big").Cls("swatch--on", i == current).AddTo(row);
+                if (ColorUtility.TryParseHtmlString(colors[i], out var c)) b.style.backgroundColor = c;
+                all[i] = b;
             }
         }
 
@@ -299,6 +363,7 @@ namespace GoNoGo.UI
     public static class AvatarLookColors
     {
         public static readonly string[] Suits = { "#EFF0F5", "#FF8021", "#2973F2", "#33BF73", "#F2C726", "#9E61EB", "#EB475C", "#383D4D" };
+        public static readonly string[] Accents = { "#FF5C0F", "#0DB3F2", "#8CD926", "#8C4DF2", "#E61F2E", "#FABF1F", "#FF73B3", "#EBEDF5" };
         public static readonly string[] Visors = { "#F2B333", "#1A8CF2", "#0F1217", "#BF4DD9" };
     }
 }

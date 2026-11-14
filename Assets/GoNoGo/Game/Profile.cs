@@ -18,7 +18,7 @@ namespace GoNoGo.Game
             get
             {
                 if (_look != null) return _look;
-                _look = new AvatarLook { Name = "Astro", Suit = 0, Helmet = 0, Visor = 0, Accessory = 1 };
+                _look = new AvatarLook { Name = "Astro", Suit = 0, Helmet = 0, Visor = 2, Accessory = 1 };
                 var s = PlayerPrefs.GetString(Key, "");
                 if (!string.IsNullOrEmpty(s))
                 {
@@ -57,9 +57,9 @@ namespace GoNoGo.Game
         sealed class Saved
         {
             public string name;
-            public int suit, helmet, visor, accessory;
-            public static Saved From(AvatarLook l) => new Saved { name = l.Name, suit = l.Suit, helmet = l.Helmet, visor = l.Visor, accessory = l.Accessory };
-            public AvatarLook ToLook() => new AvatarLook { Name = name, Suit = suit, Helmet = helmet, Visor = visor, Accessory = accessory }.Sanitized();
+            public int suit, helmet, visor, accessory, accent, lower;
+            public static Saved From(AvatarLook l) => new Saved { name = l.Name, suit = l.Suit, helmet = l.Helmet, visor = l.Visor, accessory = l.Accessory, accent = l.Accent, lower = l.Lower };
+            public AvatarLook ToLook() => new AvatarLook { Name = name, Suit = suit, Helmet = helmet, Visor = visor, Accessory = accessory, Accent = accent, Lower = lower }.Sanitized();
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]

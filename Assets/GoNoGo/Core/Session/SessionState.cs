@@ -13,12 +13,16 @@ namespace GoNoGo.Core
     /// <summary>Q 版 avatar 的外型：幾個整數加名字，多人時同步給其他人。</summary>
     public sealed class AvatarLook
     {
-        public const int Suits = 8, Helmets = 3, Visors = 4, Accessories = 4, MaxName = 12;
+        public const int Suits = 8, Accents = 8, Helmets = 3, Visors = 4, Accessories = 5, Lowers = 5, MaxName = 12;
         public string Name { get; set; } = "";
         public int Suit { get; set; }
         public int Helmet { get; set; }
         public int Visor { get; set; }
         public int Accessory { get; set; }
+        /// <summary>點綴色（條紋、脖圈、袖口…）。0 = 國際橘。</summary>
+        public int Accent { get; set; }
+        /// <summary>下半身：0 腳、1 輪子、2 懸浮、3 履帶、4 彈簧。</summary>
+        public int Lower { get; set; }
 
         public AvatarLook Clone() => (AvatarLook)MemberwiseClone();
 
@@ -27,7 +31,7 @@ namespace GoNoGo.Core
             int Wrap(int v, int n) => ((v % n) + n) % n;
             var n2 = (Name ?? "").Trim();
             if (n2.Length > MaxName) n2 = n2.Substring(0, MaxName);
-            return new AvatarLook { Name = n2, Suit = Wrap(Suit, Suits), Helmet = Wrap(Helmet, Helmets), Visor = Wrap(Visor, Visors), Accessory = Wrap(Accessory, Accessories) };
+            return new AvatarLook { Name = n2, Suit = Wrap(Suit, Suits), Helmet = Wrap(Helmet, Helmets), Visor = Wrap(Visor, Visors), Accessory = Wrap(Accessory, Accessories), Accent = Wrap(Accent, Accents), Lower = Wrap(Lower, Lowers) };
         }
     }
 
