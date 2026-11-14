@@ -49,7 +49,10 @@ namespace GoNoGo.UI
             // 右上：麥克風（在語音頻道裡才顯示）、語言
             var tr = Ui.Row("hud-tr").AddTo(_hud);
             _mic = Ui.Btn("", ToggleMic, "btn-small", "btn-ghost").AddTo(tr);
-            Ui.Btn(Loc.IsZh ? "EN" : "中文", Loc.Toggle, "btn-small", "btn-ghost").AddTo(tr);
+            var lang = Ui.Btn(Loc.IsZh ? "EN" : "中文", Loc.Toggle, "btn-small", "btn-ghost").AddTo(tr);
+            // 方向鍵是用來走路的：不讓 UI 拿方向鍵在這兩顆之間移動焦點（滑鼠還是點得到）
+            _mic.focusable = false;
+            lang.focusable = false;
 
             // 中央：準星與進度環
             _crosshair = Ui.El("crosshair").AddTo(_hud);
