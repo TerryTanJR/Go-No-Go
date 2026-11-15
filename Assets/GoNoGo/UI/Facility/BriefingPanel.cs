@@ -193,17 +193,25 @@ namespace GoNoGo.UI
             _voices = new List<string>();
             foreach (var l in Loc.T(key).Split('\n'))
                 if (!string.IsNullOrWhiteSpace(l)) { list.Add(Ui.NoOrphan(l.Trim())); _voices.Add(null); }
-            // 錄音：開場白（所有一般關卡共用）、地球觀測的兩句任務說明、單人的結尾提醒。中英文用同一份錄音
+            // 錄音：開場白（所有一般關卡共用）、地球觀測／月球測繪／野火的兩句任務說明、單人的結尾提醒。中英文用同一份錄音
             bool story = !M.IsHistorical && !M.Scenario.Sandbox;
             if (story && _voices.Count > 0) _voices[0] = "brief_open";
-            if (M.S.ScenarioId == "earth_observation" && _voices.Count >= 3) { _voices[1] = "brief_eo_1"; _voices[2] = "brief_eo_2"; }
+            string sid = M.S.ScenarioId;
+            // 歷史關（OCO）：三句台詞加結尾的「倒數開始了」整段都有錄音
+            if (sid == "hist_oco" && _voices.Count == 3)
+                for (int i = 0; i < 3; i++) _voices[i] = "brief_hist_oco_" + (i + 1);
+            if ((sid == "earth_observation" || sid == "lunar_mapping" || sid == "wildfire") && _voices.Count >= 3)
+            {
+                string tag = sid == "earth_observation" ? "eo" : sid == "lunar_mapping" ? "lunar" : "wildfire";
+                _voices[1] = "brief_" + tag + "_1"; _voices[2] = "brief_" + tag + "_2";
+            }
             // 結尾那句：單人、多人（分頭找線索）不同；歷史關卡是倒數開始
             string close = "ui.brief.close_solo";
             if (M.IsHistorical) close = "ui.brief.close_history";
             else if (M.Scenario.Sandbox) close = "ui.brief.close_sandbox";
             else if (M.S.Multiplayer) close = "ui.brief.close_team";
             list.Add(Ui.NoOrphan(Loc.T(close)));
-            _voices.Add(close == "ui.brief.close_solo" ? "brief_close_solo" : null);
+            _voices.Add(close == "ui.brief.close_solo" ? "brief_close_solo" : close == "ui.brief.close_history" && M.S.ScenarioId == "hist_oco" ? "brief_hist_oco_4" : null);
             return list;
         }
 
