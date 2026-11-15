@@ -18,7 +18,7 @@ namespace GoNoGo.Presentation
         public float walkSpeed = 2.4f;
         public float runSpeed = 4.4f;
         public float mouseSensitivity = 0.11f;
-        public float thirdPersonDistance = 3.6f;
+        public float thirdPersonDistance = 3.0f;
         public float firstPersonFov = 72f;
         [Tooltip("第一人稱的眼睛高度（m）。角色是 1.5 m 的 Q 版太空人，但中控台、螢幕是照真人尺寸做的，用成人視線高度才看得到桌面和螢幕。")]
         public float eyeHeight = 1.7f;
@@ -43,10 +43,14 @@ namespace GoNoGo.Presentation
         public bool Frozen { get; set; }
 
         static readonly int IgnoreRaycast = 2;
-        /// <summary>第三人稱鏡頭相對視角的方向：x = 0 → 正後方不偏左右；y → 稍微高過頭。</summary>
-        static readonly Vector3 ThirdPersonOffset = new Vector3(0f, 0.2f, -1f).normalized;
-        /// <summary>第三人稱鏡頭繞著轉的點離地多高：比頭頂（1.5 m）高，畫面中央的準星才不會被角色的頭擋住。</summary>
-        const float ThirdPersonPivotY = 1.95f;
+        /// <summary>第三人稱鏡頭相對視角的方向：正後方，稍微往上。</summary>
+        static readonly Vector3 ThirdPersonOffset = new Vector3(0f, 0.1f, -1f).normalized;
+        /// <summary>第三人稱鏡頭繞著轉的點離地多高：差不多是眼睛的高度，看牆上下排的紙不用把鏡頭壓得很低。</summary>
+        const float ThirdPersonPivotY = 1.6f;
+        /// <summary>
+        /// 第三人稱鏡頭往右肩偏多少（越肩視角）：繞著轉的點和頭差不多高，不偏的話畫面中央的準星會被自己的頭擋住。
+        /// </summary>
+        const float ThirdPersonShoulderX = 0.45f;
 
         void Awake()
         {
@@ -196,8 +200,8 @@ namespace GoNoGo.Presentation
                 return;
             }
             cam.nearClipPlane = 0.1f;
-            // 第三人稱：正後上方（左右置中）；撞到牆就拉近
-            var pivot = transform.position + Vector3.up * ThirdPersonPivotY;
+            // 第三人稱：越過右肩往前看；撞到牆就拉近
+            var pivot = transform.position + Vector3.up * ThirdPersonPivotY + Quaternion.Euler(0, _yaw, 0) * Vector3.right * ThirdPersonShoulderX;
             var dir = rot * ThirdPersonOffset;
             float want = thirdPersonDistance;
             if (Physics.SphereCast(pivot, 0.22f, dir, out var hit, want, ~(1 << IgnoreRaycast), QueryTriggerInteraction.Ignore))
