@@ -64,7 +64,7 @@ namespace GoNoGo.Presentation
             m.PhaseChanged += OnPhase;
             Profile.Changed += OnProfile;
             stand.Refresh(m, false);
-            _clueSpots = FindObjectsByType<ClueSpot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            _clueSpots = FindObjectsByType<ClueSpot>(FindObjectsInactive.Include);
             OnChanged();
             Sfx.SetAmbience(Sfx.Ambience.ControlRoom);
             Sfx.SetMusic(Sfx.Music.Facility);
