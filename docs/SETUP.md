@@ -25,7 +25,7 @@
 | 9 | uv | 0.13 | 執行 Blender MCP 伺服器 (`uvx`) | 用 Blender MCP 才需要 |
 | 10 | Blender MCP（外掛 + MCP 伺服器） | — | 讓 Claude Code 操作 Blender | 用 Blender MCP 才需要 |
 
-> 藍圖（`docs/unity-blueprint/`）寫的是「Unity 6.3 LTS」，那段已過時。專案實際用 **6000.6.8f1**（見 `ProjectSettings/ProjectVersion.txt`），請裝這個版本，否則開專案時會被要求升級或降級。
+> 專案用 **6000.6.8f1**（見 `ProjectSettings/ProjectVersion.txt`），請裝這個版本，否則開專案時會被要求升級或降級。
 
 建議的安裝順序就是上表的順序：先裝基礎工具，再裝 Claude Code，最後裝 Unity 和 Blender（Unity 的 skill 會自動裝進 Claude Code，所以 Claude Code 要先裝）。
 
@@ -59,7 +59,7 @@ gh auth login        # 選 GitHub.com → HTTPS → 用瀏覽器登入
 ```
 
 用途：
-- 推送到 `github.com/TerryTanJR/NASA_test` 時用它的認證。
+- 推送到 `github.com/TerryTanJR/Go-No-Go` 時用它的認證。
 - 從 `nasa/NASA-3D-Resources` 抓單一模型（整個 repo 約 5 GB，不要 clone）：
   `gh api "repos/nasa/NASA-3D-Resources/contents/3D%20Models/<模型資料夾>"`。
   實際下載 `.glb` 要用 `raw.githubusercontent.com/nasa/NASA-3D-Resources/master/...`，它會自動轉成 LFS 實體檔。
@@ -244,18 +244,18 @@ claude mcp add blender -- uvx blender-mcp
 
 ### 11.1 Clone
 
-repo 是私人的，要先被加成協作者才能 clone（見第 13 節）。
+repo 是私人的時候，要先被加成協作者才能 clone（見第 13 節）。
 
 ```powershell
-git clone https://github.com/TerryTanJR/NASA_test.git C:\NASA\NASA_test
-cd C:\NASA\NASA_test
+git clone https://github.com/TerryTanJR/Go-No-Go.git C:\NASA\Go-No-Go
+cd C:\NASA\Go-No-Go
 git lfs pull                 # 確保模型、圖片、音訊、字型都是實體檔不是指標
 ```
 
 ### 11.2 開專案
 
 ```powershell
-unity open C:\NASA\NASA_test
+unity open C:\NASA\Go-No-Go
 unity status --until-ready   # 第一次匯入會比較久（要建 Library/）
 ```
 
@@ -283,7 +283,7 @@ unity command build run -- --target WebGL --output-path Builds/WebGL --dry-run t
 unity command build run -- --target WebGL --output-path Builds/WebGL --confirm true
 ```
 
-建置期間不要改 `.cs` 檔。`Builds/` 不進版控。大小不設上限，但建完記到藍圖「發布用設定」的大小表。
+建置期間不要改 `.cs` 檔。`Builds/` 不進版控。
 
 ### 11.5 打包給別人玩（Unity Play／Windows zip）
 
@@ -338,7 +338,7 @@ bash tools/deploy-pages.sh --no-push    # 只 commit，先在本機檢查
 | 8. Blender | 到 <https://www.blender.org/download/lts/> 下載 5.2 LTS 的 macOS 版（M 系列選 Apple Silicon），拖進「應用程式」 |
 | 9. uv | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | 10. Blender MCP | 外掛和 `claude mcp add blender -- uvx blender-mcp` 都跟 Windows 一樣 |
-| 11.2 開專案 | `unity open ~/路徑/NASA_test` |
+| 11.2 開專案 | `unity open ~/路徑/Go-No-Go` |
 
 `tools/` 的腳本在 Mac 上的情況：
 
@@ -351,12 +351,12 @@ bash tools/deploy-pages.sh --no-push    # 只 commit，先在本機檢查
 
 ### 13.1 加入 repo
 
-repo 是**私人**的，所以每位同學都要先被加成協作者：
+要 push 的同學都要先被加成協作者（repo 是私人的時候，clone 也需要）：
 
 1. **repo 擁有者**（`TerryTanJR`）邀請同學，用網頁或指令都可以：
    - 網頁：repo → **Settings → Collaborators → Add people**。
-   - 指令：`gh api -X PUT repos/TerryTanJR/NASA_test/collaborators/<同學的 GitHub 帳號>`
-2. **同學**到 email 或 <https://github.com/TerryTanJR/NASA_test/invitations> 接受邀請。
+   - 指令：`gh api -X PUT repos/TerryTanJR/Go-No-Go/collaborators/<同學的 GitHub 帳號>`
+2. **同學**到 email 或 <https://github.com/TerryTanJR/Go-No-Go/invitations> 接受邀請。
 3. 同學照第 1、2、11 節安裝工具並 clone。
 
 被加進來的協作者可以直接 push 到 `main`。

@@ -44,7 +44,8 @@ namespace GoNoGo.Core
                     double sciDelta = cev.SciencePerYear - ev.SciencePerYear;
                     var f = new Fix { Kind = fix.Kind, Category = fix.Category, FromId = fix.FromId, ToId = fix.ToId, Years = fix.Years };
                     // 分數越低越好：先避免製造新的超標，再少犧牲科學、少花錢
-                    double score = 100.0 * Math.Max(0, newOver - (baseOver - 1))
+                    // 資源警告本身算在 baseOver 裡，解掉它就少一個；壽命警告不是資源，不用扣
+                    double score = 100.0 * Math.Max(0, newOver - (w.Resource.HasValue ? baseOver - 1 : baseOver))
                                    + 3.0 * Math.Max(0, -sciDelta)
                                    + 0.5 * Math.Max(0, costDelta)
                                    - 5.0 * Math.Min(0.3, Math.Max(0, w.Resource.HasValue ? newMargin : 0))

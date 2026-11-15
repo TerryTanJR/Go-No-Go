@@ -48,8 +48,9 @@ Repo: https://github.com/nasa/NASA-3D-Resources (NASA media usage guidelines). R
 
 | File | Tris | Size | Source path (under `3D Models/`) |
 |---|---|---|---|
+| Sat_ISS.glb | about 44k (decimated locally) | 200,832 B | International Space Station (ISS), variant B. Decimated in Blender to reduce WebGL size. Used on the title screen |
+| Ship_SpaceShuttle.glb | | 1,194,068 B | Space Shuttle, variant A. Used on the title screen |
 | Rocket_Atlas6_Friendship7.glb | 164,622 | 1,026,724 B | Atlas 6 (Friendship 7)/Atlas 6 (Friendship 7).glb |
-| Rocket_SaturnV.glb | 34,814 | 927,212 B | Saturn V/Saturn V.glb |
 | Rocket_ExplorerJupiterC.glb | 8,933 | 149,372 B | Explorer Jupiter-C Rocket/Explorer Jupiter-C Rocket.glb |
 | Sat_Landsat8.glb | 85,364 | 780,280 B | Landsat 8/Landsat 8.glb |
 | Sat_OCO2.glb | 41,004 | 280,060 B | Orbiting Carbon Observatory (OCO) 2/Orbiting Carbon Observatory (OCO) 2.glb |
@@ -59,11 +60,15 @@ Repo: https://github.com/nasa/NASA-3D-Resources (NASA media usage guidelines). R
 | SatelliteKit/SatKit_radio_1..3.glb | 748 / 764 / 788 | 8,436 / 8,752 / 9,012 B | Satellite Kit/Satellite Kit radio N.glb |
 | SatelliteKit/SatKit_wings_1..3.glb | 216 / 536 / 1,072 | 4,860 / 8,172 / 14,820 B | Satellite Kit/Satellite Kit wings N.glb |
 
+Only `Sat_ISS.glb` and `Ship_SpaceShuttle.glb` are placed in a scene (the title screen, built by `Editor/Builders/SceneBuilder.cs`). The other models are kept in the repo but not used.
+
 Import notes:
 - Every file except Saturn V lists `KHR_draco_mesh_compression` as **required**. Unity needs glTFast plus the Draco package (`com.unity.cloud.draco`) to load them.
 - Textured models use `EXT_texture_webp`, with PNG/JPG fallback images included.
 
 ## Audio (`Audio/NASA/`, NASA)
+
+The four WAV files are used (`Audio/Resources/Audio/AudioBank.asset`). The two Artemis I MP3 files are not assigned to anything.
 
 | File | Format / length | Size | nasa_id or page | Exact source URL |
 |---|---|---|---|---|
@@ -89,3 +94,14 @@ Every number in the game data files has a `source` entry (title, URL and a note 
 | SatCatalog, GomSpace, Busek, AWS, SpaceX, ULA | Vendor datasheets and price lists, cited by name | Camera and battery specs, ground-station and launch prices, launch timelines |
 | Spaceflight Now, Universe Today, NASASpaceFlight, New Space Economy, Astronomy magazine | News reporting, cited by name | Launch timelines, rideshare price, Transporter flights; the 2011-02-15 flare |
 | arXiv, MIT OCW, MDPI Sensors, J. Astron. Space Sci., SmallSat Conference | Open-access papers and course notes, cited by name | Eclipse and power formulas, station keeping, lunar orbit maintenance |
+
+## Made by the team
+
+These assets were made for this project, by hand or by scripts in this repo:
+
+- Procedural textures in `Art/Textures/Generated/` (including the `T_Patch*` badges): drawn in code by `Editor/Builders/BuildUtil.cs` and `FacilityBuilder.cs`.
+- Minigame sprites in `Resources/Minigames/`: rendered in Blender by `tools/minigame_art/*.py`.
+- Control room and launch complex models in `Art/Models/Room/`: built by `tools/room/*.py`.
+- Satellite instrument models in `Presentation/Resources/Presentation/Parts/`: built by `tools/parts/build_instruments.py`.
+- Astronaut avatar parts (`Presentation/Avatar/Resources/Avatar/AvatarParts.glb`): `tools/avatar_blender/`.
+- Launch smoke flipbook (`Launch/Experiments/Smoke_Billow_8x8.png`): Blender smoke simulation, see `tools/vfx/README.md`.

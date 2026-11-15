@@ -5,7 +5,7 @@
     "launch_year": 2021,
     "mass_kg": 2710,
     "power_w": 4300,
-    "cost_musd": 904,
+    "cost_musd": 885,
     "orbit": "705 km SSO",
     "instruments": { "en": "OLI-2 (15/30 m, 9 bands) + TIRS-2 thermal (100 m)", "zh-TW": "OLI-2（15/30 公尺，9 波段）+ TIRS-2 熱紅外（100 公尺）" },
     "lesson": {
@@ -21,7 +21,7 @@
     "launch_year": 2019,
     "mass_kg": 830,
     "power_w": 350,
-    "cost_musd": 150,
+    "cost_musd": 142,
     "orbit": "615 km SSO",
     "instruments": { "en": "Hyperspectral imager, 239 bands at 30 m, + 5 m panchromatic camera", "zh-TW": "高光譜成像儀（239 波段、30 公尺）+ 5 公尺全色相機" },
     "lesson": {

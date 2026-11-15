@@ -76,8 +76,8 @@
     "id": "llo_100",
     "name": { "en": "Low Lunar Orbit (100 km)", "zh-TW": "低月球軌道（100 公里）" },
     "description": {
-      "en": "Lunar Reconnaissance Orbiter territory. Lumpy lunar gravity pulls the orbit down fast, and every byte has to cross 384,000 km to the Deep Space Network.",
-      "zh-TW": "月球勘測軌道衛星（LRO）的高度。月球重力不均勻，軌道很快就會往下掉；每筆資料都要飛 38 萬公里回到深空網路。"
+      "en": "The mapping altitude of Japan's Kaguya and India's Chandrayaan-2. Lumpy lunar gravity pulls the orbit down fast, and every byte has to cross 384,000 km to the Deep Space Network.",
+      "zh-TW": "日本月亮女神號（Kaguya）和印度月船二號繪製月面地圖的高度。月球重力不均勻，軌道很快就會往下掉；每筆資料都要飛 38 萬公里回到深空網路。"
     },
     "body": "moon",
     "altitude_km": 100,
@@ -93,7 +93,7 @@
     "source": {
       "title": "Lauinger, Cotten & Zee, Optimization of Orbit-Maintenance Strategies for Small Satellites in Cislunar Space (SmallSat 2026); NASA MOCS D-22674",
       "url": "https://digitalcommons.usu.edu/smallsat/2026/all2026/224",
-      "note": "sourced: 50 km polar needs 10.5 m/s per lunation, consistent with LRO. estimate: ~50 m/s/yr at 100 km, months of natural lifetime, 2 krad/yr (no trapped belts), one 4 h DSN track per day, 20x lower rate than near-Earth"
+      "note": "sourced: 50 km polar needs 10.5 m/s per lunation, consistent with LRO (which mapped from 50 km, not 100 km); Kaguya (2007) and Chandrayaan-2 (2019) mapped from 100 km polar orbits. estimate: ~50 m/s/yr at 100 km, months of natural lifetime, 2 krad/yr (no trapped belts), one 4 h DSN track per day, 20x lower rate than near-Earth"
     }
   },
   {

@@ -77,7 +77,7 @@ Real mission design is a chain of trade-offs. A bigger battery adds mass, more m
   </tr>
 </table>
 
-<sub>Screenshots show the Traditional Chinese UI. The game switches between English and Chinese.</sub>
+<sub>The game switches between English and Traditional Chinese.</sub>
 
 ## Modes and missions
 
@@ -88,14 +88,14 @@ Real mission design is a chain of trade-offs. A bigger battery adds mass, more m
 | Co-op room | 2–4 | Join with a room code, talk over built-in voice chat, split up to find clues and build. |
 | Sandbox | 1 | No budget cap, no requirements. Every part, orbit and rocket is open. |
 
-| Mission | Budget | Notes |
-| --- | --- | --- |
-| Eyes on Earth | $210M | Earth observation |
-| Map the Moon | $250M | Lunar mapping with a transfer and orbit insertion cinematic |
-| Wildfire Watch | $40M | Small-satellite budget; the orbit you pick decides how long the eclipse is and how big the battery must be |
-| Rewrite History: OCO (2009) | $273.4M | Replays the Orbiting Carbon Observatory launch failure, then shows how NASA fixed it with OCO-2 |
+| Mission | Difficulty | Budget | Notes |
+| --- | --- | --- | --- |
+| Eyes on Earth | Cadet | $210M | Earth observation |
+| Map the Moon | Engineer | $250M | Lunar mapping with a transfer and orbit insertion cinematic |
+| Wildfire Watch | Mission Director | $40M | Small-satellite budget; the orbit you pick decides how long the eclipse is and how big the battery must be |
+| Rewrite History: OCO (2009) | Engineer | $273.4M | Replays the Orbiting Carbon Observatory launch failure, then shows how NASA fixed it with OCO-2 |
 
-Three difficulty levels: **Cadet** (color hints on the dashboard), **Engineer** and **Mission Director**.
+Each mission has a fixed difficulty. **Cadet** colors the dashboard and names events for you; **Engineer** shows numbers only and gives 3 minutes per operations turn; **Mission Director** starts every value blank and gives 90 seconds per turn.
 
 ## NASA data inside
 
@@ -108,9 +108,9 @@ Every number in the game data carries a source entry (title, URL, and whether it
 | Mission press kits (OCO, OCO-2), JPL, NSSDC, NTRS | Historical mission, orbit and eclipse constants |
 | LRO mission data, NSSDCA Moon Fact Sheet | Lunar transfer timing |
 | Earth Observatory, SVS (Blue Marble, Black Marble, LROC) | Earth and Moon textures |
-| NASA 3D Resources | Satellite, rocket and ground-station models |
-| NASA audio (Artemis I, IM-2, Juno) | Countdown, pad and liftoff sound |
-| JPL Concept Maturity Levels, Goddard Mission Design Lab, CubeSat 101 | Tutorial framing, departments, CubeSat-class parts |
+| NASA 3D Resources | ISS and Space Shuttle models on the title screen |
+| NASA audio (CLPS IM-2 launch recordings, Juno Ganymede flyby) | Countdown, pad and liftoff sound in the launch scene; space ambience during operations |
+| JPL Concept Maturity Levels | The end-of-tutorial message (CML 1–4: sketch, feasibility, trade space, point design) |
 
 Full list with terms of use: [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md). Per-file art credits: [Assets/GoNoGo/Art/CREDITS.md](Assets/GoNoGo/Art/CREDITS.md).
 
@@ -129,7 +129,8 @@ Full list with terms of use: [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md). Per-f
 | X (hold) | Emote wheel: wave, cheer, laugh, nod |
 | M | Mute or unmute mic (co-op) |
 | G / N | Vote in the Go/No-Go poll (co-op) |
-| Tab | Menu |
+| H | Show or hide tutorial details (tutorial only) |
+| Tab / Esc | Menu |
 
 ## Built with
 
@@ -147,13 +148,15 @@ Full list with terms of use: [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md). Per-f
 Assets/GoNoGo/
   Core/           Game rules with no Unity dependency: evaluator, simulator, scoring, orbit math, minigames
   Core.Tests/     Unit tests for Core
-  Data/           JSON game data (parts, missions, orbits, launchers, DONKI events, strings)
+  Data/           JSON game data (parts, assembly kits, missions, orbits, launchers, DONKI events, strings)
   Game/           Session, settings, audio, localization
   Net/            Multiplayer and voice chat
   Presentation/   3D facility, player, avatars, satellite builder, operations view
   UI/             UI Toolkit screens and panels
   Launch/         Launch cinematic
   Editor/         Scene builders and release builds
+  Art/, Audio/    Models, textures, fonts and NASA audio (credits in Art/CREDITS.md)
+  Resources/      Minigame sprites
 tools/            Data, art and test scripts (DONKI fetch, minigame art, Blender room builders)
 docs/             Setup guide and data sources
 ```
@@ -171,6 +174,10 @@ git lfs pull
 Open the folder in Unity and press Play: the game always starts from the title screen. Run the core tests with `bash tools/run-core-tests.sh`. To package a build, use the editor menu **GoNoGo → Release**.
 
 The full environment guide (Unity CLI, Blender, Claude Code, team workflow) is in [docs/SETUP.md](docs/SETUP.md), written in Traditional Chinese.
+
+## Use of AI tools
+
+Much of the code, data cleanup and documentation was written with help from Claude Code (Anthropic). Commits it helped with carry a `Co-Authored-By: Claude` line. Game data values come from the sources cited in each `source` entry, and the audio is original NASA recordings.
 
 ## Disclaimer
 
