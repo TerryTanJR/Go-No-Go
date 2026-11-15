@@ -198,7 +198,9 @@ namespace GoNoGo.Core.Tests
             var s = Solo();
             Ok(s, Command.Of(CommandType.SelectPart, 1, "batt_large", 1));
             Assert.That(s.Bench.Get(PartCategory.Battery), Is.EqualTo("batt_large"), "每類只選一個：選了就換掉");
-            Assert.That(Try(s, CommandType.SelectPart, 1, "batt_large", 0), Is.EqualTo("err.single_required"), "只能換，不能取消");
+            Ok(s, Command.Of(CommandType.SelectPart, 1, "batt_large", 0));
+            Assert.That(s.Bench.Get(PartCategory.Battery), Is.Null, "勾錯了可以取消，這一類變成沒選");
+            Ok(s, Command.Of(CommandType.SelectPart, 1, "batt_large", 1));
 
             Ok(s, Command.Of(CommandType.SelectPart, 1, "inst_thermal", 1));
             Ok(s, Command.Of(CommandType.SelectPart, 1, "inst_sar", 1));

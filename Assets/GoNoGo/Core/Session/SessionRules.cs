@@ -386,12 +386,8 @@ namespace GoNoGo.Core
                     s.Bench.Instruments.Add(partId);
                 }
             }
-            else
-            {
-                // 每類只選一個：只能換，不能取消
-                if (!on) return "err.single_required";
-                s.Bench.Parts[part.Category] = partId;
-            }
+            else if (on) s.Bench.Parts[part.Category] = partId;   // 每類只選一個：勾另一個就換掉
+            else if (s.Bench.Get(part.Category) == partId) s.Bench.Parts.Remove(part.Category);   // 取消：這一類變成沒選
             SyncAssembly(s, data);
             return Ok;
         }

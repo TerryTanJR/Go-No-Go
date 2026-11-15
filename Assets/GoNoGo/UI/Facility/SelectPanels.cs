@@ -121,17 +121,16 @@ namespace GoNoGo.UI
 
         void PartRow(VisualElement list, PartDef p, bool canEdit, bool on)
         {
-            bool multi = p.Category == PartCategory.Instrument;
             var row = Ui.El("sel-part").Cls("sel-part--on", on).AddTo(list);
             var top = Ui.Row("sel-part-top").AddTo(row);
             var tick = Ui.Btn(on ? "✔" : "", () =>
             {
                 Sfx.Click();
-                GameSession.Send(CommandType.SelectPart, p.Id, multi && on ? 0 : 1);
+                GameSession.Send(CommandType.SelectPart, p.Id, on ? 0 : 1);
                 Hud.Signal("select");
             }, "sel-tick").Cls("sel-tick--on", on).AddTo(top);
             tick.focusable = false;
-            tick.SetEnabled(canEdit && (multi || !on));
+            tick.SetEnabled(canEdit);
             Ui.Text(p.Code, "man-code", "mono").AddTo(top);
             Ui.Text(SelectView.PartName(p), "sel-part-name").AddTo(top);
             Ui.Spacer().AddTo(top);
