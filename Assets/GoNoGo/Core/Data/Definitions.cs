@@ -492,6 +492,10 @@ namespace GoNoGo.Core
         public double CallMonths { get; set; } = 0.5;
         /// <summary>組裝工作台每裝錯一個小零件花掉的時程（月）：拆下來重裝（返工）要時間，所以要看懂再裝。</summary>
         public double ReworkMonths { get; set; } = 0.25;
+        /// <summary>多人的發射點名：這麼多秒內沒喊完就自動取消（有人掛機不會卡住整隊）。</summary>
+        public double PollTimeoutSeconds { get; set; } = 90;
+        /// <summary>多人的發射點名：負責人這麼多秒還沒喊，其他人可以代喊（嚴格分工時不行）。</summary>
+        public double PollProxySeconds { get; set; } = 30;
         public double LinkEfficiency { get; set; } = 0.8;
         /// <summary>過境分布不均：最長空檔 = 平均空檔 × 這個倍數。</summary>
         public double ContactGapFactor { get; set; } = 2.0;

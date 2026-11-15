@@ -30,6 +30,8 @@ namespace GoNoGo.Core
         /// <summary>科學分不到門檻的一半而判 FAIL（入軌了，但成果不算數）。</summary>
         public bool ScienceFail { get; set; }
         public bool FirstLaunchBonus { get; set; }
+        /// <summary>發射前的點名喊錯而從效率分扣掉的分數（已經算進 <see cref="Efficiency"/>）。</summary>
+        public double PollPenalty { get; set; }
         public List<RequirementResult> Requirements { get; set; } = new List<RequirementResult>();
     }
 
@@ -55,7 +57,9 @@ namespace GoNoGo.Core
             var s = new Score();
 
             s.Science = scenario != null && scenario.FireAlert ? FireScience(ev, r, scenario) : ScienceScore(r.ScienceTotal, scenario, design.MissionYears);
-            s.Efficiency = EfficiencyScore(ev);
+            // 發射前的點名喊錯：從效率分扣（放行錯誤比誤報重；兩種都罰，不然全部喊 NO-GO 就永遠不會錯）
+            s.PollPenalty = BadReleasePenalty * ctx.PollBadReleases + FalseAlarmPenalty * ctx.PollFalseAlarms;
+            s.Efficiency = Clamp(EfficiencyScore(ev) - s.PollPenalty);
             s.Lifetime = r.ReachedOrbit ? Clamp(100.0 * Math.Min(1.0, r.ActualYears / Math.Max(1e-6, r.TargetYears))) : 0;
 
             foreach (var a in ctx.Requirements ?? new List<ActiveRequirement>())
@@ -174,6 +178,11 @@ namespace GoNoGo.Core
 
         /// <summary>時程每超過發射期限一個月，效率分扣多少。</summary>
         public const double LatePenaltyPerMonth = 10;
+
+        /// <summary>點名的放行錯誤（超標卻喊 GO）：每一項效率分扣多少。</summary>
+        public const double BadReleasePenalty = 10;
+        /// <summary>點名的誤報（有餘量卻喊 NO-GO，白白 HOLD 一次）：每一次效率分扣多少。</summary>
+        public const double FalseAlarmPenalty = 3;
 
         static double Clamp(double v) => Math.Max(0, Math.Min(100, v));
     }

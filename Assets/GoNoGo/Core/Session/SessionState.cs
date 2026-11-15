@@ -54,6 +54,8 @@ namespace GoNoGo.Core
         public LaunchOutcome Outcome { get; set; }
         public string ReasonCode { get; set; } = "";
         public bool Reached { get; set; }
+        /// <summary>放行這次發射的點名：六項各喊了什麼、誰喊的、當時的讀數（歷史關卡的重演沒有點名，是空的）。</summary>
+        public List<PollCall> Calls { get; set; } = new List<PollCall>();
     }
 
     /// <summary>一次採購（下單成功）：買了哪些零件。原價，沒有倍率；買了就不能退。</summary>
@@ -86,20 +88,44 @@ namespace GoNoGo.Core
     }
 
     /// <summary>
-    /// 多人的 Go/No-Go 點名：有人按發射就開始，每個人各喊 GO 或 NO-GO，全員 GO 才真的發射。
-    /// 有人喊 NO-GO 就 HOLD（回到設計）。點名中整合台和中控室的設定都鎖住。
+    /// 發射前的逐項 Go/No-Go 點名（單人、多人都要）：在發射台發起，六項資源（<see cref="PollItems"/>）各由負責的人
+    /// 看讀數、喊 GO 或 NO-GO。有任何一項 NO-GO 就 HOLD（回到設計）；六項都 GO，飛行總監才能放行發射。
+    /// 點名時系統不說對錯，答案在開始那一刻存下來，發射後才對。點名中整合台和中控室的設定都鎖住。
+    /// 規則見 docs/go_no_go_poll.md。
     /// </summary>
     public sealed class GoPoll
     {
         public int Id { get; set; }
+        /// <summary>發起的人，就是這一次的飛行總監：只有他能放行、取消。</summary>
         public int CalledBy { get; set; }
-        /// <summary>玩家 id → true = GO、false = NO-GO。</summary>
-        public Dictionary<int, bool> Votes { get; set; } = new Dictionary<int, bool>();
-        /// <summary>結束後：全員 GO（發射）或 HOLD。</summary>
+        /// <summary>項目 → 負責人（玩家 id）。</summary>
+        public Dictionary<string, int> Owner { get; set; } = new Dictionary<string, int>();
+        /// <summary>項目 → true = GO、false = NO-GO。還沒喊的項目不在裡面。</summary>
+        public Dictionary<string, bool> Calls { get; set; } = new Dictionary<string, bool>();
+        /// <summary>項目 → 實際喊的人（和負責人不同就是代喊）。</summary>
+        public Dictionary<string, int> By { get; set; } = new Dictionary<string, int>();
+        /// <summary>點名開始時的答案：六項當時的狀態。</summary>
+        public Dictionary<string, ResourceStatus> Truth { get; set; } = new Dictionary<string, ResourceStatus>();
+        /// <summary>點名開始時的讀數（負責人畫面上那一列的數字）。</summary>
+        public Dictionary<string, PollReading> Readings { get; set; } = new Dictionary<string, PollReading>();
+        /// <summary>開放代喊：負責人太久沒喊，其他人可以替他喊（嚴格分工時不開放）。</summary>
+        public bool ProxyOpen { get; set; }
+        /// <summary>結束後：六項都 GO（發射）或沒發射（HOLD、取消、逾時，見 <see cref="End"/>）。</summary>
         public bool Done { get; set; }
         public bool Go { get; set; }
-        /// <summary>HOLD 時是誰喊了 NO-GO（0 = 沒有）。</summary>
+        public PollEnd End { get; set; }
+        /// <summary>HOLD 時喊了 NO-GO 的項目，以及第一個喊的人（0 = 沒有）。</summary>
+        public List<string> NoGo { get; set; } = new List<string>();
         public int NoGoBy { get; set; }
+
+        public bool Called(string item) => Calls.ContainsKey(item);
+        /// <summary>六項都喊了。</summary>
+        public bool Complete() => PollItems.All.All(Called);
+        /// <summary>六項都喊了 GO：等飛行總監放行。</summary>
+        public bool AllGo() => PollItems.All.All(k => Calls.TryGetValue(k, out var go) && go);
+        /// <summary>這個人負責、還沒喊的項目（照點名順序）。</summary>
+        public List<string> Pending(int player) =>
+            PollItems.All.Where(k => !Called(k) && Owner.TryGetValue(k, out var o) && o == player).ToList();
     }
 
     /// <summary>
@@ -193,6 +219,8 @@ namespace GoNoGo.Core
         /// <summary>上一次點名的結果（HUD 顯示 HOLD 的原因）。</summary>
         public GoPoll LastPoll { get; set; }
         public int Polls { get; set; }
+        /// <summary>每一次 HOLD 的紀錄（報告列出誤報）。發射失敗重來也留著。</summary>
+        public List<PollRecord> Holds { get; set; } = new List<PollRecord>();
 
         /// <summary>營運：目前第幾回合、各事件的判斷與操作、這回合是否已結算。</summary>
         public int OpsTurn { get; set; }

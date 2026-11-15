@@ -1686,8 +1686,8 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     left: 50%;
     top: 14px;
     translate: -50% 0;
-    min-width: 520px;
-    max-width: 760px;
+    min-width: 560px;
+    max-width: 940px;
     padding: 12px 16px;
     border-radius: 6px;
     background-color: rgba(9, 16, 28, 0.95);
@@ -1697,9 +1697,12 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 }
 .poll--hold { border-color: var(--c-over); }
 .poll-head { flex-direction: row; align-items: center; margin-bottom: 8px; }
+.poll-director { margin-left: 12px; }
+.poll-clock { font-size: var(--fs-18); color: var(--c-text); }
+.poll-clock.over { color: var(--c-over); }
 .poll-list { flex-direction: row; flex-wrap: wrap; margin-bottom: 8px; }
 .poll-cell {
-    min-width: 110px;
+    min-width: 118px;
     margin: 0 8px 6px 0;
     padding: 6px 10px;
     border-radius: 4px;
@@ -1707,8 +1710,57 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     border-color: var(--c-line);
     background-color: rgba(255, 255, 255, 0.03);
 }
+/* 我負責的項目、現在輪到我喊的那一項 */
+.poll-cell--mine { border-color: var(--c-line-hi); background-color: var(--c-accent-dim); }
+.poll-cell--now { border-color: var(--c-accent); }
+.poll-item { font-size: var(--fs-15); -unity-font-style: bold; }
+.poll-now {
+    margin-bottom: 8px;
+    padding: 10px 12px;
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: var(--c-accent);
+    background-color: rgba(57, 198, 244, 0.06);
+}
+.poll-now-top { margin-bottom: 6px; }
+.poll-now-top > .unity-button { margin-left: 8px; }
+.poll-read { flex-direction: row; align-items: center; flex-wrap: wrap; margin: 2px 0 4px 0; }
+.poll-what { margin-right: 12px; }
+.poll-value { font-size: var(--fs-18); color: var(--c-text); white-space: normal; flex-shrink: 1; }
+.poll-gap { margin-left: 12px; }
 .poll-actions { flex-direction: row; align-items: center; margin-bottom: 6px; }
 .poll-actions > .unity-button { margin-left: 8px; }
+.poll-foot { flex-direction: row; align-items: center; margin-top: 2px; }
+/* 報告、失敗看板的對答案：標籤（放行錯誤…）＋那一項喊了什麼、當時的讀數 */
+.poll-rec { flex-direction: row; align-items: flex-start; margin-top: 6px; }
+.poll-rec-tag { min-width: 84px; margin-right: 10px; -unity-font-style: bold; flex-shrink: 0; }
+.poll-rec-line { flex-shrink: 1; white-space: normal; }
+.fail-poll { margin-top: 6px; white-space: normal; }
+
+/* 發射台的點名面板（單人）：一次一列。面板比一般的寬一點，讀數才不會換行 */
+.modal--poll { width: 860px; }
+.rcall-list { margin: 10px 0 4px 0; }
+.rcall-row {
+    margin-bottom: 6px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    border-width: 1px;
+    border-left-width: 4px;
+    border-color: var(--c-line);
+    background-color: rgba(255, 255, 255, 0.03);
+}
+.rcall-row--now { border-color: var(--c-accent); background-color: rgba(57, 198, 244, 0.08); }
+.rcall-row--todo { opacity: 0.45; }
+.rcall-row--fix { border-left-color: var(--c-over); }
+.rcall-top { flex-direction: row; align-items: center; }
+.rcall-n { width: 26px; color: var(--c-faint); font-size: var(--fs-15); }
+.rcall-name { font-size: var(--fs-18); -unity-font-style: bold; }
+.rcall-call { min-width: 84px; -unity-text-align: middle-right; }
+.rcall-act { flex-direction: row; align-items: center; margin-top: 6px; }
+.rcall-act > .unity-button { margin-left: 8px; }
+.rcall-mean { flex-shrink: 1; white-space: normal; }
+.rcall-keys { margin-top: 2px; }
+.rcall-hold { letter-spacing: 6px; margin-bottom: 6px; }
 .test-head { flex-direction: row; align-items: center; margin: 10px 0 6px 0; }
 .test-card {
     margin: 6px 0;

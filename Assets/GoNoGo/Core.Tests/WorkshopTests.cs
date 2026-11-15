@@ -375,7 +375,7 @@ namespace GoNoGo.Core.Tests
             Ok(s, Command.Of(CommandType.BenchPlace, 1));
             Ok(s, Command.Of(CommandType.CompPick, 1, _data.Recipe(_data.Part("solar_large")).Components[0].Id));
             // 找一個會失敗的設計太費工：直接假裝上一次發射沒入軌，走失敗重來的路
-            Ok(s, Command.Of(CommandType.Launch, 1));
+            PollFlow.Fly(s, _data);
             Assert.That(s.HeldComp, Is.Empty);
             s.LastLaunch.Reached = false;
             Ok(s, Command.Of(CommandType.FinishLaunch, 1));
@@ -473,7 +473,7 @@ namespace GoNoGo.Core.Tests
             Buy(s, "batt_large");
             Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
             Ok(s, Command.Of(CommandType.Install, 1));
-            Ok(s, Command.Of(CommandType.Launch, 1));
+            PollFlow.Fly(s, _data);
             s.LastLaunch.Reached = false;
             Ok(s, Command.Of(CommandType.FinishLaunch, 1));
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design));
@@ -521,7 +521,7 @@ namespace GoNoGo.Core.Tests
             }
             Assert.That(GameDataLoader.ValidateDesign(_data, s.Bench, "loaded"), Is.Empty);
             // 載入之後照樣可以發射
-            Ok(s, Command.Of(CommandType.Launch, 1));
+            PollFlow.Fly(s, _data);
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch));
         }
 

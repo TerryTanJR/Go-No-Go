@@ -452,6 +452,8 @@ namespace GoNoGo.Core
                 Check(d.Recipe(p) != null, $"零件 {p.Id}：沒有組裝配方");
             Check(d.SpaceWeather.Count > 0, "缺太空天氣事件");
             Check(d.Constants.ReworkMonths > 0, "裝錯小零件的返工時間（rework_months）必須 > 0");
+            Check(d.Constants.PollProxySeconds > 0 && d.Constants.PollTimeoutSeconds > d.Constants.PollProxySeconds,
+                "發射點名：逾時（poll_timeout_seconds）要比開放代喊（poll_proxy_seconds）晚，兩個都要 > 0");
             foreach (var pt in d.Parts.Where(x => d.Recipe(x) != null))
                 Check(d.Tray(pt).Select(c => c.Id).Distinct().Count() == GameData.TraySize, $"零件 {pt.Id}：零件盤湊不滿 {GameData.TraySize} 個不重複的小零件");
             Check(d.Constants.BatteryCycleLife.Count >= 2, "電池循環壽命表至少要兩個點");

@@ -40,7 +40,7 @@ namespace GoNoGo.EditorTools
             var s = GameSession.Mission.S;
             // 用展開式太陽能板：發射動畫最後要看得到翼板展開
             s.Bench.Parts[PartCategory.Solar] = "solar_deployable";
-            GameSession.Send(CommandType.Launch);
+            GameSession.LaunchNow();
             ApplyOverrides(s.LastLaunch);
             // 換到設計階段時已經開始淡出換場景，那時要求換到發射場景會被忽略：等它換完再換一次
             EditorApplication.update += GoWhenReady;

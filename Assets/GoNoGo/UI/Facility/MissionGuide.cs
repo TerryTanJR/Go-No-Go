@@ -7,7 +7,7 @@ namespace GoNoGo.UI
 {
     /// <summary>
     /// 學員難度的一般局（不是新手訓練）：左上角的「下一步」。不照固定順序打勾，而是看遊戲現在的狀態判斷該做什麼：
-    /// 問需求 → 採購 → 拿零件裝上整合台 → 儀表板有問題就修 → 發射；營運時是看控制台 → 結束回合。
+    /// 問需求 → 採購 → 拿零件裝上整合台 → 儀表板有問題就修 → 發射（點名：喊自己負責的項目）；營運時是看控制台 → 結束回合。
     /// 多人時依自己這一組（組裝區 / 中控室）給不同的下一步。字串在 strings.json 的 ui.guide.*。
     /// </summary>
     public static class MissionGuide
@@ -33,7 +33,13 @@ namespace GoNoGo.UI
             if (s.Phase == SessionPhase.Ops) return Ops(s, data);
             if (s.Phase != SessionPhase.Design) return null;
 
-            if (s.Poll != null) return Make("vote");
+            // 點名中：輪到我喊的項目；都喊完了，飛行總監放行，其他人等
+            if (s.Poll != null)
+            {
+                var mine = s.Poll.Pending(GameSession.LocalPlayer);
+                if (mine.Count > 0) return Make("vote", "", ("list", PollText.Items(mine)));
+                return s.Poll.CalledBy == GameSession.LocalPlayer && s.Poll.Complete() ? Make("poll_go") : Make("poll_wait");
+            }
 
             // 中控室：每個處室至少問一題（每題都花時程，不用全部問）
             int depts = data.Departments.Count;

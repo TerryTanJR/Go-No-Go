@@ -107,6 +107,18 @@ namespace GoNoGo.Game
 
         public static void Send(CommandType t, string a = "", int n = 0) => Send(Command.Of(t, 0, a, n));
 
+        /// <summary>
+        /// 開發用：不經過畫面，直接把點名走完並發射（發起、六項都喊 GO、送出）。
+        /// 直接開發射或評價場景測試、Editor 的 Test Launch 用；正式流程走發射台的點名面板。
+        /// </summary>
+        public static void LaunchNow()
+        {
+            if (!HasMission) return;
+            Send(CommandType.Launch);
+            foreach (var item in PollItems.All) Send(CommandType.PollCall, item, 1);
+            Send(CommandType.PollLaunch);
+        }
+
         /// <summary>直接開某個場景測試時，自動開一局預設任務（不換場景）。</summary>
         public static void EnsureMission()
         {

@@ -253,13 +253,23 @@ namespace GoNoGo.UI
             LobbyFlow();
             _panel?.Refresh();
             _opsBar.Refresh();
-            _poll?.Refresh();
+            RefreshPoll();
             _screens?.MarkDirty();
             UpdatePhaseBar();
             Notices();
             CollectCards();
             BenchNotices();
             _orderSig = null;
+        }
+
+        /// <summary>
+        /// 點名列跟著狀態重畫。只有一個人、發射台的點名面板開著時，點名在面板裡走，上方的點名列讓開。
+        /// </summary>
+        void RefreshPoll()
+        {
+            if (_poll == null) return;
+            _poll.Suppressed = _panelId == "launch" && SessionRules.PollSolo(M.S);
+            _poll.Refresh();
         }
 
         // 發射失敗重來的提示要跨場景（失敗後從發射場景回來才看得到），所以記在靜態欄位，換一局就重算
@@ -365,12 +375,14 @@ namespace GoNoGo.UI
             var head = Ui.Row("modal-head").AddTo(card);
             Ui.Text(_panel.Title, "eyebrow").AddTo(head);
             Ui.Spacer().AddTo(head);
-            if (_panel.Closable) Ui.Btn("Esc  ✕", ClosePanel, "modal-close").AddTo(head);
+            // 關閉鈕不拿鍵盤焦點：面板裡按方向鍵（點名的 ↑↓）會把焦點移到它身上，接著按 Enter 就把面板關了
+            if (_panel.Closable) Ui.Btn("Esc  ✕", ClosePanel, "modal-close").AddTo(head).focusable = false;
             var body = Ui.El("modal-body").AddTo(card);
             _panel.Attach(body, ClosePanel);
             _openedFrame = Time.frameCount;
             Hud.PanelOpen = true;
             PlayerControllerCursor(false);
+            RefreshPoll();
         }
 
         void ClosePanel()
@@ -386,6 +398,7 @@ namespace GoNoGo.UI
             Hud.ClosedFrame = Time.frameCount;
             // 關掉面板直接回到遊戲：重新鎖住游標（瀏覽器在按鈕事件裡允許）
             PlayerControllerCursor(true);
+            RefreshPoll();
         }
 
         static void PlayerControllerCursor(bool locked)
@@ -419,9 +432,11 @@ namespace GoNoGo.UI
                 if (_panel == null) OpenPanel("minigame_debug", ""); else ClosePanel();
                 return;
             }
-            // G / N：Go/No-Go 點名
-            if (keys && _poll != null && _poll.CanVote && (kb.gKey.wasPressedThisFrame || kb.nKey.wasPressedThisFrame))
-                _poll.Vote(kb.gKey.wasPressedThisFrame);
+            // G / N：點名列上輪到我喊的那一項；Enter：飛行總監送出（六項都 GO 就發射）
+            if (keys && _poll != null && _poll.CanCall && (kb.gKey.wasPressedThisFrame || kb.nKey.wasPressedThisFrame))
+                _poll.Call(kb.gKey.wasPressedThisFrame);
+            else if (keys && _poll != null && _poll.CanSubmit && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame))
+                _poll.Submit();
             // 大廳：全員準備好之後，房主按 Enter 直接開始
             else if (keys && _panel == null && M.S.Phase == SessionPhase.Lobby && GameSession.IsHost && LobbyView.AllReady(M.S)
                      && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame))

@@ -33,6 +33,11 @@ namespace GoNoGo.Core
         // 把手上的小零件放回去；把手上的小零件裝上去。加在最後，其他人的編號不變。
         // （上面的 Assemble 是舊的「在面板上點一點就組好」，已經不能用，留著編號）
         BenchPlace, CompPick, CompDrop, CompFit,
+        // 發射前的逐項點名（docs/go_no_go_poll.md）。加在最後，其他人的編號不變。
+        // PollCall：喊一項（A = 項目，N = 1 GO / 0 NO-GO）；PollCancel：飛行總監取消（N = 1：房主的計時器逾時）；
+        // PollLaunch：六項都喊完後飛行總監送出（都 GO 就發射，有 NO-GO 就 HOLD）；PollProxy：房主的計時器開放代喊。
+        // （上面的 Vote 是舊的「每人喊一次同不同意」，已經不能用，留著編號）
+        PollCall, PollCancel, PollLaunch, PollProxy,
     }
 
     /// <summary>
@@ -300,6 +305,15 @@ namespace GoNoGo.Core
             FailedLaunchesBefore = failedBefore,
         };
 
+        /// <summary>某一次發射的評分條件，包含那一次點名喊錯的項目（放行錯誤、誤報）。</summary>
+        public static MissionContext Context(GameData data, SessionState s, LaunchRecord l)
+        {
+            var ctx = Context(data, s, l.FailedBefore);
+            ctx.PollBadReleases = BadReleases(l).Count;
+            ctx.PollFalseAlarms = FalseAlarms(s, l).Count;
+            return ctx;
+        }
+
         // ---------------------------------------------------------------- 套用操作
 
         public static string Apply(SessionState s, GameData data, Command c)
@@ -348,10 +362,13 @@ namespace GoNoGo.Core
             return Ok;
         }
 
-        /// <summary>點名中不能改設計（要改就喊 NO-GO）。</summary>
+        /// <summary>
+        /// 點名中不能改設計（要改就喊 NO-GO）。裝小零件也算：裝錯會返工，時程跟著變，點名開始時存下的答案就不準了。
+        /// 沒問過的電話題目同理，在 Call 那邊擋。
+        /// </summary>
         static bool ChangesDesign(CommandType t) =>
             t == CommandType.Install || t == CommandType.Report || t == CommandType.PlaceOrder || t == CommandType.ApproveOrder
-            || t == CommandType.LoadDesign
+            || t == CommandType.LoadDesign || t == CommandType.CompFit
             || t == CommandType.SetOrbit || t == CommandType.SetLauncher || t == CommandType.SetGroundStation || t == CommandType.SetYears;
 
         static string ApplyInner(SessionState s, GameData data, Command c)
@@ -367,16 +384,13 @@ namespace GoNoGo.Core
                     s.Players.Add(new PlayerInfo { Id = c.Player, Look = (c.Look ?? new AvatarLook()).Sanitized(), Station = DefaultStation(s.Players.Count) });
                     return Ok;
                 case CommandType.Leave:
+                    var leaver = s.Player(c.Player);
                     s.Players.RemoveAll(p => p.Id == c.Player);
                     s.Held.Remove(c.Player);
                     s.HeldComp.Remove(c.Player);
                     // 嚴格分工但有一區沒人了：取消限制，不然剩下的人永遠做不完
                     if (s.StrictRoles && s.Phase != SessionPhase.Lobby && !BothStationsManned(s)) s.StrictRoles = false;
-                    if (s.Poll != null)
-                    {
-                        s.Poll.Votes.Remove(c.Player);
-                        CheckPoll(s, data);
-                    }
+                    if (s.Poll != null && leaver != null) PollHandOver(s, leaver);
                     return Ok;
                 case CommandType.SetStrict:
                     if (s.Phase != SessionPhase.Lobby) return "err.phase";
@@ -471,10 +485,17 @@ namespace GoNoGo.Core
                     var lineId = c.N >= 0 && c.N < lines.Count && GameData.LineOpen(lines[c.N], s.Difficulty(data)) ? lines[c.N].Id : null;
                     if (lineId == null) return "err.unknown";
                     if (!s.Calls.Any(x => x.Department == dep.Id && x.LineId == lineId))
+                    {
+                        // 新問題會花時程：點名中不能問（問過的可以再聽一次）
+                        if (s.Poll != null) return "err.poll_active";
                         s.Calls.Add(new CallRecord { Department = dep.Id, LineId = lineId });
+                    }
                     return Ok;
                 case CommandType.Launch: return RequestLaunch(s, data, c.Player);
-                case CommandType.Vote: return Vote(s, data, c.Player, c.N == 1);
+                case CommandType.PollCall: return PollCall(s, c.Player, c.A, c.N == 1);
+                case CommandType.PollLaunch: return PollLaunch(s, data, c.Player);
+                case CommandType.PollCancel: return PollCancel(s, c.Player, c.N == 1);
+                case CommandType.PollProxy: return PollProxy(s, c.Player);
                 case CommandType.FinishLaunch:
                     if (s.Phase != SessionPhase.Launch) return "err.phase";
                     if (s.LastLaunch.Reached) { StartOps(s, data); return Ok; }
@@ -747,49 +768,200 @@ namespace GoNoGo.Core
             return Ok;
         }
 
+        // ---------------------------------------------------------------- 發射前的逐項點名（docs/go_no_go_poll.md）
+        //
+        // 在發射台按發射 = 發起點名（單人也一樣），發起的人是這一次的飛行總監。設計立刻鎖住，六項資源當時的狀態存下來當答案。
+        // 每一項由負責的人看讀數、喊 GO 或 NO-GO（PollCall）；系統這時候不說對錯，發射後才對答案。
+        // 多人：任何一項 NO-GO 馬上 HOLD；六項都 GO，飛行總監送出（PollLaunch）才發射。
+        // 只有一個人：六項都自己喊，送出前可以改；送出時有 NO-GO 就 HOLD，都 GO 就發射。
+        // 逾時、代喊的秒數由房主的畫面計時（跟營運回合的 EndTurn 一樣），時間到送 PollCancel、PollProxy。
+
+        /// <summary>只有一個人在場：六項都自己喊，送出時才結算（多人是一喊 NO-GO 就 HOLD）。</summary>
+        public static bool PollSolo(SessionState s) => s.Players.Count <= 1;
+
         /// <summary>
-        /// 按下發射。個人模式直接發射；多人時開始 Go/No-Go 點名，全員 GO 才發射。
+        /// 按下發射：開始點名。答案（六項的狀態）和讀數在這一刻存下來，之後設計鎖住。
         /// </summary>
         static string RequestLaunch(SessionState s, GameData data, int player)
         {
             var why = CanLaunch(s);
             if (why != Ok) return why;
-            if (!s.Multiplayer || s.Players.Count <= 1) return Launch(s, data);
-            s.Poll = new GoPoll { Id = ++s.Polls, CalledBy = player };
-            return Ok;
-        }
-
-        static string Vote(SessionState s, GameData data, int player, bool go)
-        {
-            if (s.Poll == null || s.Phase != SessionPhase.Design) return "err.no_poll";
             if (s.Player(player) == null) return "err.no_player";
-            s.Poll.Votes[player] = go;
-            CheckPoll(s, data);
+            RefreshProcurement(s, data);
+            var ev = Evaluator.EvaluateDesign(s.Bench, data, s.DifficultyId, false);
+            var poll = new GoPoll { Id = ++s.Polls, CalledBy = player };
+            foreach (var id in PollItems.Order)
+            {
+                var r = ev[id];
+                var reading = new PollReading { Used = r.Used, Capacity = r.Capacity };
+                if (id == ResourceId.Power) { reading.Extra = ev.Power.ActualDod; reading.ExtraLimit = ev.Power.AllowedDod; }
+                else if (id == ResourceId.Data) reading.Extra = ev.Data.StorageRawGb;
+                poll.Truth[PollItems.Key(id)] = r.Status;
+                poll.Readings[PollItems.Key(id)] = reading;
+            }
+            AssignPollOwners(s, poll);
+            s.Poll = poll;
             return Ok;
         }
 
-        /// <summary>有人喊 NO-GO：HOLD；所有在場的人都喊 GO：發射。</summary>
-        static void CheckPoll(SessionState s, GameData data)
+        /// <summary>
+        /// 誰負責哪一項：照席位分（<see cref="PollItems.StationOf"/>），同一席位好幾個人就輪流分；
+        /// 某個席位沒有人，那幾項給另一席位。最後確保每個人至少一項（從項目最多的人那裡拿）。
+        /// </summary>
+        static void AssignPollOwners(SessionState s, GoPoll poll)
+        {
+            var everyone = s.Players.Select(p => p.Id).OrderBy(id => id).ToList();
+            foreach (var station in new[] { Station.Assembly, Station.Control })
+            {
+                var crew = s.Players.Where(p => p.Station == station).Select(p => p.Id).OrderBy(id => id).ToList();
+                if (crew.Count == 0) crew = everyone;
+                var items = PollItems.All.Where(k => PollItems.StationOf(k) == station).ToList();
+                for (int i = 0; i < items.Count; i++) poll.Owner[items[i]] = crew[i % crew.Count];
+            }
+            int Load(int id) => poll.Owner.Values.Count(o => o == id);
+            foreach (var idle in everyone.Where(id => Load(id) == 0).ToList())
+            {
+                var busiest = everyone.OrderByDescending(Load).ThenBy(id => id).First();
+                if (Load(busiest) <= 1) break;
+                poll.Owner[PollItems.All.Last(k => poll.Owner[k] == busiest)] = idle;
+            }
+        }
+
+        /// <summary>
+        /// 這個人現在能不能喊這一項：負責人隨時可以（也可以改口）；其他人只有開放代喊之後、而且那一項還沒人喊才行，
+        /// 嚴格分工時不能代喊。回傳 Ok 或原因。
+        /// </summary>
+        public static string CanCall(SessionState s, int player, string item)
         {
             var poll = s.Poll;
-            if (poll == null) return;
-            var nogo = poll.Votes.Where(kv => !kv.Value).Select(kv => kv.Key).FirstOrDefault();
-            if (nogo != 0)
-            {
-                poll.Done = true;
-                poll.Go = false;
-                poll.NoGoBy = nogo;
-                s.LastPoll = poll;
-                s.Poll = null;
-                return;
-            }
-            if (s.Players.Count == 0 || !s.Players.All(p => poll.Votes.TryGetValue(p.Id, out var v) && v)) return;
+            if (poll == null || s.Phase != SessionPhase.Design) return "err.no_poll";
+            if (s.Player(player) == null) return "err.no_player";
+            if (!poll.Owner.TryGetValue(item ?? "", out var owner)) return "err.unknown";
+            if (owner == player) return Ok;
+            if (s.StrictNow() || !poll.ProxyOpen || poll.Called(item)) return "err.poll_not_yours";
+            return Ok;
+        }
+
+        static string PollCall(SessionState s, int player, string item, bool go)
+        {
+            var why = CanCall(s, player, item);
+            if (why != Ok) return why;
+            var poll = s.Poll;
+            poll.Calls[item] = go;
+            poll.By[item] = player;
+            // 多人：一有人喊 NO-GO 就 HOLD。只有一個人時等他送出（送出前可以改）
+            if (!go && !PollSolo(s)) HoldPoll(s);
+            return Ok;
+        }
+
+        /// <summary>飛行總監送出：六項都要喊完。有 NO-GO 就 HOLD，都 GO 就發射。</summary>
+        static string PollLaunch(SessionState s, GameData data, int player)
+        {
+            var poll = s.Poll;
+            if (poll == null || s.Phase != SessionPhase.Design) return "err.no_poll";
+            if (player != poll.CalledBy) return "err.poll_director";
+            if (!poll.Complete()) return "err.poll_incomplete";
+            if (!poll.AllGo()) { HoldPoll(s); return Ok; }
+            var calls = PollCalls(poll);
+            EndPoll(s, PollEnd.Launched);
+            var r = Launch(s, data);
+            if (r == Ok) s.LastLaunch.Calls = calls;
+            return r;
+        }
+
+        /// <summary>飛行總監取消，或房主的計時器逾時（timedOut）：回到設計，沒有代價，也不留紀錄。</summary>
+        static string PollCancel(SessionState s, int player, bool timedOut)
+        {
+            var poll = s.Poll;
+            if (poll == null) return "err.no_poll";
+            if (player != poll.CalledBy && player != HostPlayer) return "err.poll_director";
+            EndPoll(s, timedOut && player == HostPlayer ? PollEnd.TimedOut : PollEnd.Cancelled);
+            return Ok;
+        }
+
+        /// <summary>房主的計時器：負責人太久沒喊，開放其他人代喊（嚴格分工時不開放）。</summary>
+        static string PollProxy(SessionState s, int player)
+        {
+            if (s.Poll == null) return "err.no_poll";
+            if (player != HostPlayer) return "err.host_only";
+            if (s.StrictNow()) return "err.poll_not_yours";
+            s.Poll.ProxyOpen = true;
+            return Ok;
+        }
+
+        /// <summary>HOLD：記下這次喊過的每一項（誤報從這裡算），回到設計。</summary>
+        static void HoldPoll(SessionState s)
+        {
+            var poll = s.Poll;
+            poll.NoGo = PollItems.All.Where(k => poll.Calls.TryGetValue(k, out var go) && !go).ToList();
+            poll.NoGoBy = poll.NoGo.Count > 0 && poll.By.TryGetValue(poll.NoGo[0], out var by) ? by : 0;
+            s.Holds.Add(new PollRecord { Poll = poll.Id, Attempt = s.Launches.Count + 1, Calls = PollCalls(poll) });
+            EndPoll(s, PollEnd.Hold);
+        }
+
+        static void EndPoll(SessionState s, PollEnd end)
+        {
+            var poll = s.Poll;
             poll.Done = true;
-            poll.Go = true;
+            poll.Go = end == PollEnd.Launched;
+            poll.End = end;
             s.LastPoll = poll;
             s.Poll = null;
-            Launch(s, data);
         }
+
+        /// <summary>
+        /// 點名中有人離線：他負責的項目改給同席位的其他人（那個席位沒人了就給剩下的人），已經喊的保留。
+        /// 走的是飛行總監就換人當（中控室的人優先）。一個人都不剩：取消。
+        /// </summary>
+        static void PollHandOver(SessionState s, PlayerInfo leaver)
+        {
+            var poll = s.Poll;
+            if (s.Players.Count == 0) { EndPoll(s, PollEnd.Cancelled); return; }
+            var mates = s.Players.Where(p => p.Station == leaver.Station).Select(p => p.Id).ToList();
+            if (mates.Count == 0) mates = s.Players.Select(p => p.Id).ToList();
+            foreach (var item in PollItems.All)
+            {
+                if (!poll.Owner.TryGetValue(item, out var owner) || owner != leaver.Id) continue;
+                poll.Owner[item] = mates.OrderBy(id => poll.Owner.Values.Count(o => o == id)).ThenBy(id => id).First();
+            }
+            if (poll.CalledBy == leaver.Id)
+                poll.CalledBy = s.Players.OrderBy(p => p.Station == Station.Control ? 0 : 1).ThenBy(p => p.Id).First().Id;
+        }
+
+        /// <summary>這次點名喊過的每一項，連同當時的答案和讀數。</summary>
+        static List<PollCall> PollCalls(GoPoll poll)
+        {
+            var list = new List<PollCall>();
+            foreach (var item in PollItems.All)
+            {
+                if (!poll.Calls.TryGetValue(item, out var go)) continue;
+                poll.By.TryGetValue(item, out var by);
+                poll.Owner.TryGetValue(item, out var owner);
+                poll.Truth.TryGetValue(item, out var truth);
+                poll.Readings.TryGetValue(item, out var reading);
+                list.Add(new PollCall { Item = item, Go = go, By = by, Owner = owner, Truth = truth, Reading = reading?.Clone() ?? new PollReading() });
+            }
+            return list;
+        }
+
+        /// <summary>放行錯誤：放行這次發射的點名裡，超標卻喊 GO 的項目。</summary>
+        public static List<PollCall> BadReleases(LaunchRecord l) =>
+            l.Calls.Where(c => c.Verdict == PollVerdict.BadRelease).ToList();
+
+        /// <summary>冒險放行：餘量不到一成還喊 GO 的項目（不算錯）。</summary>
+        public static List<PollCall> RiskyGos(LaunchRecord l) =>
+            l.Calls.Where(c => c.Verdict == PollVerdict.RiskyGo).ToList();
+
+        /// <summary>這次發射之前幾次 HOLD（同一次發射的準備期間）。</summary>
+        public static List<PollRecord> HoldsFor(SessionState s, LaunchRecord l) =>
+            s.Holds.Where(h => h.Attempt == l.Attempt).ToList();
+
+        /// <summary>
+        /// 誤報：這次發射之前的 HOLD 裡，有餘量卻喊 NO-GO 的項目（每喊一次算一次）。
+        /// 同一次 HOLD 裡超標卻喊 GO 的不算：被 HOLD 擋下來、修好再點名，就沒有放行出去。
+        /// </summary>
+        public static List<PollCall> FalseAlarms(SessionState s, LaunchRecord l) =>
+            HoldsFor(s, l).SelectMany(h => h.Calls).Where(c => c.Verdict == PollVerdict.FalseAlarm).ToList();
 
         static string Launch(SessionState s, GameData data)
         {
@@ -918,12 +1090,12 @@ namespace GoNoGo.Core
         {
             var l = s.LastLaunch;
             if (l == null) return null;
-            return Simulator.SimulateMission(l.Design, data, l.Seed, new FixedDecisions(s.Responses), Context(data, s, l.FailedBefore));
+            return Simulator.SimulateMission(l.Design, data, l.Seed, new FixedDecisions(s.Responses), Context(data, s, l));
         }
 
         /// <summary>某一次發射的結果（失敗原因看板用）。</summary>
         public static MissionResult ResultOf(LaunchRecord l, SessionState s, GameData data) =>
-            Simulator.SimulateMission(l.Design, data, l.Seed, new NoDecisions(), Context(data, s, l.FailedBefore));
+            Simulator.SimulateMission(l.Design, data, l.Seed, new NoDecisions(), Context(data, s, l));
 
         /// <summary>這回合的事件；任務已經結束（衛星提早失效、或回合都跑完）時是 null。</summary>
         public static MissionEvent CurrentEvent(SessionState s, GameData data)

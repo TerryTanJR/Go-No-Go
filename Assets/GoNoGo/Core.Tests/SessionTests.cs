@@ -39,8 +39,8 @@ namespace GoNoGo.Core.Tests
 
         string Try(SessionState s, CommandType t, int player, string a = "", int n = 0) => SessionRules.Apply(s, _data, Command.Of(t, player, a, n));
 
-        /// <summary>發射（採購機制 v2：不用先做環境測試）。</summary>
-        void Fly(SessionState s) => Ok(s, Command.Of(CommandType.Launch, 1));
+        /// <summary>發射（採購機制 v2：不用先做環境測試）：走完點名，六項都喊 GO。點名本身的測試在 PollTests。</summary>
+        void Fly(SessionState s) => PollFlow.Fly(s, _data);
 
         double Cost(params string[] ids) => ids.Sum(id => _data.Part(id).CostMusd);
 
@@ -81,43 +81,6 @@ namespace GoNoGo.Core.Tests
             Fly(s);
             Assert.That(new[] { LaunchOutcome.DeadOnOrbit, LaunchOutcome.Failure }, Has.Member(s.LastLaunch.Outcome));
             Assert.That(s.LastLaunch.Reached, Is.False, "入軌後就斷電也算失敗（會重來）");
-        }
-
-        [Test]
-        public void MultiplayerLaunchNeedsEveryoneToCallGo()
-        {
-            var s = Duo(false);
-            Ok(s, Command.Of(CommandType.Launch, 2));
-            Assert.That(s.Poll, Is.Not.Null);
-            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design), "點名還沒結束");
-            // 點名中不能改設計
-            Assert.That(Try(s, CommandType.SetYears, 2, "", 4), Is.EqualTo("err.poll_active"));
-            Assert.That(Try(s, CommandType.Launch, 2), Is.EqualTo("err.poll_active"));
-            Ok(s, Command.Of(CommandType.Vote, 2, "", 1));
-            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design));
-            Ok(s, Command.Of(CommandType.Vote, 1, "", 0));
-            Assert.That(s.Poll, Is.Null);
-            Assert.That(s.LastPoll.Go, Is.False);
-            Assert.That(s.LastPoll.NoGoBy, Is.EqualTo(1));
-            Assert.That(s.Launches, Is.Empty, "有人 NO-GO：HOLD");
-
-            // 第二次：全員 GO 才發射
-            Ok(s, Command.Of(CommandType.Launch, 2));
-            Ok(s, Command.Of(CommandType.Vote, 1, "", 1));
-            Ok(s, Command.Of(CommandType.Vote, 2, "", 1));
-            Assert.That(s.LastPoll.Go, Is.True);
-            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch));
-            Assert.That(s.Launches.Count, Is.EqualTo(1));
-        }
-
-        [Test]
-        public void SomeoneLeavingDuringThePollCanCompleteIt()
-        {
-            var s = Duo(false);
-            Ok(s, Command.Of(CommandType.Launch, 2));
-            Ok(s, Command.Of(CommandType.Vote, 2, "", 1));
-            Ok(s, Command.Of(CommandType.Leave, 1));
-            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch), "剩下的人都喊 GO 了");
         }
 
         /// <summary>每問一個新問題花掉時程；同一題再問不算，評估的時程跟著變長。</summary>
@@ -210,10 +173,8 @@ namespace GoNoGo.Core.Tests
             Assert.That(Try(s, CommandType.Pick, 2, "batt_large"), Is.EqualTo("err.strict_assembly"));
             Assert.That(Try(s, CommandType.PlaceOrder, 2), Is.EqualTo("err.strict_assembly"));
             Ok(s, Command.Of(CommandType.SetYears, 2, "", 3));
-            Ok(s, Command.Of(CommandType.Launch, 2));
-            // 點名每個人都可以喊
-            Ok(s, Command.Of(CommandType.Vote, 1, "", 1));
-            Ok(s, Command.Of(CommandType.Vote, 2, "", 1));
+            // 點名由中控室發起，兩區各喊自己負責的項目
+            PollFlow.Fly(s, _data, 2);
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch));
 
             // 有一區沒人了：自動取消嚴格分工

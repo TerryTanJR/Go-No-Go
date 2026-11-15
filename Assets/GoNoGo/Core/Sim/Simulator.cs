@@ -12,6 +12,9 @@ namespace GoNoGo.Core
         public List<ActiveRequirement> Requirements { get; set; } = new List<ActiveRequirement>();
         /// <summary>這次發射之前已經失敗過幾次（重新設計的次數）。</summary>
         public int FailedLaunchesBefore { get; set; }
+        /// <summary>發射前的點名喊錯幾項：放行錯誤（超標卻喊 GO）、誤報（有餘量卻喊 NO-GO）。效率分會扣分。</summary>
+        public int PollBadReleases { get; set; }
+        public int PollFalseAlarms { get; set; }
     }
 
     /// <summary>

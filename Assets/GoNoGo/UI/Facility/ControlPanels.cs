@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using GoNoGo.Core;
 using GoNoGo.Game;
+using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 namespace GoNoGo.UI
@@ -397,51 +398,97 @@ namespace GoNoGo.UI
         }
     }
 
-    // ======================================================================== 發射
+    // ======================================================================== 發射：逐項 Go/No-Go 點名
 
+    /// <summary>
+    /// 發射台的點名面板（docs/go_no_go_poll.md）。先看提醒，按「開始點名」（發起的人就是飛行總監）。
+    /// <list type="bullet">
+    /// <item>只有一個人：六項在這裡一列一列問，看讀數按 G（GO）或 N（NO-GO），↑↓ 可以回去改；六項喊完按 Enter 送出。
+    /// 有 NO-GO 就顯示 HOLD 和每一項去哪裡修；都 GO 就發射。關掉面板 = 取消這次點名，沒有代價。</item>
+    /// <item>多人：開始點名後面板關掉，每個人在畫面上方的點名列喊自己負責的項目（<see cref="PollBanner"/>）。</item>
+    /// </list>
+    /// 系統在點名時不說對錯，發射後的報告才對答案。
+    /// </summary>
     public sealed class LaunchPanel : FacPanel
     {
         public override string Title => Loc.T("ui.launchp.title");
+        /// <summary>喊到一半不小心按到 E 不要整個取消（Esc 和「再等等」才關）。</summary>
+        public override bool CloseWithE => false;
+        public override string WideClass => "modal--poll";
+
+        /// <summary>現在問到第幾項（0–5）；6 = 都喊完了，等送出。</summary>
+        int _cursor;
+        /// <summary>游標是替哪一次點名算的。</summary>
+        int _pollSeen = -1;
+        /// <summary>在這個面板送出的那一次點名：HOLD 的結果顯示在這裡。</summary>
+        int _submitted = -1;
+
+        static int Count => PollItems.All.Length;
+
+        static bool SoloPoll(SessionState s) => s.Poll != null && s.Phase == SessionPhase.Design && SessionRules.PollSolo(s);
+        bool ShowingHold(SessionState s) => s.Poll == null && s.LastPoll != null && s.LastPoll.Id == _submitted && s.LastPoll.End == PollEnd.Hold;
 
         protected override void Build(VisualElement body)
         {
             var s = M.S;
-            bool poll = s.Multiplayer && s.Players.Count > 1;
-            Ui.Text(Loc.T("ui.launchp.question"), "h2").AddTo(body);
-            Ui.Text(Loc.T("ui.launchp.body"), "body").AddTo(body);
+            if (SoloPoll(s)) BuildRollCall(body, s);
+            else if (ShowingHold(s)) BuildHold(body, s.LastPoll);
+            else BuildIntro(body, s);
+        }
 
-            // 發射前：系統不判斷設計好不好（採購機制 v2），只提醒營運經費和失敗的代價
+        // ---------------- 開始之前：提醒 ----------------
+
+        void BuildIntro(VisualElement body, SessionState s)
+        {
+            bool team = !SessionRules.PollSolo(s);
+            Ui.Text(Loc.T("ui.launchp.question"), "h2").AddTo(body);
+            Ui.Text(Loc.T(team ? "ui.launchp.body_team" : "ui.launchp.body"), "body").AddTo(body);
+            Gates(body, s, true);
+
+            var why = SessionRules.CanLaunch(s);
+            var row = Ui.Row("modal-actions").AddTo(body);
+            PollText.Key(row, Loc.T("ui.launchp.cancel"), () => Close(), "btn-big");
+            Ui.Spacer().AddTo(row);
+            if (why != SessionRules.Ok)
+                Ui.Text(Loc.T(why), "small", "tight", "launch-why").AddTo(row);
+            PollText.Key(row, "[Enter]  " + Loc.T("ui.launchp.start"), Start, "btn-go", "btn-big").SetEnabled(why == SessionRules.Ok);
+        }
+
+        void Start()
+        {
+            var s = M.S;
+            if (SessionRules.CanLaunch(s) != SessionRules.Ok) return;
+            Sfx.Alert();
+            GameSession.Send(CommandType.Launch);
+            // 多人：點名在畫面上方的點名列進行，面板讓開
+            if (M.S.Poll != null && !SessionRules.PollSolo(M.S)) Close();
+        }
+
+        /// <summary>
+        /// 發射前的提醒：系統不判斷設計好不好（採購機制 v2），只講營運經費、失敗的代價、還沒裝上去的零件。
+        /// all = false（點名中）只留要注意的那幾條，把畫面讓給點名。
+        /// </summary>
+        void Gates(VisualElement body, SessionState s, bool all)
+        {
             var gate = Ui.El("launch-gate").AddTo(body);
             double funded = SessionRules.FundedYears(s, D);
             int years = s.Bench.MissionYears;
-            Gate(gate, funded >= years ? "dim" : funded <= 0 ? "over" : "tight", funded >= years
-                ? Loc.T("ui.launchp.funds_ok", ("years", years))
-                : Loc.T("ui.launchp.funds_short", ("funded", Fmt.N(funded, 1)), ("years", years)));
-            // 歷史任務失敗不重來（保留原設計），其他關卡失敗就整個任務重來
-            if (s.Scenario(D)?.Sandbox == true) Gate(gate, "dim", Loc.T("ui.launchp.sandbox_note"));
-            else if (s.Scenario(D)?.Historical == null) Gate(gate, "dim", Loc.T("ui.launchp.restart_note"));
-            if (poll) Gate(gate, "dim", Loc.T("ui.launchp.poll_note", ("n", s.Players.Count)));
+            if (funded < years)
+                Gate(gate, funded <= 0 ? "over" : "tight", Loc.T("ui.launchp.funds_short", ("funded", Fmt.N(funded, 1)), ("years", years)));
+            else if (all)
+                Gate(gate, "dim", Loc.T("ui.launchp.funds_ok", ("years", years)));
+            if (all)
+            {
+                // 歷史任務失敗不重來（保留原設計），其他關卡失敗就整個任務重來
+                if (s.Scenario(D)?.Sandbox == true) Gate(gate, "dim", Loc.T("ui.launchp.sandbox_note"));
+                else if (s.Scenario(D)?.Historical == null) Gate(gate, "dim", Loc.T("ui.launchp.restart_note"));
+            }
             // 火箭只帶走整合台上的東西：工作台上、手上還沒裝上去的零件先講清楚
             var job = s.Workbench;
             if (job != null)
                 Gate(gate, "tight", Loc.T(job.Done ? "ui.launchp.bench_built" : "ui.launchp.bench_left", ("code", D.Part(job.PartId)?.Code ?? "")));
             var inHand = s.Held.Values.Where(id => id != null).Select(id => D.Part(id)?.Code).Where(c => !string.IsNullOrEmpty(c)).Distinct().ToList();
             if (inHand.Count > 0) Gate(gate, "tight", Loc.T("ui.launchp.held_left", ("list", string.Join("、", inHand))));
-
-            var why = SessionRules.CanLaunch(s);
-            var row = Ui.Row("modal-actions").AddTo(body);
-            Ui.Btn(Loc.T("ui.launchp.cancel"), () => Close(), "btn-big").AddTo(row);
-            Ui.Spacer().AddTo(row);
-            if (why != SessionRules.Ok)
-                Ui.Text(Loc.T(why), "small", "tight", "launch-why").AddTo(row);
-            var go = Ui.Btn(Loc.T(poll ? "ui.launchp.poll" : "ui.launchp.go"), () =>
-            {
-                if (poll) Sfx.Alert(); else Sfx.Go();
-                Hud.Signal("launch");
-                GameSession.Send(CommandType.Launch);
-                if (poll) Close();
-            }, "btn-go", "btn-big").AddTo(row);
-            go.SetEnabled(why == SessionRules.Ok);
         }
 
         static void Gate(VisualElement parent, string cls, string text)
@@ -449,6 +496,144 @@ namespace GoNoGo.UI
             var r = Ui.Row("gate-row").AddTo(parent);
             Ui.El("dash-lamp", "dash-lamp--" + (cls == "dim" ? "go" : cls)).AddTo(r);
             Ui.Text(text, "body", cls == "dim" ? "dim" : cls).AddTo(r);
+        }
+
+        // ---------------- 點名：一次一列 ----------------
+
+        void BuildRollCall(VisualElement body, SessionState s)
+        {
+            var poll = s.Poll;
+            if (_pollSeen != poll.Id)
+            {
+                _pollSeen = poll.Id;
+                _cursor = NextOpen(poll, -1);
+            }
+            Ui.Text(Loc.T("ui.launchp.roll_hint"), "body").AddTo(body);
+            Gates(body, s, false);
+
+            var list = Ui.El("rcall-list").AddTo(body);
+            for (int i = 0; i < Count; i++)
+            {
+                string item = PollItems.All[i];
+                bool called = poll.Calls.TryGetValue(item, out var go);
+                bool now = i == _cursor;
+                // 一次一列：還沒問到的項目先不給讀數
+                bool shown = called || now;
+                var row = Ui.El("rcall-row").Cls("rcall-row--now", now).Cls("rcall-row--todo", !shown).AddTo(list);
+                var top = Ui.Row("rcall-top").AddTo(row);
+                Ui.Text((i + 1).ToString(), "mono", "rcall-n").AddTo(top);
+                Ui.Text(PollText.Item(item) + (now ? (Loc.IsZh ? "？" : "?") : ""), "rcall-name").AddTo(top);
+                Ui.Spacer().AddTo(top);
+                Ui.Text(!called ? "…" : go ? "GO" : "NO-GO", "h3", "mono", "rcall-call", !called ? "dim" : go ? "go" : "over").AddTo(top);
+                if (shown) PollText.ReadingRow(row, item, poll);
+                if (!now) continue;
+                var act = Ui.Row("rcall-act").AddTo(row);
+                Ui.Text(Loc.T("ui.poll.go." + item), "small", "dim", "rcall-mean").AddTo(act);
+                Ui.Spacer().AddTo(act);
+                PollText.Key(act, "[N]  NO-GO", () => Answer(false), "btn-danger");
+                PollText.Key(act, "[G]  GO", () => Answer(true), "btn-go");
+            }
+
+            Ui.Text(Loc.T("ui.launchp.keys"), "small", "faint", "rcall-keys").AddTo(body);
+            var foot = Ui.Row("modal-actions").AddTo(body);
+            PollText.Key(foot, Loc.T("ui.launchp.cancel"), () => Close(), "btn-big");
+            Ui.Spacer().AddTo(foot);
+            int left = Count - poll.Calls.Count;
+            if (left > 0) Ui.Text(Loc.T("ui.launchp.left", ("n", left)), "small", "dim", "launch-why").AddTo(foot);
+            PollText.Key(foot, "[Enter]  " + Loc.T("ui.launchp.submit"), Submit, "btn-go", "btn-big").SetEnabled(poll.Complete());
+        }
+
+        /// <summary>after 之後第一個還沒喊的項目（找不到就從頭找）；都喊完了 = 6。</summary>
+        static int NextOpen(GoPoll poll, int after)
+        {
+            for (int k = 1; k <= Count; k++)
+            {
+                int i = (after + k + Count) % Count;
+                if (i != after && !poll.Called(PollItems.All[i])) return i;
+            }
+            return Count;
+        }
+
+        void Answer(bool go)
+        {
+            var s = M.S;
+            if (!SoloPoll(s) || _cursor < 0 || _cursor >= Count) return;
+            string item = PollItems.All[_cursor];
+            if (go) Sfx.Confirm(); else Sfx.NoGo();
+            // 先把游標移到下一個還沒喊的：送出操作後面板會立刻重畫
+            _cursor = NextOpen(s.Poll, _cursor);
+            GameSession.Send(CommandType.PollCall, item, go ? 1 : 0);
+        }
+
+        void Move(int delta)
+        {
+            var s = M.S;
+            if (!SoloPoll(s)) return;
+            int max = s.Poll.Complete() ? Count : Count - 1;
+            int to = System.Math.Max(0, System.Math.Min(max, _cursor + delta));
+            if (to == _cursor) return;
+            _cursor = to;
+            Sfx.Tick();
+            Refresh();
+        }
+
+        void Submit()
+        {
+            var s = M.S;
+            if (!SoloPoll(s) || !s.Poll.Complete()) return;
+            _submitted = s.Poll.Id;
+            if (s.Poll.AllGo()) { Sfx.Go(); Hud.Signal("launch"); }
+            else Sfx.NoGo();
+            GameSession.Send(CommandType.PollLaunch);
+        }
+
+        // ---------------- HOLD：哪幾項、去哪裡修 ----------------
+
+        void BuildHold(VisualElement body, GoPoll last)
+        {
+            Ui.Text("HOLD", "h2", "over", "rcall-hold").AddTo(body);
+            Ui.Text(Loc.T("ui.launchp.hold", ("list", PollText.Items(last.NoGo))), "body").AddTo(body);
+            var list = Ui.El("rcall-list").AddTo(body);
+            foreach (var item in last.NoGo)
+            {
+                var row = Ui.El("rcall-row", "rcall-row--fix").AddTo(list);
+                Ui.Text(PollText.Item(item), "rcall-name").AddTo(row);
+                Ui.Text(Loc.T("ui.poll.fix." + item), "body").AddTo(row);
+            }
+            Ui.Text(Loc.T("ui.launchp.hold_note"), "small", "faint").AddTo(body);
+            var foot = Ui.Row("modal-actions").AddTo(body);
+            Ui.Spacer().AddTo(foot);
+            PollText.Key(foot, "[Enter]  " + Loc.T("ui.launchp.hold_close"), () => Close(), "btn-big");
+        }
+
+        // ---------------- 鍵盤、關閉 ----------------
+
+        public override void Tick(float dt)
+        {
+            var kb = Keyboard.current;
+            if (kb == null || Body == null || Hud.Paused || UIRoot.IsTyping) return;
+            var s = M.S;
+            bool enter = kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame;
+            if (SoloPoll(s))
+            {
+                if (kb.gKey.wasPressedThisFrame) Answer(true);
+                else if (kb.nKey.wasPressedThisFrame) Answer(false);
+                else if (kb.upArrowKey.wasPressedThisFrame) Move(-1);
+                else if (kb.downArrowKey.wasPressedThisFrame) Move(1);
+                else if (enter) Submit();
+            }
+            else if (enter)
+            {
+                if (ShowingHold(s)) Close();
+                else if (s.Poll == null) Start();
+            }
+        }
+
+        public override void Detach()
+        {
+            base.Detach();
+            // 關掉面板 = 取消這次點名（只有一個人時；多人的點名在畫面上方繼續）
+            if (GameSession.HasMission && SoloPoll(M.S)) GameSession.Send(CommandType.PollCancel);
         }
     }
 
@@ -477,13 +662,15 @@ namespace GoNoGo.UI
                 Ui.Text(Loc.T("ui.fail.attempt", ("n", l.Attempt)), "eyebrow").AddTo(head);
                 Ui.Spacer().AddTo(head);
                 Ui.Text(Loc.T(OutcomeKey(l.Outcome)), "small", l.Reached ? "go" : "over").AddTo(head);
-                if (l.Reached) continue;
+                if (l.Reached) { PollLine(card, l, m.S); continue; }
                 if (detail == "category")
                 {
                     Ui.Text(Loc.T("ui.fail.category." + Category(l)), "body").AddTo(card);
+                    PollLine(card, l, m.S);
                     continue;
                 }
                 Ui.Text(Loc.T(l.ReasonCode), "body").AddTo(card);
+                PollLine(card, l, m.S);
                 var r = SessionRules.ResultOf(l, m.S, GameSession.Data);
                 var chain = r.Causes.FirstOrDefault(c => !c.Positive);
                 if (chain != null)
@@ -498,6 +685,18 @@ namespace GoNoGo.UI
                 if (detail == "advice" && !string.IsNullOrEmpty(r.SuggestionCode))
                     Ui.Text(Loc.T("ui.report.suggestion") + "：" + Loc.T(r.SuggestionCode), "small", "accent").AddTo(card);
             }
+        }
+
+        /// <summary>
+        /// 這次發射的結果如果對應到點名的某一項（太重、到不了 → 質量；撐不過地影 → 電力），
+        /// 寫出發射前那一項喊了什麼、當時的讀數：失敗不只是「設計不好」，也是「看了數字還放行」。
+        /// </summary>
+        static void PollLine(VisualElement card, LaunchRecord l, SessionState s)
+        {
+            var item = PollItems.ItemFor(l.ReasonCode);
+            var call = item == null ? null : l.Calls.FirstOrDefault(c => c.Item == item);
+            if (call == null) return;
+            Ui.Text(Loc.T("ui.fail.poll", ("line", PollText.Line(call, s.Players.Count > 1))), "small", "tight", "fail-poll").AddTo(card);
         }
 
         public static string OutcomeKey(LaunchOutcome o) => o switch

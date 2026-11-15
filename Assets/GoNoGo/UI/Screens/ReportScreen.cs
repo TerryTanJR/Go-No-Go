@@ -21,7 +21,7 @@ namespace GoNoGo.UI
             var r = M.Result;
             if (r == null)
             {
-                GameSession.Send(CommandType.Launch);
+                GameSession.LaunchNow();
                 r = M.Result;
             }
             var l = M.S.LastLaunch;
@@ -79,6 +79,7 @@ namespace GoNoGo.UI
             midScroll.AddToClassList("why-scroll");
             var mc = midScroll.contentContainer;
             if (M.IsHistorical && M.S.Launches.Count > 0) HistoryPanel(mc, r);
+            PollPanel(mc, l, r);
 
             if (r.Events.Count > 0)
             {
@@ -204,6 +205,42 @@ namespace GoNoGo.UI
             var row = Ui.Row("fact-row").AddTo(parent);
             Ui.Text(Loc.T(key), "small", "dim", "fact-k").AddTo(row);
             Ui.Text(value, "small", "fact-v").AddTo(row);
+        }
+
+        /// <summary>
+        /// 發射前的點名對答案：六項喊對幾項；放行錯誤（超標卻喊 GO）、冒險放行（餘量不到一成還喊 GO，不算錯）、
+        /// 誤報（有餘量卻喊 NO-GO，白白 HOLD 一次），每一條都寫出當時的讀數；多人時寫出是誰喊的。
+        /// 歷史關卡的重演沒有點名，不顯示。
+        /// </summary>
+        void PollPanel(VisualElement parent, LaunchRecord l, MissionResult r)
+        {
+            if (l.Calls.Count == 0) return;
+            var s = M.S;
+            bool team = s.Players.Count > 1 || l.Calls.Select(c => c.By).Distinct().Count() > 1;
+            var bad = SessionRules.BadReleases(l);
+            var risky = SessionRules.RiskyGos(l);
+            var alarms = SessionRules.FalseAlarms(s, l);
+            int holds = SessionRules.HoldsFor(s, l).Count;
+
+            var body = Ui.Panel(parent, Loc.T("ui.report.poll"), out _);
+            var head = Ui.Row().AddTo(body);
+            Ui.Text(Loc.T("ui.report.poll_score", ("ok", l.Calls.Count - bad.Count), ("n", l.Calls.Count)), "h3", bad.Count == 0 ? "go" : "over").AddTo(head);
+            Ui.Spacer().AddTo(head);
+            if (r.Score.PollPenalty > 0)
+                Ui.Text(Loc.T("ui.report.poll_penalty", ("p", Fmt.N(r.Score.PollPenalty))), "small", "mono", "over").AddTo(head);
+
+            void Line(string tagKey, string cls, string text)
+            {
+                var row = Ui.Row("poll-rec").AddTo(body);
+                Ui.Text(Loc.T(tagKey), "small", cls, "poll-rec-tag").AddTo(row);
+                Ui.Text(text, "small", "poll-rec-line").AddTo(row);
+            }
+            foreach (var c in bad) Line("ui.report.poll_bad", "over", PollText.Line(c, team));
+            foreach (var c in risky) Line("ui.report.poll_risky", "tight", PollText.Line(c, team));
+            foreach (var c in alarms) Line("ui.report.poll_alarm", "tight", PollText.Line(c, team));
+            if (bad.Count == 0 && risky.Count == 0 && alarms.Count == 0)
+                Ui.Text(Loc.T("ui.report.poll_clean"), "small", "dim").AddTo(body);
+            if (holds > 0) Ui.Text(Loc.T("ui.report.poll_holds", ("n", holds)), "small", "dim").AddTo(body);
         }
 
         void HistoryPanel(VisualElement parent, MissionResult r)

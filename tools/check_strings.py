@@ -42,7 +42,7 @@ def main():
         "ui.hud.controls": ["", "_solo"],
         "ui.tut.": [k + t for k in ["move", "view", "procure", "pick", "bench", "assemble", "install", "dashboard", "call", "notes", "manual", "launch", "console", "judge"] for t in ["", ".t"]],
         "ui.guide.": [k + t for k in ["call", "procure", "pick", "assemble", "fit", "take", "install", "fix", "fix_ctl", "fix_goals", "launch", "ready_asm", "review",
-                                      "wait_review", "vote", "ops_act", "ops_end", "ops_next"] for t in ["", ".t"]],
+                                      "wait_review", "vote", "poll_go", "poll_wait", "ops_act", "ops_end", "ops_next"] for t in ["", ".t"]],
         "ui.lobby.team_": ["assembly", "control"],
         "ui.intro.": ["assembly", "control", "assembly.t", "control.t"],
         "ui.brief.speech.": [s["id"] for s in scen] + ["default", "sandbox"],
@@ -53,6 +53,10 @@ def main():
         "ui.avatar.lower.": ["0", "1", "2", "3", "4"],
         "ui.avatar.acc.": ["0", "1", "2", "3", "4"],
         "res.": ["mass", "power", "budget", "data", "comms", "time"],
+        # 發射前點名的六個項目：讀數是什麼、GO 的意思、HOLD 之後去哪裡修
+        "ui.poll.what.": ["mass", "power", "budget", "data", "comms", "time"],
+        "ui.poll.go.": ["mass", "power", "budget", "data", "comms", "time"],
+        "ui.poll.fix.": ["mass", "power", "budget", "data", "comms", "time"],
     }
 
     code = ""
