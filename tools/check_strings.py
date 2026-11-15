@@ -69,7 +69,7 @@ def main():
         "ui.field.": fields,
         "ui.clue.phrase.": fields,
         "ui.clue.medium.": mediums,
-        "ui.clue.junk.": [m + "." + str(i) for m in mediums for i in range(3)],
+        "ui.clue.trivia.": [str(i) for i in range(64)],                                                    # Clues.TriviaCount
         "ui.clue.note.": [str(i) for i in range(4)],
         "ui.clue.note.head.": [str(i) for i in range(4)],
         "ui.clue.note.sign.": [str(i) for i in range(4)],

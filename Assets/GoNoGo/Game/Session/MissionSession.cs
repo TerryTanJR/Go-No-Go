@@ -37,6 +37,7 @@ namespace GoNoGo.Game
         MissionPlan _plan;
         MissionEvent _event;
         Dictionary<string, List<Clue>> _clues;
+        Dictionary<string, int> _trivia;
         string _cluesFor;
 
         /// <summary>狀態改變（任何操作、或收到房主的新狀態）。</summary>
@@ -149,13 +150,24 @@ namespace GoNoGo.Game
         /// </summary>
         public List<Clue> CluesAt(string spotId)
         {
-            string key = S.ScenarioId + "/" + S.DifficultyId + "/" + S.Solo + "/" + S.ClueSeed;
-            if (_clues == null || _cluesFor != key)
-            {
-                _clues = Clues.Place(Data, S);
-                _cluesFor = key;
-            }
+            EnsureClues();
             return _clues.TryGetValue(spotId ?? "", out var list) ? list : new List<Clue>();
+        }
+
+        /// <summary>沒放線索的位置放的是第幾則太空知識（有線索的位置 = -1）。</summary>
+        public int TriviaAt(string spotId)
+        {
+            EnsureClues();
+            return _trivia.TryGetValue(spotId ?? "", out var n) ? n : -1;
+        }
+
+        void EnsureClues()
+        {
+            string key = S.ScenarioId + "/" + S.DifficultyId + "/" + S.Solo + "/" + S.ClueSeed;
+            if (_clues != null && _cluesFor == key) return;
+            _clues = Clues.Place(Data, S);
+            _trivia = Clues.Trivia(_clues, S.ClueSeed);
+            _cluesFor = key;
         }
     }
 }

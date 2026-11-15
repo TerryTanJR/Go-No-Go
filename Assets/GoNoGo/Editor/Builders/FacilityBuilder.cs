@@ -550,8 +550,8 @@ namespace GoNoGo.EditorTools
         }
 
         /// <summary>
-        /// 組裝區的線索：西牆和北牆上的四張設計圖、小零件架之間的面板上夾著的三張便條，
-        /// 加上散落在各處的（南牆的設計圖、工作台上的書、櫃門和門邊的紙、組裝台和整合台旁的夾板、掉在地上的紙）。
+        /// 組裝區的線索：西牆和北牆上的四張設計圖、小零件架之間的面板上夾著的四張便條，
+        /// 加上散落在各處的（南牆的設計圖、工作台上的書和紙、櫃門和門邊的紙、組裝台和整合台旁的夾板、掉在地上的紙）。
         /// </summary>
         static void BuildBayClues(ArtBuilder.Art art, FacMats fm, Transform bay)
         {
@@ -568,7 +568,7 @@ namespace GoNoGo.EditorTools
 
             // 架子和架子之間：一片和架子正面齊平的面板，上面夾著一張便條
             float frontZ = BayZ - 0.62f - 0.27f;
-            int[] gaps = { 0, 1, 3 };
+            int[] gaps = { 0, 1, 3, 2 };
             for (int i = 0; i < gaps.Length; i++)
             {
                 float x = ShelfGapX(gaps[i]);
@@ -581,10 +581,12 @@ namespace GoNoGo.EditorTools
             // 南牆：窗戶兩邊各一張設計圖（西邊在工作台和窗戶之間，東邊在儀器櫃和東牆之間）
             Print("print_5", new Vector3(-7.55f, 1.95f, -BayZ + 0.11f), 180f);
             Print("print_6", new Vector3(11.9f, 1.95f, -BayZ + 0.11f), 180f);
-            // 南牆工作台上攤著一本書
+            // 南牆工作台上攤著一本書，旁邊一張紙
             ClueBook(fm, g, "workbook", new Vector3(-10.7f, 0.9f, -BayZ + 0.5f), 168f, new Color(0.14f, 0.3f, 0.46f));
-            // 南牆中間那台儀器櫃的門上貼著一張紙
+            ClueLoose(g, "benchpaper", new Vector3(-9.1f, 0.902f, -BayZ + 0.5f), 172f);
+            // 南牆儀器櫃：中間和東邊那台的門上各貼一張紙
             ClueNote(art, g, "cabinetnote", new Vector3(9.15f, 1.32f, -BayZ + 0.645f), 180f, -3f, backing: false);
+            ClueNote(art, g, "cabinetnote_2", new Vector3(10.1f, 1.05f, -BayZ + 0.645f), 180f, 2f, backing: false);
             // 東牆：門的北邊貼著一張便條
             ClueNote(art, g, "doornote", new Vector3(BayX1 - 0.07f, 1.62f, 2.15f), 90f, 2f);
             // 兩座組裝台旁邊、整合台北邊：立著的夾板
@@ -839,14 +841,17 @@ namespace GoNoGo.EditorTools
             // ---- 散落在中控室各處的線索（不標名稱，要自己找）。家具的位置見 BuildControlDecor ----
             const float bayD = 28.22f, bayE = 32.38f, bayF = 36.54f;
             float furnN = wallZ - 0.7f, furnS = -furnN;   // 靠北、南牆的家具中心 z
-            // 北牆：左邊那台機櫃的正面、左邊那台資料櫃的正面各貼一張紙
+            // 北牆：左右兩台機櫃的正面、兩台資料櫃的正面各貼一張紙
             ClueNote(art, g, "racknote", new Vector3(bayD - 1.2f, 1.5f, furnN - 0.475f), 0f, 3f, backing: false);
+            ClueNote(art, g, "racknote_2", new Vector3(bayD + 1.2f, 1.2f, furnN - 0.475f), 0f, -2f, backing: false);
             ClueNote(art, g, "archivenote", new Vector3(bayE - 0.75f, 1.12f, furnN + 0.1f - 0.365f), 0f, -2f, backing: false);
+            ClueNote(art, g, "archivenote_2", new Vector3(bayE + 0.75f, 1.3f, furnN + 0.1f - 0.365f), 0f, 3f, backing: false);
             // 南牆休息區：茶几上一本書、沙發上一張紙
             ClueBook(fm, g, "loungebook", new Vector3(bayD + 0.5f - 0.6f, 0.547f, furnS + 0.2f + 1.65f), 24f, new Color(0.46f, 0.3f, 0.1f));
             ClueLoose(g, "sofanote", new Vector3(bayD + 0.5f + 0.7f, 0.512f, furnS + 0.2f + 0.05f), 196f);
-            // 南牆：右邊那台置物櫃的門上貼一張紙
+            // 南牆：左右兩台置物櫃的門上各貼一張紙
             ClueNote(art, g, "lockernote", new Vector3(bayE + 1.2f, 1.28f, furnS - 0.1f + 0.365f), 180f, 2f, backing: false);
+            ClueNote(art, g, "lockernote_2", new Vector3(bayE - 1.2f, 1.45f, furnS - 0.1f + 0.365f), 180f, -3f, backing: false);
             // 隔牆（朝中控室這一面）：門的北邊一張設計圖、南邊一張公告
             CluePrint(art, fm, g, "divider_1", new Vector3(CtrlX0 + 0.12f, 1.95f, 5.2f), -90f);
             ClueNote(art, g, "divider_2", new Vector3(CtrlX0 + 0.09f, 1.55f, -5.2f), -90f, -2f);
