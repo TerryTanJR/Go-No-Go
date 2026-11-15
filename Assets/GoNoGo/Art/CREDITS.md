@@ -81,6 +81,10 @@ The four WAV files are used (`Audio/Resources/Audio/AudioBank.asset`). The two A
 
 All WAV excerpts were made with Python and numpy: 48 kHz audio passed through a windowed-sinc low-pass filter, decimated to 24 kHz, given fade-in/out, and peak-normalized to -1 dBFS.
 
+## Briefing voice (`Audio/Resources/Briefing/`, ElevenLabs, AI-generated)
+
+Every `brief_*.wav` in this folder (the shared opening and solo closing lines, plus per-mission lines for earth observation, lunar mapping, wildfire and the historical OCO mission) is a voiced line of the flight director in the briefing (`UI/Facility/BriefingPanel.cs`). They were generated with ElevenLabs text-to-speech (https://elevenlabs.io) on a paid plan, using a stock Voice Library voice, from the team's own script. ElevenLabs' terms allow commercial use on paid plans and do not require attribution; it is credited here to disclose AI-generated content. No real person's voice is cloned.
+
 ## Game data sources (`Data/Resources/GameData/`)
 
 Every number in the game data files has a `source` entry (title, URL and a note saying which values are sourced, derived or estimated). We use facts and figures only; no text or images are copied from these sites. The Space Apps rules ask teams to follow the terms of use of any non-US-government site they draw on, so the non-government sources are listed here:

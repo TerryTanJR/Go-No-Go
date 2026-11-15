@@ -41,7 +41,7 @@ Known gap: DONKI is a bundled snapshot, not a live call at runtime. If time allo
 
 ## 2. Non-NASA sources and their terms
 
-Only facts and figures are used. No text or images are copied from these sites.
+Only facts and figures are used. No text or images are copied from these sites. The one non-NASA media asset is the AI-generated briefing voice (ElevenLabs, last row).
 
 | Source | Terms | Used for |
 |---|---|---|
@@ -54,6 +54,7 @@ Only facts and figures are used. No text or images are copied from these sites.
 | arXiv, MIT OCW, MDPI Sensors, J. Astron. Space Sci., SmallSat Conference | Open-access papers and course notes, cited by name | Eclipse and power formulas, station keeping |
 | Noto Sans TC, Rajdhani, Share Tech Mono, JetBrains Mono | SIL OFL 1.1; license files ship in `Art/Fonts/` | UI fonts |
 | Unity packages (`Packages/manifest.json`): URP, Netcode for GameObjects, Multiplayer Services, Vivox, glTFast, Draco, Cinemachine, Input System, Splines, Timeline, Newtonsoft JSON | Unity Companion License / Unity terms of service | Engine features, multiplayer, voice chat, `.glb` loading |
+| ElevenLabs text-to-speech (https://elevenlabs.io) | ElevenLabs terms of service, paid plan: commercial use of the generated audio is allowed and no attribution is required; credited here to disclose AI-generated content | The flight director's voiced briefing lines: every clip in `Audio/Resources/Briefing/` (`brief_*.wav`, played by `BriefingPanel`), read by a stock ElevenLabs Voice Library voice. The script is the team's own text. No real person's voice is cloned |
 
 Rocket and company names (Falcon 9, SpaceX, ULA, Rocket Lab) are used only to identify real products. No third-party logos are used.
 
