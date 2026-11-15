@@ -12,10 +12,12 @@ namespace GoNoGo.Game
     public sealed class Sfx : MonoBehaviour
     {
         static Sfx _i;
-        AudioSource _ui, _ambience, _music;
+        AudioSource _ui, _ambience, _music, _alarm;
         readonly Dictionary<string, AudioClip> _synth = new Dictionary<string, AudioClip>();
         float _hoverCooldown;
         float _ambienceTarget, _musicTarget;
+        /// <summary>警鈴還要響幾秒（≤ 0 = 淡出）。</summary>
+        float _alarmLeft;
         AudioClip _musicClip;
 
         /// <summary>主音量：所有聲音（包含發射場景的聲音）。</summary>
@@ -78,6 +80,9 @@ namespace GoNoGo.Game
             _music.loop = true;
             _music.playOnAwake = false;
             _music.volume = 0;
+            _alarm = gameObject.AddComponent<AudioSource>();
+            _alarm.loop = true;
+            _alarm.playOnAwake = false;
             AudioListener.volume = MasterVolume;
         }
 
@@ -90,6 +95,7 @@ namespace GoNoGo.Game
             if (_ambienceTarget <= 0 && _ambience.volume < 0.005f && _ambience.isPlaying) _ambience.Stop();
             _music.volume = Mathf.Lerp(_music.volume, _musicTarget * MusicVolume, 1f - Mathf.Exp(-Time.unscaledDeltaTime * 1.2f));
             if (_musicTarget <= 0 && _music.volume < 0.003f && _music.isPlaying) _music.Pause();
+            UpdateAlarm(Time.unscaledDeltaTime);
         }
 
         // ---------------- 介面音效 ----------------
@@ -110,7 +116,10 @@ namespace GoNoGo.Game
         /// <summary>火箭爆炸：一聲爆裂接很低的轟鳴，拖一段越來越悶的隆隆餘音（約 5 秒）。</summary>
         public static void Explosion() => I.Play("explosion", 1f);
         public static void Tick() => I.Play("tick", 0.18f);
-        public static void Whoosh() => I.Play("whoosh", 0.35f);
+        /// <summary>打開遊戲選單：兩個往上的短音。</summary>
+        public static void MenuOpen() => I.Play("menu_open", 0.4f);
+        /// <summary>關掉遊戲選單：兩個往下的短音。</summary>
+        public static void MenuClose() => I.Play("menu_close", 0.32f);
         /// <summary>拿起零件。</summary>
         public static void Pick() => I.Play("pick", 0.4f);
         /// <summary>放下零件。</summary>
@@ -125,8 +134,6 @@ namespace GoNoGo.Game
 
         // ---------------- 營運、處置小遊戲 ----------------
 
-        /// <summary>營運：新事件的警報（三聲一高一低的警示音）。</summary>
-        public static void Alarm() => I.Play("alarm", 0.42f);
         /// <summary>營運：這回合處置成功（上行的四個音）。</summary>
         public static void Success() => I.Play("success", 0.5f);
         /// <summary>營運：這回合處置失敗（下行的三個音）。</summary>
@@ -161,14 +168,42 @@ namespace GoNoGo.Game
             if (!s._music.isPlaying) s._music.Play();
         }
 
-        void Play(string id, float vol)
+        void Play(string id, float vol) => _ui.PlayOneShot(Clip(id), vol * EffectsVolume);
+
+        /// <summary>合成過的聲音留著重用。</summary>
+        AudioClip Clip(string id)
         {
-            if (!_synth.TryGetValue(id, out var clip))
-            {
-                clip = Synthesize(id);
-                _synth[id] = clip;
-            }
-            _ui.PlayOneShot(clip, vol * EffectsVolume);
+            if (!_synth.TryGetValue(id, out var clip)) _synth[id] = clip = Synthesize(id);
+            return clip;
+        }
+
+        // ---------------- 警鈴 ----------------
+
+        const float AlarmVolume = 0.3f, AlarmFadeSeconds = 0.6f;
+
+        /// <summary>警鈴循環響 <paramref name="seconds"/> 秒，之後淡出。已經在響就從現在重新算。</summary>
+        public static void StartAlarm(float seconds)
+        {
+            var s = I;
+            s._alarmLeft = seconds;
+            s._alarm.clip = s.Clip("alarm_loop");
+            s._alarm.volume = AlarmVolume * EffectsVolume;
+            if (!s._alarm.isPlaying) s._alarm.Play();
+        }
+
+        /// <summary>有人處理了：警鈴淡出。</summary>
+        public static void StopAlarm()
+        {
+            if (_i != null) _i._alarmLeft = 0;
+        }
+
+        void UpdateAlarm(float dt)
+        {
+            if (!_alarm.isPlaying) return;
+            _alarmLeft -= dt;
+            if (_alarmLeft > 0) return;
+            _alarm.volume = Mathf.MoveTowards(_alarm.volume, 0, AlarmVolume * dt / AlarmFadeSeconds);
+            if (_alarm.volume <= 0) _alarm.Stop();
         }
 
         // ---------------- 環境音 ----------------
@@ -261,14 +296,6 @@ namespace GoNoGo.Game
                         return hp * 0.9f * env;
                     });
                 }
-                case "alarm":
-                    // 三聲：每聲前半高、後半低（方波太刺耳，用正弦加一點方波）
-                    return Tone(id, 0.96f, t =>
-                    {
-                        float u = t % 0.32f;
-                        float hz = u < 0.14f ? 880f : 660f;
-                        return (Sine(hz, t) * 0.5f + Square(hz, t) * 0.12f) * (u < 0.28f ? Env(u % 0.14f, 0.004f, 0.16f) : 0f);
-                    });
                 case "success":
                     return Tone(id, 0.75f, t =>
                     {
@@ -351,20 +378,39 @@ namespace GoNoGo.Game
                         return (float)System.Math.Tanh((crack + body + sub) * 1.4f) * 0.95f;
                     });
                 }
-                case "whoosh":
+                case "menu_open": return TwoNotes(id, 587.33f, 880f);
+                case "menu_close": return TwoNotes(id, 880f, 587.33f);
+                case "alarm_loop":
                 {
-                    var rnd = new System.Random(11);
-                    float lp = 0;
-                    return Tone(id, 0.6f, t =>
+                    // 警報器：音高在一圈裡從 520 Hz 滑到 820 Hz 再落回來。相位一路累加（滑音才不會走音），
+                    // 整圈的振動次數湊成整數，循環接回開頭時波形是連續的，不會有爆音
+                    const float low = 520f, swing = 300f;
+                    float cycles = (low + swing * 2f / Mathf.PI) * AlarmCycle;
+                    float fit = Mathf.Round(cycles) / cycles;
+                    float phase = 0;
+                    return Tone(id, AlarmCycle, t =>
                     {
-                        float n = (float)(rnd.NextDouble() * 2 - 1);
-                        float cutoff = 0.02f + 0.18f * Mathf.Sin(Mathf.PI * t / 0.6f);
-                        lp += (n - lp) * cutoff;
-                        return lp * 1.6f * Mathf.Sin(Mathf.PI * t / 0.6f);
+                        float a = Mathf.Sin(phase);
+                        phase += 2f * Mathf.PI * (low + swing * Mathf.Sin(Mathf.PI * t / AlarmCycle)) * fit / Rate;
+                        return a * 0.55f + Mathf.Sign(a) * 0.08f + Mathf.Sin(2f * phase) * 0.12f;
                     });
                 }
                 default: return Tone(id, 0.05f, t => 0);
             }
+        }
+
+        const float AlarmCycle = 0.8f;
+
+        /// <summary>兩個很短的「嗒、嗒」（主音 + 高八度泛音），選單開關用：往上是開，往下是關。</summary>
+        static AudioClip TwoNotes(string id, float first, float second)
+        {
+            const float gap = 0.065f;
+            return Tone(id, 0.2f, t =>
+            {
+                float hz = t < gap ? first : second;
+                float u = t < gap ? t : t - gap;
+                return (Sine(hz, t) * 0.6f + Sine(hz * 2f, t) * 0.15f) * Env(u, 0.003f, 0.09f);
+            });
         }
 
         static AudioClip Tone(string id, float seconds, Func<float, float> f)

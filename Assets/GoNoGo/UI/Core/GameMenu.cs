@@ -38,7 +38,7 @@ namespace GoNoGo.UI
             SetCursor(false);
             Render();
             _layer.style.display = DisplayStyle.Flex;
-            Sfx.Whoosh();
+            Sfx.MenuOpen();
         }
 
         /// <summary>關掉選單回到遊戲。<paramref name="relock"/> = false：不要鎖游標（換場景、回主選單）。</summary>
@@ -50,6 +50,7 @@ namespace GoNoGo.UI
             _layer.Clear();
             Hud.Paused = false;
             Hud.ClosedFrame = Time.frameCount; // 同一幀的 E / 點擊不要又觸發別的東西
+            Sfx.MenuClose();
             GameSettings.Save();
             if (relock && _canRelockCursor()) SetCursor(true);
         }

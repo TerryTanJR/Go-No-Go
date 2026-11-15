@@ -21,6 +21,8 @@ namespace GoNoGo.UI
         /// <summary>計時器上現在寫的是什麼：剩幾秒，或下面兩個特殊值（空白、「不計時」）。一樣就不重組字串。</summary>
         int _timerShown = TimerBlank;
         const int TimerBlank = int.MinValue, TimerNone = int.MinValue + 1;
+        /// <summary>新事件的警鈴最多響幾秒；有人先動手處理就提早停。</summary>
+        const float AlarmSeconds = 8f;
 
         /// <summary>
         /// 建立橫條的元素（畫面每次重建都要重新建，包括切語言）。回合的狀態——現在第幾回合、剩幾秒、警報響過沒——
@@ -52,7 +54,7 @@ namespace GoNoGo.UI
                 _resolvedShown = false;
                 _left = M.Difficulty.TurnSeconds;
                 _lastSecond = -1;
-                Sfx.Alarm();
+                Sfx.StartAlarm(AlarmSeconds);
                 if (e != null)
                 {
                     OpsClock.Day = e.Day;
@@ -66,6 +68,7 @@ namespace GoNoGo.UI
             _event.text = s.TurnResolved ? Loc.T("ui.ops.resolved")
                 : (M.Difficulty.EventReveal || e?.Kind == EventKind.Alien) && e != null ? Loc.T("event.title." + OpsEvents.Key(e.Kind))
                 : Loc.T("ui.ops.unknown_event");
+            if (s.TurnResolved || (e?.Id != null && s.Responses.TryGetValue(e.Id, out var r) && r.Started)) Sfx.StopAlarm();
             if (s.TurnResolved && !_resolvedShown)
             {
                 _resolvedShown = true;
