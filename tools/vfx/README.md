@@ -16,10 +16,10 @@
 2. 選 `SmokeDomain` → Physics → Fluid → **Bake All**（約 3–5 分鐘）。快取寫在 `blender/smoke_cache/`，不進 Git。
 3. 算第 9–72 格（共 64 格），輸出成 `frames/f_009.png` … `f_072.png`（256×256、RGBA、透明背景）。
 4. `python make_atlas.py frames ../../Assets/GoNoGo/Launch/Experiments/Smoke_Billow_8x8.png 8`
-5. Unity 選單 **GoNoGo → Experiments → Build Smoke Lab** 重建測試場景。
+5. Unity 選單 **GoNoGo → Experiments → Build Smoke Lab** 重建測試場景；正式的發射場景也用同一張圖集（`ArtBuilder` 把 `M_Smoke_Billow.mat` 放進 `LaunchKit`），要更新就跑 **GoNoGo → Build → All Scenes**。
 
 ## 已知注意事項
 
 - EEVEE 用正交攝影機時，光不會打進體積煙霧（整團黑色），所以改用 200 mm 長焦透視攝影機。
 - 模擬範圍底部會把煙切平，`make_atlas.py` 的底部淡出就是為了蓋掉這條線。
-- 圖集 2048×2048；WebGL 版的載入預算有限，正式使用時考慮降到 1024。
+- 圖集 2048×2048；WebGL 版由 `ArtBuilder` 設成 Crunch 壓縮（品質 85）來壓下載大小。
