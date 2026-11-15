@@ -5,7 +5,7 @@ using System.Linq;
 namespace GoNoGo.Core
 {
     /// <summary>
-    /// 取捨引擎：輸入設計，輸出六種資源、壽命、科學潛力與警告。
+    /// 取捨引擎：輸入設計，輸出五種資源、壽命、科學潛力與警告。
     /// 純函式、沒有亂數，同樣的輸入永遠得到同樣的輸出。
     /// </summary>
     public static class Evaluator
@@ -172,36 +172,10 @@ namespace GoNoGo.Core
             co.OpsPerYearMusd = c.OpsBaseCostMusdPerYear + (gs?.OpsCostMusdPerYear ?? 0);
             co.OpsTotalMusd = co.OpsPerYearMusd * years;
             costContrib.Add(new Contribution("operations", co.OpsTotalMusd));
-            if (design.ProcurementMusd > 0)
-            {
-                co.DevelopmentMusd += design.ProcurementMusd;
-                costContrib.Add(new Contribution("procurement", design.ProcurementMusd));
-            }
             co.TotalMusd = co.DevelopmentMusd + co.LaunchMusd + co.OpsTotalMusd;
             co.BudgetMusd = GameData.Budget(scenario);
             AddResource(ev, ResourceId.Budget, co.TotalMusd, co.BudgetMusd, "M$",
                 co.BudgetMusd > 0 ? (co.BudgetMusd - co.TotalMusd) / co.BudgetMusd : -1, costContrib);
-
-            // ---------- 時程 ----------
-            var timeContrib = new List<Contribution>();
-            double longest = 0;
-            foreach (var p in design.AllPartIds().Select(data.Part).Where(p => p != null))
-            {
-                timeContrib.Add(new Contribution(p.Id, p.DevMonths));
-                longest = Math.Max(longest, p.DevMonths);
-            }
-            if (launcher != null)
-            {
-                timeContrib.Add(new Contribution(launcher.Id, launcher.LeadMonths));
-                longest = Math.Max(longest, launcher.LeadMonths);
-            }
-            timeContrib.Add(new Contribution("integration", c.IntegrationMonths));
-            if (design.CallMonths > 0) timeContrib.Add(new Contribution("calls", design.CallMonths));
-            if (design.ReworkMonths > 0) timeContrib.Add(new Contribution("rework", design.ReworkMonths));
-            ev.ScheduleMonths = longest + c.IntegrationMonths + design.CallMonths + design.ReworkMonths;
-            double deadline = scenario?.DeadlineMonths ?? 0;
-            AddResource(ev, ResourceId.Time, ev.ScheduleMonths, deadline, "mo",
-                deadline > 0 ? (deadline - ev.ScheduleMonths) / deadline : -1, timeContrib);
 
             // ---------- 壽命 ----------
             var lf = ev.Lifetime;
@@ -329,10 +303,6 @@ namespace GoNoGo.Core
                         w.Code = "warn.downlink";
                         w.Values["return_pct"] = ev.Data.ReturnFraction * 100;
                         w.Values["lost_pct"] = (1 - ev.Data.ReturnFraction) * 100;
-                        break;
-                    case ResourceId.Time:
-                        w.Code = "warn.schedule";
-                        w.Values["over"] = r.Used - r.Capacity;
                         break;
                 }
                 ev.Warnings.Add(w);

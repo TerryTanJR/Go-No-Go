@@ -24,5 +24,7 @@ namespace GoNoGo.Game
         public static bool MicMuted;
         /// <summary>切換自己的麥克風靜音（GoNoGo.Net 註冊）。</summary>
         public static Action<bool> SetMicMuted;
+        /// <summary>設定語音聊天音量 0–1（GoNoGo.Net 註冊）。只影響聽到隊友的音量；數值存在 <see cref="GameSettings.VoiceVolume"/>。</summary>
+        public static Action<float> SetVoiceVolume;
     }
 }

@@ -54,7 +54,7 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
-        public void B_AfternoonWithoutAskingEngineeringDiesInFirstShadow()
+        public void B_AfternoonWithATinyBatteryDiesInFirstShadow()
         {
             var d = WildfireCombos.B();
             var ev = Ev(d);
@@ -87,10 +87,13 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
-        public void DScoresMoreScienceButOnlyCSatisfiesTheDirector()
+        public void DIsCheaperButOnlyCSatisfiesTheDirector()
         {
-            Assert.That(Run(WildfireCombos.Dd()).Score.Science, Is.GreaterThan(Run(WildfireCombos.C()).Score.Science));
-            Assert.That(Ev(WildfireCombos.C()).Cost.TotalMusd, Is.EqualTo(Ev(WildfireCombos.Dd()).Cost.TotalMusd).Within(1.0), "C、D 成本差不多");
+            // 高解析火點儀刪掉之後，D（只帶火點儀）不再比 C 多科學：它的好處剩下便宜、輕、省電
+            Assert.That(Run(WildfireCombos.C()).Score.Science, Is.GreaterThan(Run(WildfireCombos.Dd()).Score.Science), "多一台長波熱紅外線，偵測率高一點");
+            double lwir = _data.Part(WildfireCombos.Lwir).CostMusd;
+            Assert.That(Ev(WildfireCombos.C()).Cost.TotalMusd, Is.EqualTo(Ev(WildfireCombos.Dd()).Cost.TotalMusd + lwir).Within(1e-9), "C 比 D 多一台儀器的錢");
+            Assert.That(Ev(WildfireCombos.Dd())[ResourceId.Power].Margin, Is.GreaterThan(Ev(WildfireCombos.C())[ResourceId.Power].Margin), "D 比較省電");
 
             Assert.That(Unmet(Run(WildfireCombos.C(), "director")), Is.Empty, "任務主管難度：C 是唯一全部達成的");
             Assert.That(Unmet(Run(WildfireCombos.Dd(), "director")), Is.EqualTo(new[] { "wf_lwir" }));
@@ -100,14 +103,14 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
-        public void F_DawnDuskIsSafeButMissesTheMissionLead()
+        public void F_DawnDuskIsSafeButMissesTheAfternoonPass()
         {
             var d = WildfireCombos.F();
             var ev = Ev(d);
             Assert.That(ev.Orbit.EclipseMin, Is.EqualTo(19).Within(1), "晨昏軌道地影季最長約 19 分鐘（beta 58°）");
             Assert.That(ev.Orbit.EclipseMin, Is.LessThan(Ev(WildfireCombos.C()).Orbit.EclipseMin / 1.5), "比下午軌道短很多");
             Assert.That(ev.AnyOver, Is.False);
-            Assert.That(ev.Fire.Detection, Is.EqualTo(0.51).Within(1e-9));
+            Assert.That(ev.Fire.Detection, Is.EqualTo(0.36).Within(1e-9), "火點儀 60% × 晨昏過境 0.6");
             var r = Run(d);
             Assert.That(Unmet(r), Is.EqualTo(new[] { "wf_afternoon" }));
             Assert.That(r.Causes.Select(c => c.Code), Does.Contain("pass_time"));
@@ -130,7 +133,7 @@ namespace GoNoGo.Core.Tests
             Assert.That(Eclipse(c), Is.EqualTo("warn"));
             Assert.That(Run(c).Launch.Success);
             Assert.That(Ev(c).Lifetime.Years, Is.LessThan(3));
-            // D 只用一座地面站：最常見的「沒問通訊」
+            // D 只用一座地面站：最常見的「沒注意通報延遲」
             var d1 = WildfireCombos.DOneStation();
             Assert.That(Ev(d1).Fire.LatencyMin, Is.GreaterThan(60));
             Assert.That(Unmet(Run(d1)), Is.EqualTo(new[] { "wf_latency" }));
@@ -150,7 +153,7 @@ namespace GoNoGo.Core.Tests
             var eo = _data.Scenario("earth_observation");
             Assert.That(_data.LaunchersFor(eo).Select(l => l.Id), Does.Not.Contain("falcon9_rideshare"));
             var eoShelf = _data.ShelfFor(eo, _data.Difficulty("engineer")).Select(p => p.Id).ToList();
-            Assert.That(eoShelf, Does.Not.Contain("inst_fire_mwir").And.Not.Contain("inst_fire_mwir_hr").And.Not.Contain("batt_cubesat"));
+            Assert.That(eoShelf, Does.Not.Contain("inst_fire_mwir").And.Not.Contain("batt_cubesat"));
         }
 
         [Test]
@@ -159,10 +162,13 @@ namespace GoNoGo.Core.Tests
             var cadet = SessionRules.NewSession(_data, "wildfire", "cadet", false, false);
             Assert.That(cadet.Bench.Instruments, Is.EqualTo(new[] { "inst_fire_mwir" }));
             Assert.That(cadet.Bench.Get(PartCategory.Solar), Is.EqualTo("solar_deployable"));
-            var shelf = SessionRules.ShelfParts(_data, cadet).Select(p => p.Id).ToList();
+            var shelf = SessionRules.Catalog(_data, cadet).Select(p => p.Id).ToList();
             Assert.That(shelf, Does.Not.Contain("inst_thermal"), "學員難度沒有長波熱紅外線，也就不會遇到假火點");
-            foreach (var cat in new[] { PartCategory.Instrument, PartCategory.Solar, PartCategory.Battery, PartCategory.Antenna })
+            foreach (var cat in new[] { PartCategory.Solar, PartCategory.Battery, PartCategory.Antenna })
                 Assert.That(_data.ShelfFor(_data.Scenario("wildfire"), _data.Difficulty("cadet")).Count(p => p.Category == cat && !p.Decoy), Is.EqualTo(2), cat);
+            // 酬載儀器不分小型、大型：中波紅外線火點儀只剩一台（高解析版刪掉了）
+            Assert.That(_data.ShelfFor(_data.Scenario("wildfire"), _data.Difficulty("cadet")).Where(p => p.Category == PartCategory.Instrument && !p.Decoy).Select(p => p.Id),
+                Is.EqualTo(new[] { "inst_fire_mwir" }));
 
             var eng = SessionRules.NewSession(_data, "wildfire", "engineer", false, false);
             Assert.That(eng.Bench.Instruments, Is.EqualTo(new[] { "inst_thermal" }));
@@ -172,15 +178,11 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
-        public void EngineeringPushesDawnDuskOnlyFromEngineerUp()
+        public void TheDawnDuskTradeoffIsOnlyListedFromEngineerUp()
         {
             var sc = _data.Scenario("wildfire");
-            var line = _data.Lines(sc, _data.Department("engineering")).Single(l => l.Id == "orbit");
-            Assert.That(GameData.LineOpen(line, _data.Difficulty("cadet")), Is.False);
-            Assert.That(GameData.LineOpen(line, _data.Difficulty("engineer")), Is.True);
-            var s = SessionRules.NewSession(_data, "wildfire", "cadet", false, false);
-            int i = _data.Lines(sc, _data.Department("engineering")).IndexOf(line);
-            Assert.That(SessionRules.Apply(s, _data, Command.Of(CommandType.Call, 1, "engineering", i)), Is.EqualTo("err.unknown"));
+            Assert.That(_data.TradeoffsFor(sc, _data.Difficulty("cadet")).Select(t => t.Id), Has.No.Member("orbit"));
+            Assert.That(_data.TradeoffsFor(sc, _data.Difficulty("engineer")).Select(t => t.Id), Has.Member("orbit"));
         }
 
         [Test]
@@ -258,21 +260,21 @@ namespace GoNoGo.Core.Tests
             MissionYears = 3,
         };
 
-        public const string Mwir = "inst_fire_mwir", MwirHr = "inst_fire_mwir_hr", Lwir = "inst_thermal";
+        public const string Mwir = "inst_fire_mwir", Lwir = "inst_thermal";
         public const string Dawn = "sso_dawn_dusk", Noon = "sso_1330", Ride = "falcon9_rideshare", Electron = "electron";
 
         /// <summary>A 最省錢：發射沒問題，但單一地面站 + S 頻段讓通報太慢。晨昏軌道的地影季每圈約 19 分鐘，要 80 Wh 電池。</summary>
         public static Design A() => D(new[] { Mwir }, "solar_body", "batt_small", "ant_sband", "gs_1", Dawn, Ride);
-        /// <summary>B 照任務主管：下午軌道，沒問工程部，小電池撐不過地影。</summary>
-        public static Design B() => D(new[] { MwirHr }, "solar_deployable", "batt_cubesat", "ant_xband", "gs_3", Noon, Electron);
+        /// <summary>B 只看「下午過境」：下午軌道的地影長，立方衛星電池撐不過（火點儀 + 長波熱紅外線一起開）。</summary>
+        public static Design B() => D(new[] { Mwir, Lwir }, "solar_deployable", "batt_cubesat", "ant_xband", "gs_3", Noon, Electron);
         /// <summary>C 平衡（能分辨假火點）。</summary>
         public static Design C() => D(new[] { Mwir, Lwir }, "solar_deployable", "batt_medium", "ant_xband", "gs_3", Noon, Electron);
-        /// <summary>D 平衡（高解析）。</summary>
-        public static Design Dd() => D(new[] { MwirHr }, "solar_deployable", "batt_medium", "ant_xband", "gs_3", Noon, Electron);
-        /// <summary>F 晨昏保守：工程部最滿意，偵測率低。高解析火點儀 45 W，19 分鐘地影要大電池。</summary>
-        public static Design F() => D(new[] { MwirHr }, "solar_deployable", "batt_medium", "ant_xband", "gs_3", Dawn, Ride);
+        /// <summary>D 平衡（只帶火點儀：便宜、省電，但分不出假火點）。</summary>
+        public static Design Dd() => D(new[] { Mwir }, "solar_deployable", "batt_medium", "ant_xband", "gs_3", Noon, Electron);
+        /// <summary>F 晨昏保守：地影短、電力最輕鬆，但不是下午過境，偵測率低。</summary>
+        public static Design F() => D(new[] { Mwir }, "solar_deployable", "batt_medium", "ant_xband", "gs_3", Dawn, Ride);
         /// <summary>E 豪華版：性能最好但超預算。</summary>
-        public static Design E() => D(new[] { MwirHr, Lwir }, "solar_large", "batt_medium", "ant_xband_hr", "gs_6", Noon, Electron);
+        public static Design E() => D(new[] { Mwir, Lwir }, "solar_large", "batt_medium", "ant_xband_hr", "gs_6", Noon, Electron);
 
         /// <summary>差一點的變化：C 的大電池換成 80 Wh。</summary>
         public static Design CSmallBattery() { var d = C(); d.Parts[PartCategory.Battery] = "batt_small"; return d; }

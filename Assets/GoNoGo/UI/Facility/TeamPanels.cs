@@ -1,4 +1,3 @@
-using System.Linq;
 using GoNoGo.Core;
 using GoNoGo.Game;
 using UnityEngine;
@@ -6,30 +5,6 @@ using UnityEngine.UIElements;
 
 namespace GoNoGo.UI
 {
-    // ======================================================================== 組裝區的手冊（嚴格分工）
-
-    /// <summary>
-    /// 嚴格分工時組裝區只有「組裝手冊」：零件代號、名稱、用途和組裝規則，沒有規格數字。
-    /// 數字在中控室的手冊和儀表板上，要靠中控室唸給組裝區聽（不嚴格分工時是完整手冊）。
-    /// </summary>
-    public sealed class BayManualPanel : FacPanel
-    {
-        public override string Title => Loc.T("ui.baymanual.title");
-        public override string WideClass => "modal--manual";
-
-        protected override void Build(VisualElement body)
-        {
-            Ui.Text(Loc.T("ui.baymanual.intro"), "body", "tight", "man-intro").AddTo(body);
-            var sv = Scroll(body, "man-scroll");
-            var r = Ui.El("man-rule").AddTo(sv);
-            Ui.Text(Loc.T("ui.manual.rule.instruments.t"), "h3").AddTo(r);
-            Ui.Text(Loc.T("ui.baymanual.rules"), "body").AddTo(r);
-            // 同一套零件卡，只是沒有數字
-            foreach (var ch in ManualView.Chapters.Where(ManualView.IsParts))
-                foreach (var cat in ManualView.CategoriesOf(ch)) ManualView.PartsSection(sv, cat, false);
-        }
-    }
-
     // ======================================================================== Go/No-Go 點名
 
     /// <summary>
@@ -106,7 +81,6 @@ namespace GoNoGo.UI
                 {
                     var cell = Ui.El("poll-cell").AddTo(list);
                     Ui.Text(Name(p.Id) + (p.Id == GameSession.LocalPlayer ? " ★" : ""), "small").AddTo(cell);
-                    Ui.Text(Loc.T(p.Station == Station.Assembly ? "ui.poll.station.assembly" : "ui.poll.station.control"), "small", "faint").AddTo(cell);
                     bool voted = poll.Votes.TryGetValue(p.Id, out var go);
                     Ui.Text(!voted ? "…" : go ? "GO" : "NO-GO", "h3", "mono", !voted ? "dim" : go ? "go" : "over").AddTo(cell);
                 }

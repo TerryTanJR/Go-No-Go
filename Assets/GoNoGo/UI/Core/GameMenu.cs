@@ -136,6 +136,13 @@ namespace GoNoGo.UI
                     Close(false);
                     Hud.Open("briefing");
                 }, "gm-btn").AddTo(body);
+            // 知識卡圖鑑：組裝、安裝零件收集到的科普卡片（原本在採購終端翻，現在從這裡看）
+            if (GameSession.HasMission && GameSession.Mission.S.Phase != Core.SessionPhase.Launch)
+                Ui.Btn(Loc.T("ui.gmenu.codex") + "  [K]", () =>
+                {
+                    Close(false);
+                    Hud.Open("codex");
+                }, "gm-btn").AddTo(body);
             Ui.Btn(Loc.T("ui.gmenu.sound"), () => Show(Page.Sound), "gm-btn").AddTo(body);
             Ui.Btn(Loc.T("ui.gmenu.settings"), () => Show(Page.Settings), "gm-btn").AddTo(body);
             if (GameSession.HasMission) Ui.Btn(Loc.T("ui.gmenu.controls"), () => Show(Page.Controls), "gm-btn").AddTo(body);
@@ -155,7 +162,32 @@ namespace GoNoGo.UI
             SliderRow(body, Loc.T("ui.gmenu.vol.music"), 0f, 1f, Sfx.MusicVolume, v => Sfx.MusicVolume = v, Percent);
             SliderRow(body, Loc.T("ui.gmenu.vol.ambience"), 0f, 1f, Sfx.AmbienceVolume, v => Sfx.AmbienceVolume = v, Percent);
             SliderRow(body, Loc.T("ui.gmenu.vol.effects"), 0f, 1f, Sfx.EffectsVolume, v => Sfx.EffectsVolume = v, Percent, Sfx.Click);
+            // 語音聊天：只調整聽到隊友說話的音量，不受主音量影響。沒有語音（單人、區網直連）時反灰
+            bool voice = Game.Multiplayer.VoiceConnected;
+            var row = SliderRow(body, Loc.T("ui.gmenu.vol.voice"), 0f, 1f, GameSettings.VoiceVolume, v => GameSettings.VoiceVolume = v, Percent);
+            row.SetEnabled(voice);
+            if (!voice) Ui.Text(Loc.T("ui.gmenu.vol.voice_off"), "small", "faint").AddTo(body);
             Ui.Text(Loc.T("ui.gmenu.vol.note"), "small", "dim").AddTo(body);
+        }
+
+        /// <summary>奔跑方式（主選單的設定頁也用）：按住 Shift 跑，或按一下切換。</summary>
+        public static void RunControl(VisualElement body)
+        {
+            var row = ChoiceRow(body, Loc.T("ui.gmenu.run"));
+            var chips = new System.Collections.Generic.List<(Button b, bool toggle)>();
+            foreach (bool toggle in new[] { false, true })
+            {
+                bool t = toggle;
+                var b = Ui.Btn(Loc.T(t ? "ui.gmenu.run.toggle" : "ui.gmenu.run.hold"), null, "chip").AddTo(row);
+                b.clicked += () =>
+                {
+                    GameSettings.RunToggle = t;
+                    foreach (var c in chips) c.b.EnableInClassList("chip--on", c.toggle == GameSettings.RunToggle);
+                };
+                b.EnableInClassList("chip--on", t == GameSettings.RunToggle);
+                chips.Add((b, t));
+            }
+            Ui.Text(Loc.T("ui.gmenu.run.note"), "small", "dim").AddTo(body);
         }
 
         /// <summary>滑鼠靈敏度拉桿（主選單的設定頁也用）。</summary>
@@ -204,6 +236,7 @@ namespace GoNoGo.UI
             Ui.Text(Loc.T("ui.gmenu.view.note"), "small", "dim").AddTo(body);
 
             MouseControl(body);
+            RunControl(body);
             BackButton(body);
         }
 
@@ -213,7 +246,7 @@ namespace GoNoGo.UI
             var s = GameSession.HasMission ? GameSession.Mission.S : null;
             bool mp = s != null && s.Multiplayer;
             KeyRow(body, "W A S D", "ui.keys.move");
-            KeyRow(body, "Shift", "ui.keys.run");
+            KeyRow(body, "Shift", GameSettings.RunToggle ? "ui.keys.run_toggle" : "ui.keys.run");
             KeyRow(body, Loc.T("ui.keys.mouse"), "ui.keys.look");
             KeyRow(body, "Q", "ui.keys.view");
             KeyRow(body, "E", "ui.keys.use");
@@ -296,7 +329,7 @@ namespace GoNoGo.UI
         static string Percent(float v) => Mathf.RoundToInt(v * 100) + "%";
 
         /// <summary>一列：名稱、拉桿、目前數值。<paramref name="onRelease"/>：放開拉桿時（例如播一聲試聽）。</summary>
-        static void SliderRow(VisualElement body, string label, float min, float max, float value, Action<float> set,
+        static VisualElement SliderRow(VisualElement body, string label, float min, float max, float value, Action<float> set,
             Func<float, string> fmt, Action onRelease = null)
         {
             var row = Ui.Row("gm-row").AddTo(body);
@@ -311,6 +344,7 @@ namespace GoNoGo.UI
                 val.text = fmt(e.newValue);
             });
             if (onRelease != null) slider.RegisterCallback<PointerUpEvent>(_ => onRelease(), TrickleDown.TrickleDown);
+            return row;
         }
     }
 }

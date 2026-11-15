@@ -7,8 +7,9 @@ namespace GoNoGo.UI
 {
     /// <summary>
     /// 學員難度的一般局（不是新手訓練）：左上角的「下一步」。不照固定順序打勾，而是看遊戲現在的狀態判斷該做什麼：
-    /// 問需求 → 採購 → 拿零件裝上整合台 → 儀表板有問題就修 → 發射；營運時是看控制台 → 結束回合。
-    /// 多人時依自己這一組（組裝區 / 中控室）給不同的下一步。字串在 strings.json 的 ui.guide.*。
+    /// 找線索填數值 → 選齊零件 → 儀表板有問題就改 → 確定設計 → 到架子拿小零件 → 組裝台組好 → 裝上衛星 → 發射；
+    /// 營運時是看營運席 → 結束回合。不分組，每個人看到的下一步依自己手上的東西而定。
+    /// 字串在 strings.json 的 ui.guide.*。
     /// </summary>
     public static class MissionGuide
     {
@@ -25,57 +26,53 @@ namespace GoNoGo.UI
             var m = GameSession.Mission;
             var s = m.S;
             var data = GameSession.Data;
-            var me = s.Player(GameSession.LocalPlayer);
-            bool multi = s.Multiplayer && s.Players.Count > 1;
-            bool asm = !multi || me?.Station == Station.Assembly;
-            bool ctl = !multi || me?.Station == Station.Control;
+            int me = GameSession.LocalPlayer;
 
             if (s.Phase == SessionPhase.Ops) return Ops(s, data);
             if (s.Phase != SessionPhase.Design) return null;
-
             if (s.Poll != null) return Make("vote");
+            if (s.DesignLocked(data)) return null;
 
-            // 中控室：每個處室至少問一題（每題都花時程，不用全部問）
-            int depts = data.Departments.Count;
-            int asked = s.Calls.Select(c => c.Department).Distinct().Count();
-            if (ctl && asked < depts) return Make("call", "Screen_phone", ("n", depts - asked), ("m", Fmt.N(data.Constants.CallMonths, 1)));
-
-            // 多人：組裝區送來的採購單在等中控室（任務目標與預算的控制台，場景物件叫 Screen_dashboard）
-            if (s.Request != null)
-                return ctl ? Make("review", "Screen_dashboard") : Make("wait_review");
-
-            if (asm)
+            if (!s.Confirmed && !s.IsSandbox(data))
             {
-                // 手上拿著零件 → 裝上去；買了還沒裝 → 去拿；什麼都還沒買 → 採購
-                var held = s.HeldBy(GameSession.LocalPlayer);
-                // 組裝工作台：組好了 → 拿起成品；正在組 → 到零件盤拿小零件回來裝；手上是一箱小零件 → 放上工作台
-                var job = s.Workbench;
-                if (job != null && job.Done && held == null) return Make("take", "AssemblyBench");
-                if (job != null && !job.Done && held == null)
-                    return Make("fit", s.HeldCompBy(GameSession.LocalPlayer) != null ? "AssemblyBench" : "CompRack");
-                if (held != null && SessionRules.NeedsAssembly(s, data, held)) return Make("assemble", "AssemblyBench");
-                if (held != null) return Make("install", "IntegrationStand");
-                var bench = new HashSet<string>(s.Bench.AllPartIds());
-                var last = s.Orders.LastOrDefault();
-                if (last != null && last.Parts.Any(id => !bench.Contains(id))) return Make("pick", "code");
-                if (s.Orders.Count == 0) return Make("procure", "ProcureConsole");
+                // 選件：先把選的零件的數值找齊（儀表板才判斷得出來），再看有沒有紅字，最後確定
+                int missing = Blanks.Missing(data, s, s.Bench, PartFields.All);
+                var gaps = SessionRules.DesignGaps(s, data);
+                if (gaps.Count > 0) return Make("pick", "BigScreen", ("list", List(gaps.Select(c => Loc.T("ui.cat." + c)).ToList())));
+                if (missing > 0) return Make("values", "clue", ("n", missing));
+                var over = Over(m);
+                if (over.Count > 0) return Make("fix", "BigScreen", ("list", List(over.Select(id => Loc.T("res." + id)).ToList())));
+                var unmet = Unmet(m, data);
+                if (unmet.Count > 0) return Make("fix_goals", "BigScreen", ("list", List(unmet.Select(t => Loc.T("ui.prog.type." + t)).ToList())));
+                return Make("confirm", "BigScreen");
             }
 
-            // 儀表板有超出的項目 → 看儀表板；只剩問到的需求沒達成 → 看任務目標（學員難度那裡列出每一條現在做到多少，
-            // 科學成果、資料回傳這些在儀表板上沒有）
-            // 再接一句「可以打給哪個處室問哪一題」：建議類的題目在這時候才派得上用場
-            var over = Over(m);
-            if (over.Count > 0)
+            // 組裝：手上拿著什麼，就接著做什麼
+            if (s.HeldBy(me) != null) return Make("install", "IntegrationStand");
+            for (int i = 0; i < s.Benches.Count; i++)
+                if (s.Benches[i].Job != null && s.Benches[i].Job.Done && s.CompsOf(me).Count == 0) return Make("take", "AssemblyBench" + i);
+            int active = s.Benches.FindIndex(b => b.Job != null && !b.Job.Done);
+            if (s.CompsOf(me).Count > 0)
+                return active >= 0 ? Make("fit", "AssemblyBench" + active) : Make("put", "AssemblyBench" + FreeBench(s));
+            if (active >= 0) return Make("fit", "AssemblyBench" + active);
+            var todo = SessionRules.NotInstalled(s, data).Where(id => SessionRules.NeedsAssembly(s, data, id)).ToList();
+            if (todo.Count > 0)
             {
-                string list = List(over.Select(id => Loc.T("res." + id)).ToList());
-                var step = asm ? Make("fix", "BayDashboard", ("list", list)) : Make("fix_ctl", "", ("list", list));
-                return WithAdvice(step, s, data, over);
+                var p = data.Part(todo[0]);
+                var comps = data.Recipe(p).Components.OrderBy(c => c.Id, System.StringComparer.Ordinal).Select(c => Loc.T(c.Name)).ToList();
+                return Make("fetch", "CompShelf", ("code", p.Code), ("list", string.Join(Loc.IsZh ? "、" : ", ", comps)), ("n", todo.Count));
             }
-            var unmet = Unmet(m, data);
-            if (unmet.Count > 0)
-                return WithAdvice(Make("fix_goals", "Screen_dashboard", ("list", List(unmet.Select(t => Loc.T("ui.prog.type." + t)).ToList()))), s, data, unmet);
+            if (SessionRules.OverBudget(s, data)) return Make("budget", "BigScreen");
+            return Make("launch", "LaunchButton");
+        }
 
-            return ctl ? Make("launch", "LaunchButton") : Make("ready_asm");
+        /// <summary>左側空著（或東西最少）的那一座組裝台。</summary>
+        static int FreeBench(SessionState s)
+        {
+            int best = 0;
+            for (int i = 1; i < s.Benches.Count; i++)
+                if (s.Benches[i].Job == null && (s.Benches[best].Job != null || s.Benches[i].Left.Count > s.Benches[best].Left.Count)) best = i;
+            return best;
         }
 
         static Step Ops(SessionState s, GameData data)
@@ -86,59 +83,31 @@ namespace GoNoGo.UI
             return acted ? Make("ops_end", "Screen_ops_desk") : Make("ops_act", "Screen_ops-power");
         }
 
-        /// <summary>儀表板上超出的資源（紅燈），用小寫的 ResourceId（"data"、"budget"…）。</summary>
-        static List<string> Over(MissionSession m) =>
-            m.Dashboard.Resources.Where(kv => kv.Value.Status == ResourceStatus.Over)
-                .Select(kv => kv.Key.ToString().ToLowerInvariant()).ToList();
-
-        /// <summary>問到但還沒達成的需求種類（同一種只列一次）。</summary>
-        static List<string> Unmet(MissionSession m, GameData data)
+        /// <summary>儀表板上超出的資源（紅燈），用小寫的 ResourceId（"data"、"budget"…）。用到沒填數值的不算（還判斷不出來）。</summary>
+        static List<string> Over(MissionSession m)
         {
             var list = new List<string>();
-            var heard = Dialogue.Heard(data, m.S);
-            foreach (var a in Departments.Active(m.Scenario, m.Difficulty))
+            foreach (var kv in m.Dashboard.Resources)
             {
-                var req = a.Requirement;
-                if (!heard.Contains(req.Id) || list.Contains(req.Type)) continue;
-                if (!Requirements.IsMetPreLaunch(req, m.Dashboard, m.S.Reported, data, m.Difficulty)) list.Add(req.Type);
+                if (kv.Value.Status != ResourceStatus.Over) continue;
+                string id = kv.Key.ToString().ToLowerInvariant();
+                if (Blanks.Missing(m.Data, m.S, m.S.Bench, Blanks.FieldsFor(id)) > 0 && id != "budget") continue;
+                list.Add(id);
             }
             return list;
         }
 
-        /// <summary>
-        /// 出問題時可以問的建議題：超出的資源（小寫 ResourceId）或沒達成的需求種類 → 處室與題目 id。
-        /// 質量、電力沒有對應的建議題（要看手冊的規格），不列。
-        /// </summary>
-        static readonly Dictionary<string, (string dept, string line)> Advice = new Dictionary<string, (string, string)>
+        /// <summary>判斷得出來、但還沒達成的需求種類（同一種只列一次）。</summary>
+        static List<string> Unmet(MissionSession m, GameData data)
         {
-            ["data"] = ("comms", "storage"),
-            ["comms"] = ("comms", "stations"),
-            ["budget"] = ("budget_office", "costs"),
-            ["time"] = ("mission_lead", "deadline"),
-            ["budget_reserve"] = ("budget_office", "costs"),
-            ["battery_eclipse"] = ("engineering", "battery"),
-            ["lifetime_target"] = ("engineering", "lifetime"),
-            ["data_return"] = ("comms", "stations"),
-            ["latency"] = ("comms", "stations"),
-            ["science_threshold"] = ("science", "orbit"),
-            ["orbit_required"] = ("science", "orbit"),
-            ["instrument_required"] = ("science", "instrument"),
-            ["instrument_any"] = ("science", "instrument"),
-        };
-
-        /// <summary>第一個有建議題、而且還沒問過的問題，接在說明後面（這一關沒有那一題、或難度沒開放就略過）。</summary>
-        static Step WithAdvice(Step step, SessionState s, GameData data, List<string> keys)
-        {
-            foreach (var k in keys)
+            var list = new List<string>();
+            foreach (var a in Departments.Active(m.Scenario, m.Difficulty))
             {
-                if (!Advice.TryGetValue(k, out var a)) continue;
-                var dep = data.Department(a.dept);
-                var line = data.Lines(s.Scenario(data), dep).FirstOrDefault(l => l.Id == a.line);
-                if (line == null || !GameData.LineOpen(line, s.Difficulty(data))) continue;
-                if (s.Calls.Any(c => c.Department == a.dept && c.LineId == a.line)) continue;
-                return new Step(step.Key, step.Body + Loc.T("ui.guide.ask_hint", ("dept", Loc.T(dep.Name)), ("q", Loc.T(line.Question))), step.Target);
+                var req = a.Requirement;
+                if (list.Contains(req.Type) || !Blanks.CanJudge(data, m.S, m.S.Bench, req)) continue;
+                if (!Requirements.IsMetPreLaunch(req, m.Dashboard, m.S.Bench, m.PlayerData, m.Difficulty)) list.Add(req.Type);
             }
-            return step;
+            return list;
         }
 
         static string List(List<string> items) => string.Join(Loc.IsZh ? "、" : ", ", items.Take(3));

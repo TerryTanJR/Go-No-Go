@@ -7,9 +7,6 @@ namespace GoNoGo.Core
 {
     public enum SessionPhase { Lobby, Briefing, Design, Launch, Ops, Report }
 
-    /// <summary>玩家的起始位置（也是發射失敗後回去的地方）。</summary>
-    public enum Station { Assembly, Control }
-
     /// <summary>Q 版 avatar 的外型：幾個整數加名字，多人時同步給其他人。</summary>
     public sealed class AvatarLook
     {
@@ -35,12 +32,12 @@ namespace GoNoGo.Core
         }
     }
 
+    /// <summary>一個玩家。不分組：所有人開局都在中控室，自由走動，分工自己決定。</summary>
     public sealed class PlayerInfo
     {
         public int Id { get; set; }
         public AvatarLook Look { get; set; } = new AvatarLook();
-        public Station Station { get; set; }
-        /// <summary>大廳裡按了「準備」：準備好就不能換組（要換先取消準備）；全員準備好房主才能開始。</summary>
+        /// <summary>大廳裡按了「準備」；全員準備好房主才能開始。</summary>
         public bool Ready { get; set; }
     }
 
@@ -56,38 +53,9 @@ namespace GoNoGo.Core
         public bool Reached { get; set; }
     }
 
-    /// <summary>一次採購（下單成功）：買了哪些零件。原價，沒有倍率；買了就不能退。</summary>
-    public sealed class OrderRecord
-    {
-        public int N { get; set; }
-        /// <summary>送單的人（組裝區）。</summary>
-        public int By { get; set; }
-        /// <summary>多人時批准的人（中控室）；個人模式是 0。</summary>
-        public int ApprovedBy { get; set; }
-        public List<string> Parts { get; set; } = new List<string>();
-    }
-
-    /// <summary>多人的採購單：組裝區送審，等中控室批准（下單）或退回。</summary>
-    public sealed class OrderRequest
-    {
-        /// <summary>批准後會是第幾單（跟採購紀錄的編號一致；退回再送還是同一個號碼）。</summary>
-        public int N { get; set; }
-        /// <summary>第幾次送審（每送一次加一），畫面用來分辨是不是新的一張單。</summary>
-        public int Seq { get; set; }
-        public int By { get; set; }
-        public List<string> Parts { get; set; } = new List<string>();
-    }
-
-    /// <summary>打過的電話：哪個處室、問了哪一題。</summary>
-    public sealed class CallRecord
-    {
-        public string Department { get; set; } = "";
-        public string LineId { get; set; } = "";
-    }
-
     /// <summary>
     /// 多人的 Go/No-Go 點名：有人按發射就開始，每個人各喊 GO 或 NO-GO，全員 GO 才真的發射。
-    /// 有人喊 NO-GO 就 HOLD（回到設計）。點名中整合台和中控室的設定都鎖住。
+    /// 有人喊 NO-GO 就 HOLD（回到設計）。點名中大屏幕和整合台都鎖住。
     /// </summary>
     public sealed class GoPoll
     {
@@ -103,19 +71,18 @@ namespace GoNoGo.Core
     }
 
     /// <summary>
-    /// 組裝工作台上正在組的那一箱：玩家把箱子放上工作台，再到零件盤一個一個拿小零件回來裝。
-    /// 全隊共用一張工作台（一次組一箱），誰拿、誰裝都可以。
+    /// 組裝台右側正在組的零件：左側的小零件組合被認出是某個配方之後，照提示的順序把小零件一個一個裝到右側。
     /// </summary>
     public sealed class BenchJob
     {
         public string PartId { get; set; } = "";
         /// <summary>已經裝好幾個小零件（照配方的順序）。</summary>
         public int Step { get; set; }
-        /// <summary>這一箱裝錯了幾次。</summary>
+        /// <summary>這個零件裝錯了幾次。</summary>
         public int Mistakes { get; set; }
-        /// <summary>不屬於這個零件、硬裝上去報廢掉的小零件（零件盤上那一格就空了）。</summary>
+        /// <summary>不屬於這個零件、硬裝上去報廢掉的小零件（再去架子拿就有）。</summary>
         public List<string> Scrapped { get; set; } = new List<string>();
-        /// <summary>全部裝好了：成品放在工作台上，等人拿走。</summary>
+        /// <summary>全部裝好了：成品放在組裝台右側，等人拿去裝上衛星。</summary>
         public bool Done { get; set; }
         /// <summary>裝了幾次（不管對錯）。畫面看這個數字有沒有變，決定要不要播音效、跳提示。</summary>
         public int Fits { get; set; }
@@ -123,6 +90,42 @@ namespace GoNoGo.Core
         public string LastComp { get; set; } = "";
         public int LastBy { get; set; }
         public bool LastOk { get; set; }
+    }
+
+    /// <summary>左側擺的小零件組合現在的狀態（<see cref="SessionRules.BenchStatusOf"/>）。</summary>
+    public enum BenchStatus
+    {
+        /// <summary>左側是空的。</summary>
+        Empty,
+        /// <summary>是某個配方的一部分，還沒放齊。</summary>
+        Partial,
+        /// <summary>對不上任何配方：組合錯誤，小零件留在左側讓玩家調整。</summary>
+        Unknown,
+        /// <summary>對得上某個配方，但設計裡沒有零件用它，或用它的零件都組好了：這不是這次設計選的零件。</summary>
+        NotInDesign,
+        /// <summary>對得上配方，也是設計選的零件，但設計還沒在大屏幕上確定。</summary>
+        Waiting,
+        /// <summary>認出配方了：照提示的順序在右側組裝。</summary>
+        Active,
+        /// <summary>組好了，成品等人拿走。</summary>
+        Done,
+    }
+
+    /// <summary>
+    /// 一座組裝台（共兩座，不分配，誰都能用）。分左右兩側：小零件先放到左側，系統認出配方後，
+    /// 照提示的順序拿到右側一個一個裝上去。
+    /// </summary>
+    public sealed class BenchState
+    {
+        /// <summary>左側擺著的小零件（不重複）。</summary>
+        public List<string> Left { get; set; } = new List<string>();
+        /// <summary>右側正在組的零件（null = 還沒認出配方）。</summary>
+        public BenchJob Job { get; set; }
+        /// <summary>左側放了東西之後被判定為錯誤的次數。畫面看這個數字有沒有變，決定要不要跳「組合錯誤」。</summary>
+        public int Errors { get; set; }
+        /// <summary>最近一次錯誤是哪一種、誰放的。</summary>
+        public BenchStatus LastError { get; set; }
+        public int LastBy { get; set; }
     }
 
     /// <summary>
@@ -139,55 +142,52 @@ namespace GoNoGo.Core
         public SessionPhase Phase { get; set; } = SessionPhase.Lobby;
         public List<PlayerInfo> Players { get; set; } = new List<PlayerInfo>();
 
-        /// <summary>整合台上實際裝的設計（發射的就是它）。軌道、火箭、地面站、年數由中控室設定，兩份設計同步。</summary>
-        public Design Bench { get; set; } = new Design();
-        /// <summary>最後一次從回報台送到中控室的設計（儀表板看的是它）。</summary>
-        public Design Reported { get; set; } = new Design();
-        public int Reports { get; set; }
         /// <summary>
-        /// 擁有的零件（不含地面站）：開局零件加上買過的。開發費 = 基本開發費 + 這些零件，裝不裝都一樣（採購機制 v2）。
-        /// 組裝區的零件架上只放得到這些；其他零件要先下單採購。
+        /// 單人模式（個人任務，或多人房開始時只有一個人）：挖空的數值比照學員減少。開始任務時定下來，之後有人離開也不變
+        /// （挖空的格子中途不會換一批）。
         /// </summary>
-        public List<string> Owned { get; set; } = new List<string>();
+        public bool Solo { get; set; } = true;
+        /// <summary>線索擺放位置的亂數種子（內容每局固定，位置每局隨機）。房主開局時決定。</summary>
+        public int ClueSeed { get; set; }
+
         /// <summary>
-        /// 已經在組裝工作台組好的零件。買來的零件是一箱小零件，要先組好才能裝上船；
-        /// 開局就在船上的零件本來就是組好的。組好之後拆下來、放回去都不用再組。
+        /// 大屏幕上選的設計：零件、軌道、火箭、地面站、年數。發射的就是它
+        /// （發射條件：選的每個零件都組好、裝上衛星）。
+        /// </summary>
+        public Design Bench { get; set; } = new Design();
+        /// <summary>設計確定了：大屏幕和組裝區儀表板改成顯示每個零件要用哪些小零件，組裝台開始認配方。</summary>
+        public bool Confirmed { get; set; }
+        /// <summary>確定過幾次（畫面用來跳「設計確定了」的提示）。</summary>
+        public int Confirms { get; set; }
+        /// <summary>玩家在大屏幕上填的數值（"零件 id/欄位" → 數值和誰填的）。兩個人填同一格，後填的蓋掉先填的。發射失敗重做也保留。</summary>
+        public Dictionary<string, FilledValue> Filled { get; set; } = new Dictionary<string, FilledValue>();
+
+        /// <summary>
+        /// 組好的零件：在衛星上的、手上拿著的、組裝台上等人拿的，還有組好之後又被換掉的（留著，改選回來就直接裝回衛星）。
         /// </summary>
         public List<string> Built { get; set; } = new List<string>();
-        /// <summary>組裝工作台上正在組的那一箱（null = 工作台是空的）。</summary>
-        public BenchJob Workbench { get; set; }
-        /// <summary>誰手上拿著哪個小零件（玩家 id → 小零件 id）。手上不是零件就是小零件，不會兩個都有。</summary>
-        public Dictionary<int, string> HeldComp { get; set; } = new Dictionary<int, string>();
+        /// <summary>裝在整合台衛星上的零件。</summary>
+        public List<string> Installed { get; set; } = new List<string>();
+        /// <summary>兩座組裝台。</summary>
+        public List<BenchState> Benches { get; set; } = new List<BenchState>();
         /// <summary>
-        /// 這一局學會的構造（<see cref="AssemblyRecipe.Key"/>）：同一種構造親手組過一次，之後同類的零件到貨就是成品，
-        /// 不用重複做一樣的事（發射失敗重來也不用再組）。
+        /// 誰手上拿著哪些小零件（玩家 id → 小零件 id）。單人有籃子，最多 <see cref="GameData.BasketSize"/> 個；
+        /// 兩人以上每人一次拿一個。手上不是零件就是小零件，不會兩種都有。
         /// </summary>
+        public Dictionary<int, List<string>> Comps { get; set; } = new Dictionary<int, List<string>>();
+        /// <summary>誰手上拿著哪個組好的零件（玩家 id → 零件 id），正要拿去裝上衛星。</summary>
+        public Dictionary<int, string> Held { get; set; } = new Dictionary<int, string>();
+        /// <summary>這一局組過的構造（<see cref="AssemblyRecipe.Key"/>）。發射失敗重做也保留。</summary>
         public List<string> Learned { get; set; } = new List<string>();
         /// <summary>一次都沒裝錯就組好的構造（<see cref="AssemblyRecipe.Key"/>）：知識卡升級成「精通」。</summary>
         public List<string> Flawless { get; set; } = new List<string>();
-        /// <summary>
-        /// 這一局總共裝錯了幾次小零件。每一次都要拆下來重裝，花掉時程（<see cref="Constants.ReworkMonths"/>）；
-        /// 發射失敗重來也不會歸零（花掉的時間拿不回來）。
-        /// </summary>
-        public int Rework { get; set; }
-        /// <summary>組裝區採購終端的購物車（還沒下單）。</summary>
-        public List<string> Cart { get; set; } = new List<string>();
-        public List<OrderRecord> Orders { get; set; } = new List<OrderRecord>();
-        /// <summary>多人：等中控室審查的採購單（null = 沒有）。一次只能有一張。</summary>
-        public OrderRequest Request { get; set; }
-        /// <summary>多人：最近一張被退回的採購單（組裝區顯示「中控室退回了」；下一次送審時清掉）。</summary>
-        public OrderRequest Rejected { get; set; }
-        public int Requests { get; set; }
+        /// <summary>這一局總共裝錯了幾次小零件。沒有懲罰（不加時程、不扣分），只是紀錄；所有人照樣看得到誰裝錯。</summary>
+        public int Mistakes { get; set; }
         /// <summary>發射失敗後整局重來的次數（畫面用來跳出「任務重來」的提示）。</summary>
         public int Restarts { get; set; }
-        /// <summary>誰手上拿著哪個零件（玩家 id → 零件 id）。</summary>
-        public Dictionary<int, string> Held { get; set; } = new Dictionary<int, string>();
 
-        public List<CallRecord> Calls { get; set; } = new List<CallRecord>();
         public List<LaunchRecord> Launches { get; set; } = new List<LaunchRecord>();
 
-        /// <summary>嚴格分工（房主在大廳開）：組裝區的人不能操作中控室，反過來也一樣；設計階段兩區之間的門鎖住。</summary>
-        public bool StrictRoles { get; set; }
         /// <summary>進行中的 Go/No-Go 點名（null = 沒有）。</summary>
         public GoPoll Poll { get; set; }
         /// <summary>上一次點名的結果（HUD 顯示 HOLD 的原因）。</summary>
@@ -204,8 +204,15 @@ namespace GoNoGo.Core
 
         public PlayerInfo Player(int id) => Players.FirstOrDefault(p => p.Id == id);
         public string HeldBy(int player) => Held.TryGetValue(player, out var id) ? id : null;
-        public string HeldCompBy(int player) => HeldComp.TryGetValue(player, out var id) ? id : null;
         public int? HolderOf(string partId) => Held.Where(kv => kv.Value == partId).Select(kv => (int?)kv.Key).FirstOrDefault();
+
+        static readonly List<string> NoComps = new List<string>();
+        /// <summary>這個玩家手上的小零件（沒有 = 空清單；不要改回傳的清單）。</summary>
+        public List<string> CompsOf(int player) => Comps.TryGetValue(player, out var list) && list != null ? list : NoComps;
+        /// <summary>這個玩家手上的第一個小零件（裝上去的就是它）；沒有 = null。</summary>
+        public string HeldCompBy(int player) => CompsOf(player).Count > 0 ? CompsOf(player)[0] : null;
+
+        public BenchState BenchAt(int index) => index >= 0 && index < Benches.Count ? Benches[index] : null;
 
         static readonly JsonSerializerSettings Json = new JsonSerializerSettings
         {

@@ -26,22 +26,19 @@ namespace GoNoGo.Core.Tests
             Assert.That(ev[ResourceId.Mass].Margin, Is.EqualTo((150 - ev.Mass.WetKg) / 150).Within(1e-9));
         }
 
-        /// <summary>趕不上發射期限才扣效率分（每晚一個月 10 分），準時的不受影響。</summary>
+        /// <summary>時程拿掉了：資源只剩質量、電力、預算、資料、通訊五項，效率分只看預算準備金和質量、電力餘裕。</summary>
         [Test]
-        public void LateScheduleCostsEfficiencyOnlyWhenPastTheDeadline()
+        public void ThereIsNoScheduleResource()
         {
-            var d = TestData.Balanced();
-            var onTime = Evaluator.EvaluateDesign(d, _data);
-            double slack = onTime[ResourceId.Time].Capacity - onTime[ResourceId.Time].Used;
-            Assert.That(slack, Is.GreaterThan(1), "預設設計要比期限早");
-
-            d.CallMonths = slack - 0.5;
-            Assert.That(Scoring.EfficiencyScore(Evaluator.EvaluateDesign(d, _data)), Is.EqualTo(Scoring.EfficiencyScore(onTime)).Within(1e-9), "還沒超過期限");
-
-            d.CallMonths = slack + 2;
-            var late = Evaluator.EvaluateDesign(d, _data);
-            Assert.That(late[ResourceId.Time].Status, Is.EqualTo(ResourceStatus.Over));
-            Assert.That(Scoring.EfficiencyScore(late), Is.EqualTo(System.Math.Max(0, Scoring.EfficiencyScore(onTime) - 2 * Scoring.LatePenaltyPerMonth)).Within(1e-9));
+            var ev = Evaluator.EvaluateDesign(TestData.Balanced(), _data);
+            Assert.That(ev.Resources.Keys, Is.EquivalentTo(new[] { ResourceId.Mass, ResourceId.Power, ResourceId.Budget, ResourceId.Data, ResourceId.Comms }));
+            Assert.That(System.Enum.GetNames(typeof(ResourceId)), Has.No.Member("Time"));
+            Assert.That(ev.Warnings.Select(w => w.Code), Has.No.Member("warn.schedule"));
+            double mb = ev[ResourceId.Budget].Margin;
+            double budgetScore = mb < 0 ? 0 : mb < 0.05 ? 40 + mb * 800 : System.Math.Min(100, 80 + (mb - 0.05) * 100);
+            double dm = (System.Math.Max(0, ev[ResourceId.Mass].Margin) + System.Math.Max(0, ev[ResourceId.Power].Margin)) / 2;
+            double marginScore = dm < 0.10 ? 50 + dm * 500 : dm <= 0.50 ? 100 : 100 - (dm - 0.50) * 80;
+            Assert.That(Scoring.EfficiencyScore(ev), Is.EqualTo(0.6 * budgetScore + 0.4 * marginScore).Within(1e-9), "沒有「趕不上期限每月扣 10 分」");
         }
 
         [Test]
@@ -106,13 +103,6 @@ namespace GoNoGo.Core.Tests
             double ops = (c.OpsBaseCostMusdPerYear + 2.1) * 3;
             Assert.That(ev.Cost.TotalMusd, Is.EqualTo(dev + 69.85 + ops).Within(1e-9));
             Assert.That(ev[ResourceId.Budget].Capacity, Is.EqualTo(210), "地球觀測：預算跟著關卡走（原本 140 × 學員 1.5）");
-        }
-
-        [Test]
-        public void ScheduleIsSlowestItemPlusIntegration()
-        {
-            var ev = Evaluator.EvaluateDesign(TestData.HighScience(), _data);
-            Assert.That(ev.ScheduleMonths, Is.EqualTo(28 + 8), "高光譜儀要 28 個月");
         }
 
         [Test]

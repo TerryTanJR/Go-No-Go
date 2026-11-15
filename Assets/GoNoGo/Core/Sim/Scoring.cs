@@ -16,14 +16,14 @@ namespace GoNoGo.Core
         public double Science { get; set; }
         public double Lifetime { get; set; }
         public double Efficiency { get; set; }
-        /// <summary>處室需求：80 × 達成比例 + 第一次發射就成功入軌加 20。</summary>
-        public double Departments { get; set; }
+        /// <summary>任務需求：80 × 達成比例 + 第一次發射就成功入軌加 20。</summary>
+        public double Needs { get; set; }
         /// <summary>營運處置：每回合「判斷對」50% +「處置步驟完成比例」50% − 多餘操作扣分，各回合平均。</summary>
         public double Ops { get; set; }
         public double Total { get; set; }
         /// <summary>S、A、B、C 或 FAIL。</summary>
         public string Grade { get; set; } = "C";
-        /// <summary>這一局的科學門檻（處室的 science_threshold；沒有就用 <see cref="Scoring.DefaultScienceThreshold"/>）。</summary>
+        /// <summary>這一局的科學門檻（任務需求的 science_threshold；沒有就用 <see cref="Scoring.DefaultScienceThreshold"/>）。</summary>
         public double ScienceThreshold { get; set; }
         /// <summary>總分夠高，但科學分沒達門檻，評等被壓到 C。</summary>
         public bool GradeCapped { get; set; }
@@ -36,7 +36,7 @@ namespace GoNoGo.Core
     /// <summary>任務評價的五個分項與總評。</summary>
     public static class Scoring
     {
-        public const double WScience = 0.35, WLifetime = 0.20, WEfficiency = 0.15, WDepartments = 0.15, WOps = 0.15;
+        public const double WScience = 0.35, WLifetime = 0.20, WEfficiency = 0.15, WNeeds = 0.15, WOps = 0.15;
         /// <summary>關卡（或這個難度）沒有科學門檻需求時用的門檻。一半（15）以下 FAIL，和以前的 FAIL 線一樣。</summary>
         public const double DefaultScienceThreshold = 30;
 
@@ -68,12 +68,12 @@ namespace GoNoGo.Core
                 });
             }
             int n = Math.Max(1, s.Requirements.Count);
-            // 學員難度：第一次發射失敗不算
-            int allowed = diff.FreeFirstFailure ? 1 : 0;
+            // 沙盒：發射失敗沒有任何代價，第一次失敗不算
+            int allowed = scenario != null && scenario.Sandbox ? 1 : 0;
             s.FirstLaunchBonus = r.ReachedOrbit && ctx.FailedLaunchesBefore <= allowed;
-            // 沙盒沒有任何處室需求：這一項不扣分（一般關卡沒有傳需求進來時照舊算 0，不影響既有的結果）
+            // 沙盒沒有任何任務需求：這一項不扣分（一般關卡沒有傳需求進來時照舊算 0，不影響既有的結果）
             double met = scenario != null && scenario.Sandbox && s.Requirements.Count == 0 ? 1.0 : s.Requirements.Count(x => x.Met) / (double)n;
-            s.Departments = Clamp(80.0 * met + (s.FirstLaunchBonus ? 20 : 0));
+            s.Needs = Clamp(80.0 * met + (s.FirstLaunchBonus ? 20 : 0));
             s.Ops = OpsScore(r, diff.ExtraActionPenalty);
             s.ScienceThreshold = ScienceThreshold(ctx.Requirements);
 
@@ -84,7 +84,7 @@ namespace GoNoGo.Core
                 return s;
             }
             s.Total = Math.Round(WScience * s.Science + WLifetime * s.Lifetime + WEfficiency * s.Efficiency
-                                 + WDepartments * s.Departments + WOps * s.Ops, 1);
+                                 + WNeeds * s.Needs + WOps * s.Ops, 1);
             string byTotal = s.Total >= 90 ? "S"
                 : s.Total >= 78 ? "A"
                 : s.Total >= 62 ? "B"
@@ -128,7 +128,7 @@ namespace GoNoGo.Core
             return Clamp(100.0 * ev.Fire.Detection * timely * work);
         }
 
-        /// <summary>發射前的預估（儀表板、處室需求進度用）：假設營運事件都處置好、儀器全時開機。</summary>
+        /// <summary>發射前的預估（儀表板、任務需求進度用）：假設營運事件都處置好、儀器全時開機。</summary>
         public static double ExpectedFireScience(Evaluation ev, Design d) =>
             Clamp(100.0 * ev.Fire.Detection * ev.Fire.TimelyFraction * Math.Min(1.0, ev.Lifetime.Years / Math.Max(1, d.MissionYears)));
 
@@ -166,14 +166,8 @@ namespace GoNoGo.Core
             double marginScore = designMargin < 0.10 ? 50 + designMargin * 500
                 : designMargin <= 0.50 ? 100
                 : 100 - (designMargin - 0.50) * 80;
-            // 趕不上發射期限：每晚一個月扣 10 分（準時的不受影響）
-            var t = ev[ResourceId.Time];
-            double late = t.Capacity > 0 ? Math.Max(0, t.Used - t.Capacity) : 0;
-            return Clamp(0.6 * Clamp(budgetScore) + 0.4 * Clamp(marginScore) - LatePenaltyPerMonth * late);
+            return Clamp(0.6 * Clamp(budgetScore) + 0.4 * Clamp(marginScore));
         }
-
-        /// <summary>時程每超過發射期限一個月，效率分扣多少。</summary>
-        public const double LatePenaltyPerMonth = 10;
 
         static double Clamp(double v) => Math.Max(0, Math.Min(100, v));
     }

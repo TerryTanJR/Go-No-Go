@@ -6,8 +6,9 @@ using UnityEngine;
 namespace GoNoGo.Presentation
 {
     /// <summary>
-    /// 組裝區中央的整合台：台上的太空船就是 <see cref="SessionState.Bench"/>，裝上的零件即時出現。
-    /// 拿著零件靠近時，船上對應位置出現半透明預覽；準星對著船上的零件按 C 可以拆下來。
+    /// 組裝區中央的整合台：台上的衛星只有已經組好裝上去的零件（<see cref="SessionState.Installed"/>），裝上的零件即時出現。
+    /// 拿著組好的零件靠近時，衛星上對應位置出現半透明預覽，長按 V 裝上去。
+    /// 零件不用手拆：在中控室大屏幕改選，換掉的零件會自動從衛星拆下。
     /// </summary>
     public sealed class IntegrationStand : Interactable
     {
@@ -46,7 +47,7 @@ namespace GoNoGo.Presentation
         /// <summary>依狀態更新台上的船（FacilityDirector 在狀態改變時呼叫）。</summary>
         public void Refresh(MissionSession m, bool animate)
         {
-            rig.Show(m.S.Bench, m.Data, m.BenchEval, animate);
+            rig.Show(m.Satellite, m.Data, m.SatelliteEval, animate);
             _ghostFor = null; // 船變了，預覽重算
             // 船整艘重組了：舊零件的碰撞體都換掉了，第三人稱挑零件用的清單要重新收集
             InvalidateColliders();
@@ -69,7 +70,7 @@ namespace GoNoGo.Presentation
 
             var part = m.Data.Part(partId);
             if (part == null) return;
-            var d = m.S.Bench.Clone();
+            var d = m.Satellite.Clone();
             if (part.Category == PartCategory.Instrument)
             {
                 if (!d.Instruments.Contains(partId)) d.Instruments.Add(partId);
@@ -216,22 +217,22 @@ namespace GoNoGo.Presentation
         public override HudTarget Describe(Interactor who)
         {
             var m = GameSession.Mission;
-            if (_aimed == null || string.IsNullOrEmpty(_aimed.partId)) return new HudTarget { Title = Loc.T("ui.fac.stand"), Body = Loc.T("ui.fac.stand_body") };
+            if (_aimed == null || string.IsNullOrEmpty(_aimed.partId))
+            {
+                // 還缺幾個零件沒裝上（設計確定之後才算）
+                int left = m.S.Confirmed ? SessionRules.NotInstalled(m.S, m.Data).Count : 0;
+                return new HudTarget
+                {
+                    Title = Loc.T("ui.fac.stand"),
+                    Subtitle = left > 0 ? Loc.T("ui.fac.stand_left", ("n", left)) : "",
+                    Body = Loc.T("ui.fac.stand_body"),
+                };
+            }
             var def = m.Data.Part(_aimed.partId);
             if (def == null) return null;
-            var t = PartItem.Info(def);
+            var t = PartHud.Info(def);
             t.Subtitle = Loc.T("ui.fac.installed");
-            if (m.S.DesignLocked(m.Data)) t.Subtitle = Loc.T("err.locked");
-            else if (who.Holding == null) t.Keys.Add(new KeyHint("C", Loc.T("ui.hint.remove")));
             return t;
-        }
-
-        public override void OnKey(Interactor who, char key)
-        {
-            if (key != 'C' || _aimed == null || string.IsNullOrEmpty(_aimed.partId) || who.Holding != null) return;
-            GameSession.Send(CommandType.Pick, _aimed.partId);
-            Sfx.Pick();
-            Hud.Signal("remove");
         }
 
         public override void SetHighlight(bool on)

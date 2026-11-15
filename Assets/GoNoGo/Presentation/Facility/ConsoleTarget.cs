@@ -5,11 +5,11 @@ using UnityEngine;
 namespace GoNoGo.Presentation
 {
     /// <summary>
-    /// 控制台、電話、手冊、回報台…：按 E 打開對應的面板（或直接送一個操作）。
+    /// 大屏幕、發射鈕、營運席、看板、書…：按 E 打開對應的面板。不分組，所有人都可以用。
     /// </summary>
     public sealed class ConsoleTarget : Interactable
     {
-        [Tooltip("面板 id：dashboard、procure、manual、bay_manual、goals、phone、mission、launch、failures、ops_desk、ops:power…")]
+        [Tooltip("面板 id：select（大屏幕）、bay（組裝區儀表板）、launch、failures、ops_desk、ops:power、manual:rules…")]
         public string panel = "";
         public string titleKey = "";
         public string bodyKey = "";
@@ -18,42 +18,12 @@ namespace GoNoGo.Presentation
         [Tooltip("哪些階段可以用（空 = 都可以）：design、ops、briefing、lobby")]
         public string phases = "";
         public Renderer glow;
+        [Tooltip("互動距離（公尺）；0 = 預設。前方大屏幕很大，站遠一點也要對得到")]
+        public float range;
 
         MaterialPropertyBlock _mpb;
 
-        /// <summary>環境測試台在採購機制 v2 拿掉了；場景裡舊的測試台直接隱藏（重建場景時 FacilityBuilder 不再產生它）。</summary>
-        void Awake()
-        {
-            if (panel == "test") gameObject.SetActive(false);
-        }
-
-        /// <summary>
-        /// 嚴格分工時這個控制台屬於哪一區（依面板 id）：採購終端、儀表板大螢幕、組裝手冊是組裝區的；
-        /// 任務目標與預算、軌道與火箭、電話、筆記、發射、中控室手冊（型錄）是中控室的。失敗看板兩邊都能看。
-        /// </summary>
-        public static Station? StationOf(string panel) => panel switch
-        {
-            "report" or "bay_manual" or "procure" or "dashboard" => Station.Assembly,
-            "goals" or "mission" or "phone" or "notes" or "launch" or "manual" => Station.Control,
-            // 後排的手冊各章（manual:payload…）也是中控室的
-            _ when panel != null && panel.StartsWith("manual:") => Station.Control,
-            _ => null,
-        };
-
-        /// <summary>嚴格分工擋住本機玩家（回傳原因的字串鍵，沒擋 = null）。</summary>
-        public string StrictBlock
-        {
-            get
-            {
-                if (!GameSession.HasMission) return null;
-                var s = GameSession.Mission.S;
-                if (!s.StrictNow()) return null;
-                var need = StationOf(panel);
-                var me = s.Player(GameSession.LocalPlayer);
-                if (need == null || me == null || me.Station == need) return null;
-                return need == Station.Assembly ? "ui.hint.strict_assembly" : "ui.hint.strict_control";
-            }
-        }
+        public override float Range => range > 0 ? range : base.Range;
 
         bool PhaseOk
         {
@@ -73,9 +43,7 @@ namespace GoNoGo.Presentation
         public override HudTarget Describe(Interactor who)
         {
             var t = new HudTarget { Title = Loc.T(titleKey), Body = string.IsNullOrEmpty(bodyKey) ? "" : Loc.T(bodyKey) };
-            var block = StrictBlock;
-            if (block != null) { t.Subtitle = Loc.T(block); t.Color = "#FFB547"; }
-            else if (AvailableNow) t.Keys.Add(new KeyHint("E", Loc.T(actionKey)));
+            if (AvailableNow) t.Keys.Add(new KeyHint("E", Loc.T(actionKey)));
             else t.Subtitle = Loc.T(LockKey);
             return t;
         }
@@ -113,15 +81,6 @@ namespace GoNoGo.Presentation
         public override void OnKey(Interactor who, char key)
         {
             if (key != 'E' || !AvailableNow) return;
-            if (StrictBlock != null) { Sfx.NoGo(); Hud.Toast(Loc.T(StrictBlock)); return; }
-            if (panel == "report")
-            {
-                GameSession.Send(CommandType.Report);
-                Sfx.Confirm();
-                Hud.Toast(Loc.T("ui.fac.reported"));
-                Hud.Signal("report");
-                return;
-            }
             Sfx.Click();
             Hud.Open(panel);
             Hud.Signal("open:" + panel);

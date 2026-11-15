@@ -4,7 +4,7 @@ using Newtonsoft.Json;
 
 namespace GoNoGo.Core
 {
-    /// <summary>玩家的太空船設計。只存選擇的 id，數值一律從 GameData 查。</summary>
+    /// <summary>玩家的太空船設計（大屏幕上勾選的）。只存選擇的 id，數值一律從 GameData 查。</summary>
     public sealed class Design
     {
         public string ScenarioId { get; set; } = "";
@@ -14,23 +14,6 @@ namespace GoNoGo.Core
         public string OrbitId { get; set; } = "";
         public string LauncherId { get; set; } = "";
         public int MissionYears { get; set; } = 3;
-        /// <summary>
-        /// 擁有但沒裝在船上的零件（M$）。錢只跟「買」有關、跟「裝」無關（採購機制 v2）：
-        /// 開發費 = 基本開發費 + 擁有的所有零件，所以拆下來的零件也要算。由 SessionRules 算好放進來，
-        /// 評估時加進開發費。單純比較設計（測試、修正建議）時是 0。
-        /// </summary>
-        public double ProcurementMusd { get; set; }
-        /// <summary>
-        /// 打電話問需求花掉的時程（月）：每問一個新問題 <see cref="Constants.CallMonths"/>。由 SessionRules 算好放進來，
-        /// 評估時加進時程。單純比較設計時是 0。
-        /// </summary>
-        public double CallMonths { get; set; }
-        /// <summary>
-        /// 組裝工作台裝錯小零件、返工花掉的時程（月）：每裝錯一次 <see cref="Constants.ReworkMonths"/>。
-        /// 由 SessionRules 算好放進來，評估時加進時程。單純比較設計時是 0。
-        /// </summary>
-        public double ReworkMonths { get; set; }
-
         public string Get(string category) =>
             Parts != null && Parts.TryGetValue(category, out var id) ? id : null;
 
@@ -42,9 +25,6 @@ namespace GoNoGo.Core
             OrbitId = OrbitId,
             LauncherId = LauncherId,
             MissionYears = MissionYears,
-            ProcurementMusd = ProcurementMusd,
-            CallMonths = CallMonths,
-            ReworkMonths = ReworkMonths,
         };
 
         /// <summary>所有選到的零件 id（儀器 + 各單選類別），依固定順序。</summary>

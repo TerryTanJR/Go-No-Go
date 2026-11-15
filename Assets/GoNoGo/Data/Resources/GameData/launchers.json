@@ -10,7 +10,6 @@
     "capacity_kg": { "leo_400": 300, "sso_700": 150, "llo_100": 25, "sso_dawn_dusk": 150, "sso_1330": 150 },
     "cost_musd": 9.1,
     "fairing_diameter_m": 1.2,
-    "lead_months": 9,
     "flight_record": "95 / 99",
     "model": "rocket_small",
     "source": {
@@ -58,7 +57,6 @@
     "capacity_kg": { "leo_400": 17400, "sso_700": 11000, "geo": 3100, "llo_100": 2500 },
     "cost_musd": 69.85,
     "fairing_diameter_m": 5.2,
-    "lead_months": 18,
     "flight_record": "698 / 701",
     "model": "rocket_medium",
     "source": {
@@ -129,7 +127,6 @@
     "capacity_kg": { "leo_400": 30000, "sso_700": 20000, "geo": 4500, "llo_100": 3600 },
     "cost_musd": 97,
     "fairing_diameter_m": 5.2,
-    "lead_months": 30,
     "flight_record": "14 / 14",
     "model": "rocket_heavy",
     "source": {
@@ -192,7 +189,6 @@
     "capacity_kg": { "leo_400": 1350, "sso_700": 800 },
     "cost_musd": 70,
     "fairing_diameter_m": 1.6,
-    "lead_months": 24,
     "historical": true,
     "flight_record": "6 / 7 (before OCO)",
     "model": "rocket_medium",
@@ -242,7 +238,6 @@
     "capacity_kg": { "leo_400": 2800, "sso_700": 1500 },
     "cost_musd": 137,
     "fairing_diameter_m": 3.0,
-    "lead_months": 24,
     "historical": true,
     "flight_record": "149 successes (98%)",
     "model": "rocket_medium",
@@ -288,7 +283,6 @@
     "capacity_kg": { "sso_dawn_dusk": 200 },
     "cost_musd": 1.4,
     "fairing_diameter_m": 5.2,
-    "lead_months": 12,
     "flight_record": "Transporter-1 – 18",
     "model": "rocket_medium",
     "orbit_lock": "sso_dawn_dusk",

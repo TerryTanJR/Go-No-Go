@@ -37,6 +37,8 @@ namespace GoNoGo.Game
         public static bool FirstPerson;
         /// <summary>目前在哪一區（"assembly"、"control"、"lobby"），畫面左上角顯示。</summary>
         public static string Area = "";
+        /// <summary>人站在哪一座組裝台旁邊（0 或 1；-1 = 不在旁邊）。畫面右上角顯示那一座的組裝單。</summary>
+        public static int NearBench = -1;
 
         /// <summary>開著面板（控制台、電話、平板…）：角色不能動、滑鼠游標放開。</summary>
         public static bool PanelOpen;
@@ -70,6 +72,7 @@ namespace GoNoGo.Game
             Paused = false;
             Covered = false;
             Area = "";
+            NearBench = -1;
             PanelRequested = null;
             ToastRequested = null;
             TutorialSignal = null;

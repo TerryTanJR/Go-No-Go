@@ -4,7 +4,9 @@ using NUnit.Framework;
 
 namespace GoNoGo.Core.Tests
 {
-    /// <summary>組裝工作台（小零件 → 零件）、沙盒模式、設計分享碼。</summary>
+    /// <summary>
+    /// 組裝：架子上拿小零件 → 組裝台左側認配方 → 右側照順序組 → 裝上衛星。還有沙盒和設計分享碼。
+    /// </summary>
     public class WorkshopTests
     {
         GameData _data;
@@ -20,21 +22,36 @@ namespace GoNoGo.Core.Tests
             return s;
         }
 
-        void Ok(SessionState s, Command c) => Assert.That(SessionRules.Apply(s, _data, c), Is.EqualTo(SessionRules.Ok), c.Type + " " + c.A);
-        string Try(SessionState s, CommandType t, int player, string a = "", int n = 0) => SessionRules.Apply(s, _data, Command.Of(t, player, a, n));
-
-        void Buy(SessionState s, params string[] parts)
+        SessionState Duo()
         {
-            foreach (var p in parts) Ok(s, Command.Of(CommandType.CartAdd, 1, p));
-            Ok(s, Command.Of(CommandType.PlaceOrder, 1));
+            var s = SessionRules.NewSession(_data, "earth_observation", "engineer", false, true);
+            Ok(s, Command.Of(CommandType.Join, 1));
+            Ok(s, Command.Of(CommandType.Join, 2));
+            Ok(s, Command.Of(CommandType.SetReady, 1, "", 1));
+            Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
+            Ok(s, Command.Of(CommandType.StartMission, 1));
+            return s;
         }
 
-        // ---------------------------------------------------------------- 組裝工作台
+        void Ok(SessionState s, Command c) => Flow.Do(s, _data, c);
+        string Try(SessionState s, CommandType t, int player, string a = "", int n = 0) => SessionRules.Apply(s, _data, Command.Of(t, player, a, n));
+
+        void Put(SessionState s, int bench, params string[] comps)
+        {
+            foreach (var c in comps)
+            {
+                Ok(s, Command.Of(CommandType.CompPick, 1, c));
+                Ok(s, Command.Of(CommandType.BenchPut, 1, "", bench));
+            }
+        }
+
+        static string[] Ids(AssemblyRecipe r) => r.Components.Select(c => c.Id).ToArray();
+
+        // ---------------------------------------------------------------- 配方資料
 
         [Test]
         public void EveryPartHasARecipeExceptGroundStationsAndThePlate()
         {
-            Assert.That(GameDataLoader.Validate(_data), Is.Empty);
             foreach (var p in _data.Parts)
             {
                 var r = _data.Recipe(p);
@@ -43,353 +60,345 @@ namespace GoNoGo.Core.Tests
                 {
                     Assert.That(r, Is.Not.Null, p.Id);
                     Assert.That(r.Category, Is.EqualTo(p.Category), p.Id);
-                    Assert.That(r.Components.Count, Is.InRange(3, 5), p.Id);
-                    Assert.That(r.Source.Url, Does.StartWith("http"), p.Id);
-                    foreach (var c in r.Components)
-                    {
-                        Assert.That(c.Role.ZhTW, Does.Not.Match("[0-9]"), c.Id + "：小零件的功能說明不放數字");
-                        Assert.That(c.Name.En.Length * c.Name.ZhTW.Length * c.Role.En.Length * c.Role.ZhTW.Length, Is.GreaterThan(0), c.Id);
-                    }
+                    Assert.That(r.Components.Count, Is.InRange(3, GameData.BasketSize), p.Id + "：單人的籃子一趟要拿得齊");
                 }
             }
-            // 指定零件的配方優先於類別通用的
-            Assert.That(_data.Recipe(_data.Part("inst_thermal")).Components.Select(c => c.Id), Has.Member("cryocooler"));
-            Assert.That(_data.Recipe(_data.Part("inst_visible")).Components.Select(c => c.Id), Has.No.Member("cryocooler"));
-            Assert.That(_data.Recipe(_data.Part("solar_body")).Components.Select(c => c.Id), Has.No.Member("hinge"));
+            // 同一類的小、中、大型共用一個配方
+            Assert.That(_data.Recipe(_data.Part("batt_small")), Is.SameAs(_data.Recipe(_data.Part("batt_large"))));
+            Assert.That(_data.Recipe(_data.Part("solar_deployable")), Is.SameAs(_data.Recipe(_data.Part("solar_large"))));
+            Assert.That(_data.Recipe(_data.Part("solar_body")), Is.Not.SameAs(_data.Recipe(_data.Part("solar_large"))), "貼片太陽能板不用展開機構");
         }
 
         [Test]
-        public void DistractorsAreStableAndNeverPartOfTheRecipe()
+        public void NoTwoRecipesShareAComponentSet()
         {
-            foreach (var p in _data.Parts.Where(p => _data.Recipe(p) != null))
-            {
-                var own = _data.Recipe(p).Components.Select(c => c.Id).ToList();
-                var a = _data.Distractors(p, 2);
-                var b = _data.Distractors(p, 2);
-                Assert.That(a.Count, Is.EqualTo(2), p.Id);
-                Assert.That(a.Select(c => c.Id), Is.EqualTo(b.Select(c => c.Id)), p.Id + "：每次混進來的要一樣");
-                Assert.That(a.Select(c => c.Id).Distinct().Count(), Is.EqualTo(2), p.Id);
-                foreach (var c in a) Assert.That(own, Has.No.Member(c.Id), p.Id);
-            }
-        }
-
-        [Test]
-        public void TheTrayHoldsTheRecipeAndTheDistractorsInAStableShuffledOrder()
-        {
-            int inRecipeOrder = 0, parts = 0;
-            foreach (var p in _data.Parts.Where(p => _data.Recipe(p) != null))
-            {
-                var recipe = _data.Recipe(p).Components.Select(c => c.Id).ToList();
-                var tray = _data.Tray(p).Select(c => c.Id).ToList();
-                Assert.That(tray.Count, Is.EqualTo(GameData.TraySize), p.Id);
-                Assert.That(tray.Distinct().Count(), Is.EqualTo(GameData.TraySize), p.Id);
-                foreach (var id in recipe) Assert.That(tray, Has.Member(id), p.Id);
-                Assert.That(_data.Tray(p).Select(c => c.Id), Is.EqualTo(tray), p.Id + "：每次擺出來的要一樣（房主和其他人算的也要一樣）");
-                parts++;
-                if (tray.Take(recipe.Count).SequenceEqual(recipe)) inRecipeOrder++;
-            }
-            Assert.That(inRecipeOrder, Is.LessThan(parts / 4), "零件盤不能照著答案的順序擺");
-            Assert.That(_data.Tray(_data.Part("prop_none")), Is.Empty);
-        }
-
-        [Test]
-        public void BoughtPartsMustBeAssembledByHandBeforeInstalling()
-        {
-            var s = Solo();
-            // 開局就在船上的零件本來就是組好的
-            foreach (var id in s.Bench.AllPartIds().Where(id => _data.Part(id).Category != PartCategory.GroundStation))
-                Assert.That(SessionRules.NeedsAssembly(s, _data, id), Is.False, id);
-
-            Buy(s, "batt_large", "solar_large");
-            var recipe = _data.Recipe(_data.Part("batt_large"));
-            var tray = _data.Tray(_data.Part("batt_large"));
-            var stranger = tray.First(c => recipe.Components.All(r => r.Id != c.Id));
-            Assert.That(SessionRules.NeedsAssembly(s, _data, "batt_large"), Is.True);
-            Assert.That(SessionRules.CanPlaceOnBench(s, _data, 1), Is.EqualTo("err.nothing_held"));
-            Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
-            Assert.That(SessionRules.CanInstall(s, _data, 1), Is.EqualTo("err.not_assembled"));
-            Assert.That(Try(s, CommandType.Install, 1), Is.EqualTo("err.not_assembled"));
-            Assert.That(Try(s, CommandType.Assemble, 1), Is.EqualTo("err.unknown"), "舊的『點一下就組好』不能用了");
-            Assert.That(Try(s, CommandType.CompPick, 1, recipe.Components[0].Id), Is.EqualTo("err.no_job"), "工作台上還沒有東西");
-            Assert.That(SessionRules.TrayNow(s, _data), Is.Empty);
-
-            // 放上工作台：手空了，零件盤擺出 6 個小零件
-            Ok(s, Command.Of(CommandType.BenchPlace, 1));
-            Assert.That(s.Workbench.PartId, Is.EqualTo("batt_large"));
-            Assert.That(s.HeldBy(1), Is.Null);
-            Assert.That(SessionRules.TrayNow(s, _data).Select(c => c?.Id), Is.EqualTo(tray.Select(c => c.Id)));
-            Assert.That(SessionRules.BenchWants(s, _data).Id, Is.EqualTo(recipe.Components[0].Id));
-            Assert.That(Try(s, CommandType.Pick, 1, "batt_large"), Is.EqualTo("err.bench_busy"), "組到一半不能拿走");
-            Ok(s, Command.Of(CommandType.Pick, 1, "solar_large"));
-            Assert.That(Try(s, CommandType.BenchPlace, 1), Is.EqualTo("err.bench_busy"), "一次只能組一箱");
-            Assert.That(Try(s, CommandType.CompPick, 1, recipe.Components[0].Id), Is.EqualTo("err.hands_full"));
-            Ok(s, Command.Of(CommandType.Drop, 1));
-
-            // 拿對的小零件、裝上去
-            Assert.That(Try(s, CommandType.CompFit, 1), Is.EqualTo("err.nothing_held"));
-            Assert.That(Try(s, CommandType.CompPick, 1, "no_such_component"), Is.EqualTo("err.comp_gone"));
-            Ok(s, Command.Of(CommandType.CompPick, 1, recipe.Components[0].Id));
-            Assert.That(s.HeldCompBy(1), Is.EqualTo(recipe.Components[0].Id));
-            Assert.That(Try(s, CommandType.Pick, 1, "solar_large"), Is.EqualTo("err.hands_full"));
-            Assert.That(Try(s, CommandType.CompPick, 1, recipe.Components[1].Id), Is.EqualTo("err.hands_full"));
-            Assert.That(SessionRules.TrayNow(s, _data).Count(c => c == null), Is.EqualTo(1), "被拿走的那一格空了");
-            Ok(s, Command.Of(CommandType.CompFit, 1));
-            Assert.That(s.Workbench.Step, Is.EqualTo(1));
-            Assert.That(s.Workbench.LastOk, Is.True);
-            Assert.That(s.HeldCompBy(1), Is.Null);
-            Assert.That(s.Rework, Is.EqualTo(0));
-
-            // 放回去不算錯
-            Ok(s, Command.Of(CommandType.CompPick, 1, stranger.Id));
-            Ok(s, Command.Of(CommandType.CompDrop, 1));
-            Assert.That(s.Rework, Is.EqualTo(0));
-            Assert.That(SessionRules.TrayNow(s, _data).Count(c => c == null), Is.EqualTo(1));
-
-            // 裝錯：不屬於這個零件的 → 返工一次、那個小零件報廢
-            double before = Evaluator.EvaluateDesign(s.Bench, _data, s.DifficultyId, false).ScheduleMonths;
-            Ok(s, Command.Of(CommandType.CompPick, 1, stranger.Id));
-            Ok(s, Command.Of(CommandType.CompFit, 1));
-            Assert.That(s.Workbench.Step, Is.EqualTo(1), "沒有前進");
-            Assert.That(s.Workbench.LastOk, Is.False);
-            Assert.That(s.Workbench.LastComp, Is.EqualTo(stranger.Id));
-            Assert.That(s.Workbench.Mistakes, Is.EqualTo(1));
-            Assert.That(s.Rework, Is.EqualTo(1));
-            Assert.That(s.Workbench.Scrapped, Has.Member(stranger.Id));
-            Assert.That(Try(s, CommandType.CompPick, 1, stranger.Id), Is.EqualTo("err.comp_gone"));
-            // 返工花時間：儀表板上的時間多了一次返工的月數
-            Assert.That(s.Bench.ReworkMonths, Is.EqualTo(_data.Constants.ReworkMonths).Within(1e-9));
-            double after = Evaluator.EvaluateDesign(s.Bench, _data, s.DifficultyId, false).ScheduleMonths;
-            Assert.That(after - before, Is.EqualTo(_data.Constants.ReworkMonths).Within(1e-9));
-            Assert.That(s.Reported.ReworkMonths, Is.EqualTo(s.Bench.ReworkMonths), "大螢幕跟著整合台");
-
-            // 裝錯：是這個零件的，但還沒輪到 → 也算返工，小零件回到零件盤
-            var later = recipe.Components[recipe.Components.Count - 1];
-            Ok(s, Command.Of(CommandType.CompPick, 1, later.Id));
-            Ok(s, Command.Of(CommandType.CompFit, 1));
-            Assert.That(s.Workbench.Mistakes, Is.EqualTo(2));
-            Assert.That(s.Rework, Is.EqualTo(2));
-            Assert.That(s.Workbench.Scrapped, Has.No.Member(later.Id));
-            Assert.That(SessionRules.TrayNow(s, _data).Any(c => c != null && c.Id == later.Id), "還在零件盤上");
-
-            // 把剩下的照順序裝完
-            for (int i = 1; i < recipe.Components.Count; i++)
-            {
-                Assert.That(s.Built, Has.No.Member("batt_large"));
-                Ok(s, Command.Of(CommandType.CompPick, 1, recipe.Components[i].Id));
-                Ok(s, Command.Of(CommandType.CompFit, 1));
-            }
-            Assert.That(s.Workbench.Done, Is.True);
-            Assert.That(s.Built, Has.Member("batt_large"));
-            Assert.That(s.Learned, Has.Member(recipe.Key));
-            Assert.That(s.Flawless, Has.No.Member(recipe.Key), "裝錯過就不算精通");
-            Assert.That(SessionRules.TrayNow(s, _data), Is.Empty, "組好了，零件盤收起來");
-            Assert.That(Try(s, CommandType.CompPick, 1, stranger.Id), Is.EqualTo("err.no_job"));
-
-            // 成品在工作台上：拿起來、裝上船
-            Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
-            Assert.That(s.Workbench, Is.Null);
-            Ok(s, Command.Of(CommandType.Install, 1));
-            Assert.That(s.Bench.Get(PartCategory.Battery), Is.EqualTo("batt_large"));
-
-            // 換下來的舊電池、拆下來再裝回去的零件都不用再組
-            Ok(s, Command.Of(CommandType.Pick, 1, "batt_small"));
-            Ok(s, Command.Of(CommandType.Install, 1));
-            Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
-            Assert.That(SessionRules.CanInstall(s, _data, 1), Is.EqualTo(SessionRules.Ok));
-
-            foreach (var key in new[] { "err.bench_busy", "err.no_job", "err.comp_gone", "err.not_assembled", "ui.contrib.rework" })
-                Assert.That(_data.Strings.ContainsKey(key), key);
-        }
-
-        [Test]
-        public void AStructureBuiltOnceIsLearnedAndAFlawlessBuildIsRemembered()
-        {
-            var s = Solo("sandbox", null);
-            // 沙盒不用組裝；借它的型錄找兩個同一種構造的零件，再到一般任務裡驗證
-            var pairs = _data.Parts.Where(p => _data.Recipe(p) != null).GroupBy(p => _data.Recipe(p).Key).Where(g => g.Count() >= 2).ToList();
-            Assert.That(pairs, Is.Not.Empty);
-
-            s = Solo();
-            var shelf = SessionRules.ShelfParts(_data, s).Where(p => !s.Owned.Contains(p.Id) && _data.Recipe(p) != null)
-                .GroupBy(p => _data.Recipe(p).Key).Where(g => g.Count() >= 2).Select(g => g.OrderBy(p => p.CostMusd).Take(2).ToList())
-                .OrderBy(g => g.Sum(p => p.CostMusd)).First();
-            Buy(s, shelf[0].Id, shelf[1].Id);
-            Assert.That(SessionRules.NeedsAssembly(s, _data, shelf[1].Id), Is.True);
-            Ok(s, Command.Of(CommandType.Pick, 1, shelf[0].Id));
-            BenchFlow.Build(s, _data, 1);
-            var key = _data.Recipe(shelf[0]).Key;
-            Assert.That(s.Flawless, Has.Member(key), "一次都沒裝錯");
-            Assert.That(s.Rework, Is.EqualTo(0));
-            Assert.That(s.Bench.ReworkMonths, Is.EqualTo(0));
-            Assert.That(SessionRules.NeedsAssembly(s, _data, shelf[1].Id), Is.False, "同一種構造組過一次就會了，不用重複");
-            Ok(s, Command.Of(CommandType.Drop, 1));
-            Ok(s, Command.Of(CommandType.Pick, 1, shelf[1].Id));
-            Assert.That(SessionRules.CanPlaceOnBench(s, _data, 1), Is.EqualTo("err.already_built"));
-        }
-
-        [Test]
-        public void GuessingCostsFarMoreReworkThanReading()
-        {
-            // 不看說明、照零件盤的順序一個一個試：每個零件都會裝錯好幾次
-            int parts = 0, guesses = 0;
-            foreach (var p in _data.Parts.Where(p => _data.Recipe(p) != null))
-            {
-                var s = Solo();
-                if (!s.Owned.Contains(p.Id)) s.Owned.Add(p.Id);
-                s.Built.Remove(p.Id);
-                if (s.Bench.AllPartIds().Contains(p.Id)) continue;   // 開局裝在船上的略過
-                Ok(s, Command.Of(CommandType.Pick, 1, p.Id));
-                Ok(s, Command.Of(CommandType.BenchPlace, 1));
-                // 每一步把零件盤上的東西照順序試過去（試過不對的這一步不再拿），對了就換下一步
-                var tried = new HashSet<string>();
-                int guard = 0;
-                while (!s.Workbench.Done && guard++ < 200)
+            var recipes = _data.Assemblies.Recipes;
+            for (int i = 0; i < recipes.Count; i++)
+                for (int j = 0; j < recipes.Count; j++)
                 {
-                    var next = SessionRules.TrayNow(s, _data).First(c => c != null && !tried.Contains(c.Id));
-                    Ok(s, Command.Of(CommandType.CompPick, 1, next.Id));
-                    Ok(s, Command.Of(CommandType.CompFit, 1));
-                    if (s.Workbench.LastOk) tried.Clear();
-                    else tried.Add(next.Id);
+                    if (i == j) continue;
+                    var a = Ids(recipes[i]);
+                    var b = new HashSet<string>(Ids(recipes[j]));
+                    Assert.That(a.All(b.Contains), Is.False,
+                        recipes[i].Key + " 的小零件組合和 " + recipes[j].Key + " 一樣（或是它的一部分），組裝台會認錯");
                 }
-                Assert.That(s.Workbench.Done, p.Id + "：亂試最後也組得完（不會卡死）");
-                parts++;
-                guesses += s.Rework;
-            }
-            Assert.That(parts, Is.GreaterThan(20));
-            Assert.That((double)guesses / parts, Is.GreaterThan(2.0), "亂試平均每個零件至少裝錯兩次以上");
-            Assert.That(_data.Constants.ReworkMonths * guesses / parts, Is.GreaterThan(_data.Constants.CallMonths), "亂試一個零件賠掉的時間比打一通電話還多");
+            // 所以每一組小零件都只認得出一個配方
+            foreach (var r in recipes)
+                Assert.That(_data.RecipeOf(Ids(r)), Is.SameAs(r), r.Key);
         }
 
         [Test]
-        public void ThePlateNeedsNoAssemblyAndTheStateSurvivesTheNetwork()
+        public void EveryInstrumentHasItsOwnRecipe()
         {
-            var s = Solo("lunar_mapping", "engineer");
-            Buy(s, "prop_none", "batt_large");
-            Assert.That(SessionRules.NeedsAssembly(s, _data, "prop_none"), Is.False, "封板沒有小零件");
-            Ok(s, Command.Of(CommandType.Pick, 1, "prop_none"));
-            Ok(s, Command.Of(CommandType.Install, 1));
-
-            // 組到一半：整包狀態序列化後傳給其他人，工作台、手上的小零件、返工次數都要還在
-            var recipe = _data.Recipe(_data.Part("batt_large"));
-            Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
-            Ok(s, Command.Of(CommandType.BenchPlace, 1));
-            Ok(s, Command.Of(CommandType.CompPick, 1, recipe.Components[1].Id));
-            Ok(s, Command.Of(CommandType.CompFit, 1));
-            Ok(s, Command.Of(CommandType.CompPick, 1, recipe.Components[0].Id));
-            var copy = SessionState.FromJson(s.ToJson());
-            Assert.That(copy.Workbench.PartId, Is.EqualTo("batt_large"));
-            Assert.That(copy.Workbench.Mistakes, Is.EqualTo(1));
-            Assert.That(copy.Workbench.Fits, Is.EqualTo(1));
-            Assert.That(copy.HeldCompBy(1), Is.EqualTo(recipe.Components[0].Id));
-            Assert.That(copy.Rework, Is.EqualTo(1));
-            Assert.That(SessionRules.TrayNow(copy, _data).Select(c => c?.Id), Is.EqualTo(SessionRules.TrayNow(s, _data).Select(c => c?.Id)));
-            Ok(copy, Command.Of(CommandType.CompFit, 1));
-            Assert.That(copy.Workbench.Step, Is.EqualTo(1));
-
-            // 沒有工作台的狀態（舊的存檔格式）也讀得回來
-            var empty = SessionState.FromJson(Solo().ToJson());
-            Assert.That(empty.Workbench, Is.Null);
-            Assert.That(empty.HeldComp, Is.Empty);
-        }
-
-        [Test]
-        public void TheWholeTeamSharesOneBench()
-        {
-            // 兩個人都在組裝區（不開嚴格分工）：一個人放箱子，兩個人都可以拿、都可以裝
-            var s = SessionRules.NewSession(_data, "earth_observation", "engineer", false, true);
-            Ok(s, Command.Of(CommandType.Join, 1));
-            Ok(s, Command.Of(CommandType.Join, 2));
-            Ok(s, Command.Of(CommandType.SetReady, 1, "", 1));
-            Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
-            Ok(s, Command.Of(CommandType.StartMission, 1));
-            Ok(s, Command.Of(CommandType.CartAdd, 1, "batt_large"));
-            Ok(s, Command.Of(CommandType.PlaceOrder, 1));
-            Ok(s, Command.Of(CommandType.ApproveOrder, 2));
-            var recipe = _data.Recipe(_data.Part("batt_large"));
-
-            Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
-            Ok(s, Command.Of(CommandType.BenchPlace, 1));
-            // 2 號先拿了第二步的小零件等著；1 號拿第一步的
-            Ok(s, Command.Of(CommandType.CompPick, 2, recipe.Components[1].Id));
-            Assert.That(Try(s, CommandType.CompPick, 1, recipe.Components[1].Id), Is.EqualTo("err.comp_gone"), "同一個小零件只有一個");
-            Ok(s, Command.Of(CommandType.CompPick, 1, recipe.Components[0].Id));
-            Ok(s, Command.Of(CommandType.CompFit, 1));
-            Ok(s, Command.Of(CommandType.CompFit, 2));
-            Assert.That(s.Workbench.Step, Is.EqualTo(2));
-            Assert.That(s.Workbench.LastBy, Is.EqualTo(2));
-            Assert.That(s.Rework, Is.EqualTo(0));
-
-            // 有人拿著小零件離開房間：小零件回到零件盤，其他人不會卡住
-            Ok(s, Command.Of(CommandType.CompPick, 2, recipe.Components[2].Id));
-            Ok(s, Command.Of(CommandType.Leave, 2));
-            Assert.That(s.HeldComp, Is.Empty);
-            for (int i = 2; i < recipe.Components.Count; i++)
+            var instruments = _data.Parts.Where(p => p.Category == PartCategory.Instrument).ToList();
+            Assert.That(instruments.Count, Is.EqualTo(10), "酬載儀器 10 個");
+            var seen = new HashSet<AssemblyRecipe>();
+            foreach (var p in instruments)
             {
-                Ok(s, Command.Of(CommandType.CompPick, 1, recipe.Components[i].Id));
-                Ok(s, Command.Of(CommandType.CompFit, 1));
+                var r = _data.Recipe(p);
+                Assert.That(r.PartIds, Is.EqualTo(new[] { p.Id }), p.Id + "：一次可以選好幾台，不能共用配方");
+                Assert.That(seen.Add(r), p.Id);
             }
-            Assert.That(s.Workbench.Done, Is.True);
-            Assert.That(s.Flawless, Has.Member(recipe.Key));
+            // 共用光學鏡組、感測器這類通用小零件沒關係，只要每台至少有一個不一樣
+            var optical = new[] { "inst_visible", "inst_multispectral", "inst_hyperspectral", "inst_co2_spectrometer", "inst_fire_mwir", "inst_lightning", "inst_laser_altimeter" };
+            foreach (var id in optical) Assert.That(Ids(_data.Recipe(_data.Part(id))), Has.Member("optics").And.Member("detector"), id);
+            Assert.That(Ids(_data.Recipe(_data.Part("inst_multispectral"))), Has.Member("filter_wheel"));
+            Assert.That(Ids(_data.Recipe(_data.Part("inst_hyperspectral"))), Has.Member("disperser"));
+            Assert.That(Ids(_data.Recipe(_data.Part("inst_laser_altimeter"))), Has.Member("pulse_laser"));
         }
 
         [Test]
-        public void AssemblingIsAnAssemblyBayJobUnderStrictRoles()
+        public void NewComponentsCarryASourceAndBothLanguages()
         {
-            foreach (var t in new[] { CommandType.BenchPlace, CommandType.CompPick, CommandType.CompDrop, CommandType.CompFit })
+            foreach (var id in new[] { "filter_wheel", "disperser", "grating", "band_filter", "event_processor", "pulse_laser", "timer" })
             {
-                Assert.That(SessionRules.IsAssemblyCommand(t), Is.True, t.ToString());
-                Assert.That(SessionRules.IsControlCommand(t), Is.False, t.ToString());
+                var c = _data.Component(id);
+                Assert.That(c, Is.Not.Null, id);
+                Assert.That(c.Name.En.Length * c.Name.ZhTW.Length * c.Role.En.Length * c.Role.ZhTW.Length, Is.GreaterThan(0), id);
+                Assert.That(c.Source?.Title, Is.Not.Empty, id);
+                Assert.That(c.Source.Url, Does.StartWith("https://"), id);
             }
-            var s = SessionRules.NewSession(_data, "earth_observation", "engineer", false, true);
-            Ok(s, Command.Of(CommandType.Join, 1));
-            Ok(s, Command.Of(CommandType.Join, 2));
-            Ok(s, Command.Of(CommandType.SetStrict, 1, "", 1));
-            Ok(s, Command.Of(CommandType.SetReady, 1, "", 1));
-            Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
-            Ok(s, Command.Of(CommandType.StartMission, 1));
-            Assert.That(Try(s, CommandType.BenchPlace, 2), Is.EqualTo("err.strict_assembly"));
-            Assert.That(Try(s, CommandType.CompPick, 2, "cells"), Is.EqualTo("err.strict_assembly"));
-            Assert.That(Try(s, CommandType.CompFit, 2), Is.EqualTo("err.strict_assembly"));
         }
 
         [Test]
-        public void AFailedLaunchClearsTheBenchButKeepsWhatWasLearned()
+        public void TheShelvesHoldEveryComponentInAStableOrder()
+        {
+            var shelf = _data.ShelfComponents();
+            var all = _data.Assemblies.Recipes.SelectMany(r => r.Components).Select(c => c.Id).Distinct().ToList();
+            Assert.That(shelf.Select(c => c.Id), Is.EquivalentTo(all), "所有配方會用到的小零件都在架上，包括這次設計用不到的");
+            Assert.That(shelf.Select(c => c.Id), Is.Unique);
+            var again = GameDataLoader.Load(TestData.Files()).ShelfComponents();
+            Assert.That(again.Select(c => c.Id), Is.EqualTo(shelf.Select(c => c.Id)), "每一局、每台電腦的排法都一樣");
+            // 架子本身不提示該拿什麼：同一個配方的小零件不會整組排在一起
+            var solar = Ids(_data.Recipe(_data.Part("solar_deployable")));
+            var at = solar.Select(id => shelf.FindIndex(c => c.Id == id)).OrderBy(i => i).ToList();
+            Assert.That(at.Last() - at.First(), Is.GreaterThan(solar.Length - 1));
+        }
+
+        // ---------------------------------------------------------------- 架子與搬運
+
+        [Test]
+        public void ASoloPlayerCarriesFourInABasketAndATeamCarriesOneEach()
         {
             var s = Solo();
-            Buy(s, "batt_large", "solar_large");
-            var recipe = _data.Recipe(_data.Part("batt_large"));
-            Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
-            Ok(s, Command.Of(CommandType.BenchPlace, 1));
-            // 先裝錯一次，再照順序裝完
-            Ok(s, Command.Of(CommandType.CompPick, 1, recipe.Components[1].Id));
-            Ok(s, Command.Of(CommandType.CompFit, 1));
-            foreach (var c in recipe.Components)
+            Assert.That(SessionRules.CarryCapacity(s), Is.EqualTo(4));
+            foreach (var c in new[] { "optics", "detector", "readout", "baffle" }) Ok(s, Command.Of(CommandType.CompPick, 1, c));
+            Assert.That(s.CompsOf(1).Count, Is.EqualTo(4));
+            Assert.That(Try(s, CommandType.CompPick, 1, "cells"), Is.EqualTo("err.hands_full"), "籃子最多 4 個");
+            Ok(s, Command.Of(CommandType.CompDrop, 1, "baffle"));
+            Assert.That(Try(s, CommandType.CompPick, 1, "optics"), Is.EqualTo("err.comp_dup"), "同一種不用拿兩個");
+            Ok(s, Command.Of(CommandType.CompPick, 1, "cells"));
+            Ok(s, Command.Of(CommandType.CompDrop, 1));
+            Assert.That(s.Comps, Is.Empty, "放回架子");
+            Assert.That(Try(s, CommandType.CompPick, 1, "no_such"), Is.EqualTo("err.unknown"));
+
+            var d = Duo();
+            Assert.That(SessionRules.CarryCapacity(d), Is.EqualTo(1));
+            Ok(d, Command.Of(CommandType.CompPick, 1, "optics"));
+            Assert.That(Try(d, CommandType.CompPick, 1, "detector"), Is.EqualTo("err.hands_full"), "兩人以上一次拿一個");
+            Ok(d, Command.Of(CommandType.CompPick, 2, "optics"));      // 架子不限數量，拿走會補
+            Assert.That(d.CompsOf(2), Is.EqualTo(new[] { "optics" }));
+            // 剩下一個人：有籃子了
+            Ok(d, Command.Of(CommandType.Leave, 2));
+            Assert.That(SessionRules.CarryCapacity(d), Is.EqualTo(4));
+            Ok(d, Command.Of(CommandType.CompPick, 1, "detector"));
+        }
+
+        // ---------------------------------------------------------------- 組裝台左側：認配方
+
+        [Test]
+        public void TheLeftSideRecognisesARecipeOnlyWhenTheDesignNeedsIt()
+        {
+            var s = Solo();
+            Flow.Confirm(s, _data);
+            Assert.That(SessionRules.BenchStatusOf(s, _data, 0), Is.EqualTo(BenchStatus.Empty));
+
+            // 還沒放齊：不算錯
+            Put(s, 0, "cells", "bms");
+            Assert.That(SessionRules.BenchStatusOf(s, _data, 0), Is.EqualTo(BenchStatus.Partial));
+            Assert.That(s.Benches[0].Errors, Is.Zero);
+            Assert.That(s.Benches[0].Job, Is.Null);
+
+            // 對不上任何配方：組合錯誤，小零件留在左側讓玩家調整
+            Put(s, 0, "optics");
+            Assert.That(SessionRules.BenchStatusOf(s, _data, 0), Is.EqualTo(BenchStatus.Unknown));
+            Assert.That(s.Benches[0].Errors, Is.EqualTo(1));
+            Assert.That(s.Benches[0].LastError, Is.EqualTo(BenchStatus.Unknown));
+            Assert.That(s.Benches[0].LastBy, Is.EqualTo(1));
+            Assert.That(s.Benches[0].Left, Is.EqualTo(new[] { "cells", "bms", "optics" }));
+            Ok(s, Command.Of(CommandType.BenchTake, 1, "optics", 0));
+            Ok(s, Command.Of(CommandType.CompDrop, 1));
+            Assert.That(SessionRules.BenchStatusOf(s, _data, 0), Is.EqualTo(BenchStatus.Partial));
+            Assert.That(s.Benches[0].Errors, Is.EqualTo(1), "拿走東西不算一次新的錯誤");
+
+            // 放齊電池的配方：設計裡有還沒組好的電池 → 認出是哪一顆，右側開始組
+            Put(s, 0, "heater", "housing");
+            Assert.That(SessionRules.BenchStatusOf(s, _data, 0), Is.EqualTo(BenchStatus.Active));
+            Assert.That(s.Benches[0].Job.PartId, Is.EqualTo("batt_small"), "每類只選一個：認出配方就知道是哪個零件");
+            Assert.That(SessionRules.BenchWants(s, _data, 0).Id, Is.EqualTo("cells"));
+
+            // 另一座台子放同一個配方：設計裡用它的零件已經在組了 → 這不是這次設計選的零件
+            Put(s, 1, "cells", "bms", "heater", "housing");
+            Assert.That(SessionRules.BenchStatusOf(s, _data, 1), Is.EqualTo(BenchStatus.NotInDesign));
+            Assert.That(s.Benches[1].Errors, Is.EqualTo(1));
+            Assert.That(s.Benches[1].LastError, Is.EqualTo(BenchStatus.NotInDesign));
+
+            // 設計沒選的儀器（熱紅外線）的配方：也算錯誤
+            foreach (var c in s.Benches[1].Left.ToList()) { Ok(s, Command.Of(CommandType.BenchTake, 1, c, 1)); Ok(s, Command.Of(CommandType.CompDrop, 1)); }
+            Put(s, 1, "optics", "detector", "cryocooler", "readout");
+            Assert.That(SessionRules.BenchStatusOf(s, _data, 1), Is.EqualTo(BenchStatus.NotInDesign));
+            Assert.That(s.Benches[1].Errors, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void TheBenchWaitsForTheDesignToBeConfirmed()
+        {
+            var s = Solo();
+            Put(s, 0, "cells", "bms", "heater", "housing");
+            Assert.That(SessionRules.BenchStatusOf(s, _data, 0), Is.EqualTo(BenchStatus.Waiting), "設計還沒在大屏幕上確定");
+            Assert.That(s.Benches[0].Job, Is.Null);
+            Assert.That(s.Benches[0].LastError, Is.EqualTo(BenchStatus.Waiting));
+            Ok(s, Command.Of(CommandType.Confirm, 1, "", 1));
+            Assert.That(s.Benches[0].Job?.PartId, Is.EqualTo("batt_small"), "確定之後，左側已經擺好的組合直接認出來");
+        }
+
+        [Test]
+        public void SizesOfOneCategoryShareARecipeAndTheBenchBuildsTheOneTicked()
+        {
+            var s = Solo();
+            Flow.Select(s, _data, "batt_large");
+            Flow.Confirm(s, _data);
+            Put(s, 0, "cells", "bms", "heater", "housing");
+            Assert.That(s.Benches[0].Job.PartId, Is.EqualTo("batt_large"));
+        }
+
+        // ---------------------------------------------------------------- 組裝台右側：照順序組
+
+        [Test]
+        public void FittingInOrderBuildsThePartAndMistakesCostNothing()
+        {
+            var s = Solo();
+            Flow.Confirm(s, _data);
+            var before = Evaluator.EvaluateDesign(s.Bench, _data, s.DifficultyId, false);
+            var recipe = _data.Recipe(_data.Part("batt_small"));
+            Put(s, 0, Ids(recipe));
+            var b = s.Benches[0];
+
+            // 順序錯：小零件退回左側
+            Ok(s, Command.Of(CommandType.BenchTake, 1, "heater", 0));
+            Ok(s, Command.Of(CommandType.CompFit, 1, "", 0));
+            Assert.That(b.Job.LastOk, Is.False);
+            Assert.That(b.Job.Step, Is.Zero);
+            Assert.That(b.Job.Mistakes, Is.EqualTo(1));
+            Assert.That(b.Left, Has.Member("heater"), "順序錯的退回左側");
+            Assert.That(s.Comps, Is.Empty);
+
+            // 誘答小零件（不屬於這個零件）直接從架子拿來硬裝：報廢，再去架子拿就有
+            Ok(s, Command.Of(CommandType.CompPick, 1, "nozzle"));
+            Ok(s, Command.Of(CommandType.CompFit, 1, "", 0));
+            Assert.That(b.Job.LastOk, Is.False);
+            Assert.That(b.Job.Scrapped, Is.EqualTo(new[] { "nozzle" }));
+            Assert.That(b.Left, Has.No.Member("nozzle"));
+            Assert.That(b.Job.Mistakes, Is.EqualTo(2));
+            Ok(s, Command.Of(CommandType.CompPick, 1, "nozzle"));
+            Ok(s, Command.Of(CommandType.CompDrop, 1));
+
+            // 右側正在組：一次拿一個去裝
+            Ok(s, Command.Of(CommandType.BenchTake, 1, "cells", 0));
+            Assert.That(Try(s, CommandType.BenchTake, 1, "bms", 0), Is.EqualTo("err.hands_full"));
+            Assert.That(Try(s, CommandType.BenchPut, 1, "", 0), Is.EqualTo("err.bench_busy"));
+            Ok(s, Command.Of(CommandType.CompFit, 1, "", 0));
+            Assert.That(b.Job.LastOk);
+            Assert.That(b.Job.Step, Is.EqualTo(1));
+            Assert.That(b.Job.LastBy, Is.EqualTo(1));
+            Assert.That(SessionRules.BenchWants(s, _data, 0).Id, Is.EqualTo("bms"));
+            foreach (var c in Ids(recipe).Skip(1))
             {
-                Ok(s, Command.Of(CommandType.CompPick, 1, c.Id));
-                Ok(s, Command.Of(CommandType.CompFit, 1));
+                Ok(s, Command.Of(CommandType.BenchTake, 1, c, 0));
+                Ok(s, Command.Of(CommandType.CompFit, 1, "", 0));
             }
-            Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
-            Ok(s, Command.Of(CommandType.Drop, 1));
-            // 另一箱放在工作台上、手上還拿著一個小零件，就去發射
-            Ok(s, Command.Of(CommandType.Pick, 1, "solar_large"));
-            Ok(s, Command.Of(CommandType.BenchPlace, 1));
-            Ok(s, Command.Of(CommandType.CompPick, 1, _data.Recipe(_data.Part("solar_large")).Components[0].Id));
-            // 找一個會失敗的設計太費工：直接假裝上一次發射沒入軌，走失敗重來的路
-            Ok(s, Command.Of(CommandType.Launch, 1));
-            Assert.That(s.HeldComp, Is.Empty);
-            s.LastLaunch.Reached = false;
-            Ok(s, Command.Of(CommandType.FinishLaunch, 1));
-            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design));
-            Assert.That(s.Workbench, Is.Null);
-            Assert.That(s.Built, Has.No.Member("batt_large"), "重來之後買的零件都沒了");
-            Assert.That(s.Built, Is.EquivalentTo(s.Owned));
-            Assert.That(s.Learned, Has.Member(recipe.Key), "學會的構造留著");
-            Assert.That(s.Rework, Is.EqualTo(1), "返工花掉的時間拿不回來");
-            Assert.That(s.Bench.ReworkMonths, Is.EqualTo(_data.Constants.ReworkMonths).Within(1e-9));
-            // 重新買回來：這種構造組過了，到貨就是成品
-            Buy(s, "batt_large", "solar_large");
-            Assert.That(SessionRules.NeedsAssembly(s, _data, "batt_large"), Is.False);
-            Assert.That(SessionRules.NeedsAssembly(s, _data, "solar_large"), Is.True, "沒組完的那一種還是要組");
+            Assert.That(b.Job.Done);
+            Assert.That(b.Left, Is.Empty);
+            Assert.That(s.Built, Has.Member("batt_small"));
+            Assert.That(s.Learned, Has.Member(recipe.Key));
+            Assert.That(s.Flawless, Has.No.Member(recipe.Key), "裝錯過：不算零失誤");
+            Assert.That(SessionRules.BenchStatusOf(s, _data, 0), Is.EqualTo(BenchStatus.Done));
+            Assert.That(Try(s, CommandType.CompFit, 1, "", 0), Is.EqualTo("err.nothing_held").Or.EqualTo("err.no_job"));
+
+            // 成品沒拿走之前，這座台子不能放新的小零件
+            Ok(s, Command.Of(CommandType.CompPick, 1, "optics"));
+            Assert.That(Try(s, CommandType.BenchPut, 1, "", 0), Is.EqualTo("err.bench_take_first"));
+            Assert.That(Try(s, CommandType.Pick, 1, "batt_small"), Is.EqualTo("err.hands_full"));
+            Ok(s, Command.Of(CommandType.CompDrop, 1));
+            Assert.That(SessionRules.BenchHolding(s, "batt_small"), Is.EqualTo(0));
+            Ok(s, Command.Of(CommandType.Pick, 1, "batt_small"));
+            Assert.That(b.Job, Is.Null);
+            Assert.That(Try(s, CommandType.CompPick, 1, "optics"), Is.EqualTo("err.hands_full"), "手上不是零件就是小零件");
+            Ok(s, Command.Of(CommandType.Install, 1));
+            Assert.That(s.Installed, Has.Member("batt_small"));
+            Assert.That(s.Held, Is.Empty);
+
+            // 裝錯沒有懲罰：不加時程、不扣分，設計的評估完全一樣；只留紀錄（所有人看得到誰裝錯）
+            Assert.That(s.Mistakes, Is.EqualTo(2));
+            var after = Evaluator.EvaluateDesign(s.Bench, _data, s.DifficultyId, false);
+            Assert.That(after.Cost.TotalMusd, Is.EqualTo(before.Cost.TotalMusd));
+            foreach (var id in before.Resources.Keys) Assert.That(after[id].Margin, Is.EqualTo(before[id].Margin), id.ToString());
+        }
+
+        [Test]
+        public void AFlawlessBuildIsRemembered()
+        {
+            var s = Solo();
+            Flow.Confirm(s, _data);
+            Flow.Build(s, _data, "solar_body");
+            var key = _data.Recipe(_data.Part("solar_body")).Key;
+            Assert.That(s.Learned, Has.Member(key));
+            Assert.That(s.Flawless, Has.Member(key), "一次都沒裝錯：知識卡升級成精通");
+        }
+
+        [Test]
+        public void TwoBenchesBuildTwoPartsAtOnce()
+        {
+            var s = Duo();
+            Flow.Confirm(s, _data);
+            var batt = Ids(_data.Recipe(_data.Part("batt_small")));
+            var cam = Ids(_data.Recipe(_data.Part("inst_visible")));
+            // 兩個人各用一座，小零件一次拿一個、來回放
+            for (int i = 0; i < 4; i++)
+            {
+                Ok(s, Command.Of(CommandType.CompPick, 1, batt[i]));
+                Ok(s, Command.Of(CommandType.CompPick, 2, cam[i]));
+                Ok(s, Command.Of(CommandType.BenchPut, 1, "", 0));
+                Ok(s, Command.Of(CommandType.BenchPut, 2, "", 1));
+            }
+            Assert.That(s.Benches[0].Job.PartId, Is.EqualTo("batt_small"));
+            Assert.That(s.Benches[1].Job.PartId, Is.EqualTo("inst_visible"));
+            // 誰都能用：2 號幫忙裝 1 號那一座
+            Ok(s, Command.Of(CommandType.BenchTake, 2, batt[0], 0));
+            Ok(s, Command.Of(CommandType.CompFit, 2, "", 0));
+            Assert.That(s.Benches[0].Job.Step, Is.EqualTo(1));
+            Assert.That(s.Benches[0].Job.LastBy, Is.EqualTo(2));
+            for (int i = 1; i < 4; i++) { Ok(s, Command.Of(CommandType.BenchTake, 1, batt[i], 0)); Ok(s, Command.Of(CommandType.CompFit, 1, "", 0)); }
+            for (int i = 0; i < 4; i++) { Ok(s, Command.Of(CommandType.BenchTake, 2, cam[i], 1)); Ok(s, Command.Of(CommandType.CompFit, 2, "", 1)); }
+            Ok(s, Command.Of(CommandType.Pick, 1, "batt_small"));
+            Ok(s, Command.Of(CommandType.Pick, 2, "inst_visible"));
+            Assert.That(Try(s, CommandType.Pick, 2, "batt_small"), Is.EqualTo("err.hands_full"));
+            Ok(s, Command.Of(CommandType.Install, 1));
+            Ok(s, Command.Of(CommandType.Install, 2));
+            Assert.That(s.Installed, Has.Member("batt_small").And.Member("inst_visible"));
+        }
+
+        [Test]
+        public void SwappingAPartMidBuildCancelsItsBenchAndDropsItFromHands()
+        {
+            var s = Solo();
+            Flow.Confirm(s, _data);
+            var recipe = Ids(_data.Recipe(_data.Part("ant_xband")));
+            Put(s, 0, recipe);
+            Ok(s, Command.Of(CommandType.BenchTake, 1, recipe[0], 0));
+            Ok(s, Command.Of(CommandType.CompFit, 1, "", 0));
+            Assert.That(s.Benches[0].Job.Step, Is.EqualTo(1));
+            // 天線換成別的類型（雷射光通訊是另一個配方）：這座台子上的取消，裝上去的小零件拆回左側
+            Assert.That(SessionRules.Catalog(_data, s).Select(p => p.Id), Has.Member("ant_optical"));
+            Flow.Select(s, _data, "ant_optical");
+            Assert.That(s.Benches[0].Job, Is.Null);
+            Assert.That(s.Benches[0].Left, Is.EquivalentTo(recipe));
+            Flow.Confirm(s, _data);
+            Assert.That(SessionRules.BenchStatusOf(s, _data, 0), Is.EqualTo(BenchStatus.NotInDesign));
+
+            // 組好拿在手上的零件被換掉：放下（成品留著），改選回來就直接在衛星上
+            Flow.Assemble(s, _data, "batt_small", 1, 1);
+            Ok(s, Command.Of(CommandType.Pick, 1, "batt_small"));
+            Flow.Select(s, _data, "batt_medium");
+            Assert.That(s.Held, Is.Empty);
+            Assert.That(s.Installed, Has.No.Member("batt_small"));
+            Flow.Select(s, _data, "batt_small");
+            Assert.That(s.Installed, Has.Member("batt_small"));
+        }
+
+        [Test]
+        public void ThePlateNeedsNoAssembly()
+        {
+            var s = Solo();
+            Assert.That(SessionRules.HasAssembly(s, _data, "prop_none"), Is.False);
+            Assert.That(s.Installed, Has.Member("prop_none"), "不裝推進的封板：選了就在衛星上");
+            Flow.Select(s, _data, "prop_green");
+            Assert.That(s.Installed, Has.No.Member("prop_none"));
+            Assert.That(SessionRules.NeedsAssembly(s, _data, "prop_green"));
+            Flow.Select(s, _data, "prop_none");
+            Assert.That(s.Installed, Has.Member("prop_none"));
+        }
+
+        [Test]
+        public void AWholeSatelliteIsAboutEightPartsAndThirtyComponents()
+        {
+            var s = Solo();
+            var parts = SessionRules.SelectedParts(s, _data);
+            Assert.That(parts.Count, Is.EqualTo(8));
+            int comps = parts.Sum(id => _data.Recipe(_data.Part(id))?.Components.Count ?? 0);
+            Assert.That(comps, Is.InRange(24, 34));
+            Flow.Fly(s, _data);
+            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch));
         }
 
         // ---------------------------------------------------------------- 沙盒
@@ -417,21 +426,22 @@ namespace GoNoGo.Core.Tests
             Assert.That(s.DifficultyId, Is.EqualTo("sandbox"));
             var sc = s.Scenario(_data);
 
-            // 所有零件（含誘餌、關卡專用的）都買得到，錢不是問題
-            var shelf = SessionRules.ShelfParts(_data, s).Select(p => p.Id).ToList();
-            Assert.That(shelf, Is.EquivalentTo(_data.Parts.Where(p => p.Category != PartCategory.GroundStation).Select(p => p.Id)));
-            Buy(s, shelf.Where(id => !s.Owned.Contains(id)).ToArray());
-            Assert.That(SessionRules.Headroom(s, _data), Is.GreaterThan(ScenarioDef.NoLimit / 2));
+            // 所有零件（含誘餌、關卡專用的）都選得到，數值不挖空
+            var catalog = SessionRules.Catalog(_data, s).Select(p => p.Id).ToList();
+            Assert.That(catalog, Is.EquivalentTo(_data.Parts.Where(p => p.Category != PartCategory.GroundStation).Select(p => p.Id)));
+            Assert.That(Blanks.Cells(_data, s), Is.Empty);
+            Assert.That(Clues.For(_data, s), Is.Empty);
 
-            // 不用組裝；儀器可以裝到 6 台；年數可以拉到 15
+            // 不用組裝（選了就在衛星上）；儀器可以選到 6 台；年數可以拉到 15
             Assert.That(sc.MaxInstruments, Is.EqualTo(6));
             foreach (var id in new[] { "inst_sar", "inst_hyperspectral", "inst_thermal", "inst_multispectral", "inst_co2_spectrometer" })
             {
                 Assert.That(SessionRules.NeedsAssembly(s, _data, id), Is.False);
-                Ok(s, Command.Of(CommandType.Pick, 1, id));
-                Ok(s, Command.Of(CommandType.Install, 1));
+                Ok(s, Command.Of(CommandType.SelectPart, 1, id, 1));
+                Assert.That(s.Installed, Has.Member(id));
             }
             Assert.That(s.Bench.Instruments.Count, Is.EqualTo(6));
+            Assert.That(Try(s, CommandType.CompPick, 1, "optics"), Is.EqualTo("err.sandbox_no_assembly"));
             Ok(s, Command.Of(CommandType.SetYears, 1, "", 99));
             Assert.That(s.Bench.MissionYears, Is.EqualTo(SessionRules.SandboxMaxYears));
 
@@ -445,11 +455,11 @@ namespace GoNoGo.Core.Tests
             foreach (var l in _data.Launchers.Where(l => string.IsNullOrEmpty(l.OrbitLock)))
                 Ok(s, Command.Of(CommandType.SetLauncher, 1, l.Id));
 
-            // 預算和時間永遠不會是紅燈、也沒有處室需求
+            // 預算永遠不會是紅燈、也沒有任務需求；不用確定設計就能發射
             var ev = Evaluator.EvaluateDesign(s.Bench, _data, s.DifficultyId, false);
             Assert.That(ev[ResourceId.Budget].Status, Is.EqualTo(ResourceStatus.Ok));
-            Assert.That(ev[ResourceId.Time].Status, Is.EqualTo(ResourceStatus.Ok));
             Assert.That(Departments.Active(sc, s.Difficulty(_data)), Is.Empty);
+            Assert.That(SessionRules.LaunchBlockers(s, _data), Is.Empty);
         }
 
         [Test]
@@ -467,21 +477,19 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
-        public void SandboxKeepsTheDesignAfterAFailedLaunchAndScoresNoDepartments()
+        public void SandboxKeepsTheDesignAfterAFailedLaunchAndScoresNoRequirements()
         {
             var s = Solo("sandbox", null);
-            Buy(s, "batt_large");
-            Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
-            Ok(s, Command.Of(CommandType.Install, 1));
+            Ok(s, Command.Of(CommandType.SelectPart, 1, "batt_large", 1));
             Ok(s, Command.Of(CommandType.Launch, 1));
             s.LastLaunch.Reached = false;
             Ok(s, Command.Of(CommandType.FinishLaunch, 1));
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design));
             Assert.That(s.Bench.Get(PartCategory.Battery), Is.EqualTo("batt_large"), "沙盒失敗不重來");
-            Assert.That(s.Owned, Has.Member("batt_large"));
+            Assert.That(s.Installed, Has.Member("batt_large"));
             Assert.That(s.Restarts, Is.EqualTo(0));
 
-            // 沒有處室需求：處室分不會因此變成 0
+            // 沒有任務需求：需求分不會因此變成 0
             var d = s.Bench.Clone();
             var ctx = SessionRules.Context(_data, s, 0);
             for (int seed = 1; seed <= 40; seed++)
@@ -489,7 +497,7 @@ namespace GoNoGo.Core.Tests
                 var r = Simulator.SimulateMission(d, _data, seed, new PerfectDecisions(), ctx);
                 if (!r.ReachedOrbit) continue;
                 Assert.That(r.Score.Requirements, Is.Empty);
-                Assert.That(r.Score.Departments, Is.EqualTo(100));
+                Assert.That(r.Score.Needs, Is.EqualTo(100));
                 return;
             }
             Assert.Fail("40 個種子都沒入軌");
@@ -513,12 +521,9 @@ namespace GoNoGo.Core.Tests
             Assert.That(s.Bench.OrbitId, Is.EqualTo(eo.OrbitId));
             Assert.That(s.Bench.LauncherId, Is.EqualTo(eo.LauncherId));
             Assert.That(s.Bench.MissionYears, Is.EqualTo(eo.MissionYears));
-            Assert.That(s.Reported.StableHash(), Is.EqualTo(s.Bench.StableHash()), "大螢幕跟著整合台");
-            foreach (var id in eo.AllPartIds().Where(id => _data.Part(id).Category != PartCategory.GroundStation))
-            {
-                Assert.That(s.Owned, Has.Member(id));
-                Assert.That(s.Built, Has.Member(id));
-            }
+            var parts = eo.AllPartIds().Where(id => _data.Part(id).Category != PartCategory.GroundStation).ToList();
+            Assert.That(s.Installed, Is.EquivalentTo(parts), "載入的設計整艘在衛星上");
+            Assert.That(s.Built, Is.SupersetOf(parts));
             Assert.That(GameDataLoader.ValidateDesign(_data, s.Bench, "loaded"), Is.Empty);
             // 載入之後照樣可以發射
             Ok(s, Command.Of(CommandType.Launch, 1));
@@ -532,11 +537,11 @@ namespace GoNoGo.Core.Tests
         {
             var designs = new List<Design> { TestData.CheapSmallsat(), TestData.Balanced(), TestData.HighScience() };
             designs.AddRange(_data.AllScenarios.Select(s => { var d = s.DefaultDesign.Clone(); d.ScenarioId = s.Id; return d; }));
-            // 沙盒可以把某一類拆掉不裝、儀器裝到 6 台
+            // 少一類零件的設計、儀器裝到 6 台
             var bare = TestData.Balanced();
             bare.ScenarioId = "sandbox";
             bare.Parts.Remove(PartCategory.Propulsion);
-            bare.Instruments = new List<string> { "inst_sar", "inst_thermal", "inst_visible", "inst_magnetometer", "inst_fire_mwir", "inst_ais" };
+            bare.Instruments = new List<string> { "inst_sar", "inst_thermal", "inst_visible", "inst_magnetometer", "inst_fire_mwir", "inst_lightning" };
             bare.MissionYears = 15;
             designs.Add(bare);
 
@@ -580,7 +585,7 @@ namespace GoNoGo.Core.Tests
             }
             // base64 最後一個字元的低位元不帶資料，改了也解得出同一份：只允許這一種
             Assert.That(same, Is.LessThanOrEqualTo(1));
-            foreach (var key in new[] { "err.code_format", "err.code_checksum", "err.code_unknown", "err.sandbox_only", "err.not_assembled", "err.already_built" })
+            foreach (var key in new[] { "err.code_format", "err.code_checksum", "err.code_unknown", "err.sandbox_only" })
                 Assert.That(_data.Strings.ContainsKey(key), key);
         }
 
@@ -593,25 +598,5 @@ namespace GoNoGo.Core.Tests
             Assert.That(DesignCode.TryDecode(code, _data, out _, out var name, out _), Is.True);
             Assert.That(name, Is.EqualTo("a b"));
         }
-    }
-
-    /// <summary>測試用：把手上那一箱照正確的順序在組裝工作台組好，再拿回手上（真的走一遍放箱子、拿小零件、裝上去）。</summary>
-    public static class BenchFlow
-    {
-        public static void Build(SessionState s, GameData data, int player)
-        {
-            var id = s.HeldBy(player);
-            if (id == null || !SessionRules.NeedsAssembly(s, data, id)) return;
-            Do(s, data, Command.Of(CommandType.BenchPlace, player));
-            foreach (var c in data.Recipe(data.Part(id)).Components)
-            {
-                Do(s, data, Command.Of(CommandType.CompPick, player, c.Id));
-                Do(s, data, Command.Of(CommandType.CompFit, player));
-            }
-            Do(s, data, Command.Of(CommandType.Pick, player, id));
-        }
-
-        static void Do(SessionState s, GameData data, Command c) =>
-            Assert.That(SessionRules.Apply(s, data, c), Is.EqualTo(SessionRules.Ok), c.Type + " " + c.A);
     }
 }

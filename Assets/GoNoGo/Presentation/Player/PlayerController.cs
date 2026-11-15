@@ -5,7 +5,8 @@ using UnityEngine.InputSystem;
 namespace GoNoGo.Presentation
 {
     /// <summary>
-    /// 本機玩家：WASD 移動、Shift 跑、滑鼠轉視角、Q 切換第一／第三人稱（預設第三人稱，選單也能切）。
+    /// 本機玩家：WASD 移動、Shift 跑（按住或切換，見 <see cref="GameSettings.RunToggle"/>）、滑鼠轉視角、
+    /// Q 切換第一／第三人稱（預設第三人稱，選單也能切）。
     /// 第三人稱鏡頭在角色正後上方約 3.8 m（角色在畫面正中偏下，準星在頭上方），撞到牆時自動拉近。
     /// 瀏覽器會鎖住滑鼠游標，Esc 放開（打開選單）。桌面版和編輯器在視窗重新拿到焦點時自動鎖回去。
     /// 第一人稱視野比較廣（<see cref="firstPersonFov"/>），近距離看控制台不會只看到一小塊。
@@ -29,6 +30,8 @@ namespace GoNoGo.Presentation
         Vector3 _lastPos;
         bool _firstPerson;
         bool _refocused;
+        /// <summary>奔跑方式是「切換」時：現在是不是在跑（按一下 Shift 開、再按一下關，停下來自動關）。</summary>
+        bool _running;
         float _baseFov = -1;
 
         public float Speed { get; private set; }
@@ -132,8 +135,21 @@ namespace GoNoGo.Presentation
                 if (kb.sKey.isPressed || kb.downArrowKey.isPressed) input.y -= 1;
                 if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) input.x += 1;
                 if (kb.aKey.isPressed || kb.leftArrowKey.isPressed) input.x -= 1;
-                run = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
+                if (GameSettings.RunToggle)
+                {
+                    // 切換：按一下 Shift 開始跑，再按一下改回走
+                    if (kb.leftShiftKey.wasPressedThisFrame || kb.rightShiftKey.wasPressedThisFrame) _running = !_running;
+                }
+                else
+                {
+                    // 按住：按住 Shift 跑，放開就走
+                    _running = false;
+                    run = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
+                }
             }
+            // 切換模式：停下來（沒有按方向鍵，或開著面板、選單不能動）時自動改回走
+            if (input.sqrMagnitude < 0.01f) _running = false;
+            if (GameSettings.RunToggle) run = _running;
             if (input.sqrMagnitude > 1) input.Normalize();
             var fwd = Quaternion.Euler(0, _yaw, 0) * Vector3.forward;
             var right = Quaternion.Euler(0, _yaw, 0) * Vector3.right;

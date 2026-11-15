@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using GoNoGo.Core;
 using GoNoGo.Game;
 using UnityEngine;
@@ -8,7 +9,7 @@ using UnityEngine.UIElements;
 namespace GoNoGo.UI
 {
     /// <summary>
-    /// 新手訓練：左上角的任務追蹤，平常只有一行「3/14 打一通電話」；換步驟時展開說明 8 秒，按 H 可以再展開或收起。
+    /// 新手訓練：左上角的任務追蹤，平常只有一行「3/12 放大看一則線索」；換步驟時展開說明 8 秒，按 H 可以再展開或收起。
     /// 目標物件上方有標記和距離（不在畫面裡時貼在畫面邊緣），不必靠文字找位置。
     /// 做到了（收到 <see cref="Hud.Signal"/>）就打勾、換下一步。步驟跨場景保留（發射畫面回來後接著做營運的步驟）。
     /// <para>
@@ -22,32 +23,47 @@ namespace GoNoGo.UI
         {
             public string Key;
             public Func<string, bool> Done;
+            /// <summary>
+            /// 看狀態也判斷得出這一步做完了（不一定經過平常的操作：例如沒填數值就先確定設計、成品已經拿在手上）。
+            /// 輪到這一步時狀態已經成立就直接往下，提示不會卡在做過的事情上。
+            /// </summary>
+            public Func<SessionState, GameData, bool> State;
             public SessionPhase Phase;
-            /// <summary>標記要指的場景物件名稱；"code" = 零件架上的任一個零件；空 = 不標。</summary>
+            /// <summary>標記要指的場景物件名稱；"clue" = 這一局放了線索的位置；空 = 不標。</summary>
             public string Target = "";
         }
 
-        // 順序照遊戲的核心：先問需求（電話、筆記板），再到組裝區採購、安裝、看大螢幕，
-        // 回中控室到後排查型錄（價格與規格），最後發射。玩家一開始就站在中控室。
+        // 順序照新的流程：放大看一則線索 → 把數值輸入大屏幕 → 選件、確定設計 → 到架子拿小零件 →
+        // 放到組裝台左側 → 照提示在右側組裝 → 裝上衛星 → 回中控室發射 → 營運。玩家一開始就站在中控室。
+        // 新手訓練只挖空一格、只留一個零件（展開式太陽能翼）要親手組，其他零件開局就在衛星上。
         static readonly Step[] Steps =
         {
             new Step { Key = "move", Phase = SessionPhase.Design, Done = s => s == "move" },
             new Step { Key = "view", Phase = SessionPhase.Design, Done = s => s == "view" },
-            new Step { Key = "call", Phase = SessionPhase.Design, Done = s => s.StartsWith("call:"), Target = "Screen_phone" },
-            new Step { Key = "notes", Phase = SessionPhase.Design, Done = s => s == "open:notes", Target = "Screen_notes" },
-            new Step { Key = "procure", Phase = SessionPhase.Design, Done = s => s == "order", Target = "ProcureConsole" },
-            new Step { Key = "pick", Phase = SessionPhase.Design, Done = s => s.StartsWith("pick:"), Target = "code" },
-            // 組裝分兩步：先把箱子放上工作台，再到零件盤拿小零件回來裝（組好才算完成）
-            new Step { Key = "bench", Phase = SessionPhase.Design, Done = s => s == "bench_place", Target = "AssemblyBench" },
-            new Step { Key = "assemble", Phase = SessionPhase.Design, Done = s => s == "assemble", Target = "CompRack" },
-            new Step { Key = "install", Phase = SessionPhase.Design, Done = s => s == "install", Target = "IntegrationStand" },
-            new Step { Key = "dashboard", Phase = SessionPhase.Design, Done = s => s == "open:dashboard" || s == "open:tablet", Target = "BayDashboard" },
-            // 後排北座的手冊 2・電力（組裝區的完整手冊也算，裡面一樣翻得到第 2 章）
-            new Step { Key = "manual", Phase = SessionPhase.Design, Done = s => s == "open:manual:power" || s == "open:bay_manual", Target = "Screen_manual-power" },
+            new Step { Key = "clue", Phase = SessionPhase.Design, Done = s => s == "clue", Target = "clue" },
+            new Step { Key = "fill", Phase = SessionPhase.Design, Done = s => s == "fill", Target = "BigScreen",
+                State = (s, d) => s.Confirmed || Blanks.Cells(d, s).All(c => Blanks.Filled(s, c.part, c.field) != null) },
+            new Step { Key = "confirm", Phase = SessionPhase.Design, Done = s => s == "confirm", Target = "BigScreen", State = (s, d) => s.Confirmed },
+            new Step { Key = "shelf", Phase = SessionPhase.Design, Done = s => s == "comp_pick", Target = "CompShelf",
+                State = (s, d) => s.CompsOf(Me).Count > 0 || s.Benches.Any(b => b.Left.Count > 0) || Recognised(s, d) },
+            // 組裝分兩步：小零件放到左側（放齊了系統就認得出配方），再照提示一個一個拿到右側裝（組好才算完成）
+            new Step { Key = "bench", Phase = SessionPhase.Design, Done = s => s == "recognised", Target = "AssemblyBench0", State = Recognised },
+            new Step { Key = "assemble", Phase = SessionPhase.Design, Done = s => s == "assemble", Target = "AssemblyBench0", State = Built },
+            new Step { Key = "install", Phase = SessionPhase.Design, Done = s => s == "install", Target = "IntegrationStand",
+                State = (s, d) => SessionRules.NotInstalled(s, d).Count == 0 },
             new Step { Key = "launch", Phase = SessionPhase.Design, Done = s => s == "launch", Target = "LaunchButton" },
             new Step { Key = "console", Phase = SessionPhase.Ops, Done = s => s == "open:ops:power" || s.StartsWith("act:"), Target = "Screen_ops-power" },
             new Step { Key = "judge", Phase = SessionPhase.Ops, Done = s => s == "end_turn", Target = "Screen_ops_desk" },
         };
+
+        static int Me => GameSession.LocalPlayer;
+
+        /// <summary>組好了（成品在組裝台上、在手上，或已經都裝上衛星）。</summary>
+        static bool Built(SessionState s, GameData d) =>
+            s.Benches.Any(b => b.Job != null && b.Job.Done) || s.HeldBy(Me) != null || SessionRules.NotInstalled(s, d).Count == 0;
+
+        /// <summary>組裝台認出配方了（或已經過了這一步）。</summary>
+        static bool Recognised(SessionState s, GameData d) => s.Benches.Any(b => b.Job != null) || Built(s, d);
 
         const float ExpandSeconds = 8f;
 
@@ -124,6 +140,12 @@ namespace GoNoGo.UI
             if (_guide) return;
             if (_step >= Steps.Length || _advanceIn >= 0) return;
             if (!Steps[_step].Done(what)) return;
+            Complete();
+        }
+
+        /// <summary>這一步做完了：打勾，停一下再換下一步。</summary>
+        void Complete()
+        {
             Sfx.Confirm();
             _box.AddToClassList("coach--done");
             _title.text = "✔ " + _title.text;
@@ -151,6 +173,11 @@ namespace GoNoGo.UI
             _body.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
             _more.text = Loc.T(open ? "ui.tut.less" : "ui.tut.more");
             DrawMarker(visible, dt);
+
+            // 看狀態就知道做完的步驟（見 Step.State）
+            if (!_guide && _advanceIn < 0 && _step < Steps.Length && Steps[_step].State != null && GameSession.HasMission
+                && GameSession.Mission.S.Phase == Steps[_step].Phase && Steps[_step].State(GameSession.Mission.S, GameSession.Data))
+                Complete();
 
             if (_advanceIn < 0) return;
             _advanceIn -= dt;
@@ -253,7 +280,8 @@ namespace GoNoGo.UI
         {
             string name = _guide ? _now?.Target : _step < Steps.Length ? Steps[_step].Target : null;
             if (string.IsNullOrEmpty(name)) return null;
-            if (name == "code") return PartOnRack();
+            if (name == "clue") name = ClueObject();
+            if (name == null) return null;
             if (_target == null)
             {
                 _findIn -= dt;
@@ -266,12 +294,12 @@ namespace GoNoGo.UI
             return Top(_target);
         }
 
-        /// <summary>零件架上看得到的零件（零件編號標籤）。手上已經拿著就不標。</summary>
-        static Vector3? PartOnRack()
+        /// <summary>這一局放了線索的位置（場景物件叫 Clue_ 加位置 id）：挑第一個有線索的。</summary>
+        static string ClueObject()
         {
-            if (GameSession.HasMission && GameSession.Mission.S.HeldBy(GameSession.LocalPlayer) != null) return null;
-            foreach (var wl in WorldLabel.All)
-                if (wl != null && wl.isActiveAndEnabled && wl.style == "code") return wl.WorldPos + Vector3.up * 0.15f;
+            if (!GameSession.HasMission) return null;
+            foreach (var spot in Clues.Spots)
+                if (GameSession.Mission.CluesAt(spot.Id).Count > 0) return "Clue_" + spot.Id;
             return null;
         }
 

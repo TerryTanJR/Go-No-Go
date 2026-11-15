@@ -1,8 +1,76 @@
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 
 namespace GoNoGo.Core.Tests
 {
+    /// <summary>
+    /// 測試用：照玩家實際的步驟走一遍流程（大屏幕選件 → 確定設計 → 架子拿小零件 → 組裝台左側認配方、右側照順序組 → 裝上衛星）。
+    /// </summary>
+    public static class Flow
+    {
+        public static void Do(SessionState s, GameData data, Command c) =>
+            Assert.That(SessionRules.Apply(s, data, c), Is.EqualTo(SessionRules.Ok), c.Type + " " + c.A + " " + c.N);
+
+        /// <summary>大屏幕上勾選（設計確定著的話先按「改選」）。</summary>
+        public static void Select(SessionState s, GameData data, string partId, int player = 1)
+        {
+            if (s.Confirmed) Do(s, data, Command.Of(CommandType.Confirm, player, "", 0));
+            Do(s, data, Command.Of(CommandType.SelectPart, player, partId, 1));
+        }
+
+        public static void Confirm(SessionState s, GameData data, int player = 1)
+        {
+            if (!s.Confirmed) Do(s, data, Command.Of(CommandType.Confirm, player, "", 1));
+        }
+
+        /// <summary>
+        /// 組一個零件：到架子把小零件拿齊放到左側（手上放不下就多跑幾趟），認出配方後照順序一個一個拿到右側裝上去。
+        /// 組好的成品留在組裝台上。
+        /// </summary>
+        public static void Assemble(SessionState s, GameData data, string partId, int player = 1, int bench = 0)
+        {
+            var recipe = data.Recipe(data.Part(partId));
+            Assert.That(recipe, Is.Not.Null, partId + " 沒有配方");
+            foreach (var c in recipe.Components)
+            {
+                Do(s, data, Command.Of(CommandType.CompPick, player, c.Id));
+                if (s.CompsOf(player).Count >= SessionRules.CarryCapacity(s) || c == recipe.Components[recipe.Components.Count - 1])
+                    Do(s, data, Command.Of(CommandType.BenchPut, player, "", bench));
+            }
+            Assert.That(s.Benches[bench].Job?.PartId, Is.EqualTo(partId), "左側放齊之後要認出這個零件");
+            foreach (var c in recipe.Components)
+            {
+                Do(s, data, Command.Of(CommandType.BenchTake, player, c.Id, bench));
+                Do(s, data, Command.Of(CommandType.CompFit, player, "", bench));
+            }
+            Assert.That(s.Benches[bench].Job.Done, partId + " 要組好了");
+        }
+
+        /// <summary>組好、拿起來、裝上衛星。</summary>
+        public static void Build(SessionState s, GameData data, string partId, int player = 1, int bench = 0)
+        {
+            Assemble(s, data, partId, player, bench);
+            Do(s, data, Command.Of(CommandType.Pick, player, partId));
+            Do(s, data, Command.Of(CommandType.Install, player));
+        }
+
+        /// <summary>確定設計，把還沒裝上衛星的零件全部組好裝上去。</summary>
+        public static void BuildAll(SessionState s, GameData data, int player = 1)
+        {
+            Confirm(s, data, player);
+            foreach (var id in SessionRules.NotInstalled(s, data)) Build(s, data, id, player);
+            Assert.That(SessionRules.NotInstalled(s, data), Is.Empty);
+        }
+
+        /// <summary>整個走完再按發射。</summary>
+        public static void Fly(SessionState s, GameData data, int player = 1)
+        {
+            BuildAll(s, data, player);
+            Do(s, data, Command.Of(CommandType.Launch, player));
+        }
+    }
+
     public class SessionTests
     {
         GameData _data;
@@ -18,39 +86,18 @@ namespace GoNoGo.Core.Tests
             return s;
         }
 
-        void Ok(SessionState s, Command c) => Assert.That(SessionRules.Apply(s, _data, c), Is.EqualTo(SessionRules.Ok), c.Type + " " + c.A);
-
-        /// <summary>組裝區下一張訂單（零件要先買才放得上架）。多人時 2 號（中控室）批准。</summary>
-        void Buy(SessionState s, params string[] parts)
-        {
-            foreach (var p in parts) Ok(s, Command.Of(CommandType.CartAdd, 1, p));
-            Ok(s, Command.Of(CommandType.PlaceOrder, 1));
-            if (SessionRules.NeedsApproval(s)) Ok(s, Command.Of(CommandType.ApproveOrder, 2));
-        }
-        /// <summary>手上的零件如果還是一箱小零件，先在組裝工作台組好。</summary>
-        void Assemble(SessionState s, int player = 1) => BenchFlow.Build(s, _data, player);
-
-        /// <summary>把手上的零件裝上船（買來的要先組裝）。</summary>
-        void Install(SessionState s, int player = 1)
-        {
-            Assemble(s, player);
-            Ok(s, Command.Of(CommandType.Install, player));
-        }
+        void Ok(SessionState s, Command c) => Flow.Do(s, _data, c);
 
         string Try(SessionState s, CommandType t, int player, string a = "", int n = 0) => SessionRules.Apply(s, _data, Command.Of(t, player, a, n));
 
-        /// <summary>發射（採購機制 v2：不用先做環境測試）。</summary>
-        void Fly(SessionState s) => Ok(s, Command.Of(CommandType.Launch, 1));
+        void Fly(SessionState s) => Flow.Fly(s, _data);
 
-        double Cost(params string[] ids) => ids.Sum(id => _data.Part(id).CostMusd);
-
-        /// <summary>兩人房：1 號在組裝區、2 號在中控室，已進入設計階段。</summary>
-        SessionState Duo(bool strict)
+        /// <summary>兩人房，已進入設計階段。沒有分組：所有人都從中控室開始。</summary>
+        SessionState Duo()
         {
             var s = SessionRules.NewSession(_data, "earth_observation", "engineer", false, true);
             Ok(s, Command.Of(CommandType.Join, 1));
             Ok(s, Command.Of(CommandType.Join, 2));
-            if (strict) Ok(s, Command.Of(CommandType.SetStrict, 1, "", 1));
             Ok(s, Command.Of(CommandType.SetReady, 1, "", 1));
             Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
             Ok(s, Command.Of(CommandType.StartMission, 1));
@@ -58,39 +105,257 @@ namespace GoNoGo.Core.Tests
             return s;
         }
 
+        // ---------------------------------------------------------------- 開局
+
         [Test]
-        public void LaunchNeedsNoTestAndTheSystemNeverJudgesTheDesign()
+        public void AMissionStartsWithTheDefaultDesignTickedAndAnEmptySatellite()
         {
             var s = Solo();
-            Assert.That(SessionRules.CanLaunch(s), Is.EqualTo(SessionRules.Ok));
-            Assert.That(Try(s, CommandType.RunTest, 1), Is.EqualTo("err.unknown"), "環境測試拿掉了");
-            Fly(s);
+            var start = _data.Scenario("earth_observation").DefaultDesign;
+            Assert.That(s.Bench.Instruments, Is.EqualTo(start.Instruments), "大屏幕上先勾好預設設計");
+            foreach (var c in PartCategory.Single) Assert.That(s.Bench.Get(c), Is.EqualTo(start.Get(c)), c);
+            Assert.That(s.Confirmed, Is.False);
+            Assert.That(s.Benches.Count, Is.EqualTo(GameData.BenchCount), "兩座組裝台");
+            // 衛星是空的：只有不用組裝的封板（不裝推進）選了就在上面
+            Assert.That(s.Installed, Is.EqualTo(new[] { "prop_none" }));
+            Assert.That(SessionRules.NotInstalled(s, _data).Count, Is.EqualTo(7));
+            Assert.That(s.Solo, Is.True);
+        }
+
+        [Test]
+        public void EachScenarioHasItsOwnDifficultyAndBudget()
+        {
+            Assert.That(SessionRules.NewSession(_data, "earth_observation", null, false, false).DifficultyId, Is.EqualTo("cadet"));
+            Assert.That(SessionRules.NewSession(_data, "lunar_mapping", null, false, true).DifficultyId, Is.EqualTo("engineer"));
+            Assert.That(SessionRules.NewSession(_data, "wildfire", null, false, false).DifficultyId, Is.EqualTo("director"));
+            Assert.That(SessionRules.NewSession(_data, "earth_observation", "tutorial", true, false).DifficultyId, Is.EqualTo("tutorial"), "新手訓練另外指定");
+            var s = SessionRules.NewSession(_data, "earth_observation", null, false, false);
+            Assert.That(SessionRules.Budget(s, _data), Is.EqualTo(210));
+            Assert.That(Evaluator.EvaluateDesign(s.Bench, _data, s.DifficultyId, false).Cost.BudgetMusd, Is.EqualTo(210));
+            Assert.That(SessionRules.Budget(SessionRules.NewSession(_data, "wildfire", null, false, false), _data), Is.EqualTo(40));
+        }
+
+        [Test]
+        public void HostAloneCannotStartAMultiplayerMission()
+        {
+            var s = SessionRules.NewSession(_data, "earth_observation", "engineer", false, true);
+            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Lobby));
+            Ok(s, Command.Of(CommandType.Join, 1));
+            Ok(s, Command.Of(CommandType.SetReady, 1, "", 1));
+            Assert.That(Try(s, CommandType.StartMission, 1), Is.EqualTo("err.need_players"), "一個人玩走單人模式");
+        }
+
+        [Test]
+        public void EveryoneMustBeReadyAndNobodyPicksATeam()
+        {
+            var s = SessionRules.NewSession(_data, "earth_observation", "engineer", false, true);
+            Ok(s, Command.Of(CommandType.Join, 1));
+            Ok(s, Command.Of(CommandType.Join, 2));
+            Ok(s, Command.Of(CommandType.SetReady, 1, "", 1));
+            Assert.That(Try(s, CommandType.StartMission, 1), Is.EqualTo("err.not_ready"));
+            Assert.That(Try(s, CommandType.StartMission, 2), Is.EqualTo("err.host_only"));
+            Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
+            Ok(s, Command.Of(CommandType.StartMission, 1));
+            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design), "多人：簡報各自看，直接進設計階段");
+            Assert.That(s.Solo, Is.False, "兩人以上：挖空照所選難度");
+            Assert.That(Try(s, CommandType.SetReady, 1, "", 0), Is.EqualTo("err.phase"));
+            // 不分組：誰都可以操作大屏幕，也都可以去組裝
+            Ok(s, Command.Of(CommandType.SelectPart, 2, "batt_medium", 1));
+            Ok(s, Command.Of(CommandType.SelectPart, 1, "ant_sband", 1));
+            Ok(s, Command.Of(CommandType.CompPick, 2, "cells"));
+            Ok(s, Command.Of(CommandType.CompPick, 1, "optics"));
+        }
+
+        // ---------------------------------------------------------------- 選件（大屏幕）
+
+        [Test]
+        public void TheBigScreenTicksOnePartPerCategoryAndSeveralInstruments()
+        {
+            var s = Solo();
+            Ok(s, Command.Of(CommandType.SelectPart, 1, "batt_large", 1));
+            Assert.That(s.Bench.Get(PartCategory.Battery), Is.EqualTo("batt_large"), "每類只選一個：選了就換掉");
+            Assert.That(Try(s, CommandType.SelectPart, 1, "batt_large", 0), Is.EqualTo("err.single_required"), "只能換，不能取消");
+
+            Ok(s, Command.Of(CommandType.SelectPart, 1, "inst_thermal", 1));
+            Ok(s, Command.Of(CommandType.SelectPart, 1, "inst_sar", 1));
+            Assert.That(s.Bench.Instruments, Is.EqualTo(new[] { "inst_visible", "inst_thermal", "inst_sar" }));
+            Assert.That(Try(s, CommandType.SelectPart, 1, "inst_multispectral", 1), Is.EqualTo("err.instruments_full"), "上限照關卡的 max_instruments");
+            Ok(s, Command.Of(CommandType.SelectPart, 1, "inst_visible", 0));
+            Ok(s, Command.Of(CommandType.SelectPart, 1, "inst_multispectral", 1));
+            Assert.That(s.Bench.Instruments, Is.EqualTo(new[] { "inst_thermal", "inst_sar", "inst_multispectral" }));
+
+            Assert.That(Try(s, CommandType.SelectPart, 1, "inst_fire_mwir", 1), Is.EqualTo("err.not_allowed"), "別的關卡專用的零件");
+            Assert.That(Try(s, CommandType.SelectPart, 1, "gs_3", 1), Is.EqualTo("err.unknown"), "地面站在任務設定選");
+            Assert.That(Try(s, CommandType.SelectPart, 1, "nope", 1), Is.EqualTo("err.unknown"));
+        }
+
+        [Test]
+        public void MissionSettingsAreChosenOnTheBigScreen()
+        {
+            var s = Solo();
+            Ok(s, Command.Of(CommandType.SetLauncher, 1, "falcon9"));
+            Ok(s, Command.Of(CommandType.SetGroundStation, 1, "gs_6"));
+            Ok(s, Command.Of(CommandType.SetYears, 1, "", 4));
+            Ok(s, Command.Of(CommandType.SetOrbit, 1, "leo_400"));
+            Assert.That(s.Bench.LauncherId, Is.EqualTo("falcon9"));
+            Assert.That(s.Bench.Get(PartCategory.GroundStation), Is.EqualTo("gs_6"));
+            Assert.That(s.Bench.MissionYears, Is.EqualTo(4));
+            Assert.That(s.Bench.OrbitId, Is.EqualTo("leo_400"));
+            Assert.That(Try(s, CommandType.SetOrbit, 1, "llo_100"), Is.EqualTo("err.not_allowed"));
+        }
+
+        [Test]
+        public void MissionYearsAreCappedAtTargetPlusTwo()
+        {
+            var s = Solo();                                   // 地球觀測：目標 3 年
+            Assert.That(SessionRules.MaxMissionYears(s.Scenario(_data)), Is.EqualTo(5));
+            Ok(s, Command.Of(CommandType.SetYears, 1, "", 10));
+            Assert.That(s.Bench.MissionYears, Is.EqualTo(5), "年數不能超過目標 + 2");
+            Ok(s, Command.Of(CommandType.SetYears, 1, "", 0));
+            Assert.That(s.Bench.MissionYears, Is.EqualTo(1));
+            Assert.That(SessionRules.MaxMissionYears(_data.Scenario("lunar_mapping")), Is.EqualTo(4));
+        }
+
+        [Test]
+        public void ConfirmingFreezesTheScreenUntilItIsReopened()
+        {
+            var s = Solo();
+            Ok(s, Command.Of(CommandType.SelectPart, 1, "inst_visible", 0));
+            Assert.That(SessionRules.DesignGaps(s, _data), Is.EqualTo(new[] { PartCategory.Instrument }));
+            Assert.That(Try(s, CommandType.Confirm, 1, "", 1), Is.EqualTo("err.design_incomplete"), "至少要一台酬載儀器");
+            Ok(s, Command.Of(CommandType.SelectPart, 1, "inst_visible", 1));
+            Ok(s, Command.Of(CommandType.Confirm, 1, "", 1));
+            Assert.That(s.Confirmed);
+            Assert.That(s.Confirms, Is.EqualTo(1));
+            Assert.That(Try(s, CommandType.SelectPart, 1, "batt_large", 1), Is.EqualTo("err.confirmed"));
+            Assert.That(Try(s, CommandType.SetYears, 1, "", 4), Is.EqualTo("err.confirmed"));
+            Ok(s, Command.Of(CommandType.Confirm, 1, "", 0));
+            Ok(s, Command.Of(CommandType.SelectPart, 1, "batt_large", 1));
+            Assert.That(s.Bench.Get(PartCategory.Battery), Is.EqualTo("batt_large"));
+        }
+
+        [Test]
+        public void ChangingAPickOnlyTakesThatPartOffTheSatellite()
+        {
+            var s = Solo();
+            Flow.BuildAll(s, _data);
+            var before = s.Installed.ToList();
+            Assert.That(before, Has.Member("batt_small").And.Member("inst_visible"));
+
+            // 換電池：只有電池從衛星拆下，其他留著
+            Flow.Select(s, _data, "batt_medium");
+            Assert.That(s.Installed, Has.No.Member("batt_small"));
+            Assert.That(s.Installed, Is.EquivalentTo(before.Where(id => id != "batt_small")), "沒換的留在衛星上");
+            Assert.That(SessionRules.NotInstalled(s, _data), Is.EqualTo(new[] { "batt_medium" }), "只有換上來的要重新組裝");
+            Assert.That(SessionRules.NeedsAssembly(s, _data, "batt_medium"), Is.True);
+
+            // 改選回原本的電池：成品還留著，直接裝回去，不用再組
+            Flow.Select(s, _data, "batt_small");
+            Assert.That(s.Installed, Is.EquivalentTo(before));
+            Assert.That(SessionRules.NotInstalled(s, _data), Is.Empty);
+        }
+
+        [Test]
+        public void CostCountsOnlyThePartsTickedNow()
+        {
+            var s = Solo();
+            double Total() => Evaluator.EvaluateDesign(s.Bench, _data, s.DifficultyId, false).Cost.TotalMusd;
+            double start = Total();
+            Flow.BuildAll(s, _data);
+            // 拿過的小零件不扣錢
+            Ok(s, Command.Of(CommandType.CompPick, 1, "optics"));
+            Ok(s, Command.Of(CommandType.CompDrop, 1));
+            Assert.That(Total(), Is.EqualTo(start).Within(1e-9));
+            // 換掉的零件不算錢：成本只算目前勾選的零件總和
+            Flow.Select(s, _data, "batt_large");
+            Assert.That(Total(), Is.EqualTo(start - _data.Part("batt_small").CostMusd + _data.Part("batt_large").CostMusd).Within(1e-9));
+            Flow.Select(s, _data, "batt_small");
+            Assert.That(Total(), Is.EqualTo(start).Within(1e-9));
+        }
+
+        // ---------------------------------------------------------------- 發射
+
+        [Test]
+        public void LaunchNeedsAConfirmedDesignWithEveryPartOnTheSatellite()
+        {
+            var s = Solo();
+            Assert.That(SessionRules.LaunchBlockers(s, _data), Is.EqualTo(new[] { "err.not_confirmed", "err.not_installed" }));
+            Assert.That(Try(s, CommandType.Launch, 1), Is.EqualTo("err.not_confirmed"));
+            Ok(s, Command.Of(CommandType.Confirm, 1, "", 1));
+            Assert.That(SessionRules.CanLaunch(s, _data), Is.EqualTo("err.not_installed"));
+            var todo = SessionRules.NotInstalled(s, _data);
+            foreach (var id in todo.Take(todo.Count - 1)) Flow.Build(s, _data, id);
+            Assert.That(SessionRules.CanLaunch(s, _data), Is.EqualTo("err.not_installed"), "還差一個零件");
+            // 組好了但還拿在手上：也不算
+            Flow.Assemble(s, _data, todo.Last());
+            Ok(s, Command.Of(CommandType.Pick, 1, todo.Last()));
+            Assert.That(SessionRules.CanLaunch(s, _data), Is.EqualTo("err.not_installed"));
+            Ok(s, Command.Of(CommandType.Install, 1));
+            Assert.That(SessionRules.LaunchBlockers(s, _data), Is.Empty);
+            Assert.That(SessionRules.CanLaunch(s, _data), Is.EqualTo(SessionRules.Ok));
+            Ok(s, Command.Of(CommandType.Launch, 1));
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch));
         }
 
         [Test]
-        public void ABatteryThatDiesInEclipseFailsAtLaunch()
+        public void OverBudgetBlocksTheLaunch()
+        {
+            var s = Solo("wildfire", null);            // 預算 40
+            Ok(s, Command.Of(CommandType.SetGroundStation, 1, "gs_6"));
+            Ok(s, Command.Of(CommandType.SetLauncher, 1, "electron"));
+            Ok(s, Command.Of(CommandType.SetYears, 1, "", 5));
+            Assume.That(Evaluator.EvaluateDesign(s.Bench, _data, s.DifficultyId, false)[ResourceId.Budget].Margin, Is.LessThan(0));
+            Assert.That(SessionRules.OverBudget(s, _data));
+            Flow.BuildAll(s, _data);
+            Assert.That(SessionRules.LaunchBlockers(s, _data), Is.EqualTo(new[] { "err.over_budget" }));
+            Assert.That(Try(s, CommandType.Launch, 1), Is.EqualTo("err.over_budget"));
+            // 改回便宜的設定就能發射
+            Ok(s, Command.Of(CommandType.Confirm, 1, "", 0));
+            Ok(s, Command.Of(CommandType.SetGroundStation, 1, "gs_1"));
+            Ok(s, Command.Of(CommandType.SetLauncher, 1, "falcon9_rideshare"));
+            Ok(s, Command.Of(CommandType.SetYears, 1, "", 3));
+            Ok(s, Command.Of(CommandType.Confirm, 1, "", 1));
+            Assert.That(SessionRules.CanLaunch(s, _data), Is.EqualTo(SessionRules.Ok));
+        }
+
+        [Test]
+        public void TheSystemNeverJudgesTheDesignAndABatteryThatDiesInEclipseFailsAtLaunch()
         {
             var s = Solo();
-            // 地球觀測的預設設計用 80 Wh 電池：找一個撐不過地影的組合（最小電池 + 最耗電的儀器）
-            var hungry = _data.Parts.Where(p => p.Category == PartCategory.Instrument).OrderByDescending(p => p.PowerW).First();
-            s.Bench.Parts[PartCategory.Battery] = "batt_small";
-            s.Bench.Instruments = new System.Collections.Generic.List<string> { hungry.Id };
+            // 預設的 80 Wh 電池配上最耗電的儀器：撐不過地影
+            var hungry = SessionRules.Catalog(_data, s).Where(p => p.Category == PartCategory.Instrument).OrderByDescending(p => p.PowerW).First();
+            Ok(s, Command.Of(CommandType.SelectPart, 1, "inst_visible", 0));
+            Ok(s, Command.Of(CommandType.SelectPart, 1, hungry.Id, 1));
             var ev = Evaluator.EvaluateDesign(s.Bench, _data, s.DifficultyId, false);
             Assume.That(ev.Power.ActualDod, Is.GreaterThan(1.0), "需要一組撐不過地影的設計");
-            Fly(s);
+            Flow.BuildAll(s, _data);
+            Assert.That(SessionRules.CanLaunch(s, _data), Is.EqualTo(SessionRules.Ok), "設計好不好，系統不擋");
+            Ok(s, Command.Of(CommandType.Launch, 1));
             Assert.That(new[] { LaunchOutcome.DeadOnOrbit, LaunchOutcome.Failure }, Has.Member(s.LastLaunch.Outcome));
             Assert.That(s.LastLaunch.Reached, Is.False, "入軌後就斷電也算失敗（會重來）");
         }
 
         [Test]
+        public void TheTickedDesignIsWhatFlies()
+        {
+            var s = Solo();
+            Ok(s, Command.Of(CommandType.SelectPart, 1, "batt_large", 1));
+            Fly(s);
+            Assert.That(s.LastLaunch.Design.Get(PartCategory.Battery), Is.EqualTo("batt_large"));
+            Assert.That(s.LastLaunch.Design.StableHash(), Is.EqualTo(s.Bench.StableHash()));
+            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch));
+        }
+
+        [Test]
         public void MultiplayerLaunchNeedsEveryoneToCallGo()
         {
-            var s = Duo(false);
+            var s = Duo();
+            Flow.BuildAll(s, _data);
             Ok(s, Command.Of(CommandType.Launch, 2));
             Assert.That(s.Poll, Is.Not.Null);
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design), "點名還沒結束");
             // 點名中不能改設計
+            Assert.That(Try(s, CommandType.Confirm, 2, "", 0), Is.EqualTo("err.poll_active"));
             Assert.That(Try(s, CommandType.SetYears, 2, "", 4), Is.EqualTo("err.poll_active"));
             Assert.That(Try(s, CommandType.Launch, 2), Is.EqualTo("err.poll_active"));
             Ok(s, Command.Of(CommandType.Vote, 2, "", 1));
@@ -113,209 +378,26 @@ namespace GoNoGo.Core.Tests
         [Test]
         public void SomeoneLeavingDuringThePollCanCompleteIt()
         {
-            var s = Duo(false);
+            var s = Duo();
+            Flow.BuildAll(s, _data);
             Ok(s, Command.Of(CommandType.Launch, 2));
             Ok(s, Command.Of(CommandType.Vote, 2, "", 1));
             Ok(s, Command.Of(CommandType.Leave, 1));
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch), "剩下的人都喊 GO 了");
         }
 
-        /// <summary>每問一個新問題花掉時程；同一題再問不算，評估的時程跟著變長。</summary>
         [Test]
-        public void EachNewQuestionCostsScheduleTime()
+        public void APartCarriedByAPlayerWhoLeavesGoesOnTheSatellite()
         {
-            var s = Solo();
-            double before = Evaluator.EvaluateDesign(s.Reported, _data)[ResourceId.Time].Used;
-            var dep = _data.Departments[0];
-            Ok(s, Command.Of(CommandType.Call, 1, dep.Id, 0));
-            Ok(s, Command.Of(CommandType.Call, 1, dep.Id, 0));
-            Ok(s, Command.Of(CommandType.Call, 1, dep.Id, 1));
-            Assert.That(s.Reported.CallMonths, Is.EqualTo(2 * _data.Constants.CallMonths), "兩個不同的問題，重問不算");
-            double after = Evaluator.EvaluateDesign(s.Reported, _data)[ResourceId.Time].Used;
-            Assert.That(after - before, Is.EqualTo(2 * _data.Constants.CallMonths).Within(1e-9));
-        }
-
-        /// <summary>
-        /// 電話的「需求」標籤與問到幾條：看這一關、這個難度實際有效的需求。
-        /// 地球觀測的指定儀器（熱紅外）是衝突需求，學員難度沒開放，所以那一題在學員不算需求題。
-        /// </summary>
-        [Test]
-        public void RequirementQuestionsDependOnScenarioAndDifficulty()
-        {
-            DialogueLine Line(string dep, string id) => _data.Lines(_data.Scenario("earth_observation"), _data.Department(dep)).First(l => l.Id == id);
-            var cadet = Solo("earth_observation", "cadet");
-            var engineer = Solo("earth_observation", "engineer");
-            Assert.That(Dialogue.Revealed(_data, cadet, "science", Line("science", "instrument")), Is.Empty);
-            Assert.That(Dialogue.Revealed(_data, engineer, "science", Line("science", "instrument")), Is.Not.Empty);
-            Assert.That(Dialogue.Revealed(_data, cadet, "comms", Line("comms", "storage")), Is.Empty, "建議題不是需求題");
-
-            var heard = Dialogue.Heard(_data, cadet);
-            Assert.That(Dialogue.Unheard(_data, cadet, "comms", heard), Is.EqualTo(1));
-            int lineIndex = _data.Lines(_data.Scenario("earth_observation"), _data.Department("comms")).FindIndex(l => l.Id == "return");
-            Ok(cadet, Command.Of(CommandType.Call, 1, "comms", lineIndex));
-            heard = Dialogue.Heard(_data, cadet);
-            Assert.That(Dialogue.Unheard(_data, cadet, "comms", heard), Is.EqualTo(0));
-            Assert.That(heard.Count, Is.EqualTo(1));
-        }
-
-        [Test]
-        public void HostAloneCannotStartAMultiplayerMission()
-        {
-            var s = SessionRules.NewSession(_data, "earth_observation", "engineer", false, true);
-            Ok(s, Command.Of(CommandType.Join, 1));
-            Ok(s, Command.Of(CommandType.SetReady, 1, "", 1));
-            Assert.That(Try(s, CommandType.StartMission, 1), Is.EqualTo("err.need_players"), "房主一個人要等人加入");
-            Ok(s, Command.Of(CommandType.Join, 2));
-            Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
-            Ok(s, Command.Of(CommandType.StartMission, 1));
-        }
-
-        [Test]
-        public void ReadyLocksTheSideAndEveryoneMustBeReadyToStart()
-        {
-            var s = SessionRules.NewSession(_data, "earth_observation", "engineer", false, true);
-            Ok(s, Command.Of(CommandType.Join, 1));
-            Ok(s, Command.Of(CommandType.Join, 2));
-            Assert.That(Try(s, CommandType.StartMission, 1), Is.EqualTo("err.not_ready"));
-            Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
-            Assert.That(Try(s, CommandType.SetStation, 2, "", 0), Is.EqualTo("err.ready_locked"), "準備好就不能換組");
-            Ok(s, Command.Of(CommandType.SetReady, 1, "", 1));
-            Assert.That(Try(s, CommandType.StartMission, 2), Is.EqualTo("err.host_only"));
-            Ok(s, Command.Of(CommandType.SetReady, 2, "", 0));
-            Ok(s, Command.Of(CommandType.SetStation, 2, "", 0));
-            Assert.That(Try(s, CommandType.StartMission, 1), Is.EqualTo("err.not_ready"), "有人撤回準備就不能開始");
-            Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
-            Ok(s, Command.Of(CommandType.StartMission, 1));
-            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design));
-        }
-
-        [Test]
-        public void StrictRolesSplitTheWork()
-        {
-            Assert.That(Try(Duo(false), CommandType.SetStrict, 1, "", 1), Is.EqualTo("err.phase"), "開始之後不能改");
-            var lobby = SessionRules.NewSession(_data, "earth_observation", "engineer", false, true);
-            Ok(lobby, Command.Of(CommandType.Join, 1));
-            Ok(lobby, Command.Of(CommandType.Join, 2));
-            Assert.That(Try(lobby, CommandType.SetStrict, 2, "", 1), Is.EqualTo("err.host_only"));
-            Ok(lobby, Command.Of(CommandType.SetStrict, 1, "", 1));
-            Ok(lobby, Command.Of(CommandType.SetStation, 2, "", 0));
-            Assert.That(Try(lobby, CommandType.StartMission, 1), Is.EqualTo("err.strict_need_both"));
-
-            var s = Duo(true);
-            // 1 號在組裝區：不能用中控室
-            Assert.That(Try(s, CommandType.SetLauncher, 1, "falcon9"), Is.EqualTo("err.strict_control"));
-            Assert.That(Try(s, CommandType.Call, 1, "engineering", 0), Is.EqualTo("err.strict_control"));
-            Assert.That(Try(s, CommandType.Launch, 1), Is.EqualTo("err.strict_control"));
-            // 2 號在中控室：不能拿零件、送採購單
-            Assert.That(Try(s, CommandType.Pick, 2, "batt_large"), Is.EqualTo("err.strict_assembly"));
-            Assert.That(Try(s, CommandType.PlaceOrder, 2), Is.EqualTo("err.strict_assembly"));
-            Ok(s, Command.Of(CommandType.SetYears, 2, "", 3));
-            Ok(s, Command.Of(CommandType.Launch, 2));
-            // 點名每個人都可以喊
-            Ok(s, Command.Of(CommandType.Vote, 1, "", 1));
-            Ok(s, Command.Of(CommandType.Vote, 2, "", 1));
-            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch));
-
-            // 有一區沒人了：自動取消嚴格分工
-            var s2 = Duo(true);
-            Ok(s2, Command.Of(CommandType.Leave, 2));
-            Assert.That(s2.StrictRoles, Is.False);
-            Ok(s2, Command.Of(CommandType.SetLauncher, 1, "falcon9"));
-        }
-
-        [Test]
-        public void PickInstallReportMovesPartsThroughTheBay()
-        {
-            var s = Solo();
-            Assert.That(s.Bench.Get(PartCategory.Battery), Is.EqualTo("batt_small"));
-            Assert.That(Try(s, CommandType.Pick, 1, "batt_large"), Is.EqualTo("err.not_owned"), "沒買的零件不在架上");
-            Buy(s, "batt_large");
-            Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
-            Assert.That(SessionRules.Apply(s, _data, Command.Of(CommandType.Pick, 1, "batt_small")), Is.EqualTo("err.hands_full"));
-            Assert.That(SessionRules.WouldReplace(s, _data, "batt_large"), Is.EqualTo("batt_small"));
-            Install(s);
-            Assert.That(s.Bench.Get(PartCategory.Battery), Is.EqualTo("batt_large"));
-            Assert.That(s.HeldBy(1), Is.Null);
-            // 大螢幕在組裝區，直接看整合台
-            Assert.That(s.Reported.Get(PartCategory.Battery), Is.EqualTo("batt_large"));
-
-            // 從船上拆下儀器，再裝回去
-            var inst = s.Bench.Instruments[0];
-            Ok(s, Command.Of(CommandType.Pick, 1, inst));
-            Assert.That(s.Bench.Instruments, Has.No.Member(inst));
-            Install(s);
-            Assert.That(s.Bench.Instruments, Has.Member(inst));
-        }
-
-        [Test]
-        public void InstrumentSlotsAreLimited()
-        {
-            var s = Solo();
-            int max = _data.Scenario("earth_observation").MaxInstruments;
-            // 便宜的先買，買到上限為止（儀器很貴，不一定全部買得起）
-            var more = SessionRules.ShelfParts(_data, s).Where(p => p.Category == PartCategory.Instrument && !s.Bench.Instruments.Contains(p.Id))
-                .OrderBy(p => p.CostMusd).ToList();
-            foreach (var p in more) if (p.CostMusd <= SessionRules.Headroom(s, _data)) Buy(s, p.Id);
-            more = more.Where(p => s.Owned.Contains(p.Id)).ToList();
-            Assume.That(s.Bench.Instruments.Count + more.Count, Is.GreaterThan(max), "要買得起超過上限的儀器");
-            foreach (var p in more)
-            {
-                Ok(s, Command.Of(CommandType.Pick, 1, p.Id));
-                Assemble(s);
-                var r = SessionRules.Apply(s, _data, Command.Of(CommandType.Install, 1));
-                if (r != SessionRules.Ok)
-                {
-                    Assert.That(r, Is.EqualTo("err.instruments_full"));
-                    Ok(s, Command.Of(CommandType.Drop, 1));
-                }
-            }
-            Assert.That(s.Bench.Instruments.Count, Is.EqualTo(max));
-        }
-
-        [Test]
-        public void TwoPlayersCannotHoldTheSamePart()
-        {
-            var s = SessionRules.NewSession(_data, "earth_observation", "engineer", false, true);
-            Ok(s, Command.Of(CommandType.Join, 1));
-            Ok(s, Command.Of(CommandType.Join, 2));
-            Assert.That(s.Player(1).Station, Is.EqualTo(Station.Assembly));
-            Assert.That(s.Player(2).Station, Is.EqualTo(Station.Control));
-            Ok(s, Command.Of(CommandType.SetReady, 1, "", 1));
-            Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
-            Ok(s, Command.Of(CommandType.StartMission, 1));
-            Ok(s, Command.Of(CommandType.BeginDesign, 1));
-            Buy(s, "ant_xband_hr");
-            Ok(s, Command.Of(CommandType.Pick, 1, "ant_xband_hr"));
-            Assert.That(SessionRules.Apply(s, _data, Command.Of(CommandType.Pick, 2, "ant_xband_hr")), Is.EqualTo("err.taken"));
-            Ok(s, Command.Of(CommandType.Leave, 1));
-            Assert.That(s.HolderOf("ant_xband_hr"), Is.Null, "離開的人手上的零件放回架上");
-        }
-
-        [Test]
-        public void ControlRoomChoicesApplyToBothDesigns()
-        {
-            var s = Solo();
-            Ok(s, Command.Of(CommandType.SetLauncher, 1, "falcon9"));
-            Ok(s, Command.Of(CommandType.SetGroundStation, 1, "gs_6"));
-            Ok(s, Command.Of(CommandType.SetYears, 1, "", 4));
-            Assert.That(s.Bench.LauncherId, Is.EqualTo("falcon9"));
-            Assert.That(s.Reported.LauncherId, Is.EqualTo("falcon9"));
-            Assert.That(s.Reported.Get(PartCategory.GroundStation), Is.EqualTo("gs_6"));
-            Assert.That(s.Bench.MissionYears, Is.EqualTo(4));
-            Assert.That(SessionRules.Apply(s, _data, Command.Of(CommandType.SetOrbit, 1, "llo_100")), Is.EqualTo("err.not_allowed"));
-        }
-
-        [Test]
-        public void TheBenchDesignIsWhatFlies()
-        {
-            var s = Solo();
-            Buy(s, "batt_large");
-            Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
-            Install(s);
-            Fly(s);
-            Assert.That(s.LastLaunch.Design.Get(PartCategory.Battery), Is.EqualTo("batt_large"));
-            Assert.That(s.LastLaunch.Design.ProcurementMusd, Is.EqualTo(Cost("batt_small")).Within(1e-9), "換下來的開局電池還是算錢");
-            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch));
+            var s = Duo();
+            Flow.Confirm(s, _data);
+            Flow.Assemble(s, _data, "batt_small", 2);
+            Ok(s, Command.Of(CommandType.Pick, 2, "batt_small"));
+            Assert.That(s.HeldBy(2), Is.EqualTo("batt_small"));
+            Assert.That(Try(s, CommandType.Drop, 2), Is.EqualTo("err.carry_part"), "組好的零件沒有地方放，拿起來就是要裝上衛星");
+            Ok(s, Command.Of(CommandType.Leave, 2));
+            Assert.That(s.Held, Is.Empty);
+            Assert.That(s.Installed, Has.Member("batt_small"), "零件不會跟著人一起消失");
         }
 
         [Test]
@@ -335,24 +417,29 @@ namespace GoNoGo.Core.Tests
 
             // 換一個一定能入軌的設計
             var good = TestData.Balanced();
-            Buy(s, new[] { PartCategory.Propulsion, PartCategory.Shielding, PartCategory.Solar, PartCategory.Battery, PartCategory.Adcs, PartCategory.Computer, PartCategory.Antenna }
-                .Select(good.Get).Where(id => !s.Owned.Contains(id)).Distinct().ToArray());
-            foreach (var cat in new[] { PartCategory.Propulsion, PartCategory.Shielding, PartCategory.Solar, PartCategory.Battery, PartCategory.Adcs, PartCategory.Computer, PartCategory.Antenna })
-            {
-                if (s.Bench.Get(cat) == good.Get(cat)) continue;
-                Ok(s, Command.Of(CommandType.Pick, 1, good.Get(cat)));
-                Install(s);
-            }
-            s.Bench.Instruments = good.Instruments.ToList();
-            s.Bench.OrbitId = good.OrbitId;
-            s.Bench.LauncherId = good.LauncherId;
-            s.Bench.Parts[PartCategory.GroundStation] = good.Get(PartCategory.GroundStation);
-            s.Bench.MissionYears = good.MissionYears;
+            foreach (var id in s.Bench.Instruments.ToList()) Ok(s, Command.Of(CommandType.SelectPart, 1, id, 0));
+            foreach (var id in good.Instruments) Ok(s, Command.Of(CommandType.SelectPart, 1, id, 1));
+            foreach (var cat in PartCategory.Single.Where(c => c != PartCategory.GroundStation))
+                Ok(s, Command.Of(CommandType.SelectPart, 1, good.Get(cat), 1));
+            Ok(s, Command.Of(CommandType.SetOrbit, 1, good.OrbitId));
+            Ok(s, Command.Of(CommandType.SetLauncher, 1, good.LauncherId));
+            Ok(s, Command.Of(CommandType.SetGroundStation, 1, good.Get(PartCategory.GroundStation)));
             // 找一個入軌的種子（種子會混入第幾次發射，換年數也會換種子）
-            for (int y = 3; y <= 6 && (s.LastLaunch.Reached == false); y++)
+            for (int y = 3; y <= 5 && s.LastLaunch.Reached == false; y++)
             {
-                s.Bench.MissionYears = y;
-                if (s.Phase == SessionPhase.Launch) Ok(s, Command.Of(CommandType.FinishLaunch, 1));
+                if (s.Phase == SessionPhase.Launch)
+                {
+                    Ok(s, Command.Of(CommandType.FinishLaunch, 1));
+                    // 失敗重來之後要整個重選一次
+                    foreach (var id in s.Bench.Instruments.ToList()) Ok(s, Command.Of(CommandType.SelectPart, 1, id, 0));
+                    foreach (var id in good.Instruments) Ok(s, Command.Of(CommandType.SelectPart, 1, id, 1));
+                    foreach (var cat in PartCategory.Single.Where(c => c != PartCategory.GroundStation))
+                        Ok(s, Command.Of(CommandType.SelectPart, 1, good.Get(cat), 1));
+                    Ok(s, Command.Of(CommandType.SetOrbit, 1, good.OrbitId));
+                    Ok(s, Command.Of(CommandType.SetLauncher, 1, good.LauncherId));
+                    Ok(s, Command.Of(CommandType.SetGroundStation, 1, good.Get(PartCategory.GroundStation)));
+                }
+                Ok(s, Command.Of(CommandType.SetYears, 1, "", y));
                 Fly(s);
             }
             Assume.That(s.LastLaunch.Reached);
@@ -379,6 +466,59 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
+        public void AFailedLaunchStartsTheMissionOverButKeepsWhatWasLearned()
+        {
+            var s = Solo("earth_observation", null);
+            var start = s.Bench.Clone();
+            var cell = Blanks.Cells(_data, s).First();
+            Ok(s, Command.Of(CommandType.Fill, 1, Blanks.FillArg(cell.part, cell.field, 12.5)));
+            Ok(s, Command.Of(CommandType.SelectPart, 1, "batt_medium", 1));
+            Ok(s, Command.Of(CommandType.SetGroundStation, 1, "gs_6"));
+            Ok(s, Command.Of(CommandType.SetYears, 1, "", 5));
+            // 電子號到不了地球同步軌道：一定失敗
+            Ok(s, Command.Of(CommandType.SetOrbit, 1, "geo"));
+            Fly(s);
+            Assert.That(s.LastLaunch.Reached, Is.False);
+            var learned = s.Learned.ToList();
+            Assert.That(learned, Is.Not.Empty);
+            Ok(s, Command.Of(CommandType.FinishLaunch, 1));
+
+            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design));
+            Assert.That(s.Restarts, Is.EqualTo(1));
+            Assert.That(s.Bench.Parts, Is.EquivalentTo(start.Parts), "零件和地面站回到開局");
+            Assert.That(s.Bench.Instruments, Is.EqualTo(start.Instruments));
+            Assert.That(s.Bench.OrbitId, Is.EqualTo(start.OrbitId));
+            Assert.That(s.Bench.LauncherId, Is.EqualTo(start.LauncherId));
+            Assert.That(s.Bench.MissionYears, Is.EqualTo(start.MissionYears));
+            Assert.That(s.Confirmed, Is.False, "回大屏幕重選");
+            Assert.That(s.Installed, Is.EqualTo(new[] { "prop_none" }), "衛星回到開局：重新組裝");
+            Assert.That(s.Built, Is.EqualTo(new[] { "prop_none" }));
+            Assert.That(s.Held, Is.Empty);
+            Assert.That(s.Comps, Is.Empty);
+            Assert.That(s.Benches.All(b => b.Job == null && b.Left.Count == 0));
+            // 保留：組過的構造、發射紀錄、玩家填的數值
+            Assert.That(s.Learned, Is.EquivalentTo(learned));
+            Assert.That(s.Launches.Count, Is.EqualTo(1), "發射紀錄保留（評價要用）");
+            Assert.That(s.FailedLaunches, Is.EqualTo(1));
+            Assert.That(Blanks.Filled(s, cell.part, cell.field).V, Is.EqualTo(12.5), "已經填的數值保留");
+        }
+
+        [Test]
+        public void RebuildingTheSameDesignRollsANewLaunch()
+        {
+            var s = Solo("earth_observation", null);
+            Ok(s, Command.Of(CommandType.SetOrbit, 1, "geo"));
+            Fly(s);
+            var first = s.LastLaunch;
+            Ok(s, Command.Of(CommandType.FinishLaunch, 1));
+            Ok(s, Command.Of(CommandType.SetOrbit, 1, "geo"));
+            Fly(s);
+            Assert.That(s.LastLaunch.Design.StableHash(), Is.EqualTo(first.Design.StableHash()), "照原樣組回同一個設計");
+            Assert.That(s.LastLaunch.Seed, Is.Not.EqualTo(first.Seed), "種子混入第幾次發射，不會一直擲出同一個結果");
+            Assert.That(first.Seed, Is.EqualTo(first.Design.StableHash()), "第一次發射的種子不變");
+        }
+
+        [Test]
         public void CadetEventsAreRevealed()
         {
             var s = SessionRules.NewSession(_data, "earth_observation", "tutorial", true, false);
@@ -393,24 +533,13 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
-        public void MissionYearsAreCappedAtTargetPlusTwo()
-        {
-            var s = Solo();                                   // 地球觀測：目標 3 年
-            Assert.That(SessionRules.MaxMissionYears(s.Scenario(_data)), Is.EqualTo(5));
-            Ok(s, Command.Of(CommandType.SetYears, 1, "", 10));
-            Assert.That(s.Bench.MissionYears, Is.EqualTo(5), "年數不能超過目標 + 2");
-            Assert.That(s.Reported.MissionYears, Is.EqualTo(5));
-            Ok(s, Command.Of(CommandType.SetYears, 1, "", 0));
-            Assert.That(s.Bench.MissionYears, Is.EqualTo(1));
-            Assert.That(SessionRules.MaxMissionYears(_data.Scenario("lunar_mapping")), Is.EqualTo(4));
-        }
-
-        [Test]
-        public void TutorialStartsWithFoldOutSolarWingsAndKeepsItsLesson()
+        public void TutorialOnlyLeavesTheSolarWingToBuildAndOneValueToFind()
         {
             var s = SessionRules.NewSession(_data, "earth_observation", "tutorial", true, false);
             Assert.That(s.Bench.Get(PartCategory.Solar), Is.EqualTo("solar_deployable"), "新手訓練的衛星要有展開式太陽能翼（發射動畫看得到展開）");
-            Assert.That(s.Reported.Get(PartCategory.Solar), Is.EqualTo("solar_deployable"));
+            Assert.That(SessionRules.NotInstalled(s, _data), Is.EqualTo(new[] { "solar_deployable" }), "其他零件開局就在衛星上，只留一個親手組");
+            Assert.That(Blanks.Cells(_data, s), Is.EqualTo(new[] { ("solar_deployable", PartFields.MassKg) }), "只挖空一格");
+            Assert.That(Clues.For(_data, s).Count, Is.EqualTo(1));
             var ev = Evaluator.EvaluateDesign(s.Bench, _data);
             var notOk = ev.Resources.Values.Where(r => r.Status != ResourceStatus.Ok).Select(r => r.Id).ToList();
             Assert.That(notOk, Is.EqualTo(new[] { ResourceId.Data }), "教學重點不變：只有儲存一個問題（黃燈：沒有安全餘裕）");
@@ -423,13 +552,18 @@ namespace GoNoGo.Core.Tests
                 Is.EqualTo(_data.Scenario("hist_oco").Historical.PresetDesign.Get(PartCategory.Solar)));
         }
 
-        /// <summary>歷史關卡：簡報一結束就照當年的設計發射（不用按發射、不用點名），重演完設計才解鎖。</summary>
+        /// <summary>歷史關卡：簡報一結束就照當年的設計發射（不用組裝、不用按發射、不用點名），重演完設計才解鎖。</summary>
         [Test]
         public void HistoricalMissionReplaysRightAfterTheBriefing()
         {
             var s = SessionRules.NewSession(_data, "hist_oco", "engineer", false, false);
             Ok(s, Command.Of(CommandType.Join, 1));
-            Assert.That(SessionRules.Apply(s, _data, Command.Of(CommandType.SetLauncher, 1, "delta_ii")), Is.EqualTo("err.locked"));
+            Assert.That(s.Confirmed, "當年的設計已經定案");
+            Assert.That(SessionRules.NotInstalled(s, _data), Is.Empty, "當年的衛星整艘組好了");
+            Assert.That(Blanks.Cells(_data, s), Is.Empty, "歷史關卡不挖空");
+            Assert.That(Try(s, CommandType.SetLauncher, 1, "delta_ii"), Is.EqualTo("err.locked"));
+            Assert.That(Try(s, CommandType.SelectPart, 1, "batt_medium", 1), Is.EqualTo("err.locked"));
+            Assert.That(Try(s, CommandType.Confirm, 1, "", 0), Is.EqualTo("err.locked"));
             Ok(s, Command.Of(CommandType.BeginDesign, 1));
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Launch), "簡報完直接進發射演出");
             Assert.That(s.LastLaunch.Design.LauncherId, Is.EqualTo("taurus_xl"));
@@ -438,6 +572,8 @@ namespace GoNoGo.Core.Tests
             Ok(s, Command.Of(CommandType.FinishLaunch, 1));
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design));
             Assert.That(s.Restarts, Is.Zero, "歷史關卡失敗不重來，保留設計接著改");
+            Assert.That(s.Confirmed, Is.False, "回大屏幕接著改");
+            Assert.That(SessionRules.NotInstalled(s, _data), Is.Empty, "衛星還在");
             Ok(s, Command.Of(CommandType.SetLauncher, 1, "delta_ii"));
             Fly(s);
             Assert.That(s.LastLaunch.Reached);
@@ -460,236 +596,37 @@ namespace GoNoGo.Core.Tests
         [Test]
         public void SnapshotRoundTripsExactly()
         {
-            var s = Solo();
-            Buy(s, "batt_large");
-            Ok(s, Command.Of(CommandType.CartAdd, 1, "ant_xband_hr"));
-            Ok(s, Command.Of(CommandType.Pick, 1, "batt_large"));
-            Ok(s, Command.Of(CommandType.Call, 1, "engineering", 1));
+            var s = Solo("earth_observation", null);
+            var cell = Blanks.Cells(_data, s).First();
+            Ok(s, Command.Of(CommandType.Fill, 1, Blanks.FillArg(cell.part, cell.field, 3.25)));
+            Flow.Confirm(s, _data);
+            Flow.Assemble(s, _data, "batt_small");
+            Ok(s, Command.Of(CommandType.CompPick, 1, "optics"));
+            Ok(s, Command.Of(CommandType.CompPick, 1, "detector"));
+            Ok(s, Command.Of(CommandType.BenchPut, 1, "", 1));
+            Ok(s, Command.Of(CommandType.CompPick, 1, "cells"));
             var copy = SessionState.FromJson(s.ToJson());
             Assert.That(copy.ToJson(), Is.EqualTo(s.ToJson()));
-            Assert.That(copy.HeldBy(1), Is.EqualTo("batt_large"));
-            Assert.That(copy.Cart, Is.EqualTo(new[] { "ant_xband_hr" }));
-            Assert.That(copy.Orders.Single().Parts, Is.EqualTo(new[] { "batt_large" }));
+            Assert.That(copy.CompsOf(1), Is.EqualTo(new[] { "cells" }));
+            Assert.That(copy.Benches[0].Job.Done);
+            Assert.That(copy.Benches[1].Left, Is.EqualTo(new[] { "optics", "detector" }));
+            Assert.That(Blanks.Filled(copy, cell.part, cell.field).By, Is.EqualTo(1));
+            Assert.That(copy.Confirmed);
         }
 
-        // ---------------------------------------------------------------- 採購（採購機制 v2，見 docs/procurement_v2.md）
-
-        [Test]
-        public void EachScenarioHasItsOwnDifficultyAndBudget()
-        {
-            Assert.That(SessionRules.NewSession(_data, "earth_observation", null, false, false).DifficultyId, Is.EqualTo("cadet"));
-            Assert.That(SessionRules.NewSession(_data, "lunar_mapping", null, false, true).DifficultyId, Is.EqualTo("engineer"));
-            Assert.That(SessionRules.NewSession(_data, "wildfire", null, false, false).DifficultyId, Is.EqualTo("director"));
-            Assert.That(SessionRules.NewSession(_data, "earth_observation", "tutorial", true, false).DifficultyId, Is.EqualTo("tutorial"), "新手訓練另外指定");
-            var s = SessionRules.NewSession(_data, "earth_observation", null, false, false);
-            Assert.That(SessionRules.Budget(s, _data), Is.EqualTo(210));
-            Assert.That(Evaluator.EvaluateDesign(s.Bench, _data, s.DifficultyId, false).Cost.BudgetMusd, Is.EqualTo(210));
-            Assert.That(SessionRules.Budget(SessionRules.NewSession(_data, "wildfire", null, false, false), _data), Is.EqualTo(40));
-        }
-
-        [TestCase("earth_observation", "electron", 191.88)]
-        [TestCase("lunar_mapping", "electron", 228.32)]
-        [TestCase("wildfire", "falcon9_rideshare", 26.58)]
-        public void EveryStartingDesignFitsUnderTheCap(string scenario, string reserve, double room)
-        {
-            var s = SessionRules.NewSession(_data, scenario, null, false, false);
-            Assert.That(SessionRules.ReserveLauncher(s, _data).Id, Is.EqualTo(reserve));
-            Assert.That(SessionRules.Headroom(s, _data), Is.EqualTo(room).Within(0.005));
-        }
-
-        [Test]
-        public void SoloOrdersBuyAtOnceUntilOnlyTheRocketIsLeft()
-        {
-            var s = Solo("earth_observation", null);
-            Assert.That(Try(s, CommandType.PlaceOrder, 1), Is.EqualTo("err.cart_empty"));
-            Assert.That(Try(s, CommandType.CartAdd, 1, "batt_small"), Is.EqualTo("err.owned"), "開局設計上的零件已經有了");
-            double dev = SessionRules.DevelopmentMusd(s, _data);
-            Buy(s, "batt_medium");
-            Assert.That(s.Owned, Has.Member("batt_medium"));
-            Assert.That(s.Cart, Is.Empty);
-            Assert.That(SessionRules.DevelopmentMusd(s, _data), Is.EqualTo(dev + Cost("batt_medium")).Within(1e-9), "原價，沒有急件費");
-
-            // 買幾次都行，直到只剩一支飛得到的火箭的錢
-            string blocked = null;
-            foreach (var p in SessionRules.ShelfParts(_data, s).Where(p => !s.Owned.Contains(p.Id)).OrderByDescending(p => p.CostMusd).ToList())
-            {
-                if (p.CostMusd <= SessionRules.Headroom(s, _data)) Buy(s, p.Id);
-                else { blocked = p.Id; break; }
-            }
-            Assume.That(blocked, Is.Not.Null, "型錄全買也碰不到上限");
-            Assert.That(s.Orders.Count, Is.GreaterThan(2), "沒有採購次數限制");
-            Ok(s, Command.Of(CommandType.CartAdd, 1, blocked));
-            Assert.That(Try(s, CommandType.PlaceOrder, 1), Is.EqualTo("err.order_over_cap"));
-            Assert.That(s.Owned, Has.No.Member(blocked));
-            Assert.That(SessionRules.Headroom(s, _data), Is.GreaterThanOrEqualTo(0), "還留得下一支飛得到的火箭");
-            Assert.That(Evaluator.EvaluateDesign(s.Reported, _data, s.DifficultyId, false).ScheduleMonths,
-                Is.EqualTo(Evaluator.EvaluateDesign(s.Bench, _data, s.DifficultyId, false).ScheduleMonths), "買幾次都不會讓時程延後");
-        }
-
-        [Test]
-        public void MoneyFollowsBuyingNotInstalling()
-        {
-            var s = Solo("earth_observation", null);
-            double Dev() => Evaluator.EvaluateDesign(s.Bench, _data, s.DifficultyId, false).Cost.DevelopmentMusd;
-            double dev0 = SessionRules.DevelopmentMusd(s, _data);
-            Assert.That(dev0, Is.EqualTo(_data.Constants.BusBaseCostMusd + s.Owned.Sum(id => _data.Part(id).CostMusd)).Within(1e-9), "開局零件也算錢");
-            Assert.That(Dev(), Is.EqualTo(dev0).Within(1e-9), "儀表板和採購上限用同一筆開發費");
-
-            Buy(s, "batt_medium");
-            double dev1 = dev0 + Cost("batt_medium");
-            Assert.That(Dev(), Is.EqualTo(dev1).Within(1e-9), "買了沒裝也算錢");
-            Ok(s, Command.Of(CommandType.Pick, 1, "batt_medium"));
-            Install(s);
-            Assert.That(Dev(), Is.EqualTo(dev1).Within(1e-9), "裝上去不會再多算");
-            Ok(s, Command.Of(CommandType.Pick, 1, "batt_medium"));
-            Ok(s, Command.Of(CommandType.Drop, 1));
-            Assert.That(Dev(), Is.EqualTo(dev1).Within(1e-9), "買了又拆下來，錢不會回來");
-            var inst = s.Bench.Instruments[0];
-            Ok(s, Command.Of(CommandType.Pick, 1, inst));
-            Ok(s, Command.Of(CommandType.Drop, 1));
-            Assert.That(Dev(), Is.EqualTo(dev1).Within(1e-9), "拆下開局零件，錢也不會回來");
-            Assert.That(SessionRules.DevelopmentMusd(s, _data), Is.EqualTo(dev1).Within(1e-9));
-        }
-
-        [Test]
-        public void TheReservedRocketFollowsTheOrbit()
-        {
-            var s = Solo("earth_observation", null);
-            Assert.That(SessionRules.ReserveLauncher(s, _data).Id, Is.EqualTo("electron"), "共乘飛不到 sso_700");
-            double room = SessionRules.Headroom(s, _data);
-            Ok(s, Command.Of(CommandType.SetOrbit, 1, "geo"));
-            Assert.That(SessionRules.ReserveLauncher(s, _data).Id, Is.EqualTo("falcon9"), "地球同步軌道只有 Falcon 9 以上飛得到");
-            Assert.That(SessionRules.Headroom(s, _data),
-                Is.EqualTo(room - (_data.Launcher("falcon9").CostMusd - _data.Launcher("electron").CostMusd)).Within(1e-9));
-            Assert.That(SessionRules.ReserveLauncher(Solo("wildfire", null), _data).Id, Is.EqualTo("falcon9_rideshare"));
-        }
-
-        [Test]
-        public void MultiplayerOrdersWaitForTheControlRoom()
-        {
-            var s = Duo(true);
-            Ok(s, Command.Of(CommandType.CartAdd, 1, "batt_large"));
-            Ok(s, Command.Of(CommandType.PlaceOrder, 1));
-            Assert.That(s.Request.Parts, Is.EqualTo(new[] { "batt_large" }));
-            Assert.That(s.Owned, Has.No.Member("batt_large"), "還沒批准");
-            Assert.That(s.Cart, Is.Empty);
-            Assert.That(Try(s, CommandType.CartAdd, 1, "batt_large"), Is.EqualTo("err.in_request"));
-            Ok(s, Command.Of(CommandType.CartAdd, 1, "batt_medium"));
-            Assert.That(Try(s, CommandType.PlaceOrder, 1), Is.EqualTo("err.request_pending"), "一次一張");
-            Assert.That(Try(s, CommandType.ApproveOrder, 1), Is.EqualTo("err.strict_control"), "批准是中控室的事");
-
-            // 退回：零件回到購物車，可以改了再送
-            Ok(s, Command.Of(CommandType.RejectOrder, 2));
-            Assert.That(s.Request, Is.Null);
-            Assert.That(s.Rejected.Parts, Is.EqualTo(new[] { "batt_large" }));
-            Assert.That(s.Cart, Is.EquivalentTo(new[] { "batt_medium", "batt_large" }));
-            Assert.That(s.Owned, Has.No.Member("batt_large"));
-
-            // 撤回
-            Ok(s, Command.Of(CommandType.PlaceOrder, 1));
-            Assert.That(s.Rejected, Is.Null, "重新送審，清掉退回的提示");
-            Assert.That(Try(s, CommandType.WithdrawOrder, 2), Is.EqualTo("err.strict_assembly"));
-            Ok(s, Command.Of(CommandType.WithdrawOrder, 1));
-            Assert.That(s.Request, Is.Null);
-            Assert.That(s.Cart.Count, Is.EqualTo(2));
-
-            // 批准才下單。退回、撤回過幾次，單號都還是「批准後是第幾單」，跟採購紀錄對得上
-            Ok(s, Command.Of(CommandType.PlaceOrder, 1));
-            Assert.That(s.Request.N, Is.EqualTo(1));
-            Assert.That(s.Request.Seq, Is.EqualTo(3), "第三次送審");
-            Ok(s, Command.Of(CommandType.ApproveOrder, 2));
-            Assert.That(s.Orders.Single().N, Is.EqualTo(1));
-            Assert.That(s.Request, Is.Null);
-            Assert.That(s.Owned, Is.SupersetOf(new[] { "batt_large", "batt_medium" }));
-            Assert.That(s.Orders.Single().By, Is.EqualTo(1));
-            Assert.That(s.Orders.Single().ApprovedBy, Is.EqualTo(2));
-            Assert.That(Try(s, CommandType.ApproveOrder, 2), Is.EqualTo("err.no_request"));
-
-            Ok(s, Command.Of(CommandType.CartAdd, 1, "ant_sband"));
-            Ok(s, Command.Of(CommandType.PlaceOrder, 1));
-            Assert.That(s.Request.N, Is.EqualTo(2), "下一張是第 2 單");
-        }
-
-        [Test]
-        public void OverTheCapTheAssemblyBayCanSubmitButTheControlRoomCannotApprove()
-        {
-            var s = Duo(false);
-            var all = SessionRules.ShelfParts(_data, s).Where(p => !s.Owned.Contains(p.Id)).Select(p => p.Id).ToList();
-            Assume.That(SessionRules.PartsMusd(s, _data, all), Is.GreaterThan(SessionRules.Headroom(s, _data)));
-            foreach (var id in all) Ok(s, Command.Of(CommandType.CartAdd, 1, id));
-            Ok(s, Command.Of(CommandType.PlaceOrder, 1));
-            Assert.That(s.Request, Is.Not.Null, "送審不擋：組裝區不該從錯誤訊息知道錢的狀況");
-            Assert.That(Try(s, CommandType.ApproveOrder, 2), Is.EqualTo("err.order_over_cap"));
-            Ok(s, Command.Of(CommandType.RejectOrder, 2));
-            Assert.That(s.Orders, Is.Empty);
-        }
-
-        [Test]
-        public void AFailedLaunchStartsTheMissionOver()
-        {
-            var s = Solo("earth_observation", null);
-            var start = s.Bench.Clone();
-            var owned = s.Owned.ToList();
-            double dev0 = SessionRules.DevelopmentMusd(s, _data);
-            Ok(s, Command.Of(CommandType.Call, 1, "engineering", 1));
-            Buy(s, "batt_medium");
-            Ok(s, Command.Of(CommandType.Pick, 1, "batt_medium"));
-            Install(s);
-            Ok(s, Command.Of(CommandType.CartAdd, 1, "solar_deployable"));
-            Ok(s, Command.Of(CommandType.SetGroundStation, 1, "gs_6"));
-            Ok(s, Command.Of(CommandType.SetYears, 1, "", 5));
-            // 電子號到不了地球同步軌道：一定失敗
-            Ok(s, Command.Of(CommandType.SetOrbit, 1, "geo"));
-            Fly(s);
-            Assert.That(s.LastLaunch.Reached, Is.False);
-            Ok(s, Command.Of(CommandType.FinishLaunch, 1));
-
-            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design));
-            Assert.That(s.Restarts, Is.EqualTo(1));
-            foreach (var d in new[] { s.Bench, s.Reported })
-            {
-                Assert.That(d.Parts, Is.EquivalentTo(start.Parts), "整合台和地面站回到開局");
-                Assert.That(d.Instruments, Is.EqualTo(start.Instruments));
-                Assert.That(d.OrbitId, Is.EqualTo(start.OrbitId));
-                Assert.That(d.LauncherId, Is.EqualTo(start.LauncherId));
-                Assert.That(d.MissionYears, Is.EqualTo(start.MissionYears));
-            }
-            Assert.That(s.Owned, Is.EquivalentTo(owned), "買過的全部收回");
-            Assert.That(s.Orders, Is.Empty);
-            Assert.That(s.Cart, Is.Empty);
-            Assert.That(s.Held, Is.Empty);
-            Assert.That(SessionRules.DevelopmentMusd(s, _data), Is.EqualTo(dev0).Within(1e-9), "錢全部回來");
-            Assert.That(s.Calls, Is.Not.Empty, "電話問到的需求保留");
-            Assert.That(s.Launches.Count, Is.EqualTo(1), "發射紀錄保留（評價要用）");
-            Assert.That(s.FailedLaunches, Is.EqualTo(1));
-        }
-
-        [Test]
-        public void RebuildingTheSameDesignRollsANewLaunch()
-        {
-            var s = Solo("earth_observation", null);
-            Ok(s, Command.Of(CommandType.SetOrbit, 1, "geo"));
-            Fly(s);
-            var first = s.LastLaunch;
-            Ok(s, Command.Of(CommandType.FinishLaunch, 1));
-            Ok(s, Command.Of(CommandType.SetOrbit, 1, "geo"));
-            Fly(s);
-            Assert.That(s.LastLaunch.Design.StableHash(), Is.EqualTo(first.Design.StableHash()), "照原樣組回同一個設計");
-            Assert.That(s.LastLaunch.Seed, Is.Not.EqualTo(first.Seed), "種子混入第幾次發射，不會一直擲出同一個結果");
-            Assert.That(first.Seed, Is.EqualTo(first.Design.StableHash()), "第一次發射的種子不變");
-        }
+        // ---------------------------------------------------------------- 預算與營運經費
 
         [Test]
         public void OpsStopWhenTheMoneyRunsOut()
         {
+            // 預算調到發射後只剩半年的營運費（用另一份資料，不動共用的那份）
+            var data = GameDataLoader.Load(TestData.Files());
             var d = TestData.Balanced();
-            var ev = Evaluator.EvaluateDesign(d, _data, "cadet", false);
-            // 開發費調到發射後只剩半年的營運費
-            d.ProcurementMusd = ev.Cost.BudgetMusd - ev.Cost.DevelopmentMusd - ev.Cost.LaunchMusd - ev.Cost.OpsPerYearMusd * 0.5;
-            Assume.That(d.ProcurementMusd, Is.GreaterThan(0));
+            var ev0 = Evaluator.EvaluateDesign(d, data, "cadet", false);
+            data.Scenario(d.ScenarioId).BudgetMusd = ev0.Cost.DevelopmentMusd + ev0.Cost.LaunchMusd + ev0.Cost.OpsPerYearMusd * 0.5;
             MissionResult r = null;
             for (int seed = 1; seed < 20 && (r == null || !r.ReachedOrbit); seed++)
-                r = Simulator.SimulateMission(d, _data, seed, new NoDecisions(), new MissionContext { DifficultyId = "cadet" });
+                r = Simulator.SimulateMission(d, data, seed, new NoDecisions(), new MissionContext { DifficultyId = "cadet" });
             Assume.That(r.ReachedOrbit);
             Assert.That(r.FundedYears, Is.EqualTo(0.5).Within(1e-9));
             Assert.That(r.EndReason, Is.EqualTo(EndReason.Funding));
@@ -700,64 +637,51 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
-        public void NoMoneyLeftAfterLaunchGoesStraightToTheReport()
+        public void FundedYearsFollowTheTickedDesign()
         {
             var s = Solo("earth_observation", null);
-            foreach (var p in SessionRules.ShelfParts(_data, s).Where(p => !s.Owned.Contains(p.Id)).OrderByDescending(p => p.CostMusd).ToList())
-                if (p.CostMusd <= SessionRules.Headroom(s, _data)) Buy(s, p.Id);
-            // 上限只預留電子號；中控室選了 Falcon 9，不擋發射，但營運經費是負的
+            double before = SessionRules.FundedYears(s, _data);
             Ok(s, Command.Of(CommandType.SetLauncher, 1, "falcon9"));
-            Assume.That(SessionRules.FundedYears(s, _data), Is.Zero);
-            Fly(s);
-            Assume.That(s.LastLaunch.Reached, s.LastLaunch.ReasonCode);
-            Ok(s, Command.Of(CommandType.FinishLaunch, 1));
-            Assert.That(s.Phase, Is.EqualTo(SessionPhase.Report), "入軌後直接進評價頁");
-            Assert.That(s.Restarts, Is.Zero, "有入軌，不算失敗、不重來");
-            var r = SessionRules.Result(s, _data);
-            Assert.That(r.EndReason, Is.EqualTo(EndReason.Funding));
-            Assert.That(r.ActualYears, Is.Zero);
+            Assert.That(SessionRules.FundedYears(s, _data), Is.LessThan(before), "火箭越貴，剩下的營運經費撐越短");
         }
 
-        [Test]
-        public void ProcurementBelongsToTheAssemblyBay()
-        {
-            var s = Duo(true);
-            Assert.That(Try(s, CommandType.CartAdd, 2, "batt_large"), Is.EqualTo("err.strict_assembly"));
-            Ok(s, Command.Of(CommandType.CartAdd, 1, "batt_large"));
-            Assert.That(Try(s, CommandType.PlaceOrder, 2), Is.EqualTo("err.strict_assembly"));
-            Ok(s, Command.Of(CommandType.PlaceOrder, 1));
-            Ok(s, Command.Of(CommandType.ApproveOrder, 2));
-            Assert.That(s.Owned, Has.Member("batt_large"));
-        }
+        // ---------------------------------------------------------------- 取捨說明（取代電話）
 
         [Test]
-        public void DialogueFillsNumbersAndRevealsRequirements()
+        public void TradeoffNotesAreListedWithThisMissionsNumbers()
         {
             var s = Solo("earth_observation", "cadet");
-            var ev = Evaluator.EvaluateDesign(s.Reported, _data);
-            var budget = _data.Department("budget_office");
-            var a = Dialogue.Answer(_data, s, "budget_office", budget.Lines[0], ev, Lang.ZhTW);
-            Assert.That(a, Does.Contain("210 M$"), "地球觀測的預算（難度倍率已經併進去）");
-            var reserve = Dialogue.Answer(_data, s, "budget_office", budget.Lines[1], ev, Lang.En);
-            Assert.That(reserve, Does.Contain("15%"));
+            var ev = Evaluator.EvaluateDesign(s.Bench, _data);
+            var notes = Tradeoffs.For(_data, s, ev, Lang.ZhTW);
+            Assert.That(notes.Count, Is.GreaterThanOrEqualTo(8));
+            foreach (var (note, title, text) in notes)
+            {
+                Assert.That(title + text, Does.Not.Contain("{"), note.Id);
+                Assert.That(Departments.Parse(note.Topic), Is.Not.Null, note.Id);
+            }
+            Assert.That(notes.Single(n => n.note.Id == "budget").text, Does.Contain("$210M"), "地球觀測的預算");
+            Assert.That(Tradeoffs.For(_data, s, ev, Lang.En).Single(n => n.note.Id == "target").text, Does.Contain("up to 3"));
+            Assert.That(notes.Single(n => n.note.Id == "battery").text, Does.Contain(ev.Orbit.EclipseMin.ToString("0")));
 
-            var eng = _data.Department("engineering");
-            var battery = Dialogue.Answer(_data, s, "engineering", eng.Lines[1], ev, Lang.En);
-            Assert.That(battery, Does.Not.Contain("{"), battery);
+            // 野火關卡有自己的說明；推薦晨昏軌道那一則只在工程師以上列出
+            var cadet = SessionRules.NewSession(_data, "wildfire", "cadet", false, false);
+            var eng = SessionRules.NewSession(_data, "wildfire", "engineer", false, false);
+            var dir = SessionRules.NewSession(_data, "wildfire", "director", false, false);
+            List<string> Ids(SessionState x) => _data.TradeoffsFor(x.Scenario(_data), x.Difficulty(_data)).Select(t => t.Id).ToList();
+            Assert.That(Ids(cadet), Has.Member("pass_time").And.No.Member("orbit").And.No.Member("more"));
+            Assert.That(Ids(eng), Has.Member("orbit").And.No.Member("more"));
+            Assert.That(Ids(dir), Has.Member("orbit").And.Member("more"));
+            Assert.That(Tradeoffs.For(_data, dir, Evaluator.EvaluateDesign(dir.Bench, _data), Lang.En).Single(n => n.note.Id == "latency").title, Does.Contain("30"));
+        }
 
-            // 學員：熱紅外線這條（衝突第 1 組）不會出現；工程師會
-            var sci = _data.Department("science");
-            Assert.That(Dialogue.Revealed(_data, s, "science", sci.Lines[1]), Is.Empty);
-            Assert.That(Dialogue.Answer(_data, s, "science", sci.Lines[1], ev, Lang.En), Does.Contain("up to 3"));
-            var s2 = Solo("earth_observation", "engineer");
-            Assert.That(Dialogue.Revealed(_data, s2, "science", sci.Lines[1]).Single().PartId, Is.EqualTo("inst_thermal"));
-
-            // 筆記：學員是清單、任務主管不記錄
-            Ok(s, Command.Of(CommandType.Call, 1, "budget_office", 1));
-            Assert.That(Dialogue.Notes(_data, s, ev, Lang.En).Single().Requirements.Single().Type, Is.EqualTo("budget_reserve"));
-            var s3 = Solo("earth_observation", "director");
-            Ok(s3, Command.Of(CommandType.Call, 1, "budget_office", 1));
-            Assert.That(Dialogue.Notes(_data, s3, ev, Lang.En), Is.Empty);
+        [Test]
+        public void EveryRequirementIsListedWithoutAsking()
+        {
+            // 需求直接列在大屏幕上：每個關卡、每個難度都拿得到完整清單，互相拉扯的那幾條照難度開放
+            var eo = _data.Scenario("earth_observation");
+            Assert.That(Departments.Active(eo, _data.Difficulty("cadet")).Select(a => a.Requirement.Id), Has.No.Member("eo_thermal"));
+            Assert.That(Departments.Active(eo, _data.Difficulty("engineer")).Select(a => a.Requirement.Id), Has.Member("eo_thermal").And.No.Member("eo_return_high"));
+            Assert.That(Departments.Active(eo, _data.Difficulty("director")).Select(a => a.Requirement.Id), Has.Member("eo_thermal").And.Member("eo_return_high"));
         }
     }
 }

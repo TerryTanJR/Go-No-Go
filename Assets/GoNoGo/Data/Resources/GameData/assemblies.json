@@ -3,6 +3,7 @@
   "recipes": [
     {
       "category": "instrument",
+      "part_ids": ["inst_visible"],
       "components": [
         { "id": "optics", "name": { "en": "Optics", "zh-TW": "光學鏡組" }, "role": { "en": "Collects light from the ground and brings it to a focus.", "zh-TW": "把地面來的光收集起來，聚成清楚的影像" } },
         { "id": "detector", "name": { "en": "Detector", "zh-TW": "感測器" }, "role": { "en": "Turns the focused light into an electrical signal.", "zh-TW": "把聚好的光變成電訊號" } },
@@ -13,7 +14,73 @@
     },
     {
       "category": "instrument",
-      "part_ids": ["inst_thermal", "inst_fire_mwir_hr"],
+      "part_ids": ["inst_multispectral"],
+      "components": [
+        { "id": "optics", "name": { "en": "Optics", "zh-TW": "光學鏡組" }, "role": { "en": "Collects light from the ground and brings it to a focus.", "zh-TW": "把地面來的光收集起來，聚成清楚的影像" } },
+        { "id": "filter_wheel", "name": { "en": "Filter wheel", "zh-TW": "濾光輪" }, "role": { "en": "Lets one band of colour through at a time, so each picture records a single colour of light.", "zh-TW": "一次只讓一種顏色的光通過，每張影像只記錄一個波段" }, "source": { "title": "NASA Landsat Science: Operational Land Imager", "url": "https://landsat.gsfc.nasa.gov/satellites/landsat-8/spacecraft-instruments/operational-land-imager/", "note": "Multispectral imagers put a band filter in front of the detector for each colour; simplified to a filter wheel for the game." } },
+        { "id": "detector", "name": { "en": "Detector", "zh-TW": "感測器" }, "role": { "en": "Turns the focused light into an electrical signal.", "zh-TW": "把聚好的光變成電訊號" } },
+        { "id": "readout", "name": { "en": "Readout electronics", "zh-TW": "讀出電路" }, "role": { "en": "Turns the signal into digital data and hands it to the onboard computer.", "zh-TW": "把訊號變成數位資料，交給衛星的電腦" } }
+      ],
+      "source": { "title": "NASA Landsat Science: Operational Land Imager", "url": "https://landsat.gsfc.nasa.gov/satellites/landsat-8/spacecraft-instruments/operational-land-imager/", "note": "Multispectral imagers put a band filter in front of the detector for each colour; simplified to a filter wheel for the game." }
+    },
+    {
+      "category": "instrument",
+      "part_ids": ["inst_hyperspectral"],
+      "components": [
+        { "id": "optics", "name": { "en": "Optics", "zh-TW": "光學鏡組" }, "role": { "en": "Collects light from the ground and brings it to a focus.", "zh-TW": "把地面來的光收集起來，聚成清楚的影像" } },
+        { "id": "disperser", "name": { "en": "Dispersive element", "zh-TW": "分光元件" }, "role": { "en": "Spreads the light out like a rainbow into hundreds of narrow colours.", "zh-TW": "把光像彩虹一樣攤開，分成上百種很窄的顏色" }, "source": { "title": "NASA JPL EMIT: Instrument Overview", "url": "https://earth.jpl.nasa.gov/emit/instrument/overview/", "note": "An imaging spectrometer disperses light into hundreds of narrow bands; simplified for the game." } },
+        { "id": "detector", "name": { "en": "Detector", "zh-TW": "感測器" }, "role": { "en": "Turns the focused light into an electrical signal.", "zh-TW": "把聚好的光變成電訊號" } },
+        { "id": "readout", "name": { "en": "Readout electronics", "zh-TW": "讀出電路" }, "role": { "en": "Turns the signal into digital data and hands it to the onboard computer.", "zh-TW": "把訊號變成數位資料，交給衛星的電腦" } }
+      ],
+      "source": { "title": "NASA JPL EMIT: Instrument Overview", "url": "https://earth.jpl.nasa.gov/emit/instrument/overview/", "note": "An imaging spectrometer disperses light into hundreds of narrow bands; simplified for the game." }
+    },
+    {
+      "category": "instrument",
+      "part_ids": ["inst_co2_spectrometer"],
+      "components": [
+        { "id": "optics", "name": { "en": "Optics", "zh-TW": "光學鏡組" }, "role": { "en": "Collects light from the ground and brings it to a focus.", "zh-TW": "把地面來的光收集起來，聚成清楚的影像" } },
+        { "id": "grating", "name": { "en": "Diffraction grating", "zh-TW": "繞射光柵" }, "role": { "en": "A finely ruled surface that splits light so the gaps where a gas absorbed it show up.", "zh-TW": "刻滿細紋的表面，把光分開，看得出哪幾段被氣體吸收掉了" }, "source": { "title": "NASA OCO-2: Instrument", "url": "https://ocov2.jpl.nasa.gov/observatory/instrument/", "note": "OCO-2 carries three grating spectrometers whose detectors are cooled by a cryocooler; simplified for the game." } },
+        { "id": "detector", "name": { "en": "Detector", "zh-TW": "感測器" }, "role": { "en": "Turns the focused light into an electrical signal.", "zh-TW": "把聚好的光變成電訊號" } },
+        { "id": "cryocooler", "name": { "en": "Cryocooler", "zh-TW": "製冷機" }, "role": { "en": "Keeps the detector very cold so it does not see its own heat.", "zh-TW": "把感測器降到很低溫，才不會看到自己的熱" } }
+      ],
+      "source": { "title": "NASA OCO-2: Instrument", "url": "https://ocov2.jpl.nasa.gov/observatory/instrument/", "note": "OCO-2 carries three grating spectrometers whose detectors are cooled by a cryocooler; simplified for the game." }
+    },
+    {
+      "category": "instrument",
+      "part_ids": ["inst_fire_mwir"],
+      "components": [
+        { "id": "optics", "name": { "en": "Optics", "zh-TW": "光學鏡組" }, "role": { "en": "Collects light from the ground and brings it to a focus.", "zh-TW": "把地面來的光收集起來，聚成清楚的影像" } },
+        { "id": "band_filter", "name": { "en": "Narrow-band filter", "zh-TW": "窄波段濾光片" }, "role": { "en": "Passes one narrow slice of light and blocks everything else.", "zh-TW": "只讓一小段特定的光通過，其他的都擋掉" }, "source": { "title": "NASA FIRMS: Active Fire Data", "url": "https://firms.modaps.eosdis.nasa.gov/", "note": "Fire detectors watch a narrow mid-infrared band near 4 micrometres; lightning imagers use a narrow band at 777 nm. Simplified for the game." } },
+        { "id": "detector", "name": { "en": "Detector", "zh-TW": "感測器" }, "role": { "en": "Turns the focused light into an electrical signal.", "zh-TW": "把聚好的光變成電訊號" } },
+        { "id": "readout", "name": { "en": "Readout electronics", "zh-TW": "讀出電路" }, "role": { "en": "Turns the signal into digital data and hands it to the onboard computer.", "zh-TW": "把訊號變成數位資料，交給衛星的電腦" } }
+      ],
+      "source": { "title": "NASA FIRMS: Active Fire Data", "url": "https://firms.modaps.eosdis.nasa.gov/", "note": "Fire detectors watch a narrow mid-infrared band near 4 micrometres; lightning imagers use a narrow band at 777 nm. Simplified for the game." }
+    },
+    {
+      "category": "instrument",
+      "part_ids": ["inst_lightning"],
+      "components": [
+        { "id": "optics", "name": { "en": "Optics", "zh-TW": "光學鏡組" }, "role": { "en": "Collects light from the ground and brings it to a focus.", "zh-TW": "把地面來的光收集起來，聚成清楚的影像" } },
+        { "id": "band_filter", "name": { "en": "Narrow-band filter", "zh-TW": "窄波段濾光片" }, "role": { "en": "Passes one narrow slice of light and blocks everything else.", "zh-TW": "只讓一小段特定的光通過，其他的都擋掉" }, "source": { "title": "NASA FIRMS: Active Fire Data", "url": "https://firms.modaps.eosdis.nasa.gov/", "note": "Fire detectors watch a narrow mid-infrared band near 4 micrometres; lightning imagers use a narrow band at 777 nm. Simplified for the game." } },
+        { "id": "detector", "name": { "en": "Detector", "zh-TW": "感測器" }, "role": { "en": "Turns the focused light into an electrical signal.", "zh-TW": "把聚好的光變成電訊號" } },
+        { "id": "event_processor", "name": { "en": "Real-time event processor", "zh-TW": "即時事件處理器" }, "role": { "en": "Compares every frame with the one before and keeps only the sudden flashes.", "zh-TW": "每一格都和前一格比，只留下突然亮起來的閃光" }, "source": { "title": "NASA GHRC: Lightning and Atmospheric Electricity Research", "url": "https://ghrc.nsstc.nasa.gov/lightning/", "note": "The Lightning Imaging Sensor subtracts the background frame by frame to pick out lightning events; simplified for the game." } }
+      ],
+      "source": { "title": "NASA GHRC: Lightning and Atmospheric Electricity Research", "url": "https://ghrc.nsstc.nasa.gov/lightning/", "note": "The Lightning Imaging Sensor subtracts the background frame by frame to pick out lightning events; simplified for the game." }
+    },
+    {
+      "category": "instrument",
+      "part_ids": ["inst_laser_altimeter"],
+      "components": [
+        { "id": "pulse_laser", "name": { "en": "Pulsed laser", "zh-TW": "脈衝雷射" }, "role": { "en": "Fires very short flashes of laser light down at the ground.", "zh-TW": "向地面打出一下一下、非常短的雷射光" }, "source": { "title": "NASA ICESat-2: Space Lasers", "url": "https://icesat-2.gsfc.nasa.gov/space-lasers", "note": "A laser altimeter fires pulses and times their return; simplified for the game." } },
+        { "id": "optics", "name": { "en": "Optics", "zh-TW": "光學鏡組" }, "role": { "en": "Collects light from the ground and brings it to a focus.", "zh-TW": "把地面來的光收集起來，聚成清楚的影像" } },
+        { "id": "detector", "name": { "en": "Detector", "zh-TW": "感測器" }, "role": { "en": "Turns the focused light into an electrical signal.", "zh-TW": "把聚好的光變成電訊號" } },
+        { "id": "timer", "name": { "en": "Timing electronics", "zh-TW": "計時電路" }, "role": { "en": "Times each flash on its trip down and back; the time gives the height of the ground.", "zh-TW": "量每一道光來回花多久，時間就換算成地面的高度" }, "source": { "title": "NASA ICESat-2: Space Lasers", "url": "https://icesat-2.gsfc.nasa.gov/space-lasers", "note": "Height comes from the round-trip travel time of each laser pulse; simplified for the game." } }
+      ],
+      "source": { "title": "NASA ICESat-2: Space Lasers", "url": "https://icesat-2.gsfc.nasa.gov/space-lasers", "note": "A laser altimeter fires pulses and times their return; simplified for the game." }
+    },
+    {
+      "category": "instrument",
+      "part_ids": ["inst_thermal"],
       "components": [
         { "id": "optics", "name": { "en": "Optics", "zh-TW": "光學鏡組" }, "role": { "en": "Collects light from the ground and brings it to a focus.", "zh-TW": "把地面來的光收集起來，聚成清楚的影像" } },
         { "id": "detector", "name": { "en": "Detector", "zh-TW": "感測器" }, "role": { "en": "Turns the focused light into an electrical signal.", "zh-TW": "把聚好的光變成電訊號" } },
@@ -35,14 +102,14 @@
     },
     {
       "category": "instrument",
-      "part_ids": ["inst_magnetometer", "inst_ais", "inst_particle", "inst_microwave_radiometer"],
+      "part_ids": ["inst_magnetometer"],
       "components": [
-        { "id": "sensor_head", "name": { "en": "Sensor head", "zh-TW": "感測頭" }, "role": { "en": "Feels the thing being measured directly: a field, particles or radio waves.", "zh-TW": "直接感應要量的東西：磁場、粒子或無線電波" } },
+        { "id": "sensor_head", "name": { "en": "Sensor head", "zh-TW": "感測頭" }, "role": { "en": "Feels the magnetic field around the spacecraft directly.", "zh-TW": "直接感應衛星周圍的磁場" } },
         { "id": "boom", "name": { "en": "Boom", "zh-TW": "伸展桿" }, "role": { "en": "Holds the sensor away from the spacecraft's own interference.", "zh-TW": "把感測頭撐離機身，避開衛星自己的干擾" } },
         { "id": "readout", "name": { "en": "Readout electronics", "zh-TW": "讀出電路" }, "role": { "en": "Turns the signal into digital data and hands it to the onboard computer.", "zh-TW": "把訊號變成數位資料，交給衛星的電腦" } },
         { "id": "housing", "name": { "en": "Housing", "zh-TW": "外殼" }, "role": { "en": "Holds everything in place through the shaking of launch.", "zh-TW": "把裡面的東西固定住，撐過發射時的振動" } }
       ],
-      "source": { "title": "NASA Small Spacecraft Technology State-of-the-Art Report", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/", "note": "In-situ and radio sensors; simplified for the game." }
+      "source": { "title": "NASA Small Spacecraft Technology State-of-the-Art Report", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/", "note": "In-situ field sensors; simplified for the game." }
     },
     {
       "category": "solar",

@@ -40,6 +40,7 @@ namespace GoNoGo.UI
         {
             if (id != null && id.StartsWith("ops:")) return new OpsConsolePanel(id.Substring(4));
             if (id != null && id.StartsWith("manual:")) return new ManualPanel(id.Substring(7));
+            if (id != null && id.StartsWith("clue:")) return new CluePanel(id.Substring(5));
             if (id != null && id.StartsWith("minigame:"))
             {
                 var parts = id.Split(':');
@@ -51,23 +52,16 @@ namespace GoNoGo.UI
                 "briefing" => new BriefingPanel(),
                 "lobby" => new LobbyPanel(),
                 "lobby_start" => new LobbyStartPanel(),
-                "dashboard" => new DashboardPanel(),
-                "goals" => new GoalsPanel(),
-                "procure" => new ProcurePanel(),
+                "select" => new SelectPanel(),
+                "bay" => new BayPanel(),
                 "codex" => new CodexPanel(),
                 "designs" => new DesignsPanel(),
-                "manual" => new ManualIndexPanel(),
-                "phone" => new PhonePanel(),
-                "notes" => new NotesPanel(),
-                "mission" => new MissionConsolePanel(),
                 "launch" => new LaunchPanel(),
                 "failures" => new FailuresPanel(),
                 "tablet" => new TabletPanel(),
                 "ops_desk" => new OpsDeskPanel(),
                 "minigame" => new MinigamePanel(),
                 "minigame_debug" => new MinigameDebugPanel(),
-                // 組裝區的手冊：嚴格分工時只有代號與用途（數字在中控室）
-                "bay_manual" => M.S.StrictRoles && M.S.Multiplayer ? new BayManualPanel() : new ManualPanel(),
                 _ => null,
             };
         }

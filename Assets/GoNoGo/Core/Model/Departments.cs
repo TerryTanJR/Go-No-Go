@@ -4,10 +4,13 @@ using System.Linq;
 
 namespace GoNoGo.Core
 {
-    /// <summary>中控室電話可以撥的五個處室。每個處室提出自己的需求，有些彼此衝突。</summary>
+    /// <summary>
+    /// 任務需求的五個分類（原本是五個處室；現在需求直接列在大屏幕上，這只是分類，畫面上不用部門的名義）。
+    /// 有些需求彼此拉扯（取捨）。
+    /// </summary>
     public enum Department { MissionLead, BudgetOffice, Science, Engineering, Comms }
 
-    /// <summary>一條這一局有效的處室需求。</summary>
+    /// <summary>一條這一局有效的任務需求。</summary>
     public sealed class ActiveRequirement
     {
         public Department Department { get; set; }
@@ -35,7 +38,7 @@ namespace GoNoGo.Core
             return null;
         }
 
-        /// <summary>這個情境、這個難度下有效的全部需求（衝突需求依難度開放）。順序固定：依處室、再依資料順序。</summary>
+        /// <summary>這個情境、這個難度下有效的全部需求（互相拉扯的需求依難度開放）。順序固定：依分類、再依資料順序。</summary>
         public static List<ActiveRequirement> Active(ScenarioDef s, DifficultyDef diff)
         {
             var list = new List<ActiveRequirement>();

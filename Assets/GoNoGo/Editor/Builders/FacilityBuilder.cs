@@ -11,8 +11,9 @@ namespace GoNoGo.EditorTools
 {
     /// <summary>
     /// MainMenu 與 Facility 場景。
-    /// Facility 是一個場景裡的三個區域：組裝區（x -9…11、z -8…8）、中控室（x 12…34，中間一道自動門）、
-    /// 大廳（z 34…50，多人才用，開始任務時傳送過去）。營運時中控室大螢幕顯示遠處（y -400）的地球縮景。
+    /// Facility 是一個場景裡的三個區域：組裝區（小零件架、兩座組裝台、整合台）、中控室（前方的大屏幕、線索區、
+    /// 發射鈕、營運席；和組裝區之間一道永遠開著的自動門）、大廳（z 34…58，多人才用，開始任務時傳送到中控室）。
+    /// 營運時中控室的大屏幕顯示遠處（y -400）的地球縮景。
     /// </summary>
     public static partial class SceneBuilder
     {
@@ -109,11 +110,13 @@ namespace GoNoGo.EditorTools
 
             BuildShell(art, fm, root, bay, ctrl);
             var stand = BuildStand(art, fm, bay);
-            var delivery = BuildDelivery(art, fm, bay);
+            BuildShelves(art, fm, bay);
             BuildBayDecor(art, fm, bay);
             BuildBayConsoles(art, fm, bay);
+            BuildBayClues(art, fm, bay);
             BuildBayRing(art, fm, BuildUtil.Group("AssemblyRing", root), sphere);
             BuildControlRoom(art, fm, ctrl);
+            BuildControlClues(art, fm, ctrl);
             BuildControlDecor(art, fm, ctrl);
             BuildLobby(art, fm, lobby, sphere);
             var opsView = BuildDiorama(art, sphere, sun, rt);
@@ -134,13 +137,12 @@ namespace GoNoGo.EditorTools
             cam.backgroundColor = new Color(0.02f, 0.025f, 0.03f);
 
             var dir = new GameObject("FacilityDirector").AddComponent<FacilityDirector>();
-            dir.assemblySpawn = Spawn("AssemblySpawn", new Vector3(0, 0.05f, -5.2f), 0);
+            // 不分組：所有人開局都生成在中控室（面向前方的大屏幕）；營運開始時也回到這裡
             dir.controlSpawn = Spawn("ControlSpawn", new Vector3(CtrlX0 + 3f, 0.05f, 0), 90);
             dir.opsSpawn = Spawn("OpsSpawn", new Vector3(CtrlX0 + 4.5f, 0.05f, 0), 90);
             dir.lobbySpawn = Spawn("LobbySpawn", new Vector3(0, 0.05f, 38f), 0);
             dir.playerCamera = cam;
             dir.stand = stand;
-            dir.delivery = delivery;
             dir.areaSplitX = DivX;
             dir.lobbyMinZ = 30f;
 
@@ -340,12 +342,7 @@ namespace GoNoGo.EditorTools
             return stand;
         }
 
-        // ---------------- 收貨窗口與輸送帶 ----------------
-
-        /// <summary>輸送帶：從西北角的收貨窗口出來，沿北牆往東走到末端擋板。皮帶面高 BeltY、中心線 z = BeltZ。</summary>
-        const float BeltY = 0.86f, BeltZ = BayZ - 0.85f, BeltW = 1.1f, BeltX0 = BayX0 + 0.1f, BeltX1 = 6.3f;
-        /// <summary>收貨窗口的外框（x BayX0…BoothX、z BoothZ0…BayZ），開口朝東。</summary>
-        const float BoothX = BayX0 + 2f, BoothZ0 = BayZ - 1.7f, BoothH = 2.6f, OpenH = 1.5f;
+        // ---------------- 小零件架 ----------------
 
         static Material _hazardStripe, _steel, _rubber;
 
@@ -359,158 +356,384 @@ namespace GoNoGo.EditorTools
             return m;
         }
 
-        static DeliveryConveyor BuildDelivery(ArtBuilder.Art art, FacMats fm, Transform bay)
+        const int ShelfUnits = 5, ShelfCols = 5, ShelfRows = 2;
+
+        /// <summary>
+        /// 小零件架：北牆一排五座，每座上下兩層、每層五格（共 50 格，一格一種小零件）。所有配方會用到的小零件都在架上，
+        /// 包括這次設計用不到的；哪一格放什麼由 GameData.ShelfComponents 決定，執行時 <see cref="CompBin"/> 擺上模型和名稱。
+        /// 架子不提示該拿什麼，不限數量，拿走會補。取代原本的收貨口和輸送帶。局部 -Z 是拿零件的人那一面（朝南）。
+        /// </summary>
+        static void BuildShelves(ArtBuilder.Art art, FacMats fm, Transform bay)
         {
             _hazardStripe = HazardStripe("M_HazardStripe", Vector2.one);
             _steel = BuildUtil.Lit("M_Steel", new Color(0.62f, 0.64f, 0.68f), 0.9f, 0.6f);
             _rubber = BuildUtil.Lit("M_Rubber", new Color(0.05f, 0.05f, 0.055f), 0f, 0.2f);
-            var booth = BuildUtil.Lit("M_DeliveryBooth", new Color(0.16f, 0.3f, 0.48f), 0.3f, 0.55f);
-            var curtain = BuildUtil.Lit("M_StripCurtain", new Color(0.5f, 0.62f, 0.68f), 0.1f, 0.92f);
-            var lamp = BuildUtil.Unlit("M_StatusLamp", new Color(0.2f, 1.6f, 0.5f));
+            var body = BuildUtil.Lit("M_DeliveryBooth", new Color(0.16f, 0.3f, 0.48f), 0.3f, 0.55f);
 
-            var go = new GameObject("DeliveryConveyor");
-            go.transform.SetParent(bay, false);
-            var t = go.transform;
-            var conv = go.AddComponent<DeliveryConveyor>();
-
-            // ---- 收貨窗口：牆角凸出來的一座機台，開口有黃黑框和塑膠簾 ----
-            float bx = (BayX0 + BoothX) / 2, bw = BoothX - BayX0, bz = (BoothZ0 + BayZ) / 2, bd = BayZ - BoothZ0;
-            float side = 0.24f, openZ0 = BoothZ0 + side, openZ1 = BayZ - side, openW = openZ1 - openZ0;
-            Solid("BoothTop", t, new Vector3(bx, (OpenH + BoothH) / 2, bz), new Vector3(bw, BoothH - OpenH, bd), booth, true);
-            Solid("BoothS", t, new Vector3(bx, OpenH / 2, BoothZ0 + side / 2), new Vector3(bw, OpenH, side), booth, true);
-            Solid("BoothN", t, new Vector3(bx, OpenH / 2, BayZ - side / 2), new Vector3(bw, OpenH, side), booth, true);
-            Box("BoothBase", t, new Vector3(bx, 0.28f, bz), new Vector3(bw, 0.56f, openW), art.wallDark, shadows: false);
-            Box("TunnelBack", t, new Vector3(BayX0 + 0.02f, OpenH / 2, bz), new Vector3(0.04f, OpenH, openW), art.wallDark, shadows: false);
-            Box("BoothCap", t, new Vector3(bx + 0.02f, BoothH + 0.03f, bz), new Vector3(bw + 0.08f, 0.06f, bd + 0.04f), art.trim, shadows: false);
-            Box("BoothStripe", t, new Vector3(BoothX + 0.005f, OpenH + 0.86f, bz), new Vector3(0.02f, 0.04f, bd), art.accentGlow, shadows: false);
-            // 開口上方的指示板：三個朝下的箭頭指著出貨口
-            Box("SignPlate", t, new Vector3(BoothX + 0.015f, OpenH + 0.45f, bz), new Vector3(0.03f, 0.5f, bd - 0.3f), art.wallDark, shadows: false);
-            for (int i = 0; i < 3; i++)
+            var root = BuildUtil.Group("CompShelf", bay);
+            const float pitch = 0.64f, gap = 0.6f;
+            float unitW = ShelfCols * pitch + 0.2f;
+            float total = ShelfUnits * unitW + (ShelfUnits - 1) * gap;
+            float z = BayZ - 0.62f;
+            float[] rowY = { 0.62f, 1.34f };
+            int index = 0;
+            for (int u = 0; u < ShelfUnits; u++)
             {
-                float az = bz - 0.36f + i * 0.36f;
-                Box("ArrowA", t, new Vector3(BoothX + 0.035f, OpenH + 0.45f, az - 0.055f), new Vector3(0.01f, 0.04f, 0.15f), art.accentGlow, Quaternion.Euler(40f, 0, 0), false);
-                Box("ArrowB", t, new Vector3(BoothX + 0.035f, OpenH + 0.45f, az + 0.055f), new Vector3(0.01f, 0.04f, 0.15f), art.accentGlow, Quaternion.Euler(-40f, 0, 0), false);
+                var t = BuildUtil.Group("Shelf" + u, root);
+                t.localPosition = new Vector3(-total / 2 + unitW / 2 + u * (unitW + gap), 0, z);
+                // 櫃體：背板、兩側立柱、底座（擋人）、每層一片層板、頂上一條燈
+                Solid("Back", t, new Vector3(0, 1.1f, 0.3f), new Vector3(unitW, 2.2f, 0.08f), body, true);
+                foreach (float sx in new[] { -1f, 1f })
+                    Box("Upright", t, new Vector3(sx * (unitW / 2 - 0.04f), 1.1f, 0), new Vector3(0.08f, 2.2f, 0.62f), _steel);
+                Solid("Plinth", t, new Vector3(0, 0.29f, 0), new Vector3(unitW, 0.58f, 0.6f), art.consoleBody, true);
+                Box("PlinthStripe", t, new Vector3(0, 0.5f, -0.305f), new Vector3(unitW - 0.2f, 0.05f, 0.012f), _hazardStripe, shadows: false);
+                Box("Top", t, new Vector3(0, 2.2f, 0), new Vector3(unitW + 0.06f, 0.06f, 0.66f), art.trim);
+                Box("Lamp", t, new Vector3(0, 2.15f, -0.18f), new Vector3(unitW - 0.3f, 0.03f, 0.14f), art.lightPanel, shadows: false);
+                var lamp = BuildUtil.Light("ShelfLight", LightType.Spot, new Color(1f, 0.96f, 0.88f), 8f, Vector3.zero, Quaternion.identity, 4.5f, LightShadows.None, t);
+                lamp.transform.localPosition = new Vector3(0, 2.7f, -1.1f);
+                lamp.transform.localRotation = Quaternion.LookRotation(new Vector3(0, -1.5f, 1f));
+                lamp.spotAngle = 95f;
+                // 上層先編號（一格一個 CompBin）
+                for (int r = ShelfRows - 1; r >= 0; r--)
+                {
+                    Box("Board" + r, t, new Vector3(0, rowY[r] - 0.02f, 0), new Vector3(unitW - 0.16f, 0.04f, 0.6f), _steel);
+                    Box("BoardGlow" + r, t, new Vector3(0, rowY[r] - 0.02f, -0.305f), new Vector3(unitW - 0.2f, 0.025f, 0.012f), art.accentGlow, shadows: false);
+                    for (int c = 0; c < ShelfCols; c++)
+                    {
+                        var bin = new GameObject("Bin" + index);
+                        bin.transform.SetParent(t, false);
+                        bin.transform.localPosition = new Vector3((c - (ShelfCols - 1) / 2f) * pitch, rowY[r], -0.03f);
+                        var bt = bin.transform;
+                        Box("Base", bt, new Vector3(0, 0.01f, 0), new Vector3(0.54f, 0.02f, 0.46f), art.wallDark, shadows: false);
+                        Box("RimB", bt, new Vector3(0, 0.05f, 0.22f), new Vector3(0.54f, 0.08f, 0.02f), art.consoleBody, shadows: false);
+                        Box("RimL", bt, new Vector3(-0.26f, 0.05f, 0), new Vector3(0.02f, 0.08f, 0.46f), art.consoleBody, shadows: false);
+                        Box("RimR", bt, new Vector3(0.26f, 0.05f, 0), new Vector3(0.02f, 0.08f, 0.46f), art.consoleBody, shadows: false);
+                        var led = Box("Led", bt, new Vector3(0, 0.03f, -0.235f), new Vector3(0.34f, 0.03f, 0.012f), fm.glow, shadows: false);
+                        var slot = new GameObject("Slot").transform;
+                        slot.SetParent(bt, false);
+                        slot.localPosition = new Vector3(0, 0.022f, 0);
+                        var col = bin.AddComponent<BoxCollider>();
+                        col.center = new Vector3(0, 0.2f, 0);
+                        col.size = new Vector3(0.56f, 0.4f, 0.5f);
+                        var cb = bin.AddComponent<CompBin>();
+                        cb.index = index++;
+                        cb.slot = slot;
+                        cb.glow = led.GetComponent<Renderer>();
+                    }
+                }
             }
-            // 開口的黃黑框
-            Box("FrameS", t, new Vector3(BoothX + 0.05f, OpenH / 2, openZ0 - 0.06f), new Vector3(0.1f, OpenH + 0.12f, 0.14f), _hazardStripe, shadows: false);
-            Box("FrameN", t, new Vector3(BoothX + 0.05f, OpenH / 2, openZ1 + 0.06f), new Vector3(0.1f, OpenH + 0.12f, 0.14f), _hazardStripe, shadows: false);
-            Box("FrameTop", t, new Vector3(BoothX + 0.05f, OpenH + 0.06f, bz), new Vector3(0.1f, 0.14f, openW + 0.26f), _hazardStripe, shadows: false);
-            // 窗口裡的暖色燈：讓開口看起來是通往倉庫的通道
-            var inside = BuildUtil.Light("TunnelLight", LightType.Point, new Color(1f, 0.72f, 0.4f), 2.2f, new Vector3(BayX0 + 0.5f, 1.2f, bz), Quaternion.identity, 2.4f, LightShadows.None, t);
-            inside.renderMode = LightRenderMode.ForcePixel;
+            Label(root, "ui.fac.shelf", new Vector3(0, 3.0f, z - 0.2f), "sign", 22f);
+            // 架子前的地面警示線
+            var floorStripe = HazardStripe("M_HazardFloor", new Vector2(total / 0.3f, 1f));
+            Quad("FloorStripe", root, new Vector3(0, 0.004f, z - 0.8f), Quaternion.Euler(90, 0, 0), new Vector2(total + 0.4f, 0.12f), floorStripe);
+        }
 
-            // 塑膠簾：樞紐在開口上緣，零件經過時往東掀
-            const int strips = 6;
-            var flaps = new Transform[strips];
-            float sw = openW / strips;
-            for (int i = 0; i < strips; i++)
+        /// <summary>小零件架每一座的中心 x（組裝區的線索擺在架子之間的牆上）。</summary>
+        static float ShelfGapX(int gapIndex)
+        {
+            const float pitch = 0.64f, gap = 0.6f;
+            float unitW = ShelfCols * pitch + 0.2f;
+            float total = ShelfUnits * unitW + (ShelfUnits - 1) * gap;
+            return -total / 2 + unitW + gap / 2 + gapIndex * (unitW + gap);
+        }
+
+        // ---------------- 線索的外觀 ----------------
+
+        static readonly Dictionary<string, Material> _clueMats = new Dictionary<string, Material>();
+
+        /// <summary>
+        /// 線索的表面材質（程序貼圖：看得出是寫了東西的紙、畫了圖的板子，但讀不出內容——要靠近按 E 放大才看得到）。
+        /// kind：paper（草稿紙）、blueprint（設計圖）、whiteboard、blackboard。用 Lit 材質，準星對到時會微微發亮。
+        /// </summary>
+        static Material ClueMat(string kind)
+        {
+            if (_clueMats.TryGetValue(kind, out var cached) && cached != null) return cached;
+            Texture2D tex;
+            switch (kind)
             {
-                var pivot = BuildUtil.Group("Flap" + i, t);
-                pivot.localPosition = new Vector3(BoothX - 0.08f, OpenH - 0.01f, openZ0 + sw * (i + 0.5f));
-                Box("Strip", pivot, new Vector3(0, -(OpenH - BeltY) / 2, 0), new Vector3(0.012f, OpenH - BeltY - 0.02f, sw - 0.012f), curtain, shadows: false);
-                flaps[i] = pivot;
+                case "blueprint":
+                    tex = BuildUtil.SavePng("T_ClueBlueprint", 256, 192, (x, y) =>
+                    {
+                        var c = new Color(0.07f, 0.2f, 0.47f);
+                        if (x % 16 == 0 || y % 16 == 0) c = Color.Lerp(c, Color.white, 0.12f);
+                        // 中間一個外框和幾條尺寸線
+                        bool frame = (x > 60 && x < 196 && (y == 56 || y == 136)) || (y > 56 && y < 136 && (x == 61 || x == 195));
+                        bool dim = (y == 160 && x > 60 && x < 196) || (x == 220 && y > 56 && y < 136) || (y == 32 && x > 60 && x < 196);
+                        if (frame || dim) c = new Color(0.85f, 0.92f, 1f);
+                        if (x < 6 || y < 6 || x > 249 || y > 185) c = new Color(0.8f, 0.86f, 0.95f);
+                        return c;
+                    }, wrap: TextureWrapMode.Clamp);
+                    break;
+                case "whiteboard":
+                    tex = BuildUtil.SavePng("T_ClueWhiteboard", 256, 144, (x, y) =>
+                    {
+                        var c = new Color(0.93f, 0.94f, 0.95f);
+                        // 幾條彩色白板筆的線：一張長條圖和兩行字
+                        if (y > 24 && y < 100 && x > 40 && x < 180 && (x - 40) % 36 < 20 && y < 30 + ((x - 40) / 36 + 1) * 16) c = new Color(0.15f, 0.42f, 0.85f);
+                        if (y == 24 && x > 30 && x < 190) c = new Color(0.1f, 0.1f, 0.12f);
+                        if ((y == 116 || y == 126) && x > 30 && x < 210 && (x / 9) % 4 != 0) c = new Color(0.82f, 0.2f, 0.18f);
+                        if (x > 200 && x < 236 && y > 40 && y < 84 && ((x + y) % 11 < 2)) c = new Color(0.1f, 0.55f, 0.3f);
+                        return c;
+                    }, wrap: TextureWrapMode.Clamp);
+                    break;
+                case "blackboard":
+                    tex = BuildUtil.SavePng("T_ClueBlackboard", 256, 144, (x, y) =>
+                    {
+                        float n = BuildUtil.Noise(x * 0.07f, y * 0.07f, 3) * 0.04f;
+                        var c = new Color(0.07f + n, 0.19f + n, 0.14f + n);
+                        var chalk = new Color(0.86f, 0.88f, 0.84f);
+                        // 粉筆畫的方塊、箭頭和幾行字
+                        bool box = (x > 40 && x < 120 && (y == 50 || y == 100)) || (y > 50 && y < 100 && (x == 41 || x == 119));
+                        bool arrow = (y == 75 && x > 124 && x < 170) || (x > 160 && x < 170 && System.Math.Abs(y - 75) == 170 - x);
+                        bool text = (y == 60 || y == 72 || y == 84) && x > 178 && x < 236 && (x / 7) % 5 != 0;
+                        bool under = y == 120 && x > 40 && x < 200 && (x / 13) % 3 != 0;
+                        if (box || arrow || text || under) c = chalk;
+                        return c;
+                    }, wrap: TextureWrapMode.Clamp);
+                    break;
+                default:
+                    tex = BuildUtil.SavePng("T_CluePaper", 128, 160, (x, y) =>
+                    {
+                        float n = BuildUtil.Noise(x * 0.11f, y * 0.11f, 7) * 0.05f;
+                        var c = new Color(0.93f - n, 0.91f - n, 0.83f - n);
+                        // 一行一行的字跡（中間斷開）、一個表格的框、最上面一條標題
+                        bool line = y > 18 && y < 104 && y % 9 < 2 && x > 12 && x < 116 && ((x + y * 3) / 11) % 4 != 0;
+                        bool title = y > 138 && y < 146 && x > 12 && x < 84;
+                        bool grid = y > 108 && y < 132 && x > 12 && x < 116 && (y % 8 == 0 || x % 26 == 12);
+                        if (line || grid) c = new Color(0.22f, 0.24f, 0.32f);
+                        if (title) c = new Color(0.12f, 0.14f, 0.2f);
+                        return c;
+                    }, wrap: TextureWrapMode.Clamp);
+                    break;
             }
+            var m = BuildUtil.Lit("M_Clue_" + kind, Color.white, 0f, 0.15f, tex);
+            _clueMats[kind] = m;
+            return m;
+        }
 
-            // 頂上的狀態燈（閒置綠、出貨琥珀）和出貨時旋轉的警示燈
-            var cyl = HiCylinder();
-            var lampBase = MeshObj("LampBase", t, cyl, art.trim, new Vector3(bx, BoothH + 0.1f, bz), 1f);
-            lampBase.transform.localScale = new Vector3(0.32f, 0.04f, 0.32f);
-            var dome = BuildUtil.Prim(PrimitiveType.Sphere, "StatusLamp", t, new Vector3(bx, BoothH + 0.22f, bz), Vector3.one * 0.24f, lamp);
-            dome.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
-            var spin = BuildUtil.Group("Beacon", t);
-            spin.localPosition = new Vector3(bx, BoothH + 0.22f, bz);
-            var bl = BuildUtil.Light("BeaconLight", LightType.Spot, new Color(1f, 0.6f, 0.15f), 7f, spin.position, Quaternion.LookRotation(new Vector3(1f, -0.25f, 0f)), 12f, LightShadows.None, spin);
-            bl.spotAngle = 55f;
-            bl.innerSpotAngle = 20f;
-            Label(t, "ui.fac.delivery", new Vector3(BoothX + 0.1f, BoothH + 0.75f, bz), "sign", 22f);
+        /// <summary>
+        /// 一個放線索的位置（平面的：紙、設計圖、白板、黑板）。物件名稱是 Clue_ 加位置 id（新手訓練的標記找這個名字）。
+        /// Quad 正面朝局部 -Z：yaw 0 = 掛在北牆朝南、180 = 掛在南牆朝北、-90 = 掛在西牆朝東、90 = 掛在東牆朝西。
+        /// </summary>
+        static GameObject ClueFlat(Transform parent, string spotId, Vector3 pos, float yaw, Vector2 size, Material face, float roll = 0f, float range = 2.6f)
+        {
+            var go = new GameObject("Clue_" + spotId);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = pos;
+            go.transform.localRotation = Quaternion.Euler(0, yaw, roll);
+            var q = Quad("Face", go.transform, Vector3.zero, Quaternion.identity, size, face);
+            var col = go.AddComponent<BoxCollider>();
+            col.size = new Vector3(size.x, size.y, 0.08f);
+            var cs = go.AddComponent<ClueSpot>();
+            cs.spotId = spotId;
+            cs.glow = q.GetComponent<Renderer>();
+            cs.range = range;
+            return go;
+        }
 
-            // ---- 輸送帶 ----
-            float len = BeltX1 - BeltX0, cx = (BeltX0 + BeltX1) / 2;
-            const float beltTile = 0.25f;
-            var beltTex = BuildUtil.SavePng("T_ConveyorBelt", 64, 64, (x, y) =>
+        /// <summary>組裝區的線索：西牆和北牆上的四張設計圖、小零件架之間的面板上夾著的三張便條。</summary>
+        static void BuildBayClues(ArtBuilder.Art art, FacMats fm, Transform bay)
+        {
+            var g = BuildUtil.Group("BayClues", bay);
+            var print = ClueMat("blueprint");
+            var paper = ClueMat("paper");
+            var size = new Vector2(1.15f, 0.86f);
+            void Print(string id, Vector3 pos, float yaw)
             {
-                float v = 0.13f + ((x * 7 + y * 13) % 5) * 0.004f;
-                if (x % 64 < 6) v = 0.24f;            // 橫向的防滑肋
-                else if (x % 64 < 9) v = 0.07f;
-                return new Color(v, v, v * 1.05f);
+                var go = ClueFlat(g, id, pos, yaw, size, print);
+                // 背板（局部 +Z 是牆那一面）、四個角的磁鐵、下緣的夾條
+                Box("Backing", go.transform, new Vector3(0, 0, 0.025f), new Vector3(size.x + 0.16f, size.y + 0.16f, 0.03f), art.consoleBody, shadows: false);
+                foreach (float sx in new[] { -1f, 1f })
+                    foreach (float sy in new[] { -1f, 1f })
+                        Box("Magnet", go.transform, new Vector3(sx * (size.x / 2 - 0.05f), sy * (size.y / 2 - 0.05f), -0.012f), new Vector3(0.05f, 0.05f, 0.02f), fm.hazard, shadows: false);
+                Box("Rail", go.transform, new Vector3(0, -size.y / 2 - 0.02f, -0.005f), new Vector3(size.x + 0.06f, 0.03f, 0.02f), _steel, shadows: false);
+            }
+            // 西牆（朝東）：徽章北邊
+            Print("print_1", new Vector3(BayX0 + 0.06f, 1.95f, 8.6f), -90f);
+            Print("print_2", new Vector3(BayX0 + 0.06f, 1.95f, 6.0f), -90f);
+            // 北牆（朝南）：小零件架的兩邊
+            Print("print_3", new Vector3(-11.1f, 1.95f, BayZ - 0.11f), 0f);
+            Print("print_4", new Vector3(11.7f, 1.95f, BayZ - 0.11f), 0f);
+            Label(g, "ui.clue.zone.prints", new Vector3(BayX0 + 0.4f, 2.75f, 7.3f), "tag", 9f);
+
+            // 架子和架子之間：一片和架子正面齊平的面板，上面夾著一張便條
+            float frontZ = BayZ - 0.62f - 0.27f;
+            int[] gaps = { 0, 1, 3 };
+            for (int i = 0; i < gaps.Length; i++)
+            {
+                float x = ShelfGapX(gaps[i]);
+                Box("NotePanel" + i, g, new Vector3(x, 1.3f, frontZ + 0.02f), new Vector3(0.58f, 1.5f, 0.03f), art.consoleBody, shadows: false);
+                Box("Clip" + i, g, new Vector3(x, 1.72f, frontZ - 0.012f), new Vector3(0.16f, 0.05f, 0.02f), _steel, shadows: false);
+                ClueFlat(g, "shelfnote_" + (i + 1), new Vector3(x, 1.45f, frontZ - 0.005f), 0f, new Vector2(0.4f, 0.5f), paper, i % 2 == 0 ? 2f : -3f, 2.9f);
+            }
+        }
+
+        /// <summary>
+        /// 中控室的線索區（房間西半邊，中控台後面）：北牆的研究牆（六張草稿紙）和白板，南牆的黑板和書桌
+        /// （桌上五本書是線索，牆上書架的四本是參考手冊：遊戲規則、異常判讀、處置程序、太空天氣）。
+        /// 座標是世界座標；牆面肋條每 4.16 公尺一根，每一區佔肋條之間的一格。
+        /// </summary>
+        static void BuildControlClues(ArtBuilder.Art art, FacMats fm, Transform ctrl)
+        {
+            var g = BuildUtil.Group("ControlClues", ctrl);
+            float wallZ = 9f * CtrlS;                  // 北牆內側的 z（南牆是 -wallZ）
+            const float bayB = 19.9f, bayC = 24.06f;   // 肋條之間第二、三格的中心 x
+            var corkTex = BuildUtil.SavePng("T_Cork", 64, 64, (x, y) =>
+            {
+                float n = BuildUtil.Noise(x * 0.9f, y * 0.9f, 11) * 0.16f + BuildUtil.Noise(x * 0.21f, y * 0.21f, 5) * 0.08f;
+                return new Color(0.62f - n, 0.44f - n, 0.27f - n);
             });
-            var beltMat = BuildUtil.Lit("M_ConveyorBelt", Color.white, 0f, 0.3f, beltTex);
-            beltMat.SetTextureScale("_BaseMap", new Vector2(len / beltTile, 1f));
+            var cork = BuildUtil.Lit("M_Cork", Color.white, 0f, 0.1f, corkTex);
+            cork.SetTextureScale("_BaseMap", new Vector2(6f, 3.5f));
+            var wood = BuildUtil.Lit("M_Wood", new Color(0.34f, 0.21f, 0.12f), 0f, 0.35f);
+            var thread = BuildUtil.Lit("M_Thread", new Color(0.75f, 0.1f, 0.08f), 0f, 0.3f);
+            var paper = ClueMat("paper");
 
-            Box("BeltBody", t, new Vector3(cx, (BeltY - 0.3f + BeltY - 0.01f) / 2, BeltZ), new Vector3(len, 0.29f, BeltW + 0.06f), art.consoleBody);
-            var belt = Quad("Belt", t, new Vector3(cx, BeltY + 0.001f, BeltZ), Quaternion.Euler(90, 0, 0), new Vector2(len, BeltW - 0.02f), beltMat);
-            foreach (float s in new[] { -1f, 1f })
-                Box("Rail", t, new Vector3(cx, BeltY, BeltZ + s * (BeltW / 2 + 0.03f)), new Vector3(len, 0.12f, 0.05f), _steel, shadows: false);
-            Box("RailGlow", t, new Vector3(cx + 0.4f, BeltY - 0.02f, BeltZ - BeltW / 2 - 0.058f), new Vector3(len - 0.8f, 0.025f, 0.01f), art.accentGlow, shadows: false);
-            // 滾筒端蓋：前側一排小圓點
-            for (float x = BoothX + 0.4f; x < BeltX1 - 0.2f; x += 0.5f)
-                Box("Roller", t, new Vector3(x, BeltY - 0.12f, BeltZ - BeltW / 2 - 0.035f), new Vector3(0.06f, 0.06f, 0.01f), _steel, shadows: false);
-            // 腳架
-            for (float x = BoothX + 0.6f; x < BeltX1; x += 1.6f)
+            void ZoneLight(string name, Vector3 target, float side)
             {
-                foreach (float s in new[] { -1f, 1f })
-                {
-                    Box("Leg", t, new Vector3(x, (BeltY - 0.3f) / 2, BeltZ + s * 0.34f), new Vector3(0.07f, BeltY - 0.3f, 0.07f), _steel);
-                    Box("Foot", t, new Vector3(x, 0.01f, BeltZ + s * 0.34f), new Vector3(0.16f, 0.02f, 0.16f), art.trim, shadows: false);
-                }
-                Box("Brace", t, new Vector3(x, 0.16f, BeltZ), new Vector3(0.05f, 0.05f, 0.68f), _steel, shadows: false);
+                var pos = new Vector3(target.x, 4.4f, target.z - side * 2.6f);
+                var l = BuildUtil.Light(name, LightType.Spot, new Color(1f, 0.93f, 0.8f), 16f, pos, Quaternion.LookRotation(target - pos), 7f, LightShadows.None, g);
+                l.spotAngle = 78f;
+                l.innerSpotAngle = 46f;
             }
-            // 末端擋板
-            Box("EndStop", t, new Vector3(BeltX1 + 0.06f, BeltY + 0.12f, BeltZ), new Vector3(0.12f, 0.36f, BeltW + 0.12f), _hazardStripe);
-            Box("Bumper", t, new Vector3(BeltX1 - 0.02f, BeltY + 0.1f, BeltZ), new Vector3(0.04f, 0.18f, BeltW - 0.2f), _rubber, shadows: false);
-            // 輸送帶上方：三座檢查拱門（掃描燈）+ 一條長燈條；全是裝飾，沒有碰撞
-            foreach (float ax in new[] { -10.5f, -7.5f, -4.5f, -1.5f, 1.5f, 4.5f })
+
+            // ---- 研究牆（北牆）：軟木板上釘著六張草稿紙，紅線連來連去 ----
+            float bz = wallZ - 0.04f;
+            Box("ResearchBoard", g, new Vector3(bayB, 2.0f, bz), new Vector3(3.6f, 2.1f, 0.06f), cork, shadows: false);
+            Box("BoardFrameT", g, new Vector3(bayB, 3.08f, bz - 0.01f), new Vector3(3.72f, 0.07f, 0.09f), wood, shadows: false);
+            Box("BoardFrameB", g, new Vector3(bayB, 0.92f, bz - 0.01f), new Vector3(3.72f, 0.07f, 0.09f), wood, shadows: false);
+            foreach (float sx in new[] { -1f, 1f })
+                Box("BoardFrameSide", g, new Vector3(bayB + sx * 1.83f, 2.0f, bz - 0.01f), new Vector3(0.07f, 2.23f, 0.09f), wood, shadows: false);
+            var pins = new Vector3[6];
+            for (int i = 0; i < 6; i++)
             {
-                foreach (float s in new[] { -1f, 1f })
-                {
-                    Box("ArchPost", t, new Vector3(ax, 1.0f, BeltZ + s * (BeltW / 2 + 0.12f)), new Vector3(0.1f, 2.0f, 0.1f), art.trim, shadows: false);
-                    Box("ArchGlow", t, new Vector3(ax, 1.0f, BeltZ + s * (BeltW / 2 + 0.06f)), new Vector3(0.02f, 1.9f, 0.02f), art.accentGlow, shadows: false);
-                }
-                Box("ArchBeam", t, new Vector3(ax, 2.02f, BeltZ), new Vector3(0.16f, 0.14f, BeltW + 0.76f), art.trim, shadows: false);
-                Box("Scanner", t, new Vector3(ax, 1.93f, BeltZ), new Vector3(0.04f, 0.03f, BeltW + 0.5f), lamp, shadows: false);
+                int col = i % 3, row = i / 3;
+                var pos = new Vector3(bayB + (col - 1) * 1.15f + (row == 0 ? -0.06f : 0.08f), row == 0 ? 2.5f : 1.52f, bz - 0.04f);
+                var go = ClueFlat(g, "wall_" + (i + 1), pos, 0f, new Vector2(0.5f, 0.62f), paper, (i * 37 % 9) - 4f);
+                Box("Pin", go.transform, new Vector3(0, 0.27f, -0.012f), new Vector3(0.04f, 0.04f, 0.02f), fm.red, shadows: false);
+                pins[i] = go.transform.TransformPoint(new Vector3(0, 0.27f, -0.02f)) - g.position;
             }
-            // 輸送帶東端之外：靠北牆的貨架一排
-            var lmb = MakeLobbyMats(art);
+            // 紅線：圖釘之間（純裝飾）
+            (int a, int b)[] links = { (0, 1), (1, 5), (3, 4), (4, 2), (0, 3) };
+            foreach (var (a, b) in links)
+            {
+                var d = pins[b] - pins[a];
+                float ang = Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
+                Box("Thread", g, (pins[a] + pins[b]) / 2, new Vector3(d.magnitude, 0.008f, 0.004f), thread, Quaternion.Euler(0, 0, ang), shadows: false);
+            }
+            // 幾張便利貼（太小，放不下線索）
+            float[] stickX = { -1.62f, -0.55f, 0.62f, 1.6f };
+            float[] stickY = { 2.05f, 1.02f, 2.98f, 2.0f };
+            for (int i = 0; i < stickX.Length; i++)
+                Box("Sticky", g, new Vector3(bayB + stickX[i], stickY[i], bz - 0.035f), new Vector3(0.12f, 0.12f, 0.004f), fm.hazard, Quaternion.Euler(0, 0, i * 7f - 9f), shadows: false);
+            Label(g, "ui.clue.zone.wall", new Vector3(bayB, 3.4f, wallZ - 0.3f), "tag", 10f);
+            ZoneLight("ResearchLight", new Vector3(bayB, 2.0f, wallZ), 1f);
+
+            // ---- 白板（北牆）----
+            Box("WhiteboardFrame", g, new Vector3(bayC, 1.95f, wallZ - 0.035f), new Vector3(2.56f, 1.51f, 0.05f), art.trim, shadows: false);
+            ClueFlat(g, "whiteboard", new Vector3(bayC, 1.95f, wallZ - 0.07f), 0f, new Vector2(2.4f, 1.35f), ClueMat("whiteboard"), 0f, 3.4f);
+            Box("WhiteboardTray", g, new Vector3(bayC, 1.19f, wallZ - 0.1f), new Vector3(2.3f, 0.03f, 0.1f), art.trim, shadows: false);
+            var markerMats = new[] { fm.red, art.accentGlow, fm.hazard };
             for (int i = 0; i < 3; i++)
-                LobbyShelf(t, new Vector3(BeltX1 + 2.4f + i * 2.4f, 0, BayZ - 0.25f), lmb, art, fm).localRotation = Quaternion.Euler(0, 90f, 0);
-            // 地上：輸送帶前的警示線
-            var floorStripe = HazardStripe("M_HazardFloor", new Vector2((BeltX1 - BoothX) / 0.3f, 1f));
-            Quad("FloorStripe", t, new Vector3((BoothX + BeltX1) / 2 + 0.05f, 0.004f, BeltZ - BeltW / 2 - 0.3f), Quaternion.Euler(90, 0, 0), new Vector2(BeltX1 - BoothX + 0.1f, 0.12f), floorStripe);
+                Box("Marker", g, new Vector3(bayC - 0.7f + i * 0.2f, 1.22f, wallZ - 0.11f), new Vector3(0.13f, 0.025f, 0.025f), markerMats[i], shadows: false);
+            Label(g, "ui.clue.zone.whiteboard", new Vector3(bayC, 2.95f, wallZ - 0.3f), "tag", 10f);
+            ZoneLight("WhiteboardLight", new Vector3(bayC, 1.95f, wallZ), 1f);
 
-            // 看不見的牆：不要走上皮帶（不擋準星）
-            var block = new GameObject("Block");
-            block.transform.SetParent(t, false);
-            block.transform.localPosition = new Vector3(cx, 0.6f, BeltZ);
-            block.layer = 2;
-            block.AddComponent<BoxCollider>().size = new Vector3(len, 1.2f, BeltW + 0.12f);
-
-            // 零件的父物件轉 180°：局部 +Z 朝南（房間），零件的大面朝玩家
-            var items = BuildUtil.Group("Items", t);
-            items.localRotation = Quaternion.Euler(0, 180, 0);
-            conv.items = items;
-            conv.start = items.InverseTransformPoint(new Vector3(BayX0 + 0.25f, BeltY + 0.01f, BeltZ));
-            conv.end = items.InverseTransformPoint(new Vector3(BeltX1 - 0.4f, BeltY + 0.01f, BeltZ));
-            conv.entry = BoothX + 0.32f - (BayX0 + 0.25f);
-            conv.spacing = 0.62f;
-            conv.minSpacing = 0.4f;
-            conv.speed = 2.4f;
-            conv.itemSize = 0.5f;
-            conv.belt = belt.GetComponent<Renderer>();
-            conv.beltTile = beltTile;
-            conv.flaps = flaps;
-            conv.beacon = spin;
-            conv.beaconLight = bl;
-            conv.statusLamp = dome.GetComponent<Renderer>();
-
-            // 皮帶上方的補光
+            // ---- 黑板（南牆，朝北）----
+            Box("BlackboardFrame", g, new Vector3(bayC, 1.95f, -wallZ + 0.035f), new Vector3(2.6f, 1.55f, 0.05f), wood, shadows: false);
+            ClueFlat(g, "blackboard", new Vector3(bayC, 1.95f, -wallZ + 0.07f), 180f, new Vector2(2.4f, 1.35f), ClueMat("blackboard"), 0f, 3.4f);
+            Box("ChalkTray", g, new Vector3(bayC, 1.17f, -wallZ + 0.1f), new Vector3(2.4f, 0.03f, 0.1f), wood, shadows: false);
             for (int i = 0; i < 3; i++)
+                Box("Chalk", g, new Vector3(bayC + 0.5f + i * 0.14f, 1.195f, -wallZ + 0.11f), new Vector3(0.08f, 0.018f, 0.018f), fm.white, shadows: false);
+            Box("Eraser", g, new Vector3(bayC - 0.8f, 1.2f, -wallZ + 0.11f), new Vector3(0.14f, 0.04f, 0.06f), art.consoleBody, shadows: false);
+            Label(g, "ui.clue.zone.blackboard", new Vector3(bayC, 2.95f, -wallZ + 0.3f), "tag", 10f);
+            ZoneLight("BlackboardLight", new Vector3(bayC, 1.95f, -wallZ), -1f);
+
+            // ---- 書桌（南牆）：桌上的書堆（五本可以翻的書）、牆上書架的四本參考手冊 ----
+            float dz = -wallZ + 0.62f;
+            Solid("BookDeskTop", g, new Vector3(bayB, 0.78f, dz), new Vector3(3.4f, 0.06f, 1.0f), wood, true);
+            foreach (float sx in new[] { -1f, 1f })
+                Solid("BookDeskLeg", g, new Vector3(bayB + sx * 1.62f, 0.375f, dz), new Vector3(0.08f, 0.75f, 0.9f), wood, true);
+            Box("BookDeskBack", g, new Vector3(bayB, 0.5f, dz - 0.44f), new Vector3(3.16f, 0.5f, 0.04f), wood, shadows: false);
+            var coverCols = new[]
             {
-                var p = new Vector3(BoothX + 2.2f + i * 4.6f, 3.2f, BeltZ - 1.4f);
-                var l = BuildUtil.Light("BeltLight" + i, LightType.Spot, new Color(1f, 0.97f, 0.92f), 7f, p, Quaternion.LookRotation(new Vector3(p.x, BeltY, BeltZ) - p), 6f, LightShadows.None, t);
-                l.spotAngle = 85f;
-                l.innerSpotAngle = 55f;
+                new Color(0.55f, 0.12f, 0.1f), new Color(0.1f, 0.28f, 0.5f), new Color(0.12f, 0.38f, 0.22f),
+                new Color(0.5f, 0.36f, 0.1f), new Color(0.3f, 0.16f, 0.42f),
+            };
+            var covers = new Material[coverCols.Length];
+            for (int i = 0; i < covers.Length; i++) covers[i] = BuildUtil.Lit("M_BookCover" + i, coverCols[i], 0f, 0.3f);
+            const float top = 0.81f, bh = 0.07f;
+            int[] under = { 1, 0, 2, 0, 1 };           // 每本書底下墊幾本（書堆的樣子，最上面那一本才翻得開）
+            float[] bookYaw = { -12f, 8f, -4f, 16f, -9f };
+            for (int i = 0; i < 5; i++)
+            {
+                float x = bayB + (i - 2) * 0.62f, z = dz + 0.1f;
+                for (int k = 0; k < under[i]; k++)
+                {
+                    var st = Box("StackBook", g, new Vector3(x + 0.02f * (k + 1), top + bh / 2 + k * bh, z - 0.01f), new Vector3(0.38f, bh, 0.27f), covers[(i + k + 2) % covers.Length], Quaternion.Euler(0, -bookYaw[i] * 0.6f, 0), shadows: false);
+                    Box("Pages", st.transform, new Vector3(0, 0, 0.04f), new Vector3(0.96f, 0.72f, 0.98f), fm.paper, shadows: false);
+                }
+                var go = new GameObject("Clue_book_" + (i + 1));
+                go.transform.SetParent(g, false);
+                go.transform.localPosition = new Vector3(x, top + under[i] * bh, z);
+                go.transform.localRotation = Quaternion.Euler(0, bookYaw[i], 0);
+                var bt = go.transform;
+                // 書：上下兩片書皮、書背（朝牆）、中間的書頁（朝人）、一條書籤
+                var cover = Box("Cover", bt, new Vector3(0, bh - 0.006f, 0), new Vector3(0.36f, 0.012f, 0.26f), covers[i], shadows: false);
+                Box("CoverBottom", bt, new Vector3(0, 0.006f, 0), new Vector3(0.36f, 0.012f, 0.26f), covers[i], shadows: false);
+                Box("Spine", bt, new Vector3(0, bh / 2, -0.126f), new Vector3(0.36f, bh, 0.012f), covers[i], shadows: false);
+                Box("Pages", bt, new Vector3(0, bh / 2, 0.004f), new Vector3(0.34f, bh - 0.024f, 0.236f), fm.paper, shadows: false);
+                Box("Bookmark", bt, new Vector3(0.09f, bh - 0.013f, 0.15f), new Vector3(0.025f, 0.004f, 0.08f), fm.red, shadows: false);
+                var col = go.AddComponent<BoxCollider>();
+                col.center = new Vector3(0, bh / 2 + 0.01f, 0);
+                col.size = new Vector3(0.38f, bh + 0.04f, 0.28f);
+                var cs = go.AddComponent<ClueSpot>();
+                cs.spotId = "book_" + (i + 1);
+                cs.glow = cover.GetComponent<Renderer>();
+                cs.range = 2.4f;
             }
-            return conv;
+            // 檯燈
+            Box("LampBase", g, new Vector3(bayB + 1.45f, top + 0.015f, dz - 0.25f), new Vector3(0.18f, 0.03f, 0.18f), art.trim, shadows: false);
+            Box("LampArm", g, new Vector3(bayB + 1.45f, top + 0.25f, dz - 0.25f), new Vector3(0.025f, 0.5f, 0.025f), art.trim, shadows: false);
+            Box("LampHead", g, new Vector3(bayB + 1.33f, top + 0.5f, dz - 0.2f), new Vector3(0.3f, 0.04f, 0.14f), art.lightPanel, shadows: false);
+            BuildUtil.Light("BookLamp", LightType.Point, new Color(1f, 0.82f, 0.55f), 2.2f, new Vector3(bayB + 0.6f, 1.75f, dz + 0.5f), Quaternion.identity, 5f, LightShadows.None, g);
+
+            // 牆上的書架：四本參考手冊（比桌上的書大，立著放），中間夾幾本裝飾用的書
+            float sy = 1.42f, sz = -wallZ + 0.19f;
+            Box("ManualShelf", g, new Vector3(bayB, sy, sz), new Vector3(3.0f, 0.04f, 0.34f), wood, shadows: false);
+            foreach (float sx in new[] { -1f, 1f })
+            {
+                Box("ShelfBracket", g, new Vector3(bayB + sx * 1.3f, sy - 0.1f, sz - 0.08f), new Vector3(0.04f, 0.16f, 0.16f), art.trim, shadows: false);
+                Box("Bookend", g, new Vector3(bayB + sx * 1.46f, sy + 0.14f, sz), new Vector3(0.03f, 0.26f, 0.24f), art.trim, shadows: false);
+            }
+            string[] chapters = { "rules", "diagnose", "procedures", "donki" };
+            var binderCols = new[] { new Color(0.1f, 0.4f, 0.6f), new Color(0.65f, 0.4f, 0.08f), new Color(0.15f, 0.45f, 0.25f), new Color(0.5f, 0.15f, 0.4f) };
+            for (int i = 0; i < chapters.Length; i++)
+            {
+                float x = bayB + (i - 1.5f) * 0.68f;
+                var mat = BuildUtil.Lit("M_Binder_" + chapters[i], binderCols[i], 0f, 0.4f, emission: binderCols[i] * 0.25f);
+                var go = new GameObject("Manual_" + chapters[i]);
+                go.transform.SetParent(g, false);
+                go.transform.localPosition = new Vector3(x, sy + 0.02f, sz);
+                var body = Box("Binder", go.transform, new Vector3(0, 0.21f, 0), new Vector3(0.14f, 0.42f, 0.28f), mat, shadows: false);
+                // 書背朝北（房間）：一張白色標籤、一個拉環
+                Box("SpineLabel", go.transform, new Vector3(0, 0.27f, 0.142f), new Vector3(0.1f, 0.16f, 0.004f), fm.paper, shadows: false);
+                Box("Ring", go.transform, new Vector3(0, 0.09f, 0.145f), new Vector3(0.04f, 0.04f, 0.01f), _steel, shadows: false);
+                var col = go.AddComponent<BoxCollider>();
+                col.center = new Vector3(0, 0.22f, 0.01f);
+                col.size = new Vector3(0.2f, 0.46f, 0.32f);
+                var ct = go.AddComponent<ConsoleTarget>();
+                ct.panel = "manual:" + chapters[i];
+                ct.titleKey = "ui.manual.ch." + chapters[i];
+                ct.bodyKey = "ui.manual.ch." + chapters[i] + "_body";
+                ct.actionKey = "ui.hint.read";
+                ct.glow = body.GetComponent<Renderer>();
+                // 手冊之間：幾本薄薄的裝飾書（不能翻）
+                if (i + 1 < chapters.Length)
+                    for (int k = 0; k < 3; k++)
+                        Box("ShelfBook", g, new Vector3(x + 0.2f + k * 0.07f, sy + 0.02f + (0.3f - k * 0.03f) / 2, sz - 0.02f), new Vector3(0.05f, 0.3f - k * 0.03f, 0.2f), covers[(i + k) % covers.Length], shadows: false);
+            }
+            Label(g, "ui.clue.zone.books", new Vector3(bayB, 2.25f, -wallZ + 0.3f), "tag", 10f);
         }
 
         // ---------------- 組裝區裝潢 ----------------
@@ -788,18 +1011,20 @@ namespace GoNoGo.EditorTools
         }
 
         /// <summary>
-        /// 組裝工作台：一張厚實的工作桌（操作員站在 -Z 那一側看向 +Z）。桌面中央是發光的組裝墊，
-        /// 後面一片掛工具的洞洞板和工作燈，桌上一排小零件盒。按 E 打開組裝面板（ConsoleTarget panel = assemble）。
+        /// 組裝台（共兩座）：一張厚實的工作桌（操作員站在 -Z 那一側看向 +Z）。桌面分左右兩側：
+        /// 左側六格（<see cref="BenchSlot"/>）放從架子拿來的小零件，系統比對這個組合認配方；
+        /// 右側是發光的組裝墊（<see cref="BenchJig"/>），照提示的順序把小零件一個一個裝上去。
+        /// 背板中間的螢幕是這一座的組裝單（WorldScreen "bench:第幾座"）。物件名稱 AssemblyBench0 / AssemblyBench1。
         /// </summary>
-        static Workbench BuildWorkbench(ArtBuilder.Art art, FacMats fm, Transform parent, string name, Vector3 pos, float yaw)
+        static Workbench BuildWorkbench(ArtBuilder.Art art, FacMats fm, Transform parent, int index, Vector3 pos, float yaw)
         {
-            var go = new GameObject(name);
+            var go = new GameObject("AssemblyBench" + index);
             go.transform.SetParent(parent, false);
             go.transform.localPosition = pos;
             go.transform.localRotation = Quaternion.Euler(0, yaw, 0);
             go.transform.localScale = Vector3.one * 1.3f;   // 和控制台一樣整台放大
             var t = go.transform;
-            const float w = 2.4f;
+            const float w = 2.8f;
             // 桌體：兩側櫃腳、中間留空、厚桌板、前緣發光條
             foreach (float sx in new[] { -1f, 1f })
                 Solid("Leg", t, new Vector3(sx * (w / 2 - 0.25f), 0.4f, 0.1f), new Vector3(0.5f, 0.8f, 0.8f), art.consoleBody, true);
@@ -809,21 +1034,53 @@ namespace GoNoGo.EditorTools
             var glow = Box("Glow", t, new Vector3(0, 0.845f, -0.41f), new Vector3(w + 0.16f, 0.035f, 0.04f), fm.glow, shadows: false);
             for (int i = 0; i < 4; i++)
                 Box("Drawer", t, new Vector3((i < 2 ? -1 : 1) * (w / 2 - 0.25f), 0.24f + (i % 2) * 0.3f, -0.305f), new Vector3(0.4f, 0.24f, 0.012f), art.wallDark, shadows: false);
-            // 組裝墊：桌面中央一塊防靜電墊，四周一圈亮邊，零件就在這上面組
-            Box("Mat", t, new Vector3(0, 0.885f, 0.02f), new Vector3(1.0f, 0.012f, 0.62f), art.wallDark, shadows: false);
-            Box("MatGlowF", t, new Vector3(0, 0.893f, -0.3f), new Vector3(1.04f, 0.008f, 0.02f), art.accentGlow, shadows: false);
-            Box("MatGlowB", t, new Vector3(0, 0.893f, 0.34f), new Vector3(1.04f, 0.008f, 0.02f), art.accentGlow, shadows: false);
-            Box("MatGlowL", t, new Vector3(-0.51f, 0.893f, 0.02f), new Vector3(0.02f, 0.008f, 0.66f), art.accentGlow, shadows: false);
-            Box("MatGlowR", t, new Vector3(0.51f, 0.893f, 0.02f), new Vector3(0.02f, 0.008f, 0.66f), art.accentGlow, shadows: false);
-            // 桌上兩側的小零件盒（一格一格、顏色不同）
-            var binMats = new[] { fm.hazard, fm.white, art.accentGlow, fm.red };
-            for (int i = 0; i < 4; i++)
+            // 左右兩側中間一條黃黑分隔線
+            Box("Divider", t, new Vector3(0.02f, 0.89f, 0.04f), new Vector3(0.04f, 0.02f, 0.7f), _hazardStripe, shadows: false);
+
+            // ---- 左側：六格（三欄兩排），一格放一個小零件
+            const float lx = -1.04f, lpitchX = 0.34f, lpitchZ = 0.3f;
+            Box("LeftMat", t, new Vector3(lx + lpitchX, 0.885f, 0.03f), new Vector3(1.1f, 0.012f, 0.68f), art.wallDark, shadows: false);
+            var slots = new BenchSlot[GameData.BenchSlots];
+            for (int i = 0; i < slots.Length; i++)
             {
-                float bx = (i < 2 ? -1 : 1) * (0.78f + (i % 2) * 0.24f);
-                Box("Bin", t, new Vector3(bx, 0.93f, 0.2f), new Vector3(0.2f, 0.1f, 0.26f), art.wallDark, shadows: false);
-                Box("BinParts", t, new Vector3(bx, 0.975f, 0.2f), new Vector3(0.16f, 0.02f, 0.22f), binMats[i], shadows: false);
+                var cell = new GameObject("Slot" + i);
+                cell.transform.SetParent(t, false);
+                cell.transform.localPosition = new Vector3(lx + (i % 3) * lpitchX, 0.892f, -0.12f + (i / 3) * lpitchZ);
+                var ct = cell.transform;
+                Box("Base", ct, new Vector3(0, 0.006f, 0), new Vector3(0.3f, 0.012f, 0.26f), art.consoleBody, shadows: false);
+                var led = Box("Led", ct, new Vector3(0, 0.014f, -0.125f), new Vector3(0.2f, 0.012f, 0.012f), fm.glow, shadows: false);
+                var slot = new GameObject("Slot").transform;
+                slot.SetParent(ct, false);
+                slot.localPosition = new Vector3(0, 0.014f, 0);
+                var col = cell.AddComponent<BoxCollider>();
+                col.center = new Vector3(0, 0.15f, 0);
+                col.size = new Vector3(0.32f, 0.3f, 0.28f);
+                var bs = cell.AddComponent<BenchSlot>();
+                bs.bench = index;
+                bs.index = i;
+                bs.slot = slot;
+                bs.glow = led.GetComponent<Renderer>();
+                slots[i] = bs;
             }
-            // 後面的洞洞板：掛著幾樣工具（長短不一的條狀物），上面一盞工作燈
+
+            // ---- 右側：組裝墊（防靜電墊，四周一圈亮邊），照順序把小零件裝在這上面
+            const float rx = 0.72f;
+            Box("Mat", t, new Vector3(rx, 0.885f, 0.02f), new Vector3(1.0f, 0.012f, 0.62f), art.wallDark, shadows: false);
+            Box("MatGlowF", t, new Vector3(rx, 0.893f, -0.3f), new Vector3(1.04f, 0.008f, 0.02f), art.accentGlow, shadows: false);
+            Box("MatGlowB", t, new Vector3(rx, 0.893f, 0.34f), new Vector3(1.04f, 0.008f, 0.02f), art.accentGlow, shadows: false);
+            Box("MatGlowL", t, new Vector3(rx - 0.51f, 0.893f, 0.02f), new Vector3(0.02f, 0.008f, 0.66f), art.accentGlow, shadows: false);
+            Box("MatGlowR", t, new Vector3(rx + 0.51f, 0.893f, 0.02f), new Vector3(0.02f, 0.008f, 0.66f), art.accentGlow, shadows: false);
+            var jig = new GameObject("Jig");
+            jig.transform.SetParent(t, false);
+            jig.transform.localPosition = new Vector3(rx, 0.892f, 0.02f);
+            var jc = jig.AddComponent<BoxCollider>();
+            jc.center = new Vector3(0, 0.22f, 0);
+            jc.size = new Vector3(1.0f, 0.44f, 0.64f);
+            var bj = jig.AddComponent<BenchJig>();
+            bj.bench = index;
+            bj.glow = glow.GetComponent<Renderer>();
+
+            // 後面的洞洞板：掛著幾樣工具，上面一盞工作燈
             Box("Board", t, new Vector3(0, 1.5f, 0.56f), new Vector3(w, 1.2f, 0.06f), art.consoleBody);
             Box("BoardTrim", t, new Vector3(0, 2.12f, 0.56f), new Vector3(w + 0.06f, 0.05f, 0.1f), art.trim, shadows: false);
             // 背面（朝整合台那一面）：兩條亮邊和一片黃黑警示板，從整合台走過來時看得出這是一座機台，不是一面黑牆
@@ -832,36 +1089,34 @@ namespace GoNoGo.EditorTools
             Box("BackPlate", t, new Vector3(0, 1.5f, 0.595f), new Vector3(1.2f, 0.5f, 0.012f), art.wallDark, shadows: false);
             Box("BackHazard", t, new Vector3(0, 1.2f, 0.6f), new Vector3(1.2f, 0.06f, 0.012f), _hazardStripe, shadows: false);
             Box("BackSkirt", t, new Vector3(0, 0.45f, 0.51f), new Vector3(w - 1.0f, 0.7f, 0.02f), art.consoleBody, shadows: false);
-            float[] toolX = { -1.06f, -0.9f, -0.74f, 0.74f, 0.9f, 1.06f };
+            float[] toolX = { -1.26f, -1.1f, -0.94f, 0.94f, 1.1f, 1.26f };
             float[] toolH = { 0.42f, 0.3f, 0.36f, 0.34f, 0.46f, 0.28f };
             for (int i = 0; i < toolX.Length; i++)
             {
                 Box("Tool", t, new Vector3(toolX[i], 1.62f - toolH[i] / 2, 0.52f), new Vector3(0.05f, toolH[i], 0.03f), i % 2 == 0 ? _steel : fm.hazard, shadows: false);
                 Box("Hook", t, new Vector3(toolX[i], 1.64f, 0.52f), new Vector3(0.09f, 0.03f, 0.04f), art.trim, shadows: false);
             }
-            // 洞洞板中間的螢幕：組裝單（現在組的是什麼、下一個小零件要做什麼事）。畫面由 UI 層畫上去（WorldScreen "bench"）
-            Box("ScreenFrame", t, new Vector3(0, 1.5f, 0.535f), new Vector3(1.26f, 0.84f, 0.03f), art.trim, shadows: false);
-            var screen = Quad("Screen", t, new Vector3(0, 1.5f, 0.515f), Quaternion.identity, new Vector2(1.2f, 0.78f), fm.screenOff);
+            // 洞洞板中間的螢幕：這一座的組裝單（左側的狀態、下一個小零件要做什麼事）。畫面由 UI 層畫上去
+            Box("ScreenFrame", t, new Vector3(0, 1.5f, 0.535f), new Vector3(1.46f, 0.94f, 0.03f), art.trim, shadows: false);
+            var screen = Quad("Screen", t, new Vector3(0, 1.5f, 0.515f), Quaternion.identity, new Vector2(1.4f, 0.88f), fm.screenOff);
             var ws = screen.AddComponent<WorldScreen>();
-            ws.id = "bench";
-            ws.resolution = new Vector2Int(768, 500);
+            ws.id = "bench:" + index;
+            ws.resolution = new Vector2Int(768, 484);
             ws.target = screen.GetComponent<Renderer>();
             Box("LampArm", t, new Vector3(0, 2.18f, 0.3f), new Vector3(0.05f, 0.05f, 0.56f), art.trim, shadows: false);
-            Box("Lamp", t, new Vector3(0, 2.15f, 0.04f), new Vector3(1.3f, 0.04f, 0.14f), art.lightPanel, shadows: false);
-            var lamp = BuildUtil.Light("BenchLight", LightType.Spot, new Color(1f, 0.95f, 0.85f), 9f, Vector3.zero, Quaternion.identity, 4f, LightShadows.None, t);
+            Box("Lamp", t, new Vector3(0, 2.15f, 0.04f), new Vector3(1.9f, 0.04f, 0.14f), art.lightPanel, shadows: false);
+            var lamp = BuildUtil.Light("BenchLight", LightType.Spot, new Color(1f, 0.95f, 0.85f), 10f, Vector3.zero, Quaternion.identity, 4.5f, LightShadows.None, t);
             lamp.transform.localPosition = new Vector3(0, 2.1f, 0.04f);
             lamp.transform.localRotation = Quaternion.Euler(90, 0, 0);
-            lamp.spotAngle = 70f;
-
-            // 組裝墊的中心：箱子、裝好的小零件、成品都擺在這上面
-            var jig = new GameObject("Jig").transform;
-            jig.SetParent(t, false);
-            jig.localPosition = new Vector3(0, 0.892f, 0.02f);
+            lamp.spotAngle = 85f;
 
             var wb = go.AddComponent<Workbench>();
-            wb.jig = jig;
-            wb.glow = glow.GetComponent<Renderer>();
-            wb.sparks = Sparks(art, t, new Vector3(0, 1.0f, 0.02f), 0.12f);
+            wb.index = index;
+            wb.jig = jig.transform;
+            wb.slots = slots;
+            wb.sparks = Sparks(art, t, new Vector3(rx, 1.0f, 0.02f), 0.12f);
+            Label(t, "ui.fac.bench_left", new Vector3(lx + lpitchX, 1.22f, 0.3f), "tag", 6f);
+            Label(t, "ui.fac.bench_right", new Vector3(rx, 1.22f, 0.3f), "tag", 6f);
             Label(t, "ui.fac.bench", new Vector3(0, 2.4f, 0.3f), "tag", 9f);
             return wb;
         }
@@ -899,65 +1154,6 @@ namespace GoNoGo.EditorTools
             return ps;
         }
 
-        /// <summary>
-        /// 零件盤：一張長桌上排著 <see cref="GameData.TraySize"/> 個盤子。工作台上放了一箱小零件，盤子裡就擺出小零件
-        /// （執行時由 <see cref="CompTray"/> 放模型和名稱）。局部 -Z 是拿零件的人那一面。
-        /// </summary>
-        static void BuildCompRack(ArtBuilder.Art art, FacMats fm, Transform parent, string name, Vector3 pos, float yaw)
-        {
-            var go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = pos;
-            go.transform.localRotation = Quaternion.Euler(0, yaw, 0);
-            go.transform.localScale = Vector3.one * 1.2f;
-            var t = go.transform;
-            const int n = GameData.TraySize;
-            const float pitch = 0.58f, w = pitch * n + 0.2f;
-            // 桌體：兩側櫃腳、桌板、前緣發光條、後面一道矮背板
-            foreach (float sx in new[] { -1f, 1f })
-                Solid("Leg", t, new Vector3(sx * (w / 2 - 0.2f), 0.41f, 0.05f), new Vector3(0.4f, 0.82f, 0.6f), art.consoleBody, true);
-            Solid("Shelf", t, new Vector3(0, 0.3f, 0.05f), new Vector3(w - 0.8f, 0.05f, 0.56f), art.wallDark, true);
-            Box("Plinth", t, new Vector3(0, 0.04f, 0.05f), new Vector3(w + 0.08f, 0.08f, 0.7f), art.trim, shadows: false);
-            Solid("Top", t, new Vector3(0, 0.85f, 0.05f), new Vector3(w + 0.1f, 0.06f, 0.72f), art.trim, true);
-            Box("Glow", t, new Vector3(0, 0.852f, -0.315f), new Vector3(w + 0.1f, 0.03f, 0.03f), fm.glow, shadows: false);
-            Box("Back", t, new Vector3(0, 1.2f, 0.4f), new Vector3(w + 0.1f, 0.7f, 0.05f), art.consoleBody);
-            Box("BackGlow", t, new Vector3(0, 1.5f, 0.37f), new Vector3(w - 0.1f, 0.03f, 0.012f), art.accentGlow, shadows: false);
-            Box("BackHazard", t, new Vector3(0, 0.93f, 0.37f), new Vector3(w - 0.1f, 0.05f, 0.012f), _hazardStripe, shadows: false);
-            Box("LampArm", t, new Vector3(0, 1.62f, 0.3f), new Vector3(w * 0.7f, 0.04f, 0.26f), art.trim, shadows: false);
-            Box("Lamp", t, new Vector3(0, 1.595f, 0.22f), new Vector3(w * 0.66f, 0.015f, 0.12f), art.lightPanel, shadows: false);
-            var lamp = BuildUtil.Light("RackLight", LightType.Spot, new Color(1f, 0.95f, 0.85f), 7f, Vector3.zero, Quaternion.identity, 3.5f, LightShadows.None, t);
-            lamp.transform.localPosition = new Vector3(0, 1.9f, -0.1f);
-            lamp.transform.localRotation = Quaternion.Euler(80, 0, 0);
-            lamp.spotAngle = 110f;
-
-            for (int i = 0; i < n; i++)
-            {
-                float x = (i - (n - 1) / 2f) * pitch;
-                var tray = new GameObject("Tray" + i);
-                tray.transform.SetParent(t, false);
-                tray.transform.localPosition = new Vector3(x, 0.88f, 0.02f);
-                var tt = tray.transform;
-                // 盤子：深色盤底、四邊矮框、前緣一條小燈（對到時變亮）
-                Box("Base", tt, new Vector3(0, 0.01f, 0), new Vector3(0.48f, 0.02f, 0.42f), art.wallDark, shadows: false);
-                Box("RimF", tt, new Vector3(0, 0.035f, -0.2f), new Vector3(0.48f, 0.05f, 0.02f), art.consoleBody, shadows: false);
-                Box("RimB", tt, new Vector3(0, 0.035f, 0.2f), new Vector3(0.48f, 0.05f, 0.02f), art.consoleBody, shadows: false);
-                Box("RimL", tt, new Vector3(-0.23f, 0.035f, 0), new Vector3(0.02f, 0.05f, 0.42f), art.consoleBody, shadows: false);
-                Box("RimR", tt, new Vector3(0.23f, 0.035f, 0), new Vector3(0.02f, 0.05f, 0.42f), art.consoleBody, shadows: false);
-                var led = Box("Led", tt, new Vector3(0, 0.03f, -0.214f), new Vector3(0.3f, 0.02f, 0.01f), fm.glow, shadows: false);
-                var slot = new GameObject("Slot").transform;
-                slot.SetParent(tt, false);
-                slot.localPosition = new Vector3(0, 0.022f, 0);
-                var col = tray.AddComponent<BoxCollider>();
-                col.center = new Vector3(0, 0.19f, 0);
-                col.size = new Vector3(0.5f, 0.38f, 0.44f);
-                var ct = tray.AddComponent<CompTray>();
-                ct.index = i;
-                ct.slot = slot;
-                ct.glow = led.GetComponent<Renderer>();
-            }
-            Label(t, "ui.fac.rack", new Vector3(0, 1.85f, 0.3f), "tag", 9f);
-        }
-
         /// <summary>牆上的大螢幕：畫面由 UI 層依 id 畫上去（WorldScreen）。</summary>
         static GameObject WallScreen(ArtBuilder.Art art, FacMats fm, Transform parent, string name, string id, Vector3 pos, float yaw, Vector2 size, Vector2Int res)
         {
@@ -986,18 +1182,9 @@ namespace GoNoGo.EditorTools
 
         static void BuildBayConsoles(ArtBuilder.Art art, FacMats fm, Transform bay)
         {
-            // 採購終端：組裝區下單買零件（沒有價格，價格在中控室的型錄）
-            var proc = Console(art, fm, bay, "ProcureConsole", new Vector3(6.2f, 0, -4.6f), -52f, "procure", "ui.fac.procure", "ui.fac.procure_body", "design,briefing", art.consoleScreens[0], 2.4f);
-            proc.actionKey = "ui.hint.procure";
-
-            // 組裝工作台：買來的零件是一箱小零件，要先在這裡組好才能裝上船。位置和採購終端左右對稱
-            BuildWorkbench(art, fm, bay, "AssemblyBench", new Vector3(-6.2f, 0, -4.6f), 52f);
-            // 零件盤：在工作台的左前方、和工作台排成 L 形（盤子朝向工作台前面那塊空地）。
-            // 小零件要自己走過去拿、拿回來裝。不放在操作的人正後方：兩張桌子面對面時，
-            // 第三人稱的鏡頭會被身後那一張擋住、貼到桌面上。
-            var benchRot = Quaternion.Euler(0, 52f, 0);
-            BuildCompRack(art, fm, bay, "CompRack", new Vector3(-6.2f, 0, -4.6f) + benchRot * new Vector3(-3.2f, 0, -3.2f), 52f - 90f);
-            // （環境測試台在採購機制 v2 拿掉了：發射前不再檢查）
+            // 兩座組裝台：整合台南邊左右對稱，不分配，誰都能用，可以同時組兩個零件
+            BuildWorkbench(art, fm, bay, 0, new Vector3(-6.6f, 0, -5.0f), 52f);
+            BuildWorkbench(art, fm, bay, 1, new Vector3(6.6f, 0, -5.0f), -52f);
 
             // 東牆（門的南邊）：失敗原因看板
             var fb = WallScreen(art, fm, bay, "FailureBoard", "failures", new Vector3(BayX1 - 0.08f, 3.4f, -6.2f), 90f, new Vector2(6.6f, 4.1f), new Vector2Int(1024, 640));
@@ -1008,12 +1195,12 @@ namespace GoNoGo.EditorTools
             ct.actionKey = "ui.hint.read";
             fb.AddComponent<BoxCollider>().size = new Vector3(6.8f, 4.3f, 0.12f);
 
-            // 東牆（門的北邊）：儀表板大螢幕，整合台上這艘船現在的數字
-            var ds = WallScreen(art, fm, bay, "BayDashboard", "dashboard", new Vector3(BayX1 - 0.08f, 3.4f, 6.2f), 90f, new Vector2(6.6f, 4.1f), new Vector2Int(1024, 640));
+            // 東牆（門的北邊）：組裝區儀表板。設計確定前顯示「等待中控室確定設計」，確定後顯示每個零件要用哪些小零件
+            var ds = WallScreen(art, fm, bay, "BayDashboard", "bay", new Vector3(BayX1 - 0.08f, 3.4f, 6.2f), 90f, new Vector2(6.6f, 4.1f), new Vector2Int(1024, 640));
             var dt = ds.AddComponent<ConsoleTarget>();
-            dt.panel = "dashboard";
-            dt.titleKey = "ui.fac.dashboard";
-            dt.bodyKey = "ui.fac.dashboard_body";
+            dt.panel = "bay";
+            dt.titleKey = "ui.fac.bay";
+            dt.bodyKey = "ui.fac.bay_body";
             dt.actionKey = "ui.hint.read";
             ds.AddComponent<BoxCollider>().size = new Vector3(6.8f, 4.3f, 0.12f);
         }
@@ -1293,35 +1480,42 @@ namespace GoNoGo.EditorTools
             }
         }
 
+        /// <summary>
+        /// 中控室的家具（世界座標）。西半邊的牆面留給線索區（BuildControlClues：肋條之間第二、三格），
+        /// 機櫃、資料櫃、休息區、置物櫃排在第四、五格（中控台的兩側），再往東的一格掛旗子。
+        /// </summary>
         static void BuildControlDecor(ArtBuilder.Art art, FacMats fm, Transform ctrl)
         {
             var lm = MakeLobbyMats(art);
             var g = BuildUtil.Group("ControlDecor", ctrl);
             var leather = BuildUtil.Lit("M_CtlSofa", new Color(0.16f, 0.08f, 0.05f), 0.1f, 0.5f);
             var leaf = BuildUtil.Lit("M_CtlPlant", new Color(0.1f, 0.35f, 0.15f), 0f, 0.5f);
-            float nz = 9f * CtrlS - 0.7f, sz = -nz;   // 北、南牆內側
+            float wallZ = 9f * CtrlS;
+            float nz = wallZ - 0.7f, sz = -nz;                           // 靠北、南牆的家具中心 z
+            const float bayD = 28.22f, bayE = 32.38f, bayF = 36.54f;     // 肋條之間第四、五、六格的中心 x
 
-            // 北牆：機櫃一排（正面朝南，一排小燈）
-            for (int i = 0; i < 6; i++)
+            // 北牆第四格：機櫃三台（正面朝南，一排小燈）
+            for (int i = 0; i < 3; i++)
             {
-                float x = 13.8f + i * 1.3f;
+                float x = bayD + (i - 1) * 1.2f;
                 Solid("Rack", g, new Vector3(x, 1.6f, nz), new Vector3(1.1f, 3.2f, 0.9f), lm.dark, true);
                 for (int k = 0; k < 7; k++)
                     Box("RackLed", g, new Vector3(x, 0.45f + k * 0.42f, nz - 0.46f), new Vector3(0.8f, 0.04f, 0.02f), (i + k) % 3 == 0 ? lm.goGlow : lm.ctlGlow, shadows: false);
             }
-            // 北牆再往東：資料櫃（兩台）+ 盆栽
+            // 北牆第五格：資料櫃兩台
             for (int i = 0; i < 2; i++)
             {
-                float x = 21.5f + i * 1.5f;
+                float x = bayE + (i - 0.5f) * 1.5f;
                 Solid("Archive", g, new Vector3(x, 1.0f, nz + 0.1f), new Vector3(1.3f, 2.0f, 0.7f), art.consoleBody, true);
                 Box("ArchiveStrip", g, new Vector3(x, 1.6f, nz - 0.26f), new Vector3(1.1f, 0.05f, 0.02f), lm.ctlGlow, shadows: false);
             }
-            foreach (var pp in new[] { new Vector3(12.9f, 0, nz + 0.2f), new Vector3(12.9f, 0, sz - 0.2f) })
+            // 門邊兩個角落的盆栽
+            foreach (var pp in new[] { new Vector3(CtrlX0 + 0.9f, 0, nz + 0.2f), new Vector3(CtrlX0 + 0.9f, 0, sz - 0.2f) })
                 Plant(g, pp, lm.steel, leaf);
 
-            // 南牆：休息區（兩張沙發 + 一張茶几，茶几上有全像小地球）
+            // 南牆第四格：休息區（兩張沙發 + 一張茶几，茶几上有全像小地球）
             var lounge = BuildUtil.Group("Lounge", g);
-            lounge.position = new Vector3(16.2f, 0, sz + 0.2f);
+            lounge.position = new Vector3(bayD + 0.5f, 0, sz + 0.2f);
             Solid("Table", lounge, new Vector3(0, 0.25f, 1.6f), new Vector3(1.8f, 0.5f, 1.0f), art.consoleBody, true);
             Box("TableTop", lounge, new Vector3(0, 0.52f, 1.6f), new Vector3(1.9f, 0.05f, 1.1f), art.trim);
             Box("TableGlow", lounge, new Vector3(0, 0.56f, 1.6f), new Vector3(1.5f, 0.015f, 0.04f), lm.ctlGlow, shadows: false);
@@ -1331,10 +1525,11 @@ namespace GoNoGo.EditorTools
             Box("SofaABack", lounge, new Vector3(0, 0.8f, -0.4f), new Vector3(2.6f, 0.6f, 0.2f), leather, shadows: false);
             Solid("SofaB", lounge, new Vector3(-2.2f, 0.25f, 1.6f), new Vector3(0.9f, 0.5f, 2.2f), leather, true);
             Box("SofaBBack", lounge, new Vector3(-2.6f, 0.8f, 1.6f), new Vector3(0.2f, 0.6f, 2.2f), leather, shadows: false);
-            BuildUtil.Light("LoungeLight", LightType.Point, new Color(1f, 0.7f, 0.4f), 2f, new Vector3(16.2f, 2.8f, sz + 1.6f), Quaternion.identity, 8f, LightShadows.None, g);
+            BuildUtil.Light("LoungeLight", LightType.Point, new Color(1f, 0.7f, 0.4f), 2f, new Vector3(bayD + 0.5f, 2.8f, sz + 1.6f), Quaternion.identity, 8f, LightShadows.None, g);
+            // 南牆第五格：置物櫃三台
             for (int i = 0; i < 3; i++)
             {
-                float x = 20.6f + i * 1.3f;
+                float x = bayE + (i - 1) * 1.2f;
                 Solid("Locker", g, new Vector3(x, 1.0f, sz - 0.1f), new Vector3(1.15f, 2.0f, 0.7f), art.consoleBody, true);
                 Box("LockerLed", g, new Vector3(x, 1.7f, sz + 0.26f), new Vector3(0.9f, 0.05f, 0.02f), i == 1 ? lm.goGlow : lm.ctlGlow, shadows: false);
             }
@@ -1344,17 +1539,14 @@ namespace GoNoGo.EditorTools
             {
                 int v = n % PatchPalette.Length;
                 float z = (n < 4 ? 1 : -1) * (3.4f + (n % 4) * 2.2f);
-                Quad("Patch" + n, g, new Vector3(12.06f, 5.2f + (n % 2) * 0.35f, z), Quaternion.Euler(0, -90f, 0), new Vector2(1.3f, 1.3f), PatchMaterial(v, PatchPalette[v]));
+                Quad("Patch" + n, g, new Vector3(CtrlX0 + 0.06f, 5.2f + (n % 2) * 0.35f, z), Quaternion.Euler(0, -90f, 0), new Vector2(1.3f, 1.3f), PatchMaterial(v, PatchPalette[v]));
             }
-            Box("DividerGlowN", g, new Vector3(12.04f, 4.2f, 7f), new Vector3(0.03f, 0.04f, 8.6f), lm.ctlGlow, shadows: false);
-            Box("DividerGlowS", g, new Vector3(12.04f, 4.2f, -7f), new Vector3(0.03f, 0.04f, 8.6f), lm.ctlGlow, shadows: false);
+            Box("DividerGlowN", g, new Vector3(CtrlX0 + 0.04f, 4.2f, 7f), new Vector3(0.03f, 0.04f, 8.6f), lm.ctlGlow, shadows: false);
+            Box("DividerGlowS", g, new Vector3(CtrlX0 + 0.04f, 4.2f, -7f), new Vector3(0.03f, 0.04f, 8.6f), lm.ctlGlow, shadows: false);
 
-            // 北牆上的兩面旗：站名
-            Banner(g, "BannerN1", new Vector3(26f, 5.0f, 9f * CtrlS - 0.06f), CtlColor, null, lm.ctlGlow, 0f);
-            Banner(g, "BannerN2", new Vector3(31.5f, 5.0f, 9f * CtrlS - 0.06f), CtlColor, null, lm.ctlGlow, 0f);
-
-            // 以上座標都是以 CtrlX0 = 12 寫的，整組平移到實際的中控室位置
-            g.position += new Vector3(CtrlX0 - 12f, 0, 0);
+            // 第六格（中控台前方兩側）：南北牆各一面旗
+            Banner(g, "BannerN1", new Vector3(bayF, 5.0f, wallZ - 0.06f), CtlColor, null, lm.ctlGlow, 0f);
+            Banner(g, "BannerS1", new Vector3(bayF, 5.0f, -wallZ + 0.06f), CtlColor, null, lm.ctlGlow, 180f);
         }
 
         const string ControlRoomModel = "Assets/GoNoGo/Art/Models/Room/FacilityControlRoom.glb";
@@ -1369,8 +1561,10 @@ namespace GoNoGo.EditorTools
         /// 中控室：房間、弧形影像牆、一整座弧形中控台都來自 Blender 模型
         /// （tools/room/build_facility_control_room.py → Art/Models/Room/FacilityControlRoom.glb）。
         /// 這裡換上專案材質、加碰撞體，並依物件名稱掛元件：
-        /// Screen_&lt;panel&gt; = 中控台上的一台螢幕（ConsoleTarget，準星對到按 E 打開該面板），
-        /// Wall_Main = 地球大螢幕，Wall_&lt;id&gt; = 影像牆上的即時資訊（WorldScreen）。
+        /// Screen_&lt;panel&gt; = 中控台上的一台螢幕（ConsoleTarget，準星對到按 E 打開該面板；只剩四台營運席和飛行總監台），
+        /// Wall_Main = 前方的大屏幕（WorldScreen "bigscreen"：選件、組裝時畫選件的畫面，營運時換成地球縮景；
+        /// 準星對到按 E 打開選件面板），Wall_reqs / Wall_asm = 大屏幕兩側（WorldScreen "wall_reqs"、"wall_asm"）。
+        /// 大屏幕前面另外放一座選件台（物件名稱 BigScreen，引導標記指的是它）。
         /// </summary>
         static void BuildControlRoom(ArtBuilder.Art art, FacMats fm, Transform ctrl)
         {
@@ -1384,20 +1578,17 @@ namespace GoNoGo.EditorTools
             // glTFast 匯入後 Blender +Y 變成 Unity -Z、X 也翻轉：轉 180° 讓 Blender (x, y, z) = Unity (x, z, y)
             model.transform.localRotation = Quaternion.Euler(0, 180f, 0);
 
-            // 三座中控台各有一個顏色：設計組青、飛行總監琥珀、營運組綠
+            // 三座中控台：中央飛行總監琥珀，兩翼營運席綠
             var amber = BuildUtil.Unlit("M_AccentAmber", new Color(2.6f, 1.25f, 0.3f));
             var green = BuildUtil.Unlit("M_AccentGreen", new Color(0.35f, 2.4f, 1.0f));
             var glowAmber = BuildUtil.Lit("M_ConsoleGlowAmber", new Color(0.3f, 0.2f, 0.05f), 0f, 0.6f, emission: new Color(0.95f, 0.48f, 0.1f));
             var glowGreen = BuildUtil.Lit("M_ConsoleGlowGreen", new Color(0.05f, 0.25f, 0.12f), 0f, 0.6f, emission: new Color(0.15f, 0.85f, 0.35f));
             var panelMat = BuildUtil.Lit("M_ConsolePanel", new Color(0.045f, 0.05f, 0.06f), 0.2f, 0.78f);
-            char GroupOf(string station) => station == "ops_desk" ? 'F'
-                : station.StartsWith("manual-") ? 'B'
-                : station is "phone" or "notes" or "manual" or "mission" or "dashboard" ? 'D' : 'O';
+            char GroupOf(string station) => station == "ops_desk" ? 'F' : 'O';
             Material ScreenFor(char grp, int i) => grp switch
             {
-                'D' => art.consoleScreens[i % 2 == 0 ? 0 : 3],
                 'F' => art.consoleScreens[2],
-                'O' => art.consoleScreens[i % 3 == 2 ? 3 : 1],
+                'O' or 'P' => art.consoleScreens[i % 3 == 2 ? 3 : 1],
                 _ => art.consoleScreens[i % art.consoleScreens.Length],
             };
             Material Slot(string mn) =>
@@ -1416,6 +1607,7 @@ namespace GoNoGo.EditorTools
             var anchors = new Dictionary<string, Transform>();
             var screens = new List<Renderer>();
             var tops = new Dictionary<string, Renderer>();
+            Renderer mainWall = null;
             int deco = 0;
             foreach (var t in model.GetComponentsInChildren<Transform>(true))
                 if (t.name.StartsWith("Anchor_")) anchors[t.name.Substring(7)] = t;
@@ -1429,19 +1621,29 @@ namespace GoNoGo.EditorTools
                     m = ScreenFor(GroupOf(key), screens.Count);
                     screens.Add(r);
                 }
-                else if (n == "Wall_Main") m = fm.screenRt;
-                else if (n.StartsWith("Wall_"))
+                else if (n == "Wall_Main")
                 {
+                    // 前方的大屏幕（16:9）：選件、組裝時畫選件的畫面；營運、報告時換成地球縮景的畫面
                     m = fm.screenOff;
                     var ws = r.gameObject.AddComponent<WorldScreen>();
-                    // 儀表板搬到組裝區：中控室影像牆原本的儀表板改顯示任務目標與預算
-                    ws.id = n.Substring(5) == "dashboard" ? "goals" : n.Substring(5);
-                    ws.resolution = new Vector2Int(1280, 690);
+                    ws.id = "bigscreen";
+                    ws.resolution = new Vector2Int(1600, 900);
+                    ws.target = r;
+                    ws.opsMaterial = fm.screenRt;
+                    mainWall = r;
+                }
+                else if (n.StartsWith("Wall_"))
+                {
+                    // 大屏幕兩側（比例接近 9:10 的直式螢幕）：Wall_reqs → "wall_reqs"、Wall_asm → "wall_asm"
+                    m = fm.screenOff;
+                    var ws = r.gameObject.AddComponent<WorldScreen>();
+                    ws.id = "wall_" + n.Substring(5);
+                    ws.resolution = new Vector2Int(1024, 1136);
                     ws.target = r;
                 }
                 else if (n.StartsWith("Deco_"))
                 {
-                    // Deco_<組>_…：組 = D 設計、F 總監、O 營運、B 後排、W 影像牆
+                    // Deco_<組>_…：組 = F 總監、O／P 營運、W 影像牆
                     m = ScreenFor(n.Length > 5 ? n[5] : 'W', deco++);
                     int ti = n.IndexOf("_Top_");
                     if (ti >= 0) tops[n.Substring(ti + 5)] = r;
@@ -1449,8 +1651,7 @@ namespace GoNoGo.EditorTools
                 else if (n.StartsWith("Glow_"))
                 {
                     string key = n.Substring(5);
-                    char g = GroupOf(key);
-                    m = g == 'F' ? glowAmber : g == 'O' ? glowGreen : fm.glow;
+                    m = GroupOf(key) == 'F' ? glowAmber : glowGreen;
                     glows[key] = r;
                 }
                 var mats = r.sharedMaterials;
@@ -1463,18 +1664,17 @@ namespace GoNoGo.EditorTools
                 }
                 r.sharedMaterials = mats;
                 r.shadowCastingMode = m == null && shadows ? ShadowCastingMode.On : ShadowCastingMode.Off;
-                // 走路會撞到的：地板、牆、影像牆、三座中控台與端板、總監平台、後排桌（發射台用按鈕上的膠囊碰撞體）
+                // 走路會撞到的：地板、牆、影像牆、三座中控台與端板、總監平台（發射台用按鈕上的膠囊碰撞體）
                 bool collide = n == "Floor" || (n.StartsWith("Wall") && !n.StartsWith("Wall_"))
-                               || n.StartsWith("Pod_") || n == "Podium_F" || n.StartsWith("Fin_") || n.StartsWith("BackPod");
+                               || n.StartsWith("Pod_") || n == "Podium_F" || n.StartsWith("Fin_");
                 if (collide) r.gameObject.AddComponent<MeshCollider>().sharedMesh = r.GetComponent<MeshFilter>().sharedMesh;
             }
 
-            // 中控台的每台螢幕：一個席位
+            // 中控台的每台螢幕：一個席位（四台營運席 + 飛行總監台）
             foreach (var r in screens)
             {
                 string key = r.gameObject.name.Substring(7);
                 string panel = key.Replace('-', ':');
-                if (panel == "dashboard") panel = "goals"; // 儀表板搬到組裝區，這一席改看任務目標與預算
                 var ct = r.gameObject.AddComponent<ConsoleTarget>();
                 r.gameObject.AddComponent<BoxCollider>();
                 ct.panel = panel;
@@ -1486,28 +1686,11 @@ namespace GoNoGo.EditorTools
                     ct.actionKey = "ui.hint.operate";
                     ct.phases = "ops";
                 }
-                else if (panel.StartsWith("manual:"))
-                {
-                    // 後排：工程手冊的一章
-                    string ch = panel.Substring(7);
-                    ct.titleKey = "ui.manual.ch." + ch;
-                    ct.bodyKey = "ui.manual.ch." + ch + "_body";
-                    ct.actionKey = "ui.hint.read";
-                }
-                else if (panel == "manual")
-                {
-                    // 前排設計組的手冊席：目錄與零件代號速查（各章在後排）
-                    ct.titleKey = "ui.fac.manual_index";
-                    ct.bodyKey = "ui.fac.manual_index_body";
-                    ct.actionKey = "ui.hint.read";
-                }
                 else
                 {
                     ct.titleKey = "ui.fac." + panel;
                     ct.bodyKey = "ui.fac." + panel + "_body";
-                    if (panel == "mission") ct.phases = "design,briefing";
-                    else if (panel == "ops_desk") ct.phases = "ops,report";
-                    else if (panel == "failures") ct.actionKey = "ui.hint.read";
+                    if (panel == "ops_desk") ct.phases = "ops,report";
                 }
                 // 標籤放在這席最上面那台螢幕的上方
                 var b = tops.TryGetValue(key, out var upper) ? upper.bounds : r.bounds;
@@ -1515,12 +1698,45 @@ namespace GoNoGo.EditorTools
                 Label(ctrl, ct.titleKey, top - ctrl.position, "tag", 7f).name = "Label_" + key;
             }
 
-            // 電話：電話席的桌面左邊
-            if (anchors.TryGetValue("phone", out var pa))
+            // 前方的大屏幕：準星對到就能按 E 打開選件面板（螢幕很大，站在中控台後面也對得到）。
+            // ConsoleTarget 掛在子物件上：掛在螢幕本身的話，營運時「現在用不到」的調暗會把地球畫面一起調暗
+            if (mainWall != null)
             {
-                var phone = Facing(ctrl, "Phone", pa, ScreenOf(screens, "phone"));
-                Box("Base", phone, new Vector3(-0.3f, 0.05f, 0.05f), new Vector3(0.3f, 0.1f, 0.22f), fm.red);
-                Box("Handset", phone, new Vector3(-0.3f, 0.13f, 0.05f), new Vector3(0.36f, 0.06f, 0.08f), fm.red);
+                var hit = new GameObject("BigScreenTarget");
+                hit.transform.SetParent(mainWall.transform, false);
+                hit.AddComponent<MeshCollider>().sharedMesh = mainWall.GetComponent<MeshFilter>().sharedMesh;
+                var wt = hit.AddComponent<ConsoleTarget>();
+                wt.panel = "select";
+                wt.titleKey = "ui.fac.select";
+                wt.bodyKey = "ui.fac.select_body";
+                wt.actionKey = "ui.hint.select";
+                wt.phases = "design";
+                wt.range = 16f;
+            }
+
+            // 選件台：大屏幕正前方的一座立式操作台（局部 -Z 是操作的人那一面，朝西；人站在西邊、面向大屏幕）
+            {
+                var kiosk = BuildUtil.Group("BigScreen", ctrl);
+                kiosk.position = new Vector3(39.2f, 0, 0);
+                kiosk.rotation = Quaternion.Euler(0, 90f, 0);
+                Box("Foot", kiosk, new Vector3(0, 0.03f, 0), new Vector3(0.9f, 0.06f, 0.7f), art.trim, shadows: false);
+                Solid("Post", kiosk, new Vector3(0, 0.5f, 0.02f), new Vector3(0.5f, 1.0f, 0.34f), art.consoleBody, true);
+                // 斜面的檯面朝操作的人傾 30°，上面一塊螢幕、前緣一條發光條
+                Box("Head", kiosk, new Vector3(0, 1.08f, -0.02f), new Vector3(1.3f, 0.06f, 0.62f), art.trim, Quaternion.Euler(-30f, 0, 0));
+                Quad("Panel", kiosk, new Vector3(0, 1.111f, -0.038f), Quaternion.Euler(60f, 0, 0), new Vector2(1.16f, 0.5f), art.consoleScreens[0]);
+                var kg = Box("Glow", kiosk, new Vector3(0, 0.925f, -0.288f), new Vector3(1.3f, 0.03f, 0.04f), fm.glow, Quaternion.Euler(-30f, 0, 0), shadows: false);
+                var kc = kiosk.gameObject.AddComponent<BoxCollider>();
+                kc.center = new Vector3(0, 0.66f, -0.02f);
+                kc.size = new Vector3(1.3f, 1.32f, 0.7f);
+                var kt = kiosk.gameObject.AddComponent<ConsoleTarget>();
+                kt.panel = "select";
+                kt.titleKey = "ui.fac.select";
+                kt.bodyKey = "ui.fac.select_body";
+                kt.actionKey = "ui.hint.select";
+                kt.phases = "design";
+                kt.glow = kg.GetComponent<Renderer>();
+                kt.range = 3.2f;
+                Label(kiosk, "ui.fac.select", new Vector3(0, 1.75f, 0), "sign", 14f);
             }
 
             // 發射鈕：中控台前方正中央的獨立發射台，每一席都面向它
@@ -1552,7 +1768,7 @@ namespace GoNoGo.EditorTools
                 spot.innerSpotAngle = 14f;
             }
 
-            // 燈：中控台上方暖色主光、後排補光、影像牆的藍光溢出
+            // 燈：中控台上方暖色主光、線索區那一半的補光、影像牆的藍光溢出
             var key0 = BuildUtil.Light("ConsoleKey", LightType.Spot, new Color(1f, 0.88f, 0.72f), 42f * CtrlS * CtrlS, CP(21.5f, 6.6f, 0), Quaternion.Euler(90, 0, 0), 12f * CtrlS, LightShadows.None, ctrl);
             key0.spotAngle = 120f; key0.innerSpotAngle = 70f;
             var key1 = BuildUtil.Light("BackFill", LightType.Spot, new Color(0.85f, 0.9f, 1f), 18f * CtrlS * CtrlS, CP(15.5f, 6.6f, 0), Quaternion.Euler(90, 0, 0), 10f * CtrlS, LightShadows.None, ctrl);
@@ -1560,24 +1776,12 @@ namespace GoNoGo.EditorTools
             BuildUtil.Light("ScreenSpill", LightType.Point, new Color(0.35f, 0.6f, 1f), 14f * CtrlS * CtrlS, CP(29f, 3.4f, 0), Quaternion.identity, 16f * CtrlS, LightShadows.None, ctrl);
         }
 
-        static Renderer ScreenOf(List<Renderer> screens, string key) => screens.Find(s => s.gameObject.name == "Screen_" + key);
-
-        /// <summary>放在錨點上、局部 +Z 朝向螢幕（操作員面對的方向）的空物件。</summary>
-        static Transform Facing(Transform parent, string name, Transform anchor, Renderer screen)
-        {
-            var t = BuildUtil.Group(name, parent);
-            t.position = anchor.position;
-            var fwd = screen != null ? screen.bounds.center - anchor.position : Vector3.right;
-            fwd.y = 0;
-            t.rotation = Quaternion.LookRotation(fwd.normalized, Vector3.up);
-            return t;
-        }
-
         // ---------------- 大廳（任務整備室） ----------------
         //
-        // 北邊是升高的指揮台：一圈弧形的大控制台（按 E 看房間碼、設定、兩組名單），上方浮著慢慢轉的全像地球，後面是整面牆的任務螢幕。
-        // 西邊是組裝區的隊伍區（潔淨室：白、青、警示黃，吊架、零件架、衛星展示台、機械手臂），
-        // 東邊是中控室的（深色、琥珀色，監控桌、機櫃、天線）。各有一顆「加入 / 準備」的按鈕和一面名單牆。
+        // 北邊是升高的指揮台：一圈弧形的大控制台（按 E 看房間碼、設定、名單），上方浮著慢慢轉的全像地球，後面是整面牆的任務螢幕。
+        // 不分組：兩邊的展示區只是介紹任務的兩個階段——西邊是組裝（潔淨室：白、青、警示黃，吊架、零件架、衛星展示台、機械手臂），
+        // 東邊是選件（深色、琥珀色，監控桌、機櫃、天線）。兩邊各有一顆「準備」的按鈕（作用一樣，按哪一顆都可以）
+        // 和一面看板（這個階段在做什麼、誰準備好了）。
         // 地板上沒有圈圈：位置靠兩邊的拱門、地毯和燈光區分。
 
         static readonly Color AsmColor = new Color(0.22f, 0.78f, 0.96f);
@@ -1662,7 +1866,7 @@ namespace GoNoGo.EditorTools
             BuildControlSide(art, fm, lm, lobby);
         }
 
-        /// <summary>入口那面（南牆）：深色直立牆板、兩面隊伍旗、任務名稱。</summary>
+        /// <summary>入口那面（南牆）：深色直立牆板、兩面旗、任務名稱。</summary>
         static void BuildLobbyEntrance(ArtBuilder.Art art, LobbyMats lm, Transform lobby)
         {
             for (int i = -11; i <= 11; i++)
@@ -1737,7 +1941,7 @@ namespace GoNoGo.EditorTools
                 Box("ScreenTower", lobby, new Vector3(sx * 5.8f, 3.2f, LZ1 - 0.15f), new Vector3(0.22f, 6.2f, 0.22f), sx < 0 ? lm.asmGlow : lm.ctlGlow, shadows: false);
         }
 
-        /// <summary>隊伍區共用的：地毯、邊線、兩根柱子 + 橫樑的拱門、隊名看板、名單牆、區域燈。</summary>
+        /// <summary>兩邊展示區共用的：地毯、邊線、兩根柱子 + 橫樑的拱門、區域名稱、看板（這個階段的說明和名單）、區域燈。</summary>
         static void TeamZone(ArtBuilder.Art art, FacMats fm, Transform lobby, float side, string tag, Material glow, Material floorMat,
             Color col, string screenId, string nameKey, Material edge)
         {
@@ -1757,14 +1961,14 @@ namespace GoNoGo.EditorTools
             
             Label(g, nameKey, new Vector3(side * (ArchX - 0.4f), 5.1f, zc), "team", 22f);
             BuildUtil.Light("Glow_" + tag, LightType.Point, col, 3f, new Vector3(side * 9.5f, 4.2f, zc), Quaternion.identity, 11f, LightShadows.None, g);
-            // 名單牆：面向房間內側（西牆朝 +x = yaw -90、東牆朝 -x = yaw 90）
+            // 看板：面向房間內側（西牆朝 +x = yaw -90、東牆朝 -x = yaw 90）
             WallScreen(art, fm, g, "TeamBoard_" + tag, screenId, new Vector3(side * (LX - 0.08f), 3.3f, zc), side * 90f, new Vector2(6.4f, 3.2f), new Vector2Int(1280, 640));
         }
 
         /// <summary>組裝區（西）：潔淨室風格 —— 淺色地板、警示黃條、吊架與工作燈、零件架、衛星展示台、機械手臂、方形按鈕。</summary>
         static void BuildAssemblySide(ArtBuilder.Art art, FacMats fm, LobbyMats lm, Transform lobby)
         {
-            TeamZone(art, fm, lobby, -1f, "Asm", lm.asmGlow, lm.asmFloor, AsmColor, "team_assembly", "ui.area.assembly", fm.hazard);
+            TeamZone(art, fm, lobby, -1f, "Asm", lm.asmGlow, lm.asmFloor, AsmColor, "lobby_assemble", "ui.area.assembly", fm.hazard);
             var g = BuildUtil.Group("AsmDecor", lobby);
 
             // 吊架：兩根橫跨的桁架 + 工作燈 + 吊纜
@@ -1811,7 +2015,7 @@ namespace GoNoGo.EditorTools
             Box("Claw", arm, new Vector3(1.7f, 1.55f, 0), new Vector3(0.12f, 0.3f, 0.3f), lm.dark);
 
             // 方形按鈕：警示黃條紋的基座 + 青色大按鈕
-            var bp = BuildUtil.Group("JoinButtonAsm", g);
+            var bp = BuildUtil.Group("ReadyButtonAsm", g);
             bp.position = new Vector3(-6.9f, 0, 43f);
             Solid("Base", bp, new Vector3(0, 0.45f, 0), new Vector3(1f, 0.9f, 1f), art.consoleBody, true);
             Box("StripeA", bp, new Vector3(0, 0.3f, 0), new Vector3(1.04f, 0.08f, 1.04f), fm.hazard, shadows: false);
@@ -1819,16 +2023,15 @@ namespace GoNoGo.EditorTools
             Box("Frame", bp, new Vector3(0, 0.93f, 0), new Vector3(0.8f, 0.05f, 0.8f), art.trim);
             var cap = Box("Cap", bp, new Vector3(0, 1.0f, 0), new Vector3(0.62f, 0.1f, 0.62f), lm.asmBtn);
             var jb = bp.gameObject.AddComponent<LobbyButton>();
-            jb.team = Station.Assembly;
             jb.teamColor = AsmColor;
             jb.cap = cap.GetComponent<Renderer>();
-            Label(bp, "ui.lobby.join.assembly", new Vector3(0, 1.7f, 0), "team", 9f);
+            Label(bp, "ui.lobby.ready_button", new Vector3(0, 1.7f, 0), "team", 9f);
         }
 
         /// <summary>控制室（東）：深色風格 —— 暗地板、琥珀色光、監控桌與椅子、機櫃、天線、圓形按鈕。</summary>
         static void BuildControlSide(ArtBuilder.Art art, FacMats fm, LobbyMats lm, Transform lobby)
         {
-            TeamZone(art, fm, lobby, 1f, "Ctl", lm.ctlGlow, lm.ctlFloor, CtlColor, "team_control", "ui.area.control", lm.ctlGlow);
+            TeamZone(art, fm, lobby, 1f, "Ctl", lm.ctlGlow, lm.ctlFloor, CtlColor, "lobby_select", "ui.area.control", lm.ctlGlow);
             var g = BuildUtil.Group("CtlDecor", lobby);
 
             // 兩排監控桌（螢幕朝南：從入口就看得到），各配一張椅子
@@ -1874,17 +2077,16 @@ namespace GoNoGo.EditorTools
             Box("FeedTip", dish, new Vector3(0, 1.0f, 0), new Vector3(0.14f, 0.1f, 0.14f), lm.ctlGlow, shadows: false);
 
             // 圓形按鈕：深色基座 + 琥珀色光環 + 圓形大按鈕
-            var bp = BuildUtil.Group("JoinButtonCtl", g);
+            var bp = BuildUtil.Group("ReadyButtonCtl", g);
             bp.position = new Vector3(6.9f, 0, 43f);
             BuildUtil.Prim(PrimitiveType.Cylinder, "Base", bp, new Vector3(0, 0.45f, 0), new Vector3(0.95f, 0.45f, 0.95f), art.consoleBody, collider: true);
             BuildUtil.Prim(PrimitiveType.Cylinder, "Band", bp, new Vector3(0, 0.55f, 0), new Vector3(0.99f, 0.03f, 0.99f), lm.ctlGlow);
             BuildUtil.Prim(PrimitiveType.Cylinder, "Collar", bp, new Vector3(0, 0.93f, 0), new Vector3(0.82f, 0.03f, 0.82f), art.trim);
             var cap = BuildUtil.Prim(PrimitiveType.Cylinder, "Cap", bp, new Vector3(0, 1.0f, 0), new Vector3(0.66f, 0.07f, 0.66f), lm.ctlBtn);
             var jb = bp.gameObject.AddComponent<LobbyButton>();
-            jb.team = Station.Control;
             jb.teamColor = CtlColor;
             jb.cap = cap.GetComponent<Renderer>();
-            Label(bp, "ui.lobby.join.control", new Vector3(0, 1.7f, 0), "team", 9f);
+            Label(bp, "ui.lobby.ready_button", new Vector3(0, 1.7f, 0), "team", 9f);
         }
 
         /// <summary>零件架：兩根立柱、三層板、幾個零件盒。</summary>

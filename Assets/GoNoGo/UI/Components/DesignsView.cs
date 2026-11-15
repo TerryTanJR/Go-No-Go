@@ -288,7 +288,7 @@ namespace GoNoGo.UI
                 Ui.Text(c.Scenario != null ? Loc.T(c.Scenario.Name) : "", "small", "dim").AddTo(cell);
             }
 
-            foreach (ResourceId id in new[] { ResourceId.Mass, ResourceId.Power, ResourceId.Budget, ResourceId.Data, ResourceId.Comms, ResourceId.Time })
+            foreach (ResourceId id in new[] { ResourceId.Mass, ResourceId.Power, ResourceId.Budget, ResourceId.Data, ResourceId.Comms })
             {
                 var rid = id;
                 // 正常的寫餘裕幾成；吃緊、超出的和儀表板一樣寫「還差多少／只剩多少」
@@ -297,7 +297,7 @@ namespace GoNoGo.UI
                     c => Fmt.Resource(c.Ev[rid]),
                     c => c.Ev[rid].Status == ResourceStatus.Ok
                         ? Loc.T("ui.designs.margin", ("pct", Fmt.Pct(c.Ev[rid].Margin)))
-                        : DashboardView.Gap(c.Ev[rid]),
+                        : SelectView.Gap(c.Ev[rid]),
                     c => c.Ev[rid].Margin,
                     c => c.Ev[rid].Status == ResourceStatus.Over ? "over" : c.Ev[rid].Status == ResourceStatus.Tight ? "tight" : null);
             }

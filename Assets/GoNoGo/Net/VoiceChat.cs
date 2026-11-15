@@ -22,6 +22,41 @@ namespace GoNoGo.Net
 
         public static bool InChannel => _channel != null;
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+        [System.Runtime.InteropServices.DllImport("__Internal")]
+        static extern void GoNoGoSetVoiceVolume(float volume);
+#endif
+
+        /// <summary>
+        /// 語音聊天音量（0–1）：只調整聽到隊友說話的音量。語音不經過 Unity 的 AudioListener，所以不受主音量影響，
+        /// 要用 Vivox 自己的輸出音量。Vivox 的音量是 -50（最小）到 50，0 是預設：這裡把 100% 對到 0、0% 對到靜音。
+        /// 瀏覽器版 Vivox 的 SetOutputDeviceVolume 是空的（什麼都不做），改成直接調它播放隊友聲音的 audio 元素
+        /// （Plugins/GoNoGoVoice.jslib）。
+        /// </summary>
+        public static void SetVolume(float volume)
+        {
+            volume = Mathf.Clamp01(volume);
+            try
+            {
+#if UNITY_WEBGL && !UNITY_EDITOR
+                GoNoGoSetVoiceVolume(volume);
+#else
+                if (!_initialized) return; // 還沒進過語音頻道：加入時（Join）會套用
+                var vivox = VivoxService.Instance;
+                if (volume <= 0.001f) { vivox.MuteOutputDevice(); return; }
+                if (vivox.IsOutputDeviceMuted) vivox.UnmuteOutputDevice();
+                vivox.SetOutputDeviceVolume(VivoxVolume(volume));
+#endif
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Voice] volume: " + e.Message);
+            }
+        }
+
+        /// <summary>0–1 → Vivox 的 -50…0（100% = 預設音量，不放大）。</summary>
+        public static int VivoxVolume(float volume) => Mathf.RoundToInt(Mathf.Lerp(-50f, 0f, Mathf.Clamp01(volume)));
+
         /// <summary>自己的麥克風靜音：別人聽不到你，你還是聽得到別人。換房間也保持。</summary>
         public static void SetMicMuted(bool muted)
         {
@@ -61,6 +96,7 @@ namespace GoNoGo.Net
                 _channel = channel;
                 Multiplayer.VoiceConnected = true;
                 Multiplayer.MicMuted = vivox.IsInputDeviceMuted;
+                SetVolume(GameSettings.VoiceVolume);
                 Debug.Log("[Voice] joined " + channel);
                 if (gen != _generation) await LeaveNow();
             }
@@ -100,6 +136,7 @@ namespace GoNoGo.Net
             _generation = 0;
             Multiplayer.VoiceConnected = false;
             Multiplayer.SetMicMuted = SetMicMuted;
+            Multiplayer.SetVoiceVolume = SetVolume;
         }
     }
 }

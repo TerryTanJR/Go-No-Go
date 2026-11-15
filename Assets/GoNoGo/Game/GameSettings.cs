@@ -10,6 +10,8 @@ namespace GoNoGo.Game
     public static class GameSettings
     {
         const string MouseKey = "gonogo.mouse";
+        const string RunToggleKey = "gonogo.run.toggle";
+        const string VoiceKey = "gonogo.voice";
         // 字級基準放大過一次（舊的 115% 變成現在的 100%），換一個 key，舊 key 的值換算過來
         const string TextKey = "gonogo.textscale.v2";
         const string OldTextKey = "gonogo.textscale";
@@ -26,6 +28,8 @@ namespace GoNoGo.Game
 
         static float? _mouse;
         static int? _text;
+        static bool? _runToggle;
+        static float? _voice;
 
         /// <summary>字體大小改變時（UI 根元素換 class）。</summary>
         public static event Action TextScaleChanged;
@@ -38,6 +42,36 @@ namespace GoNoGo.Game
             {
                 _mouse = Mathf.Clamp(value, MinMouse, MaxMouse);
                 PlayerPrefs.SetFloat(MouseKey, _mouse.Value);
+            }
+        }
+
+        /// <summary>
+        /// 奔跑方式。false（預設）= 按住：按住 Shift 跑，放開就走。
+        /// true = 切換：按一下 Shift 開始跑，再按一下改回走；停下來（沒有按方向鍵）時自動改回走。
+        /// 存在本機，多人時各自設定。
+        /// </summary>
+        public static bool RunToggle
+        {
+            get => _runToggle ??= PlayerPrefs.GetInt(RunToggleKey, 0) == 1;
+            set
+            {
+                _runToggle = value;
+                PlayerPrefs.SetInt(RunToggleKey, value ? 1 : 0);
+            }
+        }
+
+        /// <summary>
+        /// 語音聊天音量（0–1，預設 1）：只調整聽到隊友說話的音量，不受主音量影響；自己麥克風的靜音另外管。
+        /// 存在本機。語音在 GoNoGo.Net（Vivox），改了就透過 <see cref="Multiplayer.SetVoiceVolume"/> 套用。
+        /// </summary>
+        public static float VoiceVolume
+        {
+            get => _voice ??= Mathf.Clamp01(PlayerPrefs.GetFloat(VoiceKey, 1f));
+            set
+            {
+                _voice = Mathf.Clamp01(value);
+                PlayerPrefs.SetFloat(VoiceKey, _voice.Value);
+                Multiplayer.SetVoiceVolume?.Invoke(_voice.Value);
             }
         }
 
@@ -81,6 +115,8 @@ namespace GoNoGo.Game
         {
             _mouse = null;
             _text = null;
+            _runToggle = null;
+            _voice = null;
             TextScaleChanged = null;
         }
     }

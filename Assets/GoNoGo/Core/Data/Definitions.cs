@@ -65,13 +65,13 @@ namespace GoNoGo.Core
         public string Id { get; set; } = "";
         public string Category { get; set; } = "";
         public int Tier { get; set; }
-        /// <summary>零件上印的編號（例如 X-2）。組裝區只看得到編號，規格要查中控室的手冊。</summary>
+        /// <summary>零件上印的編號（例如 X-2）。</summary>
         public string Code { get; set; } = "";
         public LocalizedText Name { get; set; } = new LocalizedText();
         /// <summary>一句白話功能，組裝區看零件時顯示（不含任何數值）。</summary>
         public LocalizedText Function { get; set; } = new LocalizedText();
         public LocalizedText Description { get; set; } = new LocalizedText();
-        /// <summary>採購終端的科普說明：這東西怎麼運作、真實任務怎麼用它。不含數字（數字在中控室的型錄）。</summary>
+        /// <summary>知識卡的科普說明：這東西怎麼運作、真實任務怎麼用它。不含數字。</summary>
         public LocalizedText Explainer { get; set; } = new LocalizedText();
 
         // 共通
@@ -79,7 +79,6 @@ namespace GoNoGo.Core
         /// <summary>運作時的平均耗電（W）。天線的發射耗電另見 TxPowerW。</summary>
         public double PowerW { get; set; }
         public double CostMusd { get; set; }
-        public double DevMonths { get; set; }
         /// <summary>每年不故障的機率（0–1）。</summary>
         public double ReliabilityPerYear { get; set; } = 0.99;
         /// <summary>有備援（雙套系統）：故障時自動切換，不影響任務。</summary>
@@ -144,6 +143,9 @@ namespace GoNoGo.Core
         public string Color { get; set; } = "";
 
         public SourceRef Source { get; set; } = new SourceRef();
+
+        /// <summary>複本（改數值不會動到原本的資料）。大屏幕的儀表板用玩家填的數值算，就是改這份複本。</summary>
+        public PartDef Clone() => (PartDef)MemberwiseClone();
     }
 
     public sealed class OrbitDef
@@ -188,12 +190,11 @@ namespace GoNoGo.Core
         public Dictionary<string, double> CapacityKg { get; set; } = new Dictionary<string, double>();
         public double CostMusd { get; set; }
         public double FairingDiameterM { get; set; }
-        public double LeadMonths { get; set; }
         /// <summary>歷史火箭只在歷史任務關卡出現。</summary>
         public bool Historical { get; set; }
         public string FlightRecord { get; set; } = "";
         public string Model { get; set; } = "";
-        /// <summary>共乘：只能去主酬載的這條軌道（空白 = 沒有限制）。中控室選不到別的軌道。</summary>
+        /// <summary>共乘：只能去主酬載的這條軌道（空白 = 沒有限制）。大屏幕上選不到別的軌道。</summary>
         public string OrbitLock { get; set; } = "";
         public SourceRef Source { get; set; } = new SourceRef();
         /// <summary>真實的飛行時間表（發射演出用）。</summary>
@@ -225,14 +226,14 @@ namespace GoNoGo.Core
 
     public sealed class RequirementDef
     {
-        /// <summary>情境內唯一的 id（電話問到後記在筆記板上）。</summary>
+        /// <summary>情境內唯一的 id。</summary>
         public string Id { get; set; } = "";
         /// <summary>
         /// budget_reserve、lifetime_target、mass_power_margin、science_threshold、instrument_required、data_return；
         /// 野火關卡另有 instrument_any（part_ids 任一台）、orbit_required（orbit_id）、battery_eclipse（撐過地影）、latency（通報延遲 ≤ value 分鐘）。
         /// </summary>
         public string Type { get; set; } = "";
-        /// <summary>0 = 一定有；n = 和其他處室衝突的需求，難度的 requirement_conflicts ≥ n 才出現。</summary>
+        /// <summary>0 = 一定有；n = 和其他需求互相拉扯的需求（取捨），難度的 requirement_conflicts ≥ n 才出現。</summary>
         public int ConflictGroup { get; set; }
         public double Value { get; set; }
         public string PartId { get; set; } = "";
@@ -267,14 +268,13 @@ namespace GoNoGo.Core
         public LocalizedText Briefing { get; set; } = new LocalizedText();
         public double BudgetMusd { get; set; }
         public double TargetYears { get; set; }
-        public double DeadlineMonths { get; set; }
         public int MaxInstruments { get; set; } = 3;
         public List<string> AllowedOrbits { get; set; } = new List<string>();
         /// <summary>空白代表所有非歷史火箭都可用。</summary>
         public List<string> AllowedLaunchers { get; set; } = new List<string>();
         /// <summary>科學分數 100 分對應的科學點數。</summary>
         public double ScienceReference { get; set; } = 100;
-        /// <summary>處室 key（mission_lead、budget_office、science、engineering、comms）→ 這個處室的需求。</summary>
+        /// <summary>需求的分類（mission_lead、budget_office、science、engineering、comms）→ 這一類的任務需求。全部直接列在大屏幕上。</summary>
         public Dictionary<string, List<RequirementDef>> Requirements { get; set; } = new Dictionary<string, List<RequirementDef>>();
         public Design DefaultDesign { get; set; } = new Design();
         public List<string> ComparisonMissions { get; set; } = new List<string>();
@@ -290,8 +290,8 @@ namespace GoNoGo.Core
         public Dictionary<string, Design> DefaultDesigns { get; set; } = new Dictionary<string, Design>();
         /// <summary>難度 id → 營運事件種類（取代難度的 event_types）。</summary>
         public Dictionary<string, List<string>> EventTypes { get; set; } = new Dictionary<string, List<string>>();
-        /// <summary>處室 id → 這個關卡的對話（取代 departments.json 的通用對話）。</summary>
-        public Dictionary<string, List<DialogueLine>> Dialogue { get; set; } = new Dictionary<string, List<DialogueLine>>();
+        /// <summary>這個關卡的取捨說明（有寫就取代 tradeoffs.json 的通用說明）。</summary>
+        public List<TradeoffNote> Tradeoffs { get; set; } = new List<TradeoffNote>();
         /// <summary>科學成果的算法：空白 = 通用（科學點數）；fire_alert = 偵測率 × 及時通報比例 × 工作比例。</summary>
         public string ScienceModel { get; set; } = "";
         /// <summary>火點通報時限（分鐘）。大於 0 時儀表板顯示「通報延遲」。</summary>
@@ -300,30 +300,33 @@ namespace GoNoGo.Core
         public bool FireAlert => ScienceModel == "fire_alert";
 
         /// <summary>
-        /// 沙盒：沒有預設限制。預算、發射期限不設上限（畫面顯示 ∞），沒有處室需求，所有零件、軌道、火箭都能用，
-        /// 發射失敗不重來（保留設計接著改），零件不用先組裝，可以直接載入存過的設計。
+        /// 沙盒：沒有預設限制。預算不設上限（畫面顯示 ∞），沒有任務需求，所有零件、軌道、火箭都能用，數值不挖空，
+        /// 發射失敗不重來（保留設計接著改），零件不用組裝（選了就在衛星上），可以直接載入存過的設計。
         /// 任務目標是 <see cref="OpenObjective"/>：每台儀器、每條軌道都用它最擅長的目標來算科學。
         /// </summary>
         public bool Sandbox { get; set; }
 
         /// <summary>沙盒的任務目標：不限定主題。</summary>
         public const string OpenObjective = "open";
-        /// <summary>預算、期限大到這個數字以上就當成「沒有上限」（畫面顯示 ∞）。</summary>
+        /// <summary>預算大到這個數字以上就當成「沒有上限」（畫面顯示 ∞）。</summary>
         public const double NoLimit = 1e5;
     }
 
-    /// <summary>零件的一個小零件（組裝工作台）：名稱和一句白話功能。</summary>
+    /// <summary>零件的一個小零件（架子上拿、在組裝台組起來）：名稱和一句白話功能。</summary>
     public sealed class AssemblyComponent
     {
         public string Id { get; set; } = "";
         public LocalizedText Name { get; set; } = new LocalizedText();
         /// <summary>這個小零件做什麼（不含數字）。組裝時看著這句話挑出對的小零件。</summary>
         public LocalizedText Role { get; set; } = new LocalizedText();
+        /// <summary>這個小零件自己的資料來源（沒寫就看配方的來源）。</summary>
+        public SourceRef Source { get; set; }
     }
 
     /// <summary>
-    /// 一類零件由哪些小零件組成（組裝順序就是清單順序）。part_ids 有寫就只適用那幾個零件（例如有製冷機的儀器），
-    /// 沒寫就是這個類別的通用配方。
+    /// 一個（或一類）零件由哪些小零件組成（組裝順序就是清單順序）。part_ids 有寫就只適用那幾個零件，
+    /// 沒寫就是這個類別的通用配方（同一類的小、中、大型共用）。酬載儀器每台都有自己的配方。
+    /// 任兩個配方的小零件組合都不一樣（也不會是另一個的一部分），組裝台才認得出左側擺的是哪個配方。
     /// </summary>
     public sealed class AssemblyRecipe
     {
@@ -333,8 +336,7 @@ namespace GoNoGo.Core
         public SourceRef Source { get; set; } = new SourceRef();
 
         /// <summary>
-        /// 這個配方的代號（類別，指定零件的再加上第一個零件 id）。同一種構造組過一次就算學會了：
-        /// <see cref="SessionState.Learned"/> 記的就是這個。
+        /// 這個配方的代號（類別，指定零件的再加上第一個零件 id）。組過的構造記在 <see cref="SessionState.Learned"/>。
         /// </summary>
         [Newtonsoft.Json.JsonIgnore]
         public string Key => PartIds.Count > 0 ? Category + ":" + PartIds[0] : Category;
@@ -361,7 +363,7 @@ namespace GoNoGo.Core
         public LocalizedText Description { get; set; } = new LocalizedText();
         /// <summary>不出現在選單（新手訓練用的難度）。</summary>
         public bool Hidden { get; set; }
-        /// <summary>工程部要求的設計餘裕（質量與電力）。</summary>
+        /// <summary>任務需求的設計餘裕（質量與電力）。</summary>
         public double RequiredMargin { get; set; } = 0.15;
         public int TiersPerCategory { get; set; } = 3;
         /// <summary>哪些類別的誘餌零件會上架（學員只有儀器，越難類別越多）。</summary>
@@ -375,16 +377,21 @@ namespace GoNoGo.Core
         public bool DashboardBasic { get; set; }
         /// <summary>左上角顯示「下一步」並在場景裡標出要去哪裡（學員；新手訓練有自己的步驟，不用這個）。</summary>
         public bool NextStepGuide { get; set; }
-        /// <summary>電話上會帶出需求的題目標「需求」（學員、新手訓練），看這一關實際有沒有那條需求。</summary>
-        public bool RequirementTags { get; set; }
-        /// <summary>筆記板：checklist（整理成發射條件清單）、transcript（記下對話原文）、none（不自動記錄）。</summary>
-        public string NotesMode { get; set; } = "transcript";
-        /// <summary>開放到第幾組互相衝突的處室需求。</summary>
+        /// <summary>
+        /// 開局時挖空的比例（0–1）：零件的質量、功率、電池容量、解析度、資料量、下傳速率這六種數值，
+        /// 有這麼大比例先不顯示，要找線索自己填回大屏幕。學員少，越難越多。
+        /// </summary>
+        public double BlankRatio { get; set; }
+        /// <summary>單人時的挖空比例（比照學員減少）。</summary>
+        public double BlankRatioSolo { get; set; }
+        /// <summary>有寫就只挖空這幾格（"零件 id/欄位"，例如 solar_deployable/mass_kg），不看比例。新手訓練用。</summary>
+        public List<string> BlankCells { get; set; } = new List<string>();
+        /// <summary>開局時這幾類零件已經組好、裝在衛星上（新手訓練：只留一兩個零件讓玩家親手組）。</summary>
+        public List<string> PrebuiltCategories { get; set; } = new List<string>();
+        /// <summary>開放到第幾組互相拉扯的任務需求（取捨）。</summary>
         public int RequirementConflicts { get; set; }
         /// <summary>失敗原因看板：advice（原因 + 因果鏈 + 建議）、chain（原因 + 因果鏈）、category（只寫大類）。</summary>
         public string FailureDetail { get; set; } = "chain";
-        /// <summary>第一次發射失敗不影響評價。</summary>
-        public bool FreeFirstFailure { get; set; }
         /// <summary>營運事件直接顯示名稱（不用自己判讀）。</summary>
         public bool EventReveal { get; set; }
         /// <summary>營運回合數（每回合一個事件）。</summary>
@@ -433,32 +440,19 @@ namespace GoNoGo.Core
         public string Url { get; set; } = "";
     }
 
-    /// <summary>中控室電話可以撥的處室（departments.json）。</summary>
-    public sealed class DepartmentDef
-    {
-        /// <summary>mission_lead、budget_office、science、engineering、comms。</summary>
-        public string Id { get; set; } = "";
-        public LocalizedText Name { get; set; } = new LocalizedText();
-        /// <summary>接電話的人（虛構角色）。</summary>
-        public LocalizedText Contact { get; set; } = new LocalizedText();
-        public LocalizedText Greeting { get; set; } = new LocalizedText();
-        public string Color { get; set; } = "";
-        public List<DialogueLine> Lines { get; set; } = new List<DialogueLine>();
-    }
-
     /// <summary>
-    /// 對話的一個問題。回答可以用 {budget}、{reserve_pct}、{years}… 這類參數（GameState 代入）；
-    /// reveals 列出這題會說出的需求種類，回答後面接上該處室這些需求的文字，並記到筆記板。
+    /// 取捨說明（tradeoffs.json，或關卡自己的）：大屏幕「任務需求」頁列出的提示——為什麼有這條需求、
+    /// 兩條需求怎麼互相拉扯、哪裡最花錢。原本要打電話問各部門，現在直接列出來，不用部門的名義。
+    /// 內文可以用 {budget}、{years}、{eclipse_min}… 這類參數（<see cref="Tradeoffs.Fill"/> 代入）。
     /// </summary>
-    public sealed class DialogueLine
+    public sealed class TradeoffNote
     {
         public string Id { get; set; } = "";
-        public LocalizedText Question { get; set; } = new LocalizedText();
-        public LocalizedText Answer { get; set; } = new LocalizedText();
-        /// <summary>這個處室在這個情境沒有 reveals 列的需求時，改用這段回答。</summary>
-        public LocalizedText AnswerNone { get; set; } = new LocalizedText();
-        public List<string> Reveals { get; set; } = new List<string>();
-        /// <summary>難度的 requirement_conflicts 至少這麼多才問得到（例如工程部推晨昏軌道只在工程師以上）。</summary>
+        /// <summary>分類：mission_lead、budget_office、science、engineering、comms（和需求的分類同一套）。</summary>
+        public string Topic { get; set; } = "";
+        public LocalizedText Title { get; set; } = new LocalizedText();
+        public LocalizedText Text { get; set; } = new LocalizedText();
+        /// <summary>難度的 requirement_conflicts 至少這麼多才列出（例如推薦晨昏軌道只在工程師以上）。</summary>
         public int MinConflicts { get; set; }
     }
 
@@ -487,11 +481,6 @@ namespace GoNoGo.Core
         public double BusBasePowerW { get; set; } = 25;
         public double BusBaseCostMusd { get; set; } = 8;
         public double OpsBaseCostMusdPerYear { get; set; } = 1.5;
-        public double IntegrationMonths { get; set; } = 8;
-        /// <summary>每問一個新問題花掉的時程（月）：問需求不是免費的，要挑著問。</summary>
-        public double CallMonths { get; set; } = 0.5;
-        /// <summary>組裝工作台每裝錯一個小零件花掉的時程（月）：拆下來重裝（返工）要時間，所以要看懂再裝。</summary>
-        public double ReworkMonths { get; set; } = 0.25;
         public double LinkEfficiency { get; set; } = 0.8;
         /// <summary>過境分布不均：最長空檔 = 平均空檔 × 這個倍數。</summary>
         public double ContactGapFactor { get; set; } = 2.0;

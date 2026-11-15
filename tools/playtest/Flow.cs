@@ -15,7 +15,10 @@ using UnityEngine.UIElements;
 // unity command script run --file tools/playtest/Flow.cs --entry Flow.State
 //   Flow.Click "文字"   按畫面上第一個看得到、文字包含它的按鈕或卡片
 //   Flow.Key "space"   按一下鍵盤（Input System 的 Key 名稱）
-//   Flow.AimAt "Screen_dashboard"   走到控制台前、準星對準它，回傳資訊框內容
+//   Flow.AimAt "Screen_ops-power"   走到控制台前、準星對準它，回傳資訊框內容
+//   Flow.AimFrom "Clue_wall_1" 1.6   從玩家目前那一側走近、對準（線索、大屏幕前的選件台 BigScreen、發射鈕…）
+//   Flow.Fill "solar_deployable" "mass_kg" 7.2   在大屏幕填一格數值；Flow.FillAll = 把挖空的都填上真實數值
+//   Flow.BuildPart "solar_deployable"   照玩家的規則組一個零件並裝上衛星（架上拿、放左側、依序裝、拿去整合台）
 //   Flow.Panel         目前開著的面板文字
 public static class Flow
 {
@@ -195,7 +198,7 @@ public static class Flow
         var ct = Object.FindObjectsByType<Interactable>().FirstOrDefault(c => c.name == name);
         if (ct == null) return Task.FromResult("no target " + name);
         var c = CenterOf(ct);
-        var outward = name == "LaunchButton" ? Vector3.left : new Vector3(c.x - 28f, 0, c.z).normalized; // 中控台圓心 = 世界 (28, 0, 0)
+        var outward = name == "LaunchButton" ? Vector3.left : new Vector3(c.x - 36.8f, 0, c.z).normalized; // 中控台圓心 = 世界 (36.8, 0, 0)
         return AimAtTarget(ct, outward, 1.25f);
     }
 
@@ -266,7 +269,7 @@ public static class Flow
         return "sent " + t + " " + a + " " + n + "  " + State();
     }
 
-    // ---------------- 直接開局、整合台上的零件（拆零件的檢查） ----------------
+    // ---------------- 直接開局、整合台上的零件 ----------------
 
     static async Task<bool> WaitFor(System.Func<bool> ok, float seconds)
     {
@@ -351,14 +354,14 @@ public static class Flow
         var h = Hud.Target;
         var def = GameSession.Data.Part(partId);
         if (h == null) return partId + ": FAIL nothing targeted";
+        // 整合台上的零件不能手動拆（要換零件是回大屏幕重新開啟設計）：對得到、名稱對就算過
         bool right = def != null && h.Title.StartsWith(def.Code + "｜");
-        bool canRemove = h.Keys.Any(k => k.Key == "C");
-        return partId + ": " + (right && canRemove ? "OK" : "FAIL") + " [" + h.Title + (string.IsNullOrEmpty(h.Subtitle) ? "" : " / " + h.Subtitle) + "] keys=" + string.Join(",", h.Keys.Select(k => k.Key));
+        return partId + ": " + (right ? "OK" : "FAIL") + " [" + h.Title + (string.IsNullOrEmpty(h.Subtitle) ? "" : " / " + h.Subtitle) + "] keys=" + string.Join(",", h.Keys.Select(k => k.Key));
     }
 
     /// <summary>
     /// 第一人稱：零件可能被別的零件擋住（大太陽能翼後面的電腦、被別台儀器擋住的儀器）。
-    /// 玩家會繞著船走：這裡繞一圈每 30° 站一次、再加上零件自己那一側，任何一個位置對得到就算可以拆。
+    /// 玩家會繞著船走：這裡繞一圈每 30° 站一次、再加上零件自己那一側，任何一個位置對得到就算看得到。
     /// </summary>
     public static async Task<string> AimPartAround(string partId)
     {
@@ -390,7 +393,7 @@ public static class Flow
                 var h = Hud.Target;
                 if (h == null) continue;
                 last = h.Title;
-                if (h.Title.StartsWith(def.Code + "｜") && h.Keys.Any(k => k.Key == "C")) return partId + ": OK from " + a + "°";
+                if (h.Title.StartsWith(def.Code + "｜")) return partId + ": OK from " + a + "°";
             }
         }
         return partId + ": FAIL from every side, last=[" + last + "]";
@@ -408,7 +411,7 @@ public static class Flow
             if (r.Contains(": OK")) ok++;
             sb.Append(r).Append("; ");
         }
-        sb.Append(ok).Append('/').Append(ids.Count).Append(" removable");
+        sb.Append(ok).Append('/').Append(ids.Count).Append(" targetable");
         return sb.ToString();
     }
 
@@ -424,19 +427,25 @@ public static class Flow
             if (r.Contains(": OK")) ok++;
             sb.Append(r).Append('\n');
         }
-        sb.Append(ok).Append('/').Append(ids.Count).Append(" removable");
+        sb.Append(ok).Append('/').Append(ids.Count).Append(" targetable");
         return sb.ToString();
     }
 
-    /// <summary>目前這一局的狀態摘要：手上、船上、擁有、已組裝、購物車。</summary>
+    /// <summary>目前這一局的狀態摘要：手上、勾選的設計、是否確定、填了幾格、組好的、裝上衛星的。</summary>
     public static string Mission()
     {
         if (!GameSession.HasMission) return "no mission";
         var s = GameSession.Mission.S;
-        return "scenario=" + s.ScenarioId + " diff=" + s.DifficultyId + " phase=" + s.Phase + " held=" + (s.HeldBy(GameSession.LocalPlayer) ?? "-")
-               + "\nbench=" + string.Join(",", s.Bench.AllPartIds()) + " orbit=" + s.Bench.OrbitId + " launcher=" + s.Bench.LauncherId + " years=" + s.Bench.MissionYears
-               + "\nowned=" + string.Join(",", s.Owned) + "\nbuilt=" + string.Join(",", s.Built) + "\ncart=" + string.Join(",", s.Cart)
-               + "\nlaunches=" + s.Launches.Count + " restarts=" + s.Restarts;
+        var d = GameSession.Data;
+        var cells = GoNoGo.Core.Blanks.Cells(d, s);
+        return "scenario=" + s.ScenarioId + " diff=" + s.DifficultyId + " phase=" + s.Phase + " solo=" + s.Solo + " confirmed=" + s.Confirmed
+               + " held=" + (s.HeldBy(GameSession.LocalPlayer) ?? "-") + " comps=" + string.Join(",", s.CompsOf(GameSession.LocalPlayer))
+               + "\ndesign=" + string.Join(",", s.Bench.AllPartIds()) + " orbit=" + s.Bench.OrbitId + " launcher=" + s.Bench.LauncherId + " years=" + s.Bench.MissionYears
+               + "\nblanks=" + cells.Count(c => GoNoGo.Core.Blanks.Filled(s, c.part, c.field) != null) + "/" + cells.Count
+               + " built=" + string.Join(",", s.Built) + "\ninstalled=" + string.Join(",", s.Installed)
+               + "\nnot installed=" + string.Join(",", GoNoGo.Core.SessionRules.NotInstalled(s, d))
+               + "\nblockers=" + string.Join(",", GoNoGo.Core.SessionRules.LaunchBlockers(s, d))
+               + "\nlaunches=" + s.Launches.Count + " restarts=" + s.Restarts + " mistakes=" + s.Mistakes;
     }
 
     /// <summary>畫面上所有看得到的文字（檢查有沒有漏掉的字串鍵、沒轉換的 [[ ]] 記號）。</summary>
@@ -456,27 +465,138 @@ public static class Flow
         return bad.Count == 0 ? "clean" : "LEAKS: " + string.Join(" | ", bad);
     }
 
-    // ---------------- 組裝工作台與零件盤 ----------------
+    // ---------------- 選件：填數值、確定設計 ----------------
 
-    /// <summary>組裝工作台的狀態：正在組什麼、零件盤、手上、畫面右上的組裝單、通知。</summary>
+    /// <summary>挖空的每一格：零件/欄位 = 玩家填的值（沒填是 ?）。</summary>
+    public static string BlankCells()
+    {
+        var s = GameSession.Mission.S;
+        var d = GameSession.Data;
+        return string.Join(" ", GoNoGo.Core.Blanks.Cells(d, s).Select(c =>
+        {
+            var f = GoNoGo.Core.Blanks.Filled(s, c.part, c.field);
+            return c.part + "/" + c.field + "=" + (f == null ? "?" : f.V.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }));
+    }
+
+    /// <summary>在大屏幕填一格數值（和面板送的是同一個指令）。</summary>
+    public static string Fill(string partId, string field, double value)
+    {
+        GameSession.Send(GoNoGo.Core.CommandType.Fill, GoNoGo.Core.Blanks.FillArg(partId, field, value));
+        return BlankCells();
+    }
+
+    /// <summary>把挖空的每一格都填上真實數值（等於把線索都找齊了）。</summary>
+    public static async Task<string> FillAll()
+    {
+        var s = GameSession.Mission.S;
+        var d = GameSession.Data;
+        foreach (var c in GoNoGo.Core.Blanks.Cells(d, s))
+            GameSession.Send(GoNoGo.Core.CommandType.Fill, GoNoGo.Core.Blanks.FillArg(c.part, c.field, GoNoGo.Core.PartFields.Get(d.Part(c.part), c.field)));
+        await Frames(5);
+        return BlankCells();
+    }
+
+    /// <summary>這一局每個位置放了哪些線索（零件、欄位、呈現方式）。</summary>
+    public static string ClueMap()
+    {
+        var m = GameSession.Mission;
+        var sb = new StringBuilder();
+        foreach (var spot in GoNoGo.Core.Clues.Spots)
+        {
+            var list = m.CluesAt(spot.Id);
+            sb.Append(spot.Id).Append(": ").Append(list.Count == 0 ? "-" : string.Join(" + ", list.Select(c => c.PartId + "[" + string.Join(",", c.Fields) + "]" + c.Kind))).Append('\n');
+        }
+        return sb.ToString();
+    }
+
+    // ---------------- 組裝：小零件架、兩座組裝台 ----------------
+
+    /// <summary>兩座組裝台的狀態、手上的東西、最近的通知。</summary>
     public static string Bench()
     {
         var s = GameSession.Mission.S;
         var d = GameSession.Data;
         var sb = new StringBuilder();
-        var job = s.Workbench;
-        sb.Append("job=").Append(job == null ? "-" : job.PartId + " step " + job.Step + " mistakes " + job.Mistakes + " done " + job.Done + " fits " + job.Fits + " lastOk " + job.LastOk);
-        sb.Append(" rework=").Append(s.Rework).Append(" held=").Append(s.HeldBy(GameSession.LocalPlayer) ?? "-")
-          .Append(" comp=").Append(s.HeldCompBy(GameSession.LocalPlayer) ?? "-");
-        var want = GoNoGo.Core.SessionRules.BenchWants(s, d);
-        sb.Append(" wants=").Append(want == null ? "-" : want.Id);
-        sb.Append("\ntray: ").Append(string.Join(" | ", GoNoGo.Core.SessionRules.TrayNow(s, d).Select(c => c == null ? "-" : c.Id)));
-        sb.Append("\ntrays3d: ").Append(string.Join(" | ", CompTray.Trays.OrderBy(t => t.index).Select(t => t.Component == null ? "-" : t.Component.Id)));
-        var ord = Elements().FirstOrDefault(e => e.ClassListContains("ord-hud") && Visible(e));
-        sb.Append("\norder: ").Append(ord == null ? "(hidden)" : TextOf(ord).Replace("\n", " "));
+        for (int i = 0; i < s.Benches.Count; i++)
+        {
+            var b = s.Benches[i];
+            var job = b.Job;
+            sb.Append("bench").Append(i).Append(": ").Append(GoNoGo.Core.SessionRules.BenchStatusOf(s, d, i))
+              .Append(" left=[").Append(string.Join(",", b.Left)).Append("]")
+              .Append(" job=").Append(job == null ? "-" : job.PartId + " step " + job.Step + " mistakes " + job.Mistakes + " done " + job.Done + " lastOk " + job.LastOk);
+            var want = GoNoGo.Core.SessionRules.BenchWants(s, d, i);
+            sb.Append(" wants=").Append(want == null ? "-" : want.Id).Append('\n');
+        }
+        sb.Append("held=").Append(s.HeldBy(GameSession.LocalPlayer) ?? "-").Append(" comps=").Append(string.Join(",", s.CompsOf(GameSession.LocalPlayer)));
         var toast = Elements().FirstOrDefault(e => e.ClassListContains("toast--on"));
         sb.Append("\ntoast: ").Append(toast == null ? "-" : TextOf(toast).Replace("\n", " / "));
         sb.Append("\nlearned=").Append(string.Join(",", s.Learned)).Append(" flawless=").Append(string.Join(",", s.Flawless));
+        return sb.ToString();
+    }
+
+    /// <summary>架上放著這個小零件的那一格（CompBin 的物件名稱；沒有 = 空字串）。</summary>
+    public static string BinOf(string compId)
+    {
+        var b = CompBin.Bins.FirstOrDefault(x => x.Component != null && x.Component.Id == compId);
+        return b == null ? "" : b.name + " #" + b.index;
+    }
+
+    static async Task<string> Do(GoNoGo.Core.CommandType t, string a = "", int n = 0)
+    {
+        string before = GameSession.Mission.S.Phase.ToString();
+        GameSession.Send(t, a, n);
+        await Frames(4);
+        return before;
+    }
+
+    /// <summary>
+    /// 照規則把一個零件組好並裝上衛星（送的是玩家按鍵會送的同一批指令）：架上拿小零件（單人一籃四個）→ 放到組裝台左側 →
+    /// 照提示的順序從左側拿起、在右側裝上 → 拿起成品 → 裝上衛星。回傳每一步之後的狀態，方便看哪一步被擋。
+    /// </summary>
+    public static async Task<string> BuildPart(string partId, int bench)
+    {
+        var s = GameSession.Mission.S;
+        var d = GameSession.Data;
+        var part = d.Part(partId);
+        if (part == null) return "no part " + partId;
+        if (!GoNoGo.Core.SessionRules.NeedsAssembly(s, d, partId)) return partId + ": no assembly needed (installed=" + s.Installed.Contains(partId) + ")";
+        var recipe = d.Recipe(part);
+        var sb = new StringBuilder(partId + ": ");
+        int me = GameSession.LocalPlayer;
+        foreach (var c in recipe.Components)
+        {
+            await Do(GoNoGo.Core.CommandType.CompPick, c.Id);
+            // 多人一次只能拿一個：拿一個放一個
+            if (!GoNoGo.Core.SessionRules.Alone(s)) await Do(GoNoGo.Core.CommandType.BenchPut, "", bench);
+        }
+        if (GoNoGo.Core.SessionRules.Alone(s)) await Do(GoNoGo.Core.CommandType.BenchPut, "", bench);
+        sb.Append("status=").Append(GoNoGo.Core.SessionRules.BenchStatusOf(s, d, bench));
+        for (int guard = 0; guard < 12; guard++)
+        {
+            var want = GoNoGo.Core.SessionRules.BenchWants(s, d, bench);
+            if (want == null) break;
+            await Do(GoNoGo.Core.CommandType.BenchTake, want.Id, bench);
+            await Do(GoNoGo.Core.CommandType.CompFit, "", bench);
+        }
+        var job = s.BenchAt(bench)?.Job;
+        sb.Append(" built=").Append(job != null && job.Done);
+        await Do(GoNoGo.Core.CommandType.Pick, partId);
+        sb.Append(" held=").Append(s.HeldBy(me) ?? "-");
+        await Do(GoNoGo.Core.CommandType.Install, partId);
+        sb.Append(" installed=").Append(s.Installed.Contains(partId));
+        return sb.ToString();
+    }
+
+    /// <summary>設計裡還沒裝上衛星的零件全部組好、裝上（見 <see cref="BuildPart"/>）。</summary>
+    public static async Task<string> BuildAll()
+    {
+        var s = GameSession.Mission.S;
+        var d = GameSession.Data;
+        var sb = new StringBuilder();
+        foreach (var id in GoNoGo.Core.SessionRules.NotInstalled(s, d).ToList())
+            sb.Append(await BuildPart(id, 0)).Append('\n');
+        sb.Append("not installed: ").Append(string.Join(",", GoNoGo.Core.SessionRules.NotInstalled(s, d)));
         return sb.ToString();
     }
 
@@ -490,18 +610,32 @@ public static class Flow
     }
 
     /// <summary>
-    /// 走到工作台或零件盤的正面（局部 -Z 那一側）dist 公尺、面向它，回傳對到什麼。
-    /// name = "AssemblyBench" 或 "Tray0"…"Tray5"。第三人稱只轉水平方向，俯仰不動（玩家平常走過去的樣子）。
+    /// 走到某個可互動物件的正面（它的根物件局部 -Z 那一側）dist 公尺、面向它，回傳對到什麼。
+    /// name = 物件名稱：架上的一格（Bin0…）、組裝台左側的一格或右側的組裝墊要加第幾座，例如 "AssemblyBench0/Slot2"、"AssemblyBench1/Jig"。
+    /// 第三人稱只轉水平方向，俯仰不動（玩家平常走過去的樣子）。
     /// </summary>
     public static async Task<string> AimFront(string name, float dist, bool firstPerson)
     {
-        var ct = Object.FindObjectsByType<Interactable>().FirstOrDefault(c => c.name == name);
+        Interactable ct;
+        Transform root;
+        int slash = name.IndexOf('/');
+        if (slash > 0)
+        {
+            var bench = GameObject.Find(name.Substring(0, slash));
+            if (bench == null) return "no target " + name;
+            ct = bench.GetComponentsInChildren<Interactable>().FirstOrDefault(c => c.name == name.Substring(slash + 1));
+            root = bench.transform;
+        }
+        else
+        {
+            ct = Object.FindObjectsByType<Interactable>().FirstOrDefault(c => c.name == name);
+            root = ct is CompBin ? ct.transform.parent : ct != null ? ct.transform : null;
+        }
         if (ct == null) return "no target " + name;
-        var root = ct is CompTray ? ct.transform.parent : ct.transform;
         var outward = -root.forward;
         outward.y = 0;
         outward.Normalize();
-        Vector3 c = ct is CompTray ? CenterOf(ct) : ct.transform.position + Vector3.up * 1.2f;
+        Vector3 c = CenterOf(ct);
         var stand = new Vector3(c.x, 0, c.z) + outward * dist;
         var pc = FacilityDirector.Instance.Player;
         Hud.FirstPerson = firstPerson;
@@ -515,12 +649,5 @@ public static class Flow
             t.GetField("_pitch", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(pc, -Mathf.Atan2(dir.y, new Vector2(dir.x, dir.z).magnitude) * Mathf.Rad2Deg);
         await Frames(8);
         return "aim " + name + (firstPerson ? " (1st)" : " (3rd)") + ": " + Target();
-    }
-
-    /// <summary>哪一格零件盤上放著這個小零件（-1 = 不在盤上）。</summary>
-    public static int TrayOf(string compId)
-    {
-        var t = CompTray.Trays.FirstOrDefault(x => x.Component != null && x.Component.Id == compId);
-        return t == null ? -1 : t.index;
     }
 }

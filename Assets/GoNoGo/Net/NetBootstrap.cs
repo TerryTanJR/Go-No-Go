@@ -75,12 +75,10 @@ namespace GoNoGo.Net
                 look.Name = name;
                 Profile.Save(look);
             }
-            bool control = args.Contains("-gng-control");
             Action<string, Action<string>> join = code != null ? Multiplayer.Join : Multiplayer.JoinDirect;
             join(code ?? ip, err =>
             {
                 Debug.Log("[Net] command-line join: " + (string.IsNullOrEmpty(err) ? "connected as player " + GameSession.LocalPlayer : err));
-                if (string.IsNullOrEmpty(err) && control) Delay.After(3f, () => GameSession.Send(CommandType.SetStation, "", 1));
             });
         }
 
@@ -240,7 +238,7 @@ namespace GoNoGo.Net
         static void StartAsHost(NetworkManager nm, ISession session, string code, string scenario, string difficulty)
         {
             var data = GameSession.Data;
-            var s = SessionRules.NewSession(data, scenario, difficulty, false, true);
+            var s = SessionRules.NewSession(data, scenario, difficulty, false, true, GameSession.NewClueSeed());
             var m = new MissionSession(data, s);
             GameSession.Begin(m, NetLink.Host(nm, session, code, m));
             GameSession.Send(new Command { Type = CommandType.Join, Look = Profile.Look.Clone() });

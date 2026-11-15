@@ -264,7 +264,7 @@ namespace GoNoGo.UI
             if (e != null && _def != null)
             {
                 _severity = e.Severity;
-                _ctx = MinigameContext.From(M.S.LastLaunch?.Design ?? M.S.Reported, D, e, M.S.Players.Count);
+                _ctx = MinigameContext.From(M.S.LastLaunch?.Design ?? M.S.Bench, D, e, M.S.Players.Count);
                 _seed = unchecked((M.S.LastLaunch?.Seed ?? 1) * 31 + e.Turn * 7919 + GameSession.LocalPlayer * 104729);
             }
         }

@@ -4,10 +4,9 @@
     "sandbox": true,
     "objective": "open",
     "name": { "en": "Sandbox", "zh-TW": "沙盒模式" },
-    "briefing": { "en": "No budget cap, no deadline, no department demands. Every part, orbit and rocket is open. Build anything, launch it and see what physics says.", "zh-TW": "沒有預算上限、沒有期限、沒有處室要求。所有零件、軌道、火箭都開放。想怎麼組就怎麼組，射上去看物理怎麼說。" },
+    "briefing": { "en": "No budget cap and no mission requirements. Every part, orbit and rocket is open, and no values are blanked. Build anything, launch it and see what physics says.", "zh-TW": "沒有預算上限、沒有任務需求。所有零件、軌道、火箭都開放，數值也不挖空。想怎麼組就怎麼組，射上去看物理怎麼說。" },
     "budget_musd": 1000000,
     "target_years": 5,
-    "deadline_months": 1000000,
     "max_instruments": 6,
     "allowed_orbits": ["leo_400", "sso_700", "sso_dawn_dusk", "sso_1330", "geo", "llo_100"],
     "allowed_launchers": ["electron", "falcon9_rideshare", "falcon9", "falcon_heavy", "taurus_xl", "delta_ii"],
@@ -34,7 +33,7 @@
     "difficulty": "sandbox",
     "shelf": {
       "*": [
-        "inst_visible", "inst_multispectral", "inst_thermal", "inst_hyperspectral", "inst_sar", "inst_co2_spectrometer", "inst_fire_mwir", "inst_fire_mwir_hr",
+        "inst_visible", "inst_multispectral", "inst_thermal", "inst_hyperspectral", "inst_sar", "inst_co2_spectrometer", "inst_fire_mwir",
         "solar_body", "solar_deployable", "solar_large",
         "batt_cubesat", "batt_small", "batt_medium", "batt_large",
         "ant_sband", "ant_xband", "ant_xband_hr",
@@ -44,29 +43,19 @@
         "shield_std", "shield_vault", "shield_heavy"
       ]
     },
-    "dialogue": {
-      "mission_lead": [
-        { "id": "goal", "question": { "en": "What is the goal here?", "zh-TW": "這裡的目標是什麼？" }, "answer": { "en": "Whatever you choose. No one sets a target in the sandbox: try an idea, launch it, and read the report.", "zh-TW": "你自己決定。沙盒沒有人訂目標：想到什麼就試，射上去再看報告。" } },
-        { "id": "lifetime", "question": { "en": "How long can a mission be?", "zh-TW": "任務可以排多久？" }, "answer": { "en": "Up to fifteen years. Longer missions earn more science, but propellant, battery wear and radiation all get their say.", "zh-TW": "最長十五年。年數越長科學越多，但推進劑、電池耗損和輻射都會跟你算帳。" } }
-      ],
-      "budget_office": [
-        { "id": "budget", "question": { "en": "What is the budget?", "zh-TW": "預算多少？" }, "answer": { "en": "There is no cap in the sandbox. The price of everything is still shown, so you can see what your design would really cost.", "zh-TW": "沙盒沒有上限。每樣東西的價錢還是照樣顯示，你看得到這個設計真正要花多少。" } },
-        { "id": "costs", "question": { "en": "What costs the most?", "zh-TW": "哪裡最花錢？" }, "answer": { "en": "Usually the rocket. Ground stations are paid for every year, and big instruments are expensive too.", "zh-TW": "通常是火箭。地面站每年都要付租金，大儀器也很貴。" } }
-      ],
-      "science": [
-        { "id": "target", "question": { "en": "What counts as science here?", "zh-TW": "這裡的科學怎麼算？" }, "answer": { "en": "Every instrument is scored on the job it does best, and every orbit on the mission it suits best. Mix freely.", "zh-TW": "每台儀器都照它最擅長的任務算分，每條軌道也是。可以自由搭配。" } },
-        { "id": "orbit", "question": { "en": "Which orbit is best?", "zh-TW": "哪種軌道最適合？" }, "answer": { "en": "Sun-synchronous orbits pass at the same local time every day, which suits imaging. Geostationary is too far for sharp pictures. Lunar orbit is only for the Moon.", "zh-TW": "太陽同步軌道每天同一個當地時間經過，最適合拍地面；地球同步軌道太遠，拍不清楚；月球軌道只看得到月球。" } }
-      ],
-      "engineering": [
-        { "id": "margin", "question": { "en": "How much margin should I keep?", "zh-TW": "設計餘裕要留多少？" }, "answer": { "en": "Nothing is required here, but a rocket loaded right to its limit may drop you in a lower orbit.", "zh-TW": "這裡沒有規定。但火箭運力抓得太緊，可能會進到比較低的軌道。" } },
-        { "id": "battery", "question": { "en": "How big should the battery be?", "zh-TW": "電池要多大？" }, "answer": { "en": "Big enough for the longest shadow. On the orbit reported now, each shadow lasts about {eclipse_min} minutes, and everything runs on the battery then.", "zh-TW": "要撐過最長的地影。以目前回報的軌道，每圈地影大約 {eclipse_min} 分鐘，這段時間全靠電池。" } },
-        { "id": "lifetime", "question": { "en": "What ends a mission early?", "zh-TW": "什麼會讓衛星提早壞掉？" }, "answer": { "en": "Running out of propellant, wearing out the battery, or radiation killing the computer. Higher orbits get more radiation.", "zh-TW": "推進劑用完、電池耗損、輻射打壞電腦。軌道越高輻射越強。" } }
-      ],
-      "comms": [
-        { "id": "stations", "question": { "en": "How do I choose ground stations?", "zh-TW": "地面站怎麼選？" }, "answer": { "en": "More stations mean more minutes of contact every day, and each one is paid for every year. Choose them at the mission console.", "zh-TW": "地面站越多，每天能傳資料的時間越長，但每座每年都要租金。在任務控制台選。" } },
-        { "id": "storage", "question": { "en": "How much storage do I need?", "zh-TW": "儲存空間要多大？" }, "answer": { "en": "Enough to hold what the instruments collect between two contacts, plus half again for safety.", "zh-TW": "要裝得下兩次通聯之間收集的資料，再多留一半保險。" } }
-      ]
-    }
+    "tradeoffs": [
+      { "id": "goal", "topic": "mission_lead", "title": { "en": "The goal here", "zh-TW": "這裡的目標" }, "text": { "en": "Whatever you choose. No one sets a target in the sandbox: try an idea, launch it, and read the report.", "zh-TW": "你自己決定。沙盒沒有人訂目標：想到什麼就試，射上去再看報告。" } },
+      { "id": "lifetime", "topic": "mission_lead", "title": { "en": "How long a mission can be", "zh-TW": "任務可以排多久" }, "text": { "en": "Up to fifteen years. Longer missions earn more science, but propellant, battery wear and radiation all get their say.", "zh-TW": "最長十五年。年數越長科學越多，但推進劑、電池耗損和輻射都會跟你算帳。" } },
+      { "id": "budget", "topic": "budget_office", "title": { "en": "The budget", "zh-TW": "預算" }, "text": { "en": "There is no cap in the sandbox. The price of everything is still shown, so you can see what your design would really cost.", "zh-TW": "沙盒沒有上限。每樣東西的價錢還是照樣顯示，你看得到這個設計真正要花多少。" } },
+      { "id": "costs", "topic": "budget_office", "title": { "en": "Where the money goes", "zh-TW": "哪裡最花錢" }, "text": { "en": "Usually the rocket. Ground stations are paid for every year, and big instruments are expensive too.", "zh-TW": "通常是火箭。地面站每年都要付租金，大儀器也很貴。" } },
+      { "id": "target", "topic": "science", "title": { "en": "What counts as science here", "zh-TW": "這裡的科學怎麼算" }, "text": { "en": "Every instrument is scored on the job it does best, and every orbit on the mission it suits best. Mix freely.", "zh-TW": "每台儀器都照它最擅長的任務算分，每條軌道也是。可以自由搭配。" } },
+      { "id": "orbit", "topic": "science", "title": { "en": "Which orbit suits", "zh-TW": "哪種軌道最適合" }, "text": { "en": "Sun-synchronous orbits pass at the same local time every day, which suits imaging. Geostationary is too far for sharp pictures. Lunar orbit is only for the Moon.", "zh-TW": "太陽同步軌道每天同一個當地時間經過，最適合拍地面；地球同步軌道太遠，拍不清楚；月球軌道只看得到月球。" } },
+      { "id": "margin", "topic": "engineering", "title": { "en": "How much margin to keep", "zh-TW": "設計餘裕要留多少" }, "text": { "en": "Nothing is required here, but a rocket loaded right to its limit may drop you in a lower orbit.", "zh-TW": "這裡沒有規定。但火箭運力抓得太緊，可能會進到比較低的軌道。" } },
+      { "id": "battery", "topic": "engineering", "title": { "en": "How big the battery must be", "zh-TW": "電池要多大" }, "text": { "en": "Big enough for the longest shadow. On the orbit selected now, each shadow lasts about {eclipse_min} minutes, and everything runs on the battery then.", "zh-TW": "要撐過最長的地影。以目前選的軌道，每圈地影大約 {eclipse_min} 分鐘，這段時間全靠電池。" } },
+      { "id": "lifetime_end", "topic": "engineering", "title": { "en": "What ends a mission early", "zh-TW": "什麼會讓衛星提早壞掉" }, "text": { "en": "Running out of propellant, wearing out the battery, or radiation killing the computer. Higher orbits get more radiation.", "zh-TW": "推進劑用完、電池耗損、輻射打壞電腦。軌道越高輻射越強。" } },
+      { "id": "stations", "topic": "comms", "title": { "en": "Choosing ground stations", "zh-TW": "地面站怎麼選" }, "text": { "en": "More stations mean more minutes of contact every day, and each one is paid for every year. Choose them under Mission on the big screen.", "zh-TW": "地面站越多，每天能傳資料的時間越長，但每座每年都要租金。在大屏幕的任務設定選。" } },
+      { "id": "storage", "topic": "comms", "title": { "en": "How much storage", "zh-TW": "儲存空間要多大" }, "text": { "en": "Enough to hold what the instruments collect between two contacts, plus half again for safety.", "zh-TW": "要裝得下兩次通聯之間收集的資料，再多留一半保險。" } }
+    ]
   },
   "difficulty": {
     "id": "sandbox",
@@ -78,12 +67,11 @@
     "decoy_categories": ["instrument", "solar", "battery", "antenna", "computer", "adcs", "propulsion", "shielding"],
     "dashboard_colors": true,
     "dashboard_basic": false,
-    "requirement_tags": false,
     "next_step_guide": false,
-    "notes_mode": "transcript",
+    "blank_ratio": 0,
+    "blank_ratio_solo": 0,
     "requirement_conflicts": 0,
     "failure_detail": "advice",
-    "free_first_failure": true,
     "event_reveal": true,
     "turns": 4,
     "event_types": [

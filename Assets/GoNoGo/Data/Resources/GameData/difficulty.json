@@ -6,20 +6,19 @@
       "zh-TW": "學員"
     },
     "description": {
-      "en": "Bigger budget, fewer parts, a coloured dashboard and a launch checklist. Events are named for you; the first failed launch is free.",
-      "zh-TW": "預算多一半、零件少一些，儀表板有紅黃綠，電話內容自動整理成發射條件清單。營運事件直接告訴你名稱，第一次發射失敗不扣分。"
+      "en": "Bigger budget, fewer parts, fewer blank values and a coloured dashboard. Events are named for you.",
+      "zh-TW": "預算多一半、零件少一些、挖空的數值也少，儀表板有紅黃綠。營運事件直接告訴你名稱。"
     },
     "required_margin": 0.0,
     "tiers_per_category": 2,
     "decoy_categories": ["instrument"],
     "dashboard_colors": true,
     "dashboard_basic": true,
-    "requirement_tags": true,
     "next_step_guide": true,
-    "notes_mode": "checklist",
+    "blank_ratio": 0.4,
+    "blank_ratio_solo": 0.4,
     "requirement_conflicts": 0,
     "failure_detail": "advice",
-    "free_first_failure": true,
     "event_reveal": true,
     "turns": 4,
     "event_types": [
@@ -41,17 +40,17 @@
       "zh-TW": "工程師"
     },
     "description": {
-      "en": "The dashboard shows only numbers. Calls are written down word for word. You diagnose events yourself, 3 minutes a turn.",
-      "zh-TW": "儀表板只有數字，電話內容逐字記下。營運事件要自己判讀，每回合 3 分鐘。"
+      "en": "The dashboard shows only numbers and more values start blank. You diagnose events yourself, 3 minutes a turn.",
+      "zh-TW": "儀表板只有數字，挖空的數值比較多。營運事件要自己判讀，每回合 3 分鐘。"
     },
     "required_margin": 0.15,
     "tiers_per_category": 3,
     "decoy_categories": ["instrument", "battery", "antenna", "computer"],
     "dashboard_colors": false,
-    "notes_mode": "transcript",
+    "blank_ratio": 0.7,
+    "blank_ratio_solo": 0.4,
     "requirement_conflicts": 1,
     "failure_detail": "chain",
-    "free_first_failure": false,
     "event_reveal": false,
     "turns": 4,
     "event_types": [
@@ -73,17 +72,17 @@
       "zh-TW": "任務主管"
     },
     "description": {
-      "en": "Tight budget and conflicting demands. Nothing is written down for you, failures are only named, and events look alike. 90 seconds a turn.",
-      "zh-TW": "預算更緊、處室需求互相衝突。電話內容不會自動記錄，失敗只說大類，事件症狀相似，每回合 90 秒。"
+      "en": "Tight budget, requirements that pull against each other, and every value starts blank. Failures are only named, and events look alike. 90 seconds a turn.",
+      "zh-TW": "預算更緊、任務需求互相拉扯，數值全部挖空。失敗只說大類，事件症狀相似，每回合 90 秒。"
     },
     "required_margin": 0.25,
     "tiers_per_category": 3,
     "decoy_categories": ["instrument", "solar", "battery", "antenna", "computer", "adcs", "propulsion", "shielding"],
     "dashboard_colors": false,
-    "notes_mode": "none",
+    "blank_ratio": 1.0,
+    "blank_ratio_solo": 0.4,
     "requirement_conflicts": 2,
     "failure_detail": "category",
-    "free_first_failure": false,
     "event_reveal": false,
     "turns": 4,
     "event_types": [
@@ -113,11 +112,12 @@
     "tiers_per_category": 2,
     "dashboard_colors": true,
     "dashboard_basic": true,
-    "requirement_tags": true,
-    "notes_mode": "checklist",
+    "blank_ratio": 0,
+    "blank_ratio_solo": 0,
+    "blank_cells": ["solar_deployable/mass_kg"],
+    "prebuilt_categories": ["instrument", "battery", "antenna", "computer", "adcs", "propulsion", "shielding"],
     "requirement_conflicts": 0,
     "failure_detail": "advice",
-    "free_first_failure": true,
     "event_reveal": true,
     "turns": 1,
     "event_types": [

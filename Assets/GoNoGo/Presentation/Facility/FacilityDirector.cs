@@ -7,23 +7,24 @@ using UnityEngine;
 namespace GoNoGo.Presentation
 {
     /// <summary>
-    /// Facility 場景（大廳、組裝區、中控室）的執行期總管：依狀態把零件放上收貨輸送帶、更新整合台、
+    /// Facility 場景（大廳、組裝區、中控室）的執行期總管：依狀態更新整合台上的衛星和兩座組裝台、
     /// 產生本機玩家與其他玩家的 avatar、處理階段切換時的傳送。
+    /// 不分組：所有人開局都生成在中控室，組裝區和中控室連通，自由走動。
     /// </summary>
     public sealed class FacilityDirector : MonoBehaviour
     {
         public static FacilityDirector Instance { get; private set; }
 
         [Header("出生點（朝向 = 物件的 forward）")]
-        public Transform assemblySpawn;
+        [Tooltip("開局：所有人都在中控室")]
         public Transform controlSpawn;
         public Transform lobbySpawn;
+        [Tooltip("營運開始時所有人移到這裡（中控室）")]
         public Transform opsSpawn;
 
         [Header("場景物件")]
         public Camera playerCamera;
         public IntegrationStand stand;
-        public DeliveryConveyor delivery;
         [Tooltip("組裝區與中控室的分界（世界座標 x）：x 小於它是組裝區")]
         public float areaSplitX = 11.5f;
         [Tooltip("大廳的 z 起點：z 大於它是大廳")]
@@ -32,9 +33,6 @@ namespace GoNoGo.Presentation
         PlayerController _player;
         Interactor _interactor;
         AvatarRig _localRig;
-        readonly Dictionary<string, PartItem> _items = new Dictionary<string, PartItem>();
-        /// <summary>上一次看到的已採購零件：新出現的就是剛到貨，從收貨窗口送出來。</summary>
-        HashSet<string> _ownedBefore;
         readonly Dictionary<int, RemoteAvatar> _remotes = new Dictionary<int, RemoteAvatar>();
         Transform _localHeld;
         string _localHeldId;
@@ -60,7 +58,6 @@ namespace GoNoGo.Presentation
         {
             GameSession.EnsureMission();
             var m = GameSession.Mission;
-            BuildItems(m);
             PartPreviewStage.Create(transform);
             SpawnLocal(m);
             m.Changed += OnChanged;
@@ -70,46 +67,6 @@ namespace GoNoGo.Presentation
             OnChanged();
             Sfx.SetAmbience(Sfx.Ambience.ControlRoom);
             Sfx.SetMusic(Sfx.Music.Facility);
-        }
-
-        // ---------------- 收貨輸送帶 ----------------
-
-        /// <summary>這一局型錄上每個零件都先建好、藏起來；買到的才放上輸送帶。</summary>
-        void BuildItems(MissionSession m)
-        {
-            foreach (var p in SessionRules.ShelfParts(m.Data, m.S).OrderBy(p => p.Category).ThenBy(p => p.Tier).ThenBy(p => p.Id))
-            {
-                var item = PartItem.Create(p, m.Data, delivery.items, delivery.start, delivery.itemSize);
-                item.SetVisible(false);
-                _items[p.Id] = item;
-            }
-        }
-
-        /// <summary>
-        /// 輸送帶上 = 買過（或開局就有）、沒裝在船上、沒人拿著的零件。
-        /// 剛買到的從收貨窗口一件件送出來（照下單順序）；放下的零件直接回到隊伍最後面。
-        /// </summary>
-        void SyncDelivery(MissionSession m)
-        {
-            var installed = new HashSet<string>(m.S.Bench.AllPartIds());
-            var held = new HashSet<string>(m.S.Held.Values);
-            // 放在組裝工作台上的那一個（正在組、或組好了還沒拿走）不在輸送帶上
-            string onBench = m.S.Workbench?.PartId;
-            bool Loose(string id) => m.S.Owned.Contains(id) && !installed.Contains(id) && !held.Contains(id) && id != onBench;
-            foreach (var kv in _items)
-            {
-                // 還沒組裝的零件是一箱小零件；在組裝工作台組好之後才變成零件本身
-                kv.Value.SetBuilt(!SessionRules.NeedsAssembly(m.S, m.Data, kv.Key));
-                if (!Loose(kv.Key))
-                {
-                    delivery.Remove(kv.Value);
-                    kv.Value.SetVisible(false);
-                }
-            }
-            foreach (var id in m.S.Owned)
-                if (Loose(id) && _items.TryGetValue(id, out var item) && !delivery.Has(item))
-                    delivery.Add(item, _ownedBefore != null && !_ownedBefore.Contains(id));
-            _ownedBefore = new HashSet<string>(m.S.Owned);
         }
 
         // ---------------- 玩家 ----------------
@@ -127,8 +84,8 @@ namespace GoNoGo.Presentation
             _interactor = go.AddComponent<Interactor>();
             BuildLocalRig();
 
-            var spawn = SpawnFor(m.S.Phase, m.S.Player(GameSession.LocalPlayer)?.Station ?? Station.Control, m.S.Multiplayer);
-            _player.Teleport(spawn.position, spawn.eulerAngles.y);
+            var spawn = SpawnFor(m.S.Phase);
+            _player.Teleport(SpawnPos(spawn, m.S, GameSession.LocalPlayer), spawn.eulerAngles.y);
         }
 
         void BuildLocalRig()
@@ -145,36 +102,48 @@ namespace GoNoGo.Presentation
             if (GameSession.Mission.S.Multiplayer) GameSession.Send(new Command { Type = CommandType.SetLook, Look = Profile.Look.Clone() });
         }
 
-        Transform SpawnFor(SessionPhase phase, Station station, bool multiplayer)
+        /// <summary>大廳 → 大廳；營運、報告 → 中控室的營運位置；其他（簡報、選件、組裝）都從中控室開始。</summary>
+        Transform SpawnFor(SessionPhase phase)
         {
             switch (phase)
             {
                 case SessionPhase.Lobby: return lobbySpawn;
                 case SessionPhase.Ops:
                 case SessionPhase.Report: return opsSpawn;
-                case SessionPhase.Briefing: return multiplayer ? (station == Station.Assembly ? assemblySpawn : controlSpawn) : controlSpawn;
-                default: return station == Station.Assembly ? assemblySpawn : controlSpawn;
+                default: return controlSpawn;
             }
+        }
+
+        /// <summary>所有人生成在同一個地方：照在房間裡的順序左右排開，不會疊在一起。</summary>
+        static Vector3 SpawnPos(Transform spawn, SessionState s, int player)
+        {
+            int n = Mathf.Max(1, s.Players.Count);
+            int i = Mathf.Max(0, s.Players.FindIndex(p => p.Id == player));
+            return spawn.position + spawn.right * ((i - (n - 1) / 2f) * 0.9f);
         }
 
         void OnPhase(SessionPhase before, SessionPhase now)
         {
             var m = GameSession.Mission;
-            var me = m.S.Player(GameSession.LocalPlayer);
+            // 離開大廳（任務開始）、進入營運：所有人移到中控室
             bool move = before == SessionPhase.Lobby || now == SessionPhase.Ops;
             if (!move) return;
-            var spawn = SpawnFor(now, me?.Station ?? Station.Control, m.S.Multiplayer);
-            FadeTeleport(spawn);
+            var spawn = SpawnFor(now);
+            FadeTeleport(SpawnPos(spawn, m.S, GameSession.LocalPlayer), spawn.eulerAngles.y);
         }
 
         public void FadeTeleport(Transform spawn)
         {
-            if (spawn == null) return;
-            if (SceneFlow.FadeOut == null) { _player.Teleport(spawn.position, spawn.eulerAngles.y); return; }
+            if (spawn != null) FadeTeleport(spawn.position, spawn.eulerAngles.y);
+        }
+
+        void FadeTeleport(Vector3 pos, float yaw)
+        {
+            if (SceneFlow.FadeOut == null) { _player.Teleport(pos, yaw); return; }
             _player.Frozen = true;
             SceneFlow.FadeOut(0.35f, () =>
             {
-                _player.Teleport(spawn.position, spawn.eulerAngles.y);
+                _player.Teleport(pos, yaw);
                 _player.Frozen = false;
                 SceneFlow.FadeIn?.Invoke(0.35f);
             });
@@ -186,23 +155,20 @@ namespace GoNoGo.Presentation
         {
             var m = GameSession.Mission;
             stand.Refresh(m, true);
-            SyncDelivery(m);
-            SyncWorkshop(m);
+            foreach (var bench in Workbench.All) if (bench != null) bench.Sync(m);
 
-            // 本機手上的零件（或組裝工作台的小零件）
+            // 本機手上的東西：組好的零件，或小零件（單人是一籃）
             var mine = m.S.HeldBy(GameSession.LocalPlayer);
-            var mineComp = m.S.HeldCompBy(GameSession.LocalPlayer);
-            // 手上拿的是箱子還是組好的零件（組裝完成時要換模型，所以一起記）
-            bool mineKit = mine != null && SessionRules.NeedsAssembly(m.S, m.Data, mine);
-            string mineKey = mine != null ? mine + (mineKit ? "#kit" : "") : mineComp != null ? "comp:" + mineComp : null;
+            var comps = m.S.CompsOf(GameSession.LocalPlayer);
+            string mineKey = mine != null ? mine : comps.Count > 0 ? "comp:" + string.Join(",", comps) : null;
             if (mineKey != _localHeldId)
             {
                 _localHeldId = mineKey;
                 if (_localHeld != null) Destroy(_localHeld.gameObject);
-                _localHeld = mine != null ? HeldModel(mine, mineKit, m.Data, _localRig.hold)
-                    : mineComp != null ? HeldComponent(mineComp, _localRig.hold) : null;
+                _localHeld = mine != null ? HeldModel(mine, m.Data, _localRig.hold)
+                    : comps.Count > 0 ? HeldComponents(comps, _localRig.hold, m.S.Alone()) : null;
             }
-            _localRig.holding = mine != null || mineComp != null;
+            _localRig.holding = mine != null || comps.Count > 0;
             PoseFeed.Local.Held = mine;
 
             SyncRemotes(m);
@@ -225,56 +191,54 @@ namespace GoNoGo.Presentation
                     ra = go.AddComponent<RemoteAvatar>();
                     ra.playerId = p.Id;
                     _remotes[p.Id] = ra;
-                    var start = SpawnFor(m.S.Phase, p.Station, true);
-                    go.transform.position = start.position;
+                    go.transform.position = SpawnPos(SpawnFor(m.S.Phase), m.S, p.Id);
                 }
-                var held = m.S.HeldBy(p.Id);
-                ra.Apply(p.Look, held, m.Data, held != null && SessionRules.NeedsAssembly(m.S, m.Data, held), m.S.HeldCompBy(p.Id));
+                ra.Apply(p.Look, m.S.HeldBy(p.Id), m.Data, m.S.CompsOf(p.Id));
             }
         }
 
-        // ---------------- 組裝工作台與零件盤 ----------------
-
-        int _fitsSeen = -1;
-        string _fitsPart;
-
-        /// <summary>工作台上的箱子／小零件／成品、零件盤每一格擺的小零件，都照狀態更新；有人裝了一個小零件就播效果。</summary>
-        void SyncWorkshop(MissionSession m)
+        /// <summary>
+        /// 拿在手上的小零件。單人有籃子（<paramref name="basket"/>）：小零件放在籃子裡，最多四個；
+        /// 兩人以上不給籃子，一次拿一個。
+        /// </summary>
+        public static Transform HeldComponents(List<string> comps, Transform hand, bool basket)
         {
-            var bench = Workbench.Instance;
-            if (bench != null) bench.Sync(m);
-            foreach (var tray in CompTray.Trays) if (tray != null) tray.Sync(m);
-
-            var job = m.S.Workbench;
-            if (job == null) { _fitsSeen = -1; _fitsPart = null; return; }
-            if (_fitsPart != job.PartId) { _fitsPart = job.PartId; _fitsSeen = job.Fits == 0 ? 0 : -1; }
-            // 第一次看到（中途加入、換場景回來）不播；之後每多裝一次播一次
-            if (_fitsSeen >= 0 && job.Fits > _fitsSeen)
+            if (!basket && comps.Count == 1)
             {
-                if (bench != null) bench.FitFx(job.LastOk);
-                if (job.LastOk) Sfx.Install(); else Sfx.NoGo();
+                var go = SatelliteBuilder.BuildComponent(comps[0], hand, 0.24f);
+                // 模型的原點在底部：往下移一點，拿起來才在兩手中間
+                go.transform.localPosition = new Vector3(0, -0.08f, 0);
+                return go.transform;
             }
-            _fitsSeen = job.Fits;
+            var box = SatelliteBuilder.BuildBasket(hand, 0.46f);
+            box.transform.localPosition = new Vector3(0, -0.1f, 0);
+            for (int i = 0; i < comps.Count && i < GameData.BasketSize; i++)
+            {
+                var slot = box.transform.Find("Slot" + i);
+                if (slot != null) SatelliteBuilder.BuildComponent(comps[i], slot, 0.16f);
+            }
+            return box.transform;
         }
 
-        /// <summary>拿在手上的小零件（組裝工作台）。</summary>
-        public static Transform HeldComponent(string compId, Transform hand)
-        {
-            var go = SatelliteBuilder.BuildComponent(compId, hand, 0.24f);
-            // 模型的原點在底部：往下移一點，拿起來才在兩手中間
-            go.transform.localPosition = new Vector3(0, -0.08f, 0);
-            return go.transform;
-        }
-
-        /// <summary>拿在手上的模型：還沒組裝是一箱小零件，組好了是零件本身。</summary>
-        public static Transform HeldModel(string partId, bool kit, GameData data, Transform hand) =>
-            (kit ? SatelliteBuilder.BuildKit(data.Part(partId), hand, 0.4f) : SatelliteBuilder.BuildPart(partId, data, hand, 0.42f)).transform;
+        /// <summary>拿在手上的組好的零件。</summary>
+        public static Transform HeldModel(string partId, GameData data, Transform hand) =>
+            SatelliteBuilder.BuildPart(partId, data, hand, 0.42f).transform;
 
         void Update()
         {
             if (_player == null) return;
             var p = _player.transform.position;
             Hud.Area = p.z > lobbyMinZ ? "lobby" : p.x < areaSplitX ? "assembly" : "control";
+            // 站在哪一座組裝台旁邊（4.5 公尺內最近的那一座）：畫面右上角顯示它的組裝單
+            int near = -1;
+            float best = 4.5f;
+            foreach (var bench in Workbench.All)
+            {
+                if (bench == null) continue;
+                float dist = Vector2.Distance(new Vector2(p.x, p.z), new Vector2(bench.transform.position.x, bench.transform.position.z));
+                if (dist < best) { best = dist; near = bench.index; }
+            }
+            Hud.NearBench = near;
             if (_localRig != null) _localRig.installing = _interactor.Installing;
             PoseFeed.Local.Installing = _interactor.Installing;
         }

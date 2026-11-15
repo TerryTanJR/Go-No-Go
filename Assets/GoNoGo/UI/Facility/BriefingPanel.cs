@@ -10,8 +10,9 @@ namespace GoNoGo.UI
     // ======================================================================== 任務簡報
     //
     // 控制中心主任透過加密視訊交代任務：一句一句打字出來，左邊是視訊畫面（剪影、聲波）。
-    // 只講故事和目標，不講限制條件（預算、年限、發射期限、儀器數量……）——那些要玩家自己打電話問各處室。
-    // 最後一句一定是提醒：細節去問。台詞在 strings.json 的 ui.brief.speech.<情境 id>（一行一句）。
+    // 只講故事和目標；限制條件（預算、年限、儀器數量……）和任務需求都直接列在中控室的大屏幕上。
+    // 最後一句一定是提醒：零件的數值有一部分是空的，要在兩個房間找線索，自己填回大屏幕。
+    // 台詞在 strings.json 的 ui.brief.speech.<情境 id>（一行一句）。
 
     public sealed class BriefingPanel : FacPanel
     {
@@ -106,17 +107,14 @@ namespace GoNoGo.UI
             // 講完才出現：接下來做什麼 + 開始
             _foot = Ui.El("brief-foot").AddTo(talk);
             var todo = Ui.Row("brief-todo").AddTo(_foot);
-            // 歷史關卡：簡報完直接照當年的設計發射，第一步不是打電話
-            if (!M.IsHistorical && !M.Scenario.Sandbox) Ui.Text("☎", "brief-todo-icon").AddTo(todo);
+            // 歷史關卡：簡報完直接照當年的設計發射，第一步不是找數值
+            if (!M.IsHistorical && !M.Scenario.Sandbox) Ui.Text("？", "brief-todo-icon").AddTo(todo);
             var tt = Ui.El("brief-todo-text").AddTo(todo);
-            var me = M.S.Player(GameSession.LocalPlayer);
-            bool multi = M.S.Multiplayer && me != null && !M.IsHistorical;
-            // 多人：每個人只看到自己這一組的介紹（組裝區 / 中控室）；歷史關卡簡報完直接重演，第一步不是分組做事
-            string side = me != null && me.Station == Station.Assembly ? "assembly" : "control";
-            if (multi) Ui.Text(Loc.T("ui.intro." + side + ".t"), "eyebrow").AddTo(tt);
-            else Ui.Text(Loc.T("ui.brief.todo_title"), "eyebrow").AddTo(tt);
+            // 不分組：所有人都從中控室開始，分工自己決定。多人多一句「分頭找，用講的」
+            bool multi = M.S.Multiplayer && !M.IsHistorical;
+            Ui.Text(Loc.T("ui.brief.todo_title"), "eyebrow").AddTo(tt);
             Ui.Text(Ui.NoOrphan(Loc.T(M.IsHistorical ? "ui.brief.todo_history" : M.Scenario.Sandbox ? "ui.brief.todo_sandbox"
-                : multi ? "ui.intro." + side : "ui.brief.todo_solo")), "body").AddTo(tt);
+                : multi ? "ui.brief.todo_team" : "ui.brief.todo_solo")), "body").AddTo(tt);
             if (M.IsHistorical)
             {
                 var dos = Ui.El("brief-dossier").AddTo(_foot);
@@ -145,7 +143,7 @@ namespace GoNoGo.UI
             Redraw();
         }
 
-        /// <summary>這個情境的台詞（沒有專屬台詞就用通用的），最後接上「細節去問」。</summary>
+        /// <summary>這個情境的台詞（沒有專屬台詞就用通用的），最後接上「數值要自己找」。</summary>
         List<string> Speech()
         {
             var strings = D.Strings;
@@ -154,12 +152,11 @@ namespace GoNoGo.UI
             var list = new List<string>();
             foreach (var l in Loc.T(key).Split('\n'))
                 if (!string.IsNullOrWhiteSpace(l)) list.Add(Ui.NoOrphan(l.Trim()));
-            // 多人：結尾那句依自己這一組不同（組裝組、中控組各自知道要做什麼）；歷史關卡是倒數開始
-            var me = M.S.Player(GameSession.LocalPlayer);
+            // 結尾那句：單人、多人（分頭找線索）不同；歷史關卡是倒數開始
             string close = "ui.brief.close_solo";
             if (M.IsHistorical) close = "ui.brief.close_history";
             else if (M.Scenario.Sandbox) close = "ui.brief.close_sandbox";
-            else if (M.S.Multiplayer) close = me != null && me.Station == Station.Assembly ? "ui.brief.close_assembly" : "ui.brief.close_control";
+            else if (M.S.Multiplayer) close = "ui.brief.close_team";
             list.Add(Ui.NoOrphan(Loc.T(close)));
             return list;
         }

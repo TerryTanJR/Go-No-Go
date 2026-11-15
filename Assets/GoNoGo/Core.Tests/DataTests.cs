@@ -130,7 +130,7 @@ namespace GoNoGo.Core.Tests
             keys.AddRange(new[]
             {
                 "warn.mass", "warn.orbit_unreachable", "warn.power", "warn.battery", "warn.budget", "warn.storage", "warn.downlink",
-                "warn.schedule", "warn.lifetime.propellant", "warn.lifetime.battery", "warn.lifetime.radiation",
+                "warn.lifetime.propellant", "warn.lifetime.battery", "warn.lifetime.radiation",
                 "warn.no_instrument", "warn.instrument_mismatch", "warn.too_many_instruments",
                 "fix.swap", "fix.remove", "fix.orbit", "fix.launcher", "fix.years",
                 "launch.dead_on_orbit", "launch.nominal", "launch.lower_orbit", "launch.anomaly", "launch.overweight", "launch.unreachable", "launch.fairing",
@@ -205,7 +205,10 @@ namespace GoNoGo.Core.Tests
             "site.forest", "site.grassland", "site.desert", "site.glint",
             "event.fire.reported", "event.fire.partial", "event.fire.stuck",
             "event.false_fire.reported", "event.false_fire.flagged", "event.false_fire.ignored",
-            "err.owned", "err.not_owned", "err.cart_empty", "err.order_over_cap", "err.request_pending", "err.no_request", "err.in_request",
+            // 選件、填數值、確定設計、組裝台的規則會回傳的錯誤碼
+            "err.confirmed", "err.single_required", "err.fill_format", "err.not_blank", "err.fill_range", "err.design_incomplete",
+            "err.not_confirmed", "err.not_installed", "err.over_budget", "err.sandbox_no_assembly", "err.comp_dup", "err.bench_take_first",
+            "err.bench_full", "err.bench_busy", "err.carry_part", "err.no_job", "err.comp_gone", "err.hands_full", "err.nothing_held", "err.minigame",
             "cause.funding_left", "cause.funding_out", "ui.restart.toast", "cause.success_latency", "suggest.fire_tradeoff",
         };
 
@@ -251,26 +254,69 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
-        public void DepartmentLinesRevealRealRequirementTypes()
+        public void TradeoffNotesCoverEveryTopicInBothLanguages()
         {
             var data = TestData.Load();
-            var types = data.Scenarios.SelectMany(s => s.Requirements.Values.SelectMany(l => l)).Select(r => r.Type).Distinct().ToList();
-            Assert.That(data.Departments.Select(d => d.Id), Is.EquivalentTo(Departments.All.Select(Departments.Key)));
-            foreach (var dep in data.Departments)
+            // 通用的說明：五個分類都有；關卡可以有自己的（野火、沙盒）
+            Assert.That(data.Tradeoffs.Select(t => t.Topic).Distinct(), Is.EquivalentTo(Departments.All.Select(Departments.Key)));
+            foreach (var sc in data.AllScenarios)
             {
-                Assert.That(dep.Lines.Count, Is.GreaterThanOrEqualTo(3), dep.Id);
-                foreach (var line in dep.Lines)
-                    foreach (var t in line.Reveals)
-                        Assert.That(types, Does.Contain(t), dep.Id + " " + line.Id);
-            }
-            // 每個情境的每一種需求，都有某個處室的某句話會說出來（關卡可以有自己的對話）
-            foreach (var s in data.Scenarios)
-                foreach (var kv in s.Requirements)
+                foreach (var diff in data.AllDifficulties)
                 {
-                    var dep = data.Department(kv.Key);
-                    foreach (var r in kv.Value)
-                        Assert.That(data.Lines(s, dep).Any(l => l.Reveals.Contains(r.Type)), s.Id + " " + kv.Key + " " + r.Type);
+                    var notes = data.TradeoffsFor(sc, diff);
+                    Assert.That(notes.Count, Is.GreaterThanOrEqualTo(8), sc.Id + " " + diff.Id);
+                    Assert.That(notes.Select(t => t.Id), Is.Unique, sc.Id);
+                    foreach (var t in notes)
+                    {
+                        Assert.That(Departments.Parse(t.Topic), Is.Not.Null, sc.Id + " " + t.Id);
+                        Assert.That(t.Title.En.Length * t.Title.ZhTW.Length * t.Text.En.Length * t.Text.ZhTW.Length, Is.GreaterThan(0), sc.Id + " " + t.Id);
+                        // 不用部門的名義，也不提已經拿掉的電話、時程
+                        foreach (var text in new[] { t.Title.En, t.Title.ZhTW, t.Text.En, t.Text.ZhTW })
+                            foreach (var word in new[] { "Engineering", "Budget Office", "Science Team", "工程部", "預算單位", "科學團隊", "處室", "電話", "deadline", "期限", "交期" })
+                                Assert.That(text, Does.Not.Contain(word), sc.Id + " " + t.Id);
+                    }
                 }
+            }
+            Assert.That(data.Scenario("wildfire").Tradeoffs, Is.Not.Empty);
+            Assert.That(data.Scenario("sandbox").Tradeoffs, Is.Not.Empty);
+            Assert.That(data.Scenario("earth_observation").Tradeoffs, Is.Empty, "沒有自己寫的就用通用的");
+        }
+
+        [Test]
+        public void TheScheduleIsGoneFromTheData()
+        {
+            foreach (var name in GameDataLoader.FileNames.Where(n => n != "strings" && n != "donki_events" && n != "missions"))
+            {
+                string text = System.IO.File.ReadAllText(System.IO.Path.Combine(TestData.Dir, name + ".json"));
+                foreach (var key in new[] { "dev_months", "lead_months", "deadline_months", "integration_months", "call_months", "rework_months", "notes_mode", "free_first_failure" })
+                    Assert.That(text, Does.Not.Contain("\"" + key + "\""), name + ".json");
+            }
+            Assert.That(GameDataLoader.FileNames, Has.No.Member("departments"));
+        }
+
+        [Test]
+        public void ThereAreFortyTwoPartsAndTenInstruments()
+        {
+            var data = TestData.Load();
+            Assert.That(data.Parts.Count, Is.EqualTo(42));
+            var instruments = data.Parts.Where(p => p.Category == PartCategory.Instrument).ToList();
+            Assert.That(instruments.Select(p => p.Id), Is.EquivalentTo(new[]
+            {
+                "inst_visible", "inst_multispectral", "inst_thermal", "inst_hyperspectral", "inst_sar", "inst_co2_spectrometer", "inst_fire_mwir",
+                "inst_magnetometer", "inst_lightning", "inst_laser_altimeter",
+            }));
+            Assert.That(instruments.Where(p => p.Decoy).Select(p => p.Id), Is.EquivalentTo(new[] { "inst_magnetometer", "inst_lightning", "inst_laser_altimeter" }));
+            Assert.That(instruments.Select(p => p.Code), Is.EquivalentTo(Enumerable.Range(1, 10).Select(i => "P-" + i)));
+            foreach (var gone in new[] { "inst_fire_mwir_hr", "inst_uv_ozone", "inst_microwave_radiometer", "inst_xray_telescope", "inst_ais", "inst_particle" })
+            {
+                Assert.That(data.Part(gone), Is.Null, gone);
+                foreach (var name in new[] { "scenarios", "sandbox", "assemblies" })
+                    Assert.That(System.IO.File.ReadAllText(System.IO.Path.Combine(TestData.Dir, name + ".json")), Does.Not.Contain(gone), name + ".json");
+            }
+            // 野火關卡的需求「一定要裝中波紅外線火點儀」留一般版仍然達得到
+            var wf = data.Scenario("wildfire").Requirements["science"].Single(r => r.Id == "wf_mwir");
+            Assert.That(wf.PartIds, Is.EqualTo(new[] { "inst_fire_mwir" }));
+            Assert.That(data.Scenario("wildfire").DefaultDesigns["cadet"].Instruments, Is.EqualTo(new[] { "inst_fire_mwir" }));
         }
 
         [Test]

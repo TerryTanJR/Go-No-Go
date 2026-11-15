@@ -10,7 +10,7 @@ namespace GoNoGo.UI
 {
     /// <summary>
     /// Facility 場景（大廳、組裝區、中控室）的介面：準星、資訊框與按鍵提示、安裝進度環、場景標籤，
-    /// 以及按 E 打開的各種面板（儀表板、手冊、電話、控制台…）。面板開著時角色不能動、滑鼠放開。
+    /// 以及按 E 打開的各種面板（大屏幕選件、線索、組裝區儀表板、發射、營運席…）。面板開著時角色不能動、滑鼠放開。
     /// Esc 先關面板；Tab／Esc 的遊戲選單在 <see cref="UIRoot"/>。個人模式按 T 叫出平板。
     /// </summary>
     public sealed class FacilityScreen : GameScreen
@@ -30,7 +30,7 @@ namespace GoNoGo.UI
         WorldScreens _screens;
         PollBanner _poll;
         VisualElement _briefHint;
-        /// <summary>組裝單（右上）：人在組裝區、工作台上有東西時顯示。</summary>
+        /// <summary>組裝單（右上）：人走到某一座組裝台旁邊時顯示那一座的。</summary>
         VisualElement _order;
         string _orderSig;
         /// <summary>這一局本機已經自動打開過簡報（多人）；回到場景不再重開，要看按 B。</summary>
@@ -68,7 +68,7 @@ namespace GoNoGo.UI
             Ui.Text("B", "keycap").AddTo(_briefHint);
             Ui.Text(Loc.T("ui.brief.review_hint"), "brief-chip-label").AddTo(_briefHint);
 
-            // 組裝單：工作台上正在組的零件、下一個小零件要做什麼事
+            // 組裝單：旁邊那座組裝台左側的狀態、正在組的零件、下一個小零件要做什麼事
             _order = Ui.El("ord-hud").AddTo(_hud);
             _order.pickingMode = PickingMode.Ignore;
             _order.style.display = DisplayStyle.None;
@@ -105,9 +105,7 @@ namespace GoNoGo.UI
             On(() => M.Rejected += OnRejected, () => { if (GameSession.HasMission) M.Rejected -= OnRejected; });
             On(() => Codex.Unlocked += OnCard, () => Codex.Unlocked -= OnCard);
             _installedSeen = null;
-            _benchPart = null;
-            _benchFits = -1;
-            _kitsSeen = null;
+            _benchSeen = null;
 
             _screens ??= new WorldScreens();
             _screens.MarkDirty();
@@ -140,13 +138,12 @@ namespace GoNoGo.UI
         HashSet<string> _installedSeen;
 
         /// <summary>
-        /// 新裝上船的零件：知識卡收進圖鑑（開局就在船上的不算，要自己動手裝過）。
-        /// 在組裝工作台組好的那一刻已經收過了，這裡是給不用組裝的零件和沙盒用的。
-        /// 同一種構造這一局零失誤組過（到貨就是成品的那些）：裝上去的時候也升級成精通。
+        /// 新裝上衛星的零件：知識卡收進圖鑑（開局就在衛星上的不算，要自己動手裝過）。
+        /// 在組裝台組好的那一刻已經收過了，這裡是給不用組裝的零件和沙盒用的。
         /// </summary>
         void CollectCards()
         {
-            var now = new HashSet<string>(M.S.Bench.AllPartIds());
+            var now = new HashSet<string>(M.S.Installed);
             if (_installedSeen != null && M.S.Phase == SessionPhase.Design && M.S.Restarts == _restartsShown)
                 foreach (var id in now)
                 {
@@ -158,85 +155,93 @@ namespace GoNoGo.UI
             _installedSeen = now;
         }
 
-        // ---------------- 組裝工作台的提示 ----------------
+        // ---------------- 組裝台的提示 ----------------
 
-        string _benchPart;
-        int _benchFits = -1;
-        bool _benchDone;
-        HashSet<string> _kitsSeen;
+        /// <summary>每座組裝台上一次看到的樣子（正在組哪個零件、裝了幾次、組好了沒、左側被判定錯誤幾次）。</summary>
+        sealed class BenchSeen
+        {
+            public string Part;
+            public int Fits = -1, Errors = -1;
+            public bool Done;
+        }
+
+        BenchSeen[] _benchSeen;
 
         /// <summary>
-        /// 組裝工作台：有人裝了一個小零件（對：說出它叫什麼、做什麼；錯：說出那個小零件其實是做什麼的，還有賠掉多少時間）、
-        /// 組好了（收知識卡，零失誤就升級成精通）、同一種構造的其他箱子因此變成成品。
+        /// 組裝台：左側放了一組認不出來的組合（組合錯誤／不是這次設計選的零件／設計還沒確定）、
+        /// 有人裝了一個小零件（對：說出它叫什麼、做什麼；錯：說出那個小零件其實是做什麼的）、
+        /// 組好了（收知識卡，零失誤就升級成精通）。裝錯沒有懲罰，但所有人照樣看得到誰裝錯。
         /// 規則都在房主那邊算，這裡只看狀態前後的差別，所以多人時每個人都看得到。
         /// </summary>
         void BenchNotices()
         {
             var s = M.S;
-            var job = s.Workbench;
-            string months = BenchOrderView.Months(D.Constants.ReworkMonths);
-
-            // 之前還是一箱小零件、現在不用組了（而且不是剛組好的那一個）：同一種構造學會了
-            var kits = new HashSet<string>();
-            foreach (var id in s.Owned) if (SessionRules.NeedsAssembly(s, D, id)) kits.Add(id);
-            string learned = null;
-            if (_kitsSeen != null)
-                foreach (var id in _kitsSeen)
-                    if (!kits.Contains(id) && s.Owned.Contains(id) && !s.Built.Contains(id))
-                        learned = (learned == null ? "" : learned + (Loc.IsZh ? "、" : ", ")) + (D.Part(id)?.Code ?? id);
-            _kitsSeen = kits;
-
-            if (job == null)
+            if (_benchSeen == null || _benchSeen.Length != s.Benches.Count)
             {
-                _benchPart = null;
-                _benchFits = -1;
-                _benchDone = false;
+                // 第一次看到（剛進場景、中途加入）：只記下現在的樣子，不補播
+                _benchSeen = new BenchSeen[s.Benches.Count];
+                for (int i = 0; i < s.Benches.Count; i++)
+                {
+                    var b0 = s.Benches[i];
+                    _benchSeen[i] = new BenchSeen { Part = b0.Job?.PartId, Fits = b0.Job?.Fits ?? -1, Done = b0.Job?.Done ?? false, Errors = b0.Errors };
+                }
                 return;
             }
-            if (_benchPart != job.PartId)
+            for (int i = 0; i < s.Benches.Count; i++)
             {
-                // 換了一箱；第一次看到（中途加入、換場景回來）而且已經裝過幾次的，不補播
-                _benchPart = job.PartId;
-                _benchFits = job.Fits == 0 ? 0 : -1;
-                _benchDone = job.Done;
-            }
-            var part = D.Part(job.PartId);
-            bool fitted = _benchFits >= 0 && job.Fits > _benchFits;
-            _benchFits = job.Fits;
+                var b = s.Benches[i];
+                var seen = _benchSeen[i];
+                var job = b.Job;
 
-            if (job.Done && !_benchDone)
-            {
-                _benchDone = true;
-                bool flawless = job.Mistakes == 0;
-                Codex.Unlock(D, job.PartId, true);
-                if (flawless) Codex.Master(D, job.PartId);
-                Sfx.Confirm();
-                string text = Loc.T(flawless ? "ui.asm.built_flawless" : "ui.asm.built", ("code", part?.Code ?? ""));
-                if (learned != null) text += "\n" + Loc.T("ui.asm.learned", ("code", learned));
-                UIRoot.Toast(text, 5f);
-                Hud.Signal("assemble");
-                return;
-            }
-            if (!fitted) return;
-            var comp = D.Component(job.LastComp);
-            if (comp == null) return;
-            bool mine = job.LastBy == GameSession.LocalPlayer;
-            if (job.LastOk)
-            {
-                // 裝對了：把名稱和功能再說一次（這時候看最記得住）
-                if (mine) UIRoot.Toast(Loc.T("ui.asm.right", ("name", Loc.T(comp.Name)), ("role", Loc.T(comp.Role))), 3.5f);
-            }
-            else if (mine)
-            {
-                bool belongs = D.Recipe(part)?.Components.Exists(c => c.Id == comp.Id) == true;
-                UIRoot.Toast(Loc.T(belongs ? "ui.asm.wrong_order" : "ui.asm.wrong",
-                    ("name", Loc.T(comp.Name)), ("role", Loc.T(comp.Role)), ("m", months)), 6f);
-            }
-            else
-            {
-                var who = s.Player(job.LastBy);
-                string name = who == null || string.IsNullOrEmpty(who.Look?.Name) ? "P" + job.LastBy : who.Look.Name;
-                UIRoot.Toast(Loc.T("ui.asm.mate_wrong", ("who", name), ("m", months)), 4f);
+                // 左側：放錯組合
+                if (b.Errors > seen.Errors && seen.Errors >= 0 && b.LastBy == GameSession.LocalPlayer)
+                    UIRoot.Toast(Loc.T("ui.bench.status." + b.LastError.ToString().ToLowerInvariant()), 5f);
+                seen.Errors = b.Errors;
+
+                if (job == null) { seen.Part = null; seen.Fits = -1; seen.Done = false; continue; }
+                if (seen.Part != job.PartId)
+                {
+                    // 剛認出配方：右側開始組
+                    seen.Part = job.PartId;
+                    seen.Fits = job.Fits == 0 ? 0 : -1;
+                    seen.Done = job.Done;
+                    if (job.Fits == 0 && !job.Done)
+                    {
+                        Sfx.Confirm();
+                        UIRoot.Toast(Loc.T("ui.asm.recognised", ("code", D.Part(job.PartId)?.Code ?? ""), ("name", SelectView.PartName(D.Part(job.PartId)))), 4f);
+                        Hud.Signal("recognised");
+                    }
+                }
+                var part = D.Part(job.PartId);
+                bool fitted = seen.Fits >= 0 && job.Fits > seen.Fits;
+                seen.Fits = job.Fits;
+
+                if (job.Done && !seen.Done)
+                {
+                    seen.Done = true;
+                    bool flawless = job.Mistakes == 0;
+                    Codex.Unlock(D, job.PartId, true);
+                    if (flawless) Codex.Master(D, job.PartId);
+                    Sfx.Confirm();
+                    UIRoot.Toast(Loc.T(flawless ? "ui.asm.built_flawless" : "ui.asm.built", ("code", part?.Code ?? "")), 5f);
+                    Hud.Signal("assemble");
+                    continue;
+                }
+                if (!fitted) continue;
+                var comp = D.Component(job.LastComp);
+                if (comp == null) continue;
+                bool mine = job.LastBy == GameSession.LocalPlayer;
+                if (job.LastOk)
+                {
+                    // 裝對了：把名稱和功能再說一次（這時候看最記得住）
+                    if (mine) UIRoot.Toast(Loc.T("ui.asm.right", ("name", Loc.T(comp.Name)), ("role", Loc.T(comp.Role))), 3.5f);
+                }
+                else if (mine)
+                {
+                    bool belongs = D.Recipe(part)?.Components.Exists(c => c.Id == comp.Id) == true;
+                    UIRoot.Toast(Loc.T(belongs ? "ui.asm.wrong_order" : "ui.asm.wrong", ("name", Loc.T(comp.Name)), ("role", Loc.T(comp.Role))), 6f);
+                }
+                else UIRoot.Toast(Loc.T("ui.asm.mate_wrong", ("who", SelectView.PlayerName(job.LastBy))), 4f);
             }
         }
         void OnRejected(string code) { Sfx.NoGo(); UIRoot.Toast(Loc.T(code)); }
@@ -265,9 +270,9 @@ namespace GoNoGo.UI
         // 發射失敗重來的提示要跨場景（失敗後從發射場景回來才看得到），所以記在靜態欄位，換一局就重算
         static object _noticeMission;
         static int _restartsShown;
-        int _requestsSeen = -1, _rejectedSeen = -1, _ordersSeen = -1;
+        int _confirmsSeen = -1;
 
-        /// <summary>狀態變化的提示：任務重來；多人時中控室收到採購單、組裝區的單被批准或退回。</summary>
+        /// <summary>狀態變化的提示：任務重來；有人在大屏幕上確定了設計（該去組裝了）。</summary>
         void Notices()
         {
             var s = M.S;
@@ -276,37 +281,20 @@ namespace GoNoGo.UI
             {
                 _restartsShown = s.Restarts;
                 Sfx.NoGo();
-                UIRoot.Toast(Loc.T("ui.restart.toast"));
+                UIRoot.Toast(Loc.T("ui.restart.toast"), 6f);
             }
-            var team = s.Player(GameSession.LocalPlayer)?.Station;
-            int rejected = s.Rejected?.Seq ?? 0;
-            if (s.Multiplayer && _requestsSeen >= 0)
+            if (_confirmsSeen >= 0 && s.Confirms > _confirmsSeen && s.Confirmed && s.Phase == SessionPhase.Design && !s.IsSandbox(D))
             {
-                if (s.Requests > _requestsSeen && s.Request != null && team == Station.Control)
-                {
-                    Sfx.Alert();
-                    UIRoot.Toast(Loc.T("ui.review.toast_new", ("n", s.Request.N)));
-                }
-                if (rejected != 0 && rejected != _rejectedSeen && team == Station.Assembly)
-                {
-                    Sfx.NoGo();
-                    UIRoot.Toast(Loc.T("ui.proc.rejected", ("n", s.Rejected.N)));
-                }
-                if (s.Orders.Count > _ordersSeen && s.Orders.Count > 0 && s.Orders[s.Orders.Count - 1].ApprovedBy != 0 && team == Station.Assembly)
-                {
-                    Sfx.Confirm();
-                    UIRoot.Toast(Loc.T("ui.proc.approved", ("n", s.Orders.Count)));
-                }
+                Sfx.Confirm();
+                UIRoot.Toast(Loc.T("ui.sel.confirmed_toast"), 5f);
             }
-            _requestsSeen = s.Requests;
-            _rejectedSeen = rejected;
-            _ordersSeen = s.Orders.Count;
+            _confirmsSeen = s.Confirms;
         }
 
         /// <summary>簡報、大廳：階段一開始就打開的面板。</summary>
         void ShowPhasePanel()
         {
-            // 大廳不自動擋畫面：玩家在大廳裡走動，用兩邊的按鈕選組、中間的按鈕開始（場景裡的互動物件 LobbyButton）
+            // 大廳不自動擋畫面：玩家在大廳裡走動，按兩邊的按鈕準備（場景裡的互動物件 LobbyButton）
             if (M.S.Phase == SessionPhase.Briefing) OpenPanel("briefing", "");
             else if (M.S.Phase == SessionPhase.Design && M.S.Multiplayer && !ReferenceEquals(_briefedFor, M))
             {
@@ -438,7 +426,7 @@ namespace GoNoGo.UI
             // M：自己的麥克風靜音
             else if (keys && kb.mKey.wasPressedThisFrame && Multiplayer.VoiceConnected)
                 ToggleMic();
-            // T：個人模式的平板（手冊、儀表板）
+            // T：個人模式的平板（儀表板、任務需求、組裝清單）
             else if (keys && kb.tKey.wasPressedThisFrame && !M.S.Multiplayer)
             {
                 if (_panelId == "tablet") ClosePanel();
@@ -466,18 +454,21 @@ namespace GoNoGo.UI
             _coach?.Tick(dt, _panel == null && !Hud.Paused);
 
             bool playing = _panel == null && !Hud.Paused;
-            // 組裝單：人在組裝區、工作台上有東西才顯示（中控室的人不需要看）
-            var job = M.S.Workbench;
-            bool showOrder = playing && job != null && M.S.Phase == SessionPhase.Design && Hud.Area == "assembly";
+            // 組裝單：人走到某一座組裝台旁邊才顯示那一座的（中控室的人不需要看）
+            int near = Hud.NearBench;
+            var nb = M.S.BenchAt(near);
+            bool showOrder = playing && nb != null && M.S.Phase == SessionPhase.Design && !M.S.IsSandbox(D);
             _order.style.display = showOrder ? DisplayStyle.Flex : DisplayStyle.None;
             if (showOrder)
             {
-                string sig = job.PartId + "/" + job.Step + "/" + job.Done + "/" + job.Mistakes + "/" + Loc.Lang;
+                var job = nb.Job;
+                string sig = near + "/" + string.Join(",", nb.Left) + "/" + (job == null ? "" : job.PartId + "/" + job.Step + "/" + job.Done + "/" + job.Mistakes)
+                             + "/" + M.S.Confirmed + "/" + M.S.Revision + "/" + Loc.Lang;
                 if (sig != _orderSig)
                 {
                     _orderSig = sig;
                     _order.Clear();
-                    BenchOrderView.Build(_order, false);
+                    BenchOrderView.Build(_order, near, false);
                 }
             }
             // 第三人稱不靠準星選目標（角色的頭也剛好在畫面中央），只有第一人稱顯示
@@ -532,13 +523,15 @@ namespace GoNoGo.UI
             _areaTime = Mathf.Max(0, _areaTime - dt);
             _area.style.opacity = Mathf.Clamp01(_areaTime / 0.5f);
             var held = M.S.HeldBy(GameSession.LocalPlayer);
-            // 手上是組裝工作台的小零件：顯示它的名稱
-            var heldComp = held == null ? D.Component(M.S.HeldCompBy(GameSession.LocalPlayer)) : null;
+            // 手上是小零件：列出名稱（單人的籃子最多四個，寫幾個／幾個）
+            var comps = held == null ? M.S.CompsOf(GameSession.LocalPlayer) : null;
             bool lobby = M.S.Phase == SessionPhase.Lobby;
+            string compNames = comps != null && comps.Count > 0 ? string.Join(Loc.IsZh ? "、" : ", ", comps.ConvertAll(id => Loc.T(D.Component(id)?.Name))) : null;
             _held.text = held != null ? Loc.T("ui.hud.holding", ("code", D.Part(held)?.Code ?? ""))
-                : heldComp != null ? Loc.T("ui.hud.holding", ("code", Loc.T(heldComp.Name)))
+                : compNames != null ? (M.S.Alone() ? Loc.T("ui.hud.basket", ("list", compNames), ("n", comps.Count), ("max", GameData.BasketSize))
+                    : Loc.T("ui.hud.holding", ("code", compNames)))
                 : lobby ? LobbyHint() : "";
-            _held.style.display = (held != null || heldComp != null || lobby) && playing ? DisplayStyle.Flex : DisplayStyle.None;
+            _held.style.display = (held != null || compNames != null || lobby) && playing ? DisplayStyle.Flex : DisplayStyle.None;
 
             DrawLabels();
         }

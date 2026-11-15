@@ -14,9 +14,9 @@ namespace GoNoGo.Presentation
         string _lookKey, _heldId;
         Transform _held;
 
-        /// <param name="kit">手上那個零件還沒組裝（拿的是一箱小零件）。</param>
-        /// <param name="comp">手上拿的是組裝工作台的小零件（id；沒有 = null）。</param>
-        public void Apply(AvatarLook look, string held, GameData data, bool kit = false, string comp = null)
+        /// <param name="held">手上組好的零件（沒有 = null）。</param>
+        /// <param name="comps">手上的小零件（單人的籃子最多 4 個，多人一次一個；沒有 = 空清單）。</param>
+        public void Apply(AvatarLook look, string held, GameData data, System.Collections.Generic.List<string> comps)
         {
             look = (look ?? new AvatarLook()).Sanitized();
             string key = $"{look.Suit}/{look.Helmet}/{look.Visor}/{look.Accessory}/{look.Accent}/{look.Lower}";
@@ -38,15 +38,16 @@ namespace GoNoGo.Presentation
             }
             _tag.text = string.IsNullOrEmpty(look.Name) ? "P" + playerId : look.Name;
 
-            string heldKey = held != null ? held + (kit ? "#kit" : "") : comp != null ? "comp:" + comp : null;
+            bool any = comps != null && comps.Count > 0;
+            string heldKey = held != null ? held : any ? "comp:" + string.Join(",", comps) : null;
             if (heldKey != _heldId)
             {
                 _heldId = heldKey;
                 if (_held != null) Destroy(_held.gameObject);
-                _held = held != null ? FacilityDirector.HeldModel(held, kit, data, _rig.hold)
-                    : comp != null ? FacilityDirector.HeldComponent(comp, _rig.hold) : null;
+                _held = held != null ? FacilityDirector.HeldModel(held, data, _rig.hold)
+                    : any ? FacilityDirector.HeldComponents(comps, _rig.hold, false) : null;
             }
-            _rig.holding = held != null || comp != null;
+            _rig.holding = held != null || any;
         }
 
         void Update()

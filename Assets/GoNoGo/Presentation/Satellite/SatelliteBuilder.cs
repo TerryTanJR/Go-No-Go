@@ -99,34 +99,32 @@ namespace GoNoGo.Presentation
         }
 
         /// <summary>
-        /// 還沒組裝的零件：一箱小零件。深色箱身、白色箱蓋、兩條金屬束帶，中間一圈用零件的顏色，
-        /// 遠遠就看得出「這是一箱東西，不是零件本身」。最長邊是 <paramref name="size"/> 公尺，中心對齊 parent。
+        /// 單人的籃子：一個開口朝上的淺箱子，裡面最多放四個小零件（2 × 2）。最長邊是 <paramref name="size"/> 公尺，
+        /// 底部在 parent 的原點。回傳的物件底下有名叫 Slot0…Slot3 的四個位置。
         /// </summary>
-        public static GameObject BuildKit(PartDef part, Transform parent, float size)
+        public static GameObject BuildBasket(Transform parent, float size)
         {
-            var root = new GameObject("Kit_" + (part?.Id ?? ""));
+            var root = new GameObject("Basket");
             root.transform.SetParent(parent, false);
             var mats = SatMaterials.Load();
             if (mats == null) return root;
-            var sp = root.AddComponent<SatPart>();
-            sp.category = part?.Category ?? "";
-            sp.partId = part?.Id ?? "";
+            root.AddComponent<SatPart>();
             var t = root.transform;
-            float w = size, h = size * 0.6f, d = size * 0.7f;
-            Box(t, Vector3.zero, new Vector3(w, h, d), mats.frameDark);
-            Box(t, new Vector3(0, h / 2 + size * 0.02f, 0), new Vector3(w * 1.04f, size * 0.04f, d * 1.04f), mats.paintWhite);
-            var band = Box(t, Vector3.zero, new Vector3(w * 1.012f, h * 0.34f, d * 1.012f), mats.accent);
-            Color accent = Color.white;
-            if (part != null) ColorUtility.TryParseHtmlString(part.Color, out accent);
-            var mpb = new MaterialPropertyBlock();
-            mpb.SetColor("_BaseColor", accent);
-            band.GetComponent<Renderer>().SetPropertyBlock(mpb);
+            float w = size, d = size * 0.72f, h = size * 0.22f, wall = size * 0.03f;
+            Box(t, new Vector3(0, wall / 2, 0), new Vector3(w, wall, d), mats.frameDark);
+            foreach (var z in new[] { -1, 1 })
+                Box(t, new Vector3(0, h / 2, z * (d / 2 - wall / 2)), new Vector3(w, h, wall), mats.paintWhite);
             foreach (var x in new[] { -1, 1 })
-                Box(t, new Vector3(x * w * 0.3f, size * 0.012f, 0), new Vector3(size * 0.045f, h + size * 0.07f, d * 1.06f), mats.metal);
-            // 箱蓋上的把手
-            Box(t, new Vector3(0, h / 2 + size * 0.075f, 0), new Vector3(w * 0.3f, size * 0.03f, size * 0.05f), mats.metal);
+                Box(t, new Vector3(x * (w / 2 - wall / 2), h / 2, 0), new Vector3(wall, h, d), mats.paintWhite);
+            // 兩邊的提把
             foreach (var x in new[] { -1, 1 })
-                Box(t, new Vector3(x * w * 0.14f, h / 2 + size * 0.055f, 0), new Vector3(size * 0.03f, size * 0.04f, size * 0.05f), mats.metal);
+                Box(t, new Vector3(x * (w / 2 + wall * 0.6f), h * 0.8f, 0), new Vector3(wall * 0.8f, wall * 0.8f, d * 0.4f), mats.metal);
+            for (int i = 0; i < 4; i++)
+            {
+                var slot = new GameObject("Slot" + i).transform;
+                slot.SetParent(t, false);
+                slot.localPosition = new Vector3((i % 2 == 0 ? -1 : 1) * w * 0.23f, wall, (i < 2 ? -1 : 1) * d * 0.22f);
+            }
             return root;
         }
 
@@ -340,17 +338,14 @@ namespace GoNoGo.Presentation
                         break;
                     }
                     case "inst_fire_mwir":
-                    case "inst_fire_mwir_hr":
                     {
-                        // 火點儀：沿用熱像儀的造型（散熱片），換成橘色鏡頭；高解析版多一個製冷機圓筒
-                        bool hr = id == "inst_fire_mwir_hr";
-                        var pos = basePos + new Vector3(0, (hr ? -0.13f : -0.09f) * s, 0);
-                        float w = hr ? 0.28f : 0.2f;
-                        Box(g, pos, new Vector3(w * s, (hr ? 0.24f : 0.16f) * s, w * s), m.mliGold);
+                        // 火點儀：沿用熱像儀的造型（散熱片），換成橘色鏡頭
+                        var pos = basePos + new Vector3(0, -0.09f * s, 0);
+                        const float w = 0.2f;
+                        Box(g, pos, new Vector3(w * s, 0.16f * s, w * s), m.mliGold);
                         for (int i = -1; i <= 1; i++)
-                            Box(g, pos + new Vector3((w / 2 + 0.02f) * s, 0, i * 0.06f * s), new Vector3(0.035f * s, (hr ? 0.22f : 0.14f) * s, 0.012f * s), m.paintWhite);
-                        if (hr) Cyl(g, pos + new Vector3(-(w / 2 + 0.04f) * s, 0, 0), 0.045f * s, 0.18f * s, Vector3.up, m.metal);
-                        Lens(g, m, pos + new Vector3(0, -(hr ? 0.13f : 0.09f) * s, 0), (hr ? 0.07f : 0.05f) * s, accent);
+                            Box(g, pos + new Vector3((w / 2 + 0.02f) * s, 0, i * 0.06f * s), new Vector3(0.035f * s, 0.14f * s, 0.012f * s), m.paintWhite);
+                        Lens(g, m, pos + new Vector3(0, -0.09f * s, 0), 0.05f * s, accent);
                         break;
                     }
                     case "inst_multispectral":
@@ -536,7 +531,7 @@ namespace GoNoGo.Presentation
                 Box(g, c + new Vector3(depth / 2 + 0.003f * s, 0, z * size * s * 0.25f), new Vector3(0.006f * s, size * h * 0.8f, 0.02f * s), m.metal);
         }
 
-        // ---------------- 小零件（組裝工作台） ----------------
+        // ---------------- 小零件（架子上拿、在組裝台組起來） ----------------
 
         /// <summary>小零件的外型：形狀種類 + 顏色。沒列到的用一個灰色盒子。</summary>
         static readonly Dictionary<string, (string shape, string color)> CompLooks = new Dictionary<string, (string, string)>
@@ -558,10 +553,14 @@ namespace GoNoGo.Presentation
             ["wheels"] = ("wheel", "#AEB6C0"), ["grids"] = ("wheel", "#4A515C"),
             ["cells"] = ("cells", "#3BB36B"), ["tank"] = ("tank", "#E9EDF2"), ["nozzle"] = ("nozzle", "#8E98A4"),
             ["fasteners"] = ("bolts", "#AEB6C0"),
+            // 酬載儀器各自的配方多出來的小零件
+            ["filter_wheel"] = ("wheel", "#C86BE0"), ["disperser"] = ("nozzle", "#B58CFF"), ["grating"] = ("plate", "#E0C23B"),
+            ["band_filter"] = ("glass", "#FFB36B"), ["event_processor"] = ("board", "#D6B03B"),
+            ["pulse_laser"] = ("tube", "#FF5A3C"), ["timer"] = ("chip", "#E08A2E"),
         };
 
         /// <summary>
-        /// 一個小零件（零件盤上、拿在手上、裝在工作台上的）：依 id 用幾種基本形狀拼出來，顏色也不同，
+        /// 一個小零件（架子上、拿在手上、組裝台上的）：依 id 用幾種基本形狀拼出來，顏色也不同，
         /// 遠遠看得出是板子、鏡頭、桶子還是桿子。最長邊大約 <paramref name="size"/> 公尺，底部在 parent 的原點。
         /// </summary>
         public static GameObject BuildComponent(string compId, Transform parent, float size)

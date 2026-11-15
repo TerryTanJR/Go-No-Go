@@ -2217,3 +2217,368 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .codex-master { margin: 4px 0; font-size: var(--fs-15); -unity-font-style: bold; color: #FFC94A; white-space: normal; }
 .codex-master-how { margin: 4px 0; white-space: normal; }
 .brief-chip .keycap { min-width: 24px; font-size: var(--fs-14); -unity-text-align: middle-center; }
+
+/* ====================================================================
+   流程改版：選件（大屏幕）、挖空的數值、線索、組裝清單、流程說明
+   ==================================================================== */
+
+/* ---------- 選件面板（中控室的大屏幕按 E） ---------- */
+.modal--select { width: 1640px; max-width: 97%; height: 94%; max-height: 94%; padding: 18px 24px; }
+.modal--select .small { font-size: var(--fs-14); }
+.modal--select .eyebrow { font-size: var(--fs-14); }
+.modal--select .body { font-size: var(--fs-16); }
+.modal--select .faint { color: #7890AC; }
+.sel-cols { flex-direction: row; flex-grow: 1; flex-shrink: 1; align-items: stretch; }
+.sel-left { flex-grow: 1.45; flex-basis: 0; margin-right: 20px; }
+.sel-right { flex-grow: 1; flex-basis: 0; padding-left: 20px; border-left-width: 1px; border-color: var(--c-line); }
+.sel-scroll { flex-grow: 1; flex-shrink: 1; }
+.sel-confirmed-head { flex-direction: row; align-items: center; margin-bottom: 4px; }
+.sel-confirmed-body { white-space: normal; margin-bottom: 10px; }
+.sel-cats { flex-direction: row; flex-wrap: wrap; margin-bottom: 4px; }
+.sel-cat { margin: 0 6px 6px 0; }
+.sel-blank-hint { margin-bottom: 8px; }
+.sel-part {
+    margin: 0 6px 8px 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-left-width: 3px;
+    border-color: var(--c-line);
+    background-color: rgba(255, 255, 255, 0.025);
+}
+.sel-part--on { border-color: var(--c-accent); background-color: var(--c-accent-dim); }
+.sel-part-top { flex-direction: row; align-items: center; }
+.sel-tick, .sel-tick:hover:enabled {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    padding: 0;
+    margin: 0 12px 0 0;
+    border-radius: 4px;
+    border-width: 2px;
+    border-color: var(--c-line-hi);
+    background-color: rgba(0, 0, 0, 0.3);
+    color: #04121D;
+    font-size: var(--fs-18);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    scale: 1 1;
+}
+.sel-tick:hover:enabled { border-color: var(--c-accent); background-color: rgba(57, 198, 244, 0.22); }
+.sel-tick--radio, .sel-tick--radio:hover:enabled { border-radius: 15px; }
+/* 單選的那一類：選中的那顆不能再點（只能換），但不要跟著變淡 */
+.sel-tick--on, .sel-tick--on:hover:enabled, .sel-tick--on:disabled { background-color: var(--c-accent); border-color: #8BE3FF; opacity: 1; }
+.sel-part-name { margin-left: 10px; font-size: var(--fs-17); -unity-font-style: bold; color: var(--c-text); flex-shrink: 1; white-space: normal; }
+.sel-price { margin-right: 8px; font-size: var(--fs-16); color: var(--c-dim); }
+.sel-more, .sel-more:hover:enabled {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    margin: 0;
+    background-color: rgba(0, 0, 0, 0);
+    border-color: rgba(0, 0, 0, 0);
+    color: var(--c-dim);
+    font-size: var(--fs-16);
+    -unity-text-align: middle-center;
+}
+.sel-more:hover:enabled { color: var(--c-text); background-color: rgba(255, 255, 255, 0.06); }
+.sel-cells { flex-direction: row; flex-wrap: wrap; margin: 6px 0 0 42px; }
+.sel-cell { min-width: 136px; margin: 0 14px 4px 0; }
+.sel-cell-k { font-size: var(--fs-12); color: var(--c-dim); }
+.sel-cell-line { flex-direction: row; align-items: center; min-height: 30px; }
+.sel-cell-v { font-size: var(--fs-17); color: var(--c-text); -unity-font-style: bold; }
+.sel-cell-u { margin-left: 5px; font-size: var(--fs-12); color: var(--c-faint); }
+/* 挖空的一格：自己輸入的數值。還沒填的是琥珀色的框，填了變回一般的框 */
+.sel-input { width: 100px; margin: 0; }
+.sel-input > .unity-text-field__input, .sel-input .unity-base-text-field__input {
+    background-color: rgba(4, 10, 20, 0.9);
+    border-color: var(--c-accent);
+    border-radius: 4px;
+    color: var(--c-text);
+    font-size: var(--fs-17);
+    -unity-font-style: bold;
+    padding: 3px 8px;
+}
+.sel-input--empty > .unity-text-field__input, .sel-input--empty .unity-base-text-field__input {
+    border-color: var(--c-tight);
+    background-color: rgba(255, 181, 71, 0.12);
+}
+.sel-by { font-size: var(--fs-11); color: var(--c-accent); }
+.sel-info { margin: 8px 0 2px 42px; padding: 8px 10px; border-left-width: 2px; border-color: var(--c-line-hi); background-color: rgba(0, 0, 0, 0.22); }
+.sel-info-func { color: var(--c-text); }
+.sel-info-stats { flex-direction: row; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+.sel-stat { margin-right: 18px; }
+.sel-info-stats .man-badge { margin-right: 8px; }
+.sel-info-desc { white-space: normal; }
+.sel-info > .small { white-space: normal; }
+.sel-confirm { flex-shrink: 0; margin-top: 10px; padding-top: 10px; border-top-width: 1px; border-color: var(--c-line); align-items: stretch; }
+.sel-confirm > .unity-label { white-space: normal; margin-bottom: 8px; }
+.sel-confirm-btn { -unity-text-align: middle-center; }
+
+/* ---------- 儀表板（用玩家填的數值算；沒填的顯示「資料不足」） ---------- */
+.sd-note { margin-bottom: 8px; white-space: normal; }
+.sd-row {
+    margin: 0 6px 6px 0;
+    padding: 7px 10px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: var(--c-line);
+    background-color: rgba(255, 255, 255, 0.025);
+}
+.sd-row--tight { border-color: rgba(255, 181, 71, 0.55); }
+.sd-row--over { border-color: var(--c-over); background-color: rgba(255, 77, 94, 0.1); }
+.sd-row--unknown { border-color: rgba(255, 181, 71, 0.4); }
+.sd-top { flex-direction: row; align-items: center; }
+.sd-k { font-size: var(--fs-16); -unity-font-style: bold; color: var(--c-text); }
+.sd-v { font-size: var(--fs-17); -unity-font-style: bold; color: var(--c-text); }
+.sd-v.over { color: var(--c-over); }
+.sd-v--unknown { font-size: var(--fs-15); color: var(--c-tight); }
+.sd-x { margin-top: 3px; white-space: normal; }
+.sd-sub { margin: -2px 6px 6px 10px; white-space: normal; }
+.sd-track { height: 7px; margin-top: 5px; border-radius: 4px; background-color: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.sd-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background-color: var(--c-accent); }
+.sd-fill--go { background-color: var(--c-go); }
+.sd-fill--tight { background-color: var(--c-tight); }
+.sd-fill--over { background-color: var(--c-over); }
+.sd-foot { margin-top: 4px; white-space: normal; }
+/* 牆上的大屏幕：一列一行，不放說明，才排得下 */
+.wscreen .sd-row { margin: 0 0 4px 0; padding: 3px 9px; }
+.wscreen .sd-k { font-size: var(--fs-16); }
+.wscreen .sd-v { font-size: var(--fs-17); }
+.wscreen .sd-x, .wscreen .sd-sub { display: none; }
+.wscreen .sd-track { height: 4px; margin-top: 2px; }
+.prog--compact { padding: 8px 10px; margin-bottom: 10px; }
+
+/* ---------- 任務需求 ---------- */
+.prog-goal--unknown { border-left-color: var(--c-tight); }
+.prog-goal--neutral { border-left-color: var(--c-line-hi); }
+.req-tag {
+    margin-left: 8px;
+    padding: 1px 7px;
+    border-radius: 3px;
+    border-width: 1px;
+    border-color: var(--c-tight);
+    color: var(--c-tight);
+    font-size: var(--fs-11);
+    -unity-font-style: bold;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+}
+.req-note { margin: 2px 0 10px 0; white-space: normal; }
+.req-notes-title { margin: 14px 0 8px 0; }
+.req-notecard { margin-right: 6px; }
+.req-note-head { flex-direction: row; align-items: center; margin-bottom: 4px; }
+.req-note-title { font-size: var(--fs-16); -unity-font-style: bold; color: var(--c-text); flex-shrink: 1; white-space: normal; }
+.req-dot--mission_lead { background-color: #39C6F4; }
+.req-dot--budget_office { background-color: #FFB547; }
+.req-dot--science { background-color: #B58CFF; }
+.req-dot--engineering { background-color: #3DDC84; }
+.req-dot--comms { background-color: #FF8AC2; }
+.wscreen .req-tag { font-size: var(--fs-13); }
+
+/* ---------- 目前的設計（大屏幕左半） ---------- */
+.pick-row { flex-direction: row; flex-wrap: wrap; align-items: flex-start; padding: 3px 0; border-bottom-width: 1px; border-color: rgba(31, 53, 80, 0.5); }
+.pick-k { width: 108px; flex-shrink: 0; font-size: var(--fs-13); color: var(--c-dim); }
+.pick-v { margin-right: 12px; font-size: var(--fs-15); color: var(--c-text); flex-shrink: 1; white-space: normal; }
+.pick-v.tight { color: var(--c-tight); }
+.pick-grid { margin: 6px 0 8px 0; }
+
+/* ---------- 組裝清單：每個零件要用哪些小零件 ---------- */
+.asm-list { flex-direction: row; flex-wrap: wrap; }
+.asm-card {
+    width: 49%;
+    margin: 0 1% 8px 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-left-width: 3px;
+    border-color: var(--c-line);
+    border-left-color: var(--c-tight);
+    background-color: rgba(255, 255, 255, 0.025);
+}
+.asm-card--installed, .asm-card--ready { border-left-color: var(--c-go); opacity: 0.7; }
+.asm-card--built, .asm-card--carried { border-left-color: var(--c-accent); }
+.asm-card--building { border-left-color: var(--c-accent); background-color: var(--c-accent-dim); }
+.asm-card-top { flex-direction: row; align-items: center; }
+.asm-card .man-code { padding: 1px 7px; font-size: var(--fs-14); }
+.asm-card-name { margin-left: 8px; font-size: var(--fs-15); -unity-font-style: bold; color: var(--c-text); flex-shrink: 1; white-space: normal; }
+.asm-state { margin-left: 6px; font-size: var(--fs-11); -unity-font-style: bold; letter-spacing: 1px; color: var(--c-tight); flex-shrink: 0; white-space: nowrap; }
+.asm-state--installed, .asm-state--ready { color: var(--c-go); }
+.asm-state--built, .asm-state--carried, .asm-state--building { color: var(--c-accent); }
+.asm-comps { flex-direction: row; flex-wrap: wrap; margin-top: 6px; }
+.asm-comp {
+    margin: 0 6px 4px 0;
+    padding: 2px 8px;
+    border-radius: 3px;
+    border-width: 1px;
+    border-color: var(--c-line-hi);
+    background-color: rgba(0, 0, 0, 0.25);
+    font-size: var(--fs-13);
+    color: var(--c-text);
+}
+/* 牆上的螢幕：裝好的、不用組裝的只留一行 */
+.asm-list--compact .asm-card { margin-bottom: 5px; padding: 4px 8px; }
+.asm-list--compact .asm-card--installed .asm-comps, .asm-list--compact .asm-card--ready .asm-comps, .asm-list--compact .asm-card > .small { display: none; }
+.asm-list--compact .asm-comps { margin-top: 3px; }
+.asm-list--compact .asm-comp { margin-bottom: 2px; padding: 1px 6px; }
+.bay-wait { flex-grow: 1; align-items: center; justify-content: center; padding: 40px 20px; }
+.bay-wait .h2, .bay-wait.h3 { white-space: normal; -unity-text-align: middle-center; }
+.bay-wait .body { margin-top: 12px; -unity-text-align: middle-center; }
+.bay-how { margin-top: 8px; white-space: normal; }
+.wscreen .bay-wait .h2 { font-size: 44px; letter-spacing: 3px; }
+.wscreen .bay-wait .body { font-size: var(--fs-24); }
+
+/* ---------- 組裝台左側的狀態 ---------- */
+.ord-status { margin-top: 8px; font-size: var(--fs-18); -unity-font-style: bold; color: var(--c-text); white-space: normal; }
+.ord-status--bad { color: var(--c-over); }
+.ord-status--wait { color: var(--c-tight); }
+.ord--screen .ord-status { margin-top: 26px; font-size: 46px; }
+
+/* ---------- 流程說明（大屏幕右側） ---------- */
+.howto-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 12px 14px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: var(--c-line);
+    background-color: rgba(255, 255, 255, 0.025);
+}
+.howto-row--now { border-color: var(--c-accent); background-color: var(--c-accent-dim); }
+.howto-row--done { opacity: 0.6; }
+.howto-n { width: 46px; flex-shrink: 0; font-size: var(--fs-30); -unity-font-style: bold; color: var(--c-accent); -unity-text-align: middle-center; }
+.howto-row--done .howto-n { color: var(--c-go); }
+.howto-text { margin-left: 10px; font-size: var(--fs-24); color: var(--c-text); flex-shrink: 1; white-space: normal; }
+
+/* ---------- 大廳：不分組，一張名單 ---------- */
+.lobby-team--roster { border-color: var(--c-accent); }
+
+/* ---------- 線索（放大看；只有自己看得到） ---------- */
+.modal--clue { width: 880px; max-width: 94%; --ch: var(--c-accent); --ch-dim: var(--c-accent-dim); }
+.clue { min-height: 380px; padding: 28px 34px; border-radius: 3px; border-width: 1px; --ink: #1E2433; --ink-soft: rgba(30, 36, 51, 0.18); color: var(--ink); }
+.clue--paper { background-color: #EFE9D6; border-color: #C9C0A4; }
+.clue--book { background-color: #F4EEDF; border-color: #B8A988; border-left-width: 10px; border-left-color: #6B4A2F; }
+.clue--whiteboard { background-color: #F3F5F7; border-color: #AEB7C2; border-width: 6px; --ink: #17324F; --ink-soft: rgba(23, 50, 79, 0.16); }
+.clue--blackboard { background-color: #17382B; border-color: #6B4A2F; border-width: 8px; --ink: #E6EBE1; --ink-soft: rgba(230, 235, 225, 0.22); }
+.clue--blueprint { background-color: #0F3B7C; border-color: #C8DCFF; border-width: 2px; --ink: #DDEBFF; --ink-soft: rgba(221, 235, 255, 0.24); }
+.clue .unity-label { color: var(--ink); }
+.clue-junk { margin: 60px 10px; font-size: var(--fs-26); white-space: normal; -unity-text-align: middle-center; }
+.clue-foot { margin-top: 10px; white-space: normal; color: var(--c-dim); }
+.clue-nav { flex-direction: row; align-items: center; margin-top: 10px; }
+.clue-kicker { font-size: var(--fs-14); -unity-font-style: bold; letter-spacing: 4px; opacity: 0.7; }
+.clue-title { margin-top: 4px; font-size: var(--fs-30); -unity-font-style: bold; white-space: normal; }
+.clue-sub { font-size: var(--fs-15); opacity: 0.7; }
+.clue-small { margin-top: 12px; font-size: var(--fs-14); opacity: 0.7; white-space: normal; }
+.clue-sign { -unity-text-align: middle-right; }
+.clue-note { margin: 16px 0 6px 0; font-size: var(--fs-24); white-space: normal; }
+/* 規格表 */
+.clue-table { margin-top: 16px; border-width: 2px; border-color: var(--ink); }
+.clue-tr { flex-direction: row; align-items: center; padding: 9px 14px; border-bottom-width: 1px; border-color: var(--ink-soft); }
+.clue-td { font-size: var(--fs-22); }
+.clue-td--k { flex-grow: 1; flex-shrink: 1; white-space: normal; }
+.clue-td--v { min-width: 150px; -unity-font-style: bold; -unity-text-align: middle-right; }
+.clue-td--u { width: 96px; flex-shrink: 0; margin-left: 10px; font-size: var(--fs-16); opacity: 0.75; }
+/* 圖表：長條的末端對到的刻度就是數值 */
+.clue-bar { margin-top: 18px; }
+.clue-bar-k { font-size: var(--fs-18); -unity-font-style: bold; margin-bottom: 4px; }
+.clue-bar-track { height: 30px; border-width: 2px; border-color: var(--ink); background-color: var(--ink-soft); }
+.clue-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background-color: var(--ink); opacity: 0.55; }
+.clue-bar-grid { position: absolute; top: 0; bottom: 0; width: 1px; background-color: var(--ink); opacity: 0.35; }
+.clue-bar-axis { height: 34px; }
+.clue-bar-tick { position: absolute; top: 4px; font-size: var(--fs-14); opacity: 0.7; }
+.clue-bar-mark { position: absolute; top: 0; width: 2px; height: 9px; margin-left: -1px; background-color: var(--ink); }
+.clue-bar-value { position: absolute; top: 8px; left: -60px; width: 122px; font-size: var(--fs-18); -unity-font-style: bold; -unity-text-align: upper-center; }
+/* 設計圖：中間是零件的外框，上、右、下各一條尺寸標註 */
+.clue-plan { height: 330px; margin-top: 14px; }
+.clue-shape {
+    position: absolute;
+    left: 30%;
+    top: 30%;
+    width: 40%;
+    height: 40%;
+    align-items: center;
+    justify-content: center;
+    border-width: 3px;
+    border-color: var(--ink);
+    border-radius: 6px;
+    background-color: var(--ink-soft);
+}
+.clue-shape--solar { top: 36%; height: 28%; border-radius: 0; }
+.clue-shape--battery { border-radius: 16px; }
+.clue-shape--antenna { border-top-left-radius: 120px; border-top-right-radius: 120px; }
+.clue-shape--adcs { border-radius: 60px; }
+.clue-shape--propulsion { border-bottom-left-radius: 70px; border-bottom-right-radius: 70px; }
+.clue-shape--shielding { border-width: 8px; }
+.clue-shape-code { font-size: var(--fs-26); -unity-font-style: bold; letter-spacing: 2px; }
+.clue-call { position: absolute; align-items: center; }
+.clue-call--top { left: 30%; width: 40%; top: 2%; flex-direction: column-reverse; }
+.clue-call--bottom { left: 30%; width: 40%; top: 74%; flex-direction: column; }
+.clue-call--right { left: 73%; top: 30%; height: 40%; flex-direction: column; align-items: flex-start; justify-content: center; padding-left: 14px; border-left-width: 2px; border-color: var(--ink); }
+.clue-call-line { width: 100%; height: 2px; margin: 5px 0; background-color: var(--ink); }
+.clue-call--right .clue-call-line { display: none; }
+.clue-call-k { font-size: var(--fs-15); opacity: 0.8; }
+.clue-call-v { font-size: var(--fs-22); -unity-font-style: bold; }
+
+/* ---------- 牆上的螢幕：字要夠大，站在十公尺外也看得清楚（每一面的 class 是 ws-<id>） ---------- */
+/* 組裝區儀表板（6.6 × 4.1 公尺）和大屏幕上的組裝清單 */
+.wscreen .asm-card { margin-bottom: 7px; padding: 6px 10px; }
+.wscreen .asm-card .man-code { font-size: var(--fs-17); }
+.wscreen .asm-card-name { font-size: var(--fs-20); }
+.wscreen .asm-state { font-size: var(--fs-14); }
+.wscreen .asm-comp { padding: 2px 9px; font-size: var(--fs-17); }
+.wscreen .dash-head .eyebrow, .wscreen .dash-head .small { font-size: var(--fs-18); }
+/* 前方的大屏幕（8.8 × 5 公尺，1024 × 576） */
+.ws-bigscreen .wscreen-title { display: none; }
+.ws-bigscreen .eyebrow { font-size: var(--fs-16); }
+.ws-bigscreen .small { font-size: var(--fs-16); }
+.ws-bigscreen .prog-stage-name { font-size: var(--fs-17); }
+.ws-bigscreen .sd-row { margin-bottom: 3px; padding: 2px 9px; }
+.ws-bigscreen .sd-k, .ws-bigscreen .sd-v { font-size: var(--fs-20); }
+.ws-bigscreen .sd-v--unknown { font-size: var(--fs-17); }
+.ws-bigscreen .sd-track { display: none; }
+.ws-bigscreen .pick-row { padding: 4px 0; }
+.ws-bigscreen .pick-k { width: 128px; font-size: var(--fs-16); }
+.ws-bigscreen .pick-v { font-size: var(--fs-19); }
+.ws-bigscreen .asm-card { width: 32.3%; margin-bottom: 5px; padding: 4px 8px; }
+.ws-bigscreen .asm-card-name { font-size: var(--fs-18); }
+.ws-bigscreen .asm-card .man-code { font-size: var(--fs-15); }
+.ws-bigscreen .asm-comp { padding: 1px 7px; font-size: var(--fs-15); }
+.ws-bigscreen .asm-list--many .asm-card-name { font-size: var(--fs-16); }
+.ws-bigscreen .asm-list--many .asm-comp { font-size: var(--fs-14); }
+.ws-bigscreen .bay-wait .h2 { font-size: var(--fs-38); }
+/* 組裝區儀表板：在架子前（十幾公尺外）也要看得到要拿哪些小零件 */
+.ws-bay .wscreen-title { font-size: var(--fs-22); }
+.ws-bay .dash-head .eyebrow, .ws-bay .dash-head .small { font-size: var(--fs-22); }
+.ws-bay .asm-card { padding: 7px 12px; }
+.ws-bay .asm-card .man-code { font-size: var(--fs-20); }
+.ws-bay .asm-card-name { font-size: var(--fs-24); }
+.ws-bay .asm-state { font-size: var(--fs-16); }
+.ws-bay .asm-comp { padding: 2px 10px; font-size: var(--fs-20); }
+.ws-bay .asm-list--many .asm-card { margin-bottom: 5px; padding: 4px 10px; }
+.ws-bay .asm-list--many .asm-card-name { font-size: var(--fs-20); }
+.ws-bay .asm-list--many .asm-card .man-code { font-size: var(--fs-17); }
+.ws-bay .asm-list--many .asm-comp { font-size: var(--fs-17); }
+/* 大屏幕兩側（4.5 × 5 公尺的直式螢幕，1024 × 1136）：任務需求、流程說明／失敗原因；營運時是遙測 */
+.ws-wall_reqs .eyebrow, .ws-wall_asm .eyebrow, .ws-wall_reqs .wscreen-title, .ws-wall_asm .wscreen-title { font-size: var(--fs-26); }
+.ws-wall_reqs .small, .ws-wall_asm .small { font-size: var(--fs-20); }
+.ws-wall_reqs .prog-goals-head { margin-bottom: 14px; }
+.ws-wall_reqs .prog-goal { margin-bottom: 14px; padding: 18px 22px; border-left-width: 8px; }
+.ws-wall_reqs .prog-dept { width: 20px; height: 20px; border-radius: 10px; margin-right: 14px; }
+.ws-wall_reqs .prog-goal-name { font-size: var(--fs-38); }
+.ws-wall_reqs .prog-goal-now { font-size: var(--fs-38); }
+.ws-wall_reqs .prog-goal-target { font-size: var(--fs-26); }
+.ws-wall_reqs .prog-goal-mark { font-size: var(--fs-38); }
+.ws-wall_reqs .prog-track { height: 14px; margin-top: 12px; border-radius: 7px; }
+.ws-wall_reqs .req-tag { font-size: var(--fs-20); }
+.ws-wall_asm .fail-card { margin-bottom: 16px; padding: 16px 18px; }
+.ws-wall_asm .body { font-size: var(--fs-24); }
+.ws-wall_asm .chain-step { max-width: 420px; font-size: var(--fs-22); }
+.ws-wall_asm .chain-arrow { font-size: var(--fs-26); }
+.ws-wall_asm .howto-row { margin-bottom: 16px; padding: 22px 20px; }
+.ws-wall_asm .howto-n { width: 70px; font-size: var(--fs-38); }
+.ws-wall_asm .howto-text { font-size: var(--fs-34); }
+.ws-wall_reqs .reading, .ws-wall_asm .reading { padding: 10px 6px; }
+.ws-wall_reqs .reading-k, .ws-wall_asm .reading-k { font-size: var(--fs-26); }
+.ws-wall_reqs .reading-v, .ws-wall_asm .reading-v { font-size: var(--fs-30); }
+.ws-wall_reqs .readings, .ws-wall_asm .readings { margin-bottom: 26px; }

@@ -49,15 +49,18 @@ namespace GoNoGo.Game
         /// <summary>個人任務或新手訓練。</summary>
         public static void StartSolo(string scenarioId, string difficultyId, bool tutorial = false, bool loadScene = true)
         {
-            var s = SessionRules.NewSession(Data, scenarioId, difficultyId, tutorial, false);
+            var s = SessionRules.NewSession(Data, scenarioId, difficultyId, tutorial, false, NewClueSeed());
             var m = new MissionSession(Data, s);
             Begin(m, new LocalLink(m, 1));
             Send(new Command { Type = CommandType.Join, Look = Profile.Look.Clone() });
             if (loadScene) SceneFlow.Go(SceneFlow.Facility);
         }
 
+        /// <summary>線索擺放位置的亂數種子：線索內容每局固定，位置每局隨機。開局的人（個人模式的自己、多人的房主）決定。</summary>
+        public static int NewClueSeed() => UnityEngine.Random.Range(1, int.MaxValue);
+
         /// <summary>
-        /// 沙盒模式：沒有預設限制的自由設計。designCode 有給就把那份設計（圖庫裡存的、或別人分享的）直接放上整合台。
+        /// 沙盒模式：沒有預設限制的自由設計。designCode 有給就把那份設計（圖庫裡存的、或別人分享的）直接放上大屏幕。
         /// </summary>
         public static void StartSandbox(string designCode = null, bool loadScene = true)
         {

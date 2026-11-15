@@ -10,18 +10,20 @@ Facility 中控室模型（Blender → GLB）。
 Blender +Y = Unity +Z（北），Blender +Z = 上。SceneBuilder 會把模型轉 180° 抵銷 glTFast 的軸向翻轉。
 房間 x -11…11、y -9…9；西牆（x -11 以西）是 SceneBuilder 的隔牆和門，模型只補 6 m 以上那一段。
 
-中控台分三座：左邊設計組（青）、中央飛行總監（琥珀，站在升起的平台上）、右邊營運組（綠），
-中間留縫，地板的光線從縫穿過去，匯到中控台前方正中央的發射台。
+流程改版後的中控室：只留營運用得到的東西——前方的大屏幕（影像牆）、發射台、四台營運席和飛行總監台。
+中控台分三座、左右對稱：北邊營運席（酬載、電力，綠）、中央飛行總監（琥珀，站在升起的平台上）、
+南邊營運席（姿態、通訊，綠），中間留縫。原本設計組的席位（電話、筆記、手冊目錄、任務控制台、任務目標與預算）
+和後排的手冊席都拿掉了：房間西半邊空出來，由 Unity 的 FacilityBuilder 擺線索區（研究牆、白板、黑板、書堆）。
 
 Unity 依物件名稱掛元件：
   Screen_<panel>  中控台螢幕（panel 的 ':' 寫成 '-'），掛 ConsoleTarget
   Glow_<panel>    該席位的桌緣發光條（準星對到時變亮）
-  Anchor_<panel>  該席位桌面前緣中心（放電話）；Anchor_launch = 發射台頂面中心
-  Wall_Main       影像牆中央：地球（RT_OpsScreen）
-  Wall_<id>       影像牆的即時資訊螢幕（WorldScreen：dashboard、failures、notes）
-  Deco_<組>_*     裝飾螢幕（程序貼圖）；組 = D 設計、F 總監、O 營運、B 後排、W 影像牆
+  Anchor_launch   發射台頂面中心
+  Wall_Main       影像牆中央的大屏幕：選件、組裝時畫選件的畫面，營運時是地球（RT_OpsScreen）
+  Wall_reqs       大屏幕左邊：任務需求（營運時是酬載、電力的遙測）
+  Wall_asm        大屏幕右邊：流程說明／失敗原因（營運時是姿態、通訊的遙測）
+  Deco_<組>_*     裝飾螢幕（程序貼圖）；組 = F 總監、O／P 營運、W 影像牆
   Deco_<組>_Top_<panel>  席位上方的第二台螢幕（標籤放在它上面）
-後排兩座各四席，是拆開的工程手冊（Screen_manual-<章>）。
 其他物件依材質名稱換成專案材質：M_Floor、M_Dark、M_Trim、M_Console、M_Panel、M_Paper、M_Glow、M_GlowAmber、M_GlowGreen、M_GlowRed。
 """
 import math
@@ -50,17 +52,17 @@ C = Vector((5.0, 0.0))
 RC = 7.0
 Z = Vector((0, 0, 1))
 
-# 三座中控台（由北到南 = 操作員面向影像牆時由左到右）
+# 三座中控台（由北到南 = 操作員面向影像牆時由左到右）：四台營運席分在飛行總監兩邊，左右對稱
 PODS = [
-    ("D", ["phone", "notes", "manual", "mission", "dashboard"]),
+    ("O", ["ops-payload", "ops-power"]),
     ("F", ["ops_desk"]),
-    ("O", ["failures", "ops-power", "ops-payload", "ops-attitude", "ops-comms"]),
+    ("P", ["ops-attitude", "ops-comms"]),
 ]
 STATION_DEG = 9.4            # 兩翼每席的角度（半徑 7 m 時約 1.15 m）
 FD_DEG = 18.0                # 飛行總監席
 GAP_DEG = 7.4                # 座與座之間的縫（約 0.9 m）
 FD_RISE = 0.2                # 總監平台高度
-GLOW = {"D": "M_Glow", "F": "M_GlowAmber", "O": "M_GlowGreen", "B": "M_Glow"}
+GLOW = {"F": "M_GlowAmber", "O": "M_GlowGreen", "P": "M_GlowGreen"}
 LAUNCH = Vector((4.0, 0.0))  # 發射台：中控台前方正中央
 
 # 桌子的剖面（dr = 離中控台半徑的距離，正 = 朝操作員；z；這一段邊的材質）
@@ -334,7 +336,7 @@ def shell():
                      Z, Vector((n.x, n.y, 0)), (p1 - p0).length, 0.18, 0.4, "M_Trim")
 
     # 地板：中控台後方的發光弧線、影像牆前的弧線、走道兩側的導引線
-    arc_box("FloorGlow_Back", C, RC + 2.35, RC + 2.4, 180 - 66, 180 + 66, 0.0, 0.01, "M_Glow")
+    arc_box("FloorGlow_Back", C, RC + 2.35, RC + 2.4, 180 - 42, 180 + 42, 0.0, 0.01, "M_Glow")
     arc_box("FloorGlow_Wall", V, RW - 2.6, RW - 2.55, -34, 34, 0.0, 0.01, "M_Glow")
     for y in (-1.25, 1.25):
         box(f"FloorGlow_Aisle{'N' if y > 0 else 'S'}", X0, -5.2, y - 0.025, y + 0.025, 0.0, 0.01, "M_Glow")
@@ -355,14 +357,11 @@ def video_wall():
     g = 0.25  # 螢幕之間的縫（度）
     r = RW - 0.03
     lo, hi = 1.55, 5.40
-    zm = (lo + hi) / 2
-    # 中央：地球（16:9）
+    # 中央：大屏幕（16:9）。選件、組裝時是選件的畫面，營運時是地球
     arc_screen("Wall_Main", V, r, 13.5, -13.5, lo, hi, "M_Earth", viewer, segs=36)
-    # 兩側上下：即時資訊（北上 dashboard、北下 notes、南上 failures、南下 遙測裝飾）
-    arc_screen("Wall_dashboard", V, r, 27.5, 13.5 + g, zm + 0.03, hi, "M_Screen", viewer)
-    arc_screen("Wall_notes", V, r, 27.5, 13.5 + g, lo, zm - 0.03, "M_Screen", viewer)
-    arc_screen("Wall_failures", V, r, -13.5 - g, -27.5, zm + 0.03, hi, "M_Screen", viewer)
-    arc_screen("Deco_W_Telemetry", V, r, -13.5 - g, -27.5, lo, zm - 0.03, "M_Screen", viewer)
+    # 兩側各一整塊：左（北）任務需求、右（南）流程說明／失敗原因；營運時改投各子系統的遙測
+    arc_screen("Wall_reqs", V, r, 27.5, 13.5 + g, lo, hi, "M_Screen", viewer)
+    arc_screen("Wall_asm", V, r, -13.5 - g, -27.5, lo, hi, "M_Screen", viewer)
     # 最外側：直條遙測（像照片右邊的接觸時刻表）
     arc_screen("Deco_W_StripN", V, r, 33.5, 27.5 + g, lo, hi, "M_Screen", viewer)
     arc_screen("Deco_W_StripS", V, r, -27.5 - g, -33.5, lo, hi, "M_Screen", viewer)
@@ -372,7 +371,7 @@ def video_wall():
 
 def pod_ranges():
     """每座的角度範圍與每席的中心角。"""
-    total = 2 * 5 * STATION_DEG + FD_DEG + 2 * GAP_DEG
+    total = sum(FD_DEG if grp == "F" else STATION_DEG * len(ids) for grp, ids in PODS) + GAP_DEG * (len(PODS) - 1)
     a = 180 - total / 2
     out = []
     for grp, ids in PODS:
@@ -414,7 +413,7 @@ def desk_details(grp, sid, a, zoff, btns, buttons=True, pad=True):
                 if normal.z < 0:
                     normal = -normal
                 add_obox(btns, p + right * (-0.44 + col * 0.075) + normal * 0.008, right, normal, back, 0.05, 0.045, 0.016)
-    # 錨點：桌面前緣中心（電話、發射鈕）
+    # 錨點：桌面前緣中心
     p, _, _ = slope_point(C, a, 0.30, zoff)
     empty(f"Anchor_{sid}", (p.x, p.y, p.z))
 
@@ -456,7 +455,7 @@ def wing_station(grp, sid, a, k, n, btns):
         sp = mid + right * end * 0.6 + out * 0.08
         monitor(f"Deco_{grp}_Side_{sid}", sid + "_side", sp, right2, tilted(out2, 6), 0.30, 0.46, glow)
 
-    desk_details(grp, sid, a, 0.0, btns, buttons=sid != "phone")
+    desk_details(grp, sid, a, 0.0, btns)
 
 
 def fd_station(sid, a, btns):
@@ -552,59 +551,6 @@ def launch_pedestal():
     arc_box("Launch_FloorRing1", P, 1.55, 1.57, 0, 360, 0.0, 0.01, "M_GlowRed", segs=72, closed=True)
     empty("Anchor_launch", (P.x, P.y, 1.03))
 
-# ---------------------------------------------------------------- 後排裝飾桌
-
-
-# 後排：工程手冊拆成八章，每席一章（由左到右 = 操作員面向影像牆時）。
-# 北座是零件規格（對應組裝區的四座零件架），南座是規則與營運用的章節。
-BACK = [
-    ("N", (180 - 44, 180 - 15), ["manual-payload", "manual-power", "manual-comms", "manual-avionics"]),
-    ("S", (180 + 15, 180 + 44), ["manual-rules", "manual-diagnose", "manual-procedures", "manual-donki"]),
-]
-
-
-def back_row():
-    r = RC + 3.0
-    for tag, (b0, b1), ids in BACK:
-        sweep(f"BackPod{tag}", C, r, b0, b1, DESK, 0.0, segs=24)
-        arc_box(f"BackUnder{tag}", C, r + 0.082, r + 0.1, b0 + 0.3, b1 - 0.3, 0.025, 0.1, "M_Glow")
-        arc_box(f"BackRail{tag}", C, r - 0.125, r - 0.105, b0 + 0.3, b1 - 0.3, 0.905, 0.935, "M_Glow")
-        step = (b1 - b0) / len(ids)
-        books = bmesh.new()
-        pages = bmesh.new()
-        for k, sid in enumerate(ids):
-            a = b0 + step * (k + 0.5)
-            out, right = frame(a)
-            # 一台主螢幕（按 E 打開該章）和上方一條章節標題條
-            w, h = 0.9, 0.52
-            base = polar(C, r - 0.27, a)
-            mid = Vector((base.x, base.y, 0.97 + 0.07 + h / 2))
-            monitor(f"Screen_{sid}", sid, mid, right, tilted(out, 10), w, h, "M_Glow")
-            post = polar(C, r - 0.34, a)
-            oriented_box(f"Post_{sid}", Vector((post.x, post.y, 0.97 + 0.15)), right, Z, out, 0.07, 0.04, 0.3, "M_Console")
-            b2 = polar(C, r - 0.33, a)
-            mid2 = Vector((b2.x, b2.y, mid.z + h / 2 + 0.16))
-            monitor(f"Deco_B_Top_{sid}", sid + "_top", mid2, right, tilted(out, 15), 0.95, 0.13, "M_Glow")
-            # 桌緣發光條（準星對到時變亮）與席位之間的隔板
-            arc_box(f"Glow_{sid}", C, r + 0.425, r + 0.445, a - step / 2 + 0.45, a + step / 2 - 0.45, 0.735, 0.765, "M_Glow", segs=4)
-            if k > 0:
-                ab = b0 + step * k
-                arc_box(f"Divider_{sid}", C, r + 0.02, r + 0.38, ab - 0.12, ab + 0.12, 0.79, 0.86, "M_Console", segs=1)
-            # 斜桌面上攤著一本手冊（封面 + 紙頁）
-            dr = 0.2
-            p = polar(C, r + dr, a)
-            z = 0.79 + (0.40 - dr) / 0.40 * 0.08
-            back = (-out * 0.40 + Z * 0.08).normalized()
-            normal = back.cross(right).normalized()
-            if normal.z < 0:
-                normal = -normal
-            c = Vector((p.x, p.y, z)) + right * 0.28
-            add_obox(books, c + normal * 0.008, right, normal, back, 0.40, 0.27, 0.012)
-            for s in (-1, 1):
-                add_obox(pages, c + normal * 0.02 + right * s * 0.097, right, normal, back, 0.185, 0.25, 0.016)
-        obj_from_bm(f"BackBooks{tag}", solid(books), "M_Trim")
-        obj_from_bm(f"BackPages{tag}", solid(pages), "M_Paper")
-
 # ---------------------------------------------------------------- 預覽與匯出
 
 
@@ -657,7 +603,6 @@ def main():
     video_wall()
     console()
     launch_pedestal()
-    back_row()
     preview_rig()
     bpy.ops.wm.save_as_mainfile(filepath=BLEND)
     export()

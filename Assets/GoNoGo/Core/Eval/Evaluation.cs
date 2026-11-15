@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace GoNoGo.Core
 {
-    public enum ResourceId { Mass, Power, Budget, Data, Comms, Time }
+    public enum ResourceId { Mass, Power, Budget, Data, Comms }
 
     public enum ResourceStatus { Ok, Tight, Over }
 
@@ -15,7 +15,7 @@ namespace GoNoGo.Core
         public Contribution(string key, double amount) { Key = key; Amount = amount; }
     }
 
-    /// <summary>六條資源條之一。Margin = (Capacity − Used) / Capacity。</summary>
+    /// <summary>五條資源條之一。Margin = (Capacity − Used) / Capacity。</summary>
     public sealed class ResourceReport
     {
         public ResourceId Id { get; set; }
@@ -190,7 +190,6 @@ namespace GoNoGo.Core
         public FireInfo Fire { get; set; } = new FireInfo();
         /// <summary>每年可得的科學點數（假設資料全部傳回）。</summary>
         public double SciencePerYear { get; set; }
-        public double ScheduleMonths { get; set; }
         public List<Warning> Warnings { get; set; } = new List<Warning>();
         public List<string> DesignErrors { get; set; } = new List<string>();
 

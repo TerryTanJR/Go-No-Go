@@ -31,7 +31,7 @@ namespace GoNoGo.UI
             TopBar(Loc.T(M.Scenario.Name), showLang: false); // 語言在 Tab 選單的基本設定
             var wrap = Ui.El("report-wrap").AddTo(Root);
 
-            // ---- 左欄：印章、分數、處室需求 ----
+            // ---- 左欄：印章、分數、任務需求 ----
             var left = Ui.El("report-col", "report-col--score").AddTo(wrap);
             var leftScroll = new ScrollView(ScrollViewMode.Vertical).AddTo(left);
             leftScroll.AddToClassList("why-scroll");
@@ -55,7 +55,7 @@ namespace GoNoGo.UI
             ScoreRow(scorePanel, "ui.report.science", r.Score.Science, Scoring.WScience, animate);
             ScoreRow(scorePanel, "ui.report.lifetime", r.Score.Lifetime, Scoring.WLifetime, animate);
             ScoreRow(scorePanel, "ui.report.efficiency", r.Score.Efficiency, Scoring.WEfficiency, animate);
-            ScoreRow(scorePanel, "ui.report.departments", r.Score.Departments, Scoring.WDepartments, animate);
+            ScoreRow(scorePanel, "ui.report.needs", r.Score.Needs, Scoring.WNeeds, animate);
             ScoreRow(scorePanel, "ui.report.ops", r.Score.Ops, Scoring.WOps, animate);
 
             var reqPanel = Ui.Panel(leftScroll.contentContainer, Loc.T("ui.report.requirements") + "  " + r.Score.Requirements.Count(x => x.Met) + " / " + r.Score.Requirements.Count, out _);
@@ -63,13 +63,13 @@ namespace GoNoGo.UI
             {
                 var card = Ui.El("req-card").Cls("req-card--met", rr.Met).AddTo(reqPanel);
                 var head = Ui.Row().AddTo(card);
-                Ui.Text(Fmt.Dept(rr.Department), "eyebrow").AddTo(head);
+                Ui.Text(Fmt.ReqGroup(rr.Department), "eyebrow").AddTo(head);
                 Ui.Spacer().AddTo(head);
                 Ui.Text(Loc.T(rr.Met ? "ui.report.met" : "ui.report.unmet"), "small", rr.Met ? "go" : "tight").AddTo(head);
                 Ui.Text(Loc.T(rr.Requirement.Text), "small").AddTo(card);
             }
             int fails = SessionRules.FailedBeforeForScore(M.S, D);   // 歷史關卡的重演不算玩家的失敗
-            // 有加分但其實失敗過（學員、沙盒第一次失敗不算）：照實寫，不要說「第一次就成功」
+            // 有加分但其實失敗過（沙盒第一次失敗不算）：照實寫，不要說「第一次就成功」
             string firstKey = !r.Score.FirstLaunchBonus ? "ui.report.redesigns" : fails > 0 ? "ui.report.first_free" : "ui.report.first_launch";
             Ui.Text(Loc.T(firstKey, ("n", fails)), "small", r.Score.FirstLaunchBonus ? "go" : "dim", "first-call").AddTo(reqPanel);
 
@@ -116,9 +116,9 @@ namespace GoNoGo.UI
             if (cards > 0 || mastered > 0)
                 Fact(you, "ui.report.f.cards", Loc.T("ui.report.cards", ("n", cards), ("have", Codex.Count(D)), ("total", Codex.Total(D)))
                     + (mastered > 0 ? (Loc.IsZh ? "，" : ", ") + Loc.T("ui.report.mastered", ("n", mastered)) : ""));
-            // 組裝工作台：裝錯幾次、賠了多少時間（有親手組過東西才列）
-            if (M.S.Rework > 0)
-                Fact(you, "ui.report.f.assembly", Loc.T("ui.report.assembly", ("n", M.S.Rework), ("m", BenchOrderView.Months(SessionRules.ReworkMonths(M.S, D)))));
+            // 組裝台：裝錯幾次（沒有懲罰，只是紀錄；有親手組過東西才列）
+            if (M.S.Mistakes > 0)
+                Fact(you, "ui.report.f.assembly", Loc.T("ui.report.assembly", ("n", M.S.Mistakes)));
             else if (M.S.Learned.Count > 0)
                 Fact(you, "ui.report.f.assembly", Loc.T("ui.report.assembly_clean"));
 
