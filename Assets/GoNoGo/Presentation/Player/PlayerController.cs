@@ -32,6 +32,9 @@ namespace GoNoGo.Presentation
         bool _refocused;
         /// <summary>奔跑方式是「切換」時：現在是不是在跑（按一下 Shift 開、再按一下關，停下來自動關）。</summary>
         bool _running;
+        /// <summary>切換模式：開始跑之後有沒有動過、已經停了多久（停下來超過一小段時間才取消跑步）。</summary>
+        bool _ranMoving;
+        float _stillFor;
         float _baseFov = -1;
 
         public float Speed { get; private set; }
@@ -147,8 +150,15 @@ namespace GoNoGo.Presentation
                     run = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
                 }
             }
-            // 切換模式：停下來（沒有按方向鍵，或開著面板、選單不能動）時自動改回走
-            if (input.sqrMagnitude < 0.01f) _running = false;
+            // 切換模式：跑起來之後停下來（沒有按方向鍵，或開著面板、選單不能動）就自動改回走。
+            // 站著先按 Shift 再走也算數（還沒動過不取消）；換方向時放開按鍵的那一瞬間不算停（0.25 秒內）。
+            if (!_running) { _ranMoving = false; _stillFor = 0; }
+            else if (input.sqrMagnitude >= 0.01f) { _ranMoving = true; _stillFor = 0; }
+            else if (_ranMoving)
+            {
+                _stillFor += Time.deltaTime;
+                if (_stillFor > 0.25f) _running = false;
+            }
             if (GameSettings.RunToggle) run = _running;
             if (input.sqrMagnitude > 1) input.Normalize();
             var fwd = Quaternion.Euler(0, _yaw, 0) * Vector3.forward;

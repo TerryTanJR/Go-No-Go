@@ -301,7 +301,7 @@ namespace GoNoGo.UI
             {
                 bool me = p.Id == GameSession.LocalPlayer;
                 var r = Ui.Row("lobby-player").Cls("lobby-player--me", me).AddTo(col);
-                Ui.Text((me ? "▶ " : "") + p.Look.Name, "lobby-pname").AddTo(r);
+                Ui.Text((me ? "▶ " : "") + SelectView.PlayerName(p.Id), "lobby-pname").AddTo(r);
                 Ui.Spacer().AddTo(r);
                 Ui.Text(p.Ready ? "✔ " + Loc.T("ui.lobby.ready") : "…", "lobby-pstate", p.Ready ? "go" : "dim").AddTo(r);
             }
@@ -349,7 +349,7 @@ namespace GoNoGo.UI
             {
                 bool me = p.Id == GameSession.LocalPlayer;
                 var r = Ui.Row("team-board-name").Cls("team-board-name--me", me).AddTo(body);
-                Ui.Text((me ? "▶ " : "") + p.Look.Name, "team-board-pn").AddTo(r);
+                Ui.Text((me ? "▶ " : "") + SelectView.PlayerName(p.Id), "team-board-pn").AddTo(r);
                 Ui.Spacer().AddTo(r);
                 Ui.Text(p.Ready ? "✔ " + Loc.T("ui.lobby.ready") : "…", "team-board-pn", p.Ready ? "go" : "dim").AddTo(r);
             }

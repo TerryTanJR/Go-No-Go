@@ -361,8 +361,9 @@ namespace GoNoGo.UI
 
         public static string PlayerName(int id)
         {
+            // 沒取名字的玩家：「玩家 2」（和 Go/No-Go 點名的寫法一樣）
             var n = M.S.Player(id)?.Look?.Name;
-            return string.IsNullOrEmpty(n) ? "P" + id : n;
+            return string.IsNullOrEmpty(n) ? Loc.T("ui.poll.player", ("n", id)) : n;
         }
 
         /// <summary>沒挖空的其他規格（展開零件時列出）：照現狀顯示；可靠度本來就不顯示。</summary>

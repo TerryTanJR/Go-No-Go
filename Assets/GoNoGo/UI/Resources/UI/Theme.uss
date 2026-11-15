@@ -2452,7 +2452,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .howto-text { margin-left: 10px; font-size: var(--fs-24); color: var(--c-text); flex-shrink: 1; white-space: normal; }
 
 /* ---------- 大廳：不分組，一張名單 ---------- */
-.lobby-team--roster { border-color: var(--c-accent); }
+.lobby-team--roster { flex-grow: 0; flex-shrink: 0; flex-basis: auto; margin: 12px 0 8px 0; border-color: var(--c-accent); }
 
 /* ---------- 線索（放大看；只有自己看得到） ---------- */
 .modal--clue { width: 880px; max-width: 94%; --ch: var(--c-accent); --ch-dim: var(--c-accent-dim); }

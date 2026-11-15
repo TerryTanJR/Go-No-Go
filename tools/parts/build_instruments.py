@@ -3,7 +3,7 @@
 
 單位：以衛星本體邊長 s = 1 為準（遊戲裡依本體大小縮放）。Blender Z 朝上：
   - 朝地的儀器（nadir）：原點在本體底面，模型往 -Z 長，開口朝 -Z。
-  - 朝天的儀器（zenith，磁力計、X 光望遠鏡、粒子偵測器）：原點在本體頂面，往 +Z 長。
+  - 朝天的儀器（zenith，磁力計）：原點在本體頂面，往 +Z 長。
 材質名稱必須和 SatMaterials 的欄位一樣（mliGold、mliSilver、paintWhite、frameDark、metal、lens、accent…），
 Unity 載入時依名稱換成遊戲的材質；accent 會染成零件自己的顏色。
 
@@ -161,7 +161,7 @@ def root(name):
     return e
 
 
-# ---------------------------------------------------------------- 八台誘餌儀器
+# ---------------------------------------------------------------- 三台誘餌儀器（磁力計、閃電成像儀、雷射測高儀）
 
 def magnetometer():
     """磁通門磁力計：小底座 + 伸出去的折疊支桿，感測頭在末端（遠離衛星本身的磁場）。朝天。"""
@@ -178,23 +178,6 @@ def magnetometer():
     return r
 
 
-def uv_ozone():
-    """紫外線臭氧光譜儀（OMI 型）：大箱子 + 橫向很寬的狹縫望遠鏡 + 側面散熱板。朝地。"""
-    r = root("inst_uv_ozone")
-    box(r, "body", (0, 0, -0.17), (0.46, 0.34, 0.30), "mliSilver")
-    box(r, "radiator", (0, 0.175, -0.15), (0.40, 0.012, 0.24), "paintWhite")
-    # 寬視野：一條很寬的狹縫和外擴的擋板
-    box(r, "slit_baffle_l", (0, -0.075, -0.36), (0.40, 0.012, 0.10), "frameDark")
-    box(r, "slit_baffle_r", (0, 0.035, -0.36), (0.40, 0.012, 0.10), "frameDark")
-    box(r, "slit_end_a", (-0.195, -0.02, -0.36), (0.012, 0.12, 0.10), "frameDark")
-    box(r, "slit_end_b", (0.195, -0.02, -0.36), (0.012, 0.12, 0.10), "frameDark")
-    box(r, "slit", (0, -0.02, -0.33), (0.37, 0.10, 0.01), "lens")
-    box(r, "slit_trim", (0, -0.02, -0.322), (0.39, 0.12, 0.008), "accent")
-    # 太陽校正擴散板（OMI 每天看一次太陽）
-    box(r, "diffuser", (0.16, -0.12, -0.02), (0.12, 0.10, 0.04), "paintWhite")
-    return r
-
-
 def lightning():
     """閃電成像儀（LIS 型）：電子箱 + 很大的錐形遮光罩，凝視雲頂。朝地。"""
     r = root("inst_lightning")
@@ -207,68 +190,6 @@ def lightning():
             v.co.x *= 0.6
             v.co.y *= 0.6
     lens(r, "lens", (0, 0, -0.235), 0.07)
-    return r
-
-
-def microwave_radiometer():
-    """微波輻射計（SMAP 型）：伸出去的大網狀反射碟 + 饋源喇叭。朝地。"""
-    r = root("inst_microwave_radiometer")
-    box(r, "electronics", (0, 0, -0.06), (0.22, 0.22, 0.12), "mliGold")
-    cyl(r, "spin", (0, 0, -0.14), 0.06, 0.05, "metal")
-    # 饋源喇叭（往下開口）
-    cyl(r, "horn", (0, 0, -0.22), 0.035, 0.12, "paintWhite", r2=0.075)
-    tube(r, "horn_band", (0, 0, -0.20), 0.07, 0.06, 0.02, "accent")
-    # 支臂和偏置的大碟子
-    arm_end = Vector((0.45, 0, -0.52))
-    strut(r, "arm", (0, 0, -0.16), arm_end, 0.014, "frameDark")
-    strut(r, "arm2", (0, 0.05, -0.16), arm_end + Vector((0, 0.05, 0)), 0.01, "frameDark")
-    # 碟子的凹面朝向饋源喇叭
-    face = (Vector((0, 0, -0.24)) - arm_end).normalized()
-    dish(r, "reflector", arm_end, 0.36, 0.09, "dish", axis=face)
-    tube(r, "rim", arm_end + face * 0.09, 0.37, 0.355, 0.02, "metal", axis=face)
-    return r
-
-
-def xray_telescope():
-    """X 光望遠鏡：細長鏡筒朝天（掠射式鏡片要很長的焦距），頂端有打開的防塵蓋。朝天。"""
-    r = root("inst_xray_telescope")
-    box(r, "detector", (0, 0, 0.05), (0.20, 0.20, 0.10), "mliGold")
-    cyl(r, "tube", (0, 0, 0.40), 0.085, 0.60, "mliSilver")
-    tube(r, "mirror_module", (0, 0, 0.66), 0.10, 0.07, 0.10, "paintWhite")
-    for i, z in enumerate((0.20, 0.42)):
-        tube(r, f"band{i}", (0, 0, z), 0.092, 0.084, 0.02, "frameDark")
-    lens(r, "aperture", (0, 0, 0.715), 0.07, axis=(0, 0, 1))
-    # 打開的防塵蓋（鉸鏈在一側，翻開約 110°）
-    door = cyl(r, "door", (0, 0, 0), 0.10, 0.012, "paintWhite")
-    door.location = (0.10 + 0.10 * math.cos(math.radians(70)), 0, 0.72 + 0.10 * math.sin(math.radians(70)))
-    door.rotation_euler = (0, math.radians(-70), 0)
-    return r
-
-
-def ais():
-    """船舶 AIS 接收器：小盒子 + 兩根 VHF 鞭狀天線。朝地。"""
-    r = root("inst_ais")
-    box(r, "receiver", (0, 0, -0.035), (0.14, 0.10, 0.07), "paintWhite")
-    box(r, "label", (0, -0.051, -0.035), (0.08, 0.004, 0.03), "accent")
-    for i, x in enumerate((-0.05, 0.05)):
-        cyl(r, f"base{i}", (x, 0, -0.08), 0.014, 0.02, "frameDark", seg=12)
-        tip = Vector((x + (0.12 if x > 0 else -0.12), 0, -0.42))
-        strut(r, f"whip{i}", (x, 0, -0.09), tip, 0.004, "metal")
-        cyl(r, f"tip{i}", tip, 0.008, 0.012, "frameDark", seg=12)
-    return r
-
-
-def particle():
-    """高能粒子偵測器（REPTile 型）：一疊偵測器 + 往外斜的準直管（像小望遠鏡）。朝天。"""
-    r = root("inst_particle")
-    box(r, "stack", (0, 0, 0.05), (0.14, 0.14, 0.10), "frameDark")
-    box(r, "lid", (0, 0, 0.105), (0.15, 0.15, 0.01), "paintWhite")
-    axis = Vector((0.45, 0, 1)).normalized()
-    c = Vector((0, 0, 0.11)) + axis * 0.10
-    cyl(r, "collimator", c, 0.04, 0.20, "metal", axis=axis)
-    for i, k in enumerate((-0.06, 0.0, 0.06)):
-        tube(r, f"fin{i}", c + axis * k, 0.05, 0.04, 0.012, "frameDark", axis=axis)
-    lens(r, "aperture", c + axis * 0.105, 0.03, axis=axis)
     return r
 
 
@@ -288,7 +209,7 @@ def laser_altimeter():
     return r
 
 
-BUILDERS = [magnetometer, uv_ozone, lightning, microwave_radiometer, xray_telescope, ais, particle, laser_altimeter]
+BUILDERS = [magnetometer, lightning, laser_altimeter]
 
 
 def build():
