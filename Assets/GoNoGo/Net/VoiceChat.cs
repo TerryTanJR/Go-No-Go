@@ -86,7 +86,11 @@ namespace GoNoGo.Net
                         await vivox.InitializeAsync();
                         _initialized = true;
                     }
+#if UNITY_WEBGL && !UNITY_EDITOR
+                    await LoginWeb(vivox);
+#else
                     await vivox.LoginAsync(new LoginOptions());
+#endif
                 }
                 if (gen != _generation) return;
                 if (_channel != null) await vivox.LeaveAllChannelsAsync();
@@ -103,6 +107,28 @@ namespace GoNoGo.Net
                 Debug.LogWarning("[Voice] join: " + e.Message);
             }
         }
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        /// <summary>
+        /// 瀏覽器版登入。Vivox 16.13 網頁版的 LoginAsync 永遠不會結束：LoginSessionWeb.BeginLogin 回傳的 IAsyncResult
+        /// 從來沒有被標成完成，Task.Factory.FromAsync 就一直等；就算過了，接著呼叫的 SetTransmissionModeAsync
+        /// 在網頁版也只會丟 NotImplementedException。登入其實在 JS 端成功了（回呼會把狀態改成已登入），
+        /// 所以不等 LoginAsync，改成等 IsLoggedIn 變成 true（最多 20 秒），再照常加入頻道。
+        /// </summary>
+        static async Task LoginWeb(IVivoxService vivox)
+        {
+            var login = vivox.LoginAsync(new LoginOptions());
+            // 它之後若失敗（上面說的 NotImplementedException），讀掉例外，不要變成未處理的工作例外
+            _ = login.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+            float deadline = Time.realtimeSinceStartup + 20f;
+            while (!vivox.IsLoggedIn)
+            {
+                if (login.IsFaulted) await login; // 登入真的失敗：把原本的例外丟出去
+                if (Time.realtimeSinceStartup > deadline) throw new TimeoutException("Vivox login timed out");
+                await Task.Yield();
+            }
+        }
+#endif
 
         /// <summary>離開語音頻道（離開房間時呼叫）。</summary>
         public static void Leave()
