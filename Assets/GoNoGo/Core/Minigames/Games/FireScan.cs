@@ -150,12 +150,12 @@ namespace GoNoGo.Core
             if (best == null) return;
             if (best.Kind == 0)
             {
-                best.State = 1; best.T = 0; _sent++;
+                best.State = 1; best.T = 0; _sent++; CueGood();
                 _fx.Add(new Fx { X = best.X, Y = best.Y, Life = 0.4f, Kind = 1 });
             }
             else
             {
-                best.State = 2; best.T = 0; _strikes++; _lastStrike = Time;
+                best.State = 2; best.T = 0; _strikes++; _lastStrike = Time; CueBad();
                 _fx.Add(new Fx { X = best.X, Y = best.Y, Life = 0.6f, Kind = 2 });
             }
         }

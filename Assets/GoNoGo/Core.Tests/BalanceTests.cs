@@ -143,13 +143,13 @@ namespace GoNoGo.Core.Tests
             }
         }
 
-        /// <summary>月球開局設計和地球觀測一樣只有一個教得會的問題：下傳不夠，而且每個難度都有一鍵換高速天線的修正。</summary>
+        /// <summary>月球的預設設計（參考用，開局不再先勾）和地球觀測一樣只有一個教得會的問題：下傳不夠，而且每個難度都有一鍵換高速天線的修正。</summary>
         [TestCase("cadet")]
         [TestCase("engineer")]
         [TestCase("director")]
         public void DefaultLunarDesignStartsWithOneFixableProblem(string diffId)
         {
-            var start = SessionRules.NewSession(_data, "lunar_mapping", diffId, false, false).Bench;
+            var start = SessionRules.NewSession(_data, "lunar_mapping", diffId, false, false).PresetDefaults(_data).Bench;
             var ev = Evaluator.EvaluateDesign(start, _data, diffId, true);
             var over = ev.Resources.Values.Where(r => r.Status == ResourceStatus.Over).Select(r => r.Id).ToList();
             Assert.That(over, Is.EqualTo(new[] { ResourceId.Comms }), "開局只有下傳超標");

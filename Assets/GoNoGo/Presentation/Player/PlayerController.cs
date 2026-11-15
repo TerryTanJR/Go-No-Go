@@ -6,8 +6,8 @@ namespace GoNoGo.Presentation
 {
     /// <summary>
     /// 本機玩家：WASD 移動、Shift 跑（按住或切換，見 <see cref="GameSettings.RunToggle"/>）、滑鼠轉視角、
-    /// Q 切換第一／第三人稱（預設第三人稱，選單也能切）。
-    /// 第三人稱鏡頭在角色正後上方約 3.8 m（角色在畫面正中偏下，準星在頭上方），撞到牆時自動拉近。
+    /// Q 切換第一／第三人稱（預設第一人稱，選單也能切）。
+    /// 第三人稱鏡頭在角色正後上方約 3.6 m（角色在畫面下半，準星在頭頂上方，兩種視角都用準星選東西），撞到牆時自動拉近。
     /// 瀏覽器會鎖住滑鼠游標，Esc 放開（打開選單）。桌面版和編輯器在視窗重新拿到焦點時自動鎖回去。
     /// 第一人稱視野比較廣（<see cref="firstPersonFov"/>），近距離看控制台不會只看到一小塊。
     /// 滑鼠靈敏度乘上選單裡的 <see cref="GameSettings.MouseSensitivity"/>。
@@ -18,10 +18,10 @@ namespace GoNoGo.Presentation
         public float walkSpeed = 2.4f;
         public float runSpeed = 4.4f;
         public float mouseSensitivity = 0.11f;
-        public float thirdPersonDistance = 3.8f;
+        public float thirdPersonDistance = 3.6f;
         public float firstPersonFov = 72f;
-        [Tooltip("第一人稱的眼睛高度（m）。角色是 1.2 m 的 Q 版太空人，但中控台、螢幕是照真人尺寸做的，用成人視線高度才看得到桌面和螢幕。")]
-        public float eyeHeight = 1.55f;
+        [Tooltip("第一人稱的眼睛高度（m）。角色是 1.5 m 的 Q 版太空人，但中控台、螢幕是照真人尺寸做的，用成人視線高度才看得到桌面和螢幕。")]
+        public float eyeHeight = 1.7f;
         public Camera cam;
         public AvatarRig rig;
 
@@ -30,11 +30,8 @@ namespace GoNoGo.Presentation
         Vector3 _lastPos;
         bool _firstPerson;
         bool _refocused;
-        /// <summary>奔跑方式是「切換」時：現在是不是在跑（按一下 Shift 開、再按一下關，停下來自動關）。</summary>
+        /// <summary>奔跑方式是「切換」時：現在是不是在跑（按一下 Shift 之後一直用跑的，再按一下之後一直用走的）。</summary>
         bool _running;
-        /// <summary>切換模式：開始跑之後有沒有動過、已經停了多久（停下來超過一小段時間才取消跑步）。</summary>
-        bool _ranMoving;
-        float _stillFor;
         float _baseFov = -1;
 
         public float Speed { get; private set; }
@@ -42,14 +39,16 @@ namespace GoNoGo.Presentation
         public float Yaw => _yaw;
         /// <summary>第一人稱鏡頭的位置。</summary>
         public Vector3 Eye => transform.position + Vector3.up * eyeHeight;
-        /// <summary>鏡頭樞紐（大約在頭的高度）。</summary>
-        public Vector3 Pivot => transform.position + Vector3.up * 1.0f;
+        /// <summary>角色的胸口高度：互動距離從這裡量。</summary>
+        public Vector3 Pivot => transform.position + Vector3.up * 1.2f;
         /// <summary>鏡頭動作被鎖住（看動畫、過場）。</summary>
         public bool Frozen { get; set; }
 
         static readonly int IgnoreRaycast = 2;
         /// <summary>第三人稱鏡頭相對視角的方向：x = 0 → 正後方不偏左右；y → 稍微高過頭。</summary>
-        static readonly Vector3 ThirdPersonOffset = new Vector3(0f, 0.25f, -1f).normalized;
+        static readonly Vector3 ThirdPersonOffset = new Vector3(0f, 0.2f, -1f).normalized;
+        /// <summary>第三人稱鏡頭繞著轉的點離地多高：比頭頂（1.5 m）高，畫面中央的準星才不會被角色的頭擋住。</summary>
+        const float ThirdPersonPivotY = 1.95f;
 
         void Awake()
         {
@@ -150,15 +149,7 @@ namespace GoNoGo.Presentation
                     run = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
                 }
             }
-            // 切換模式：跑起來之後停下來（沒有按方向鍵，或開著面板、選單不能動）就自動改回走。
-            // 站著先按 Shift 再走也算數（還沒動過不取消）；換方向時放開按鍵的那一瞬間不算停（0.25 秒內）。
-            if (!_running) { _ranMoving = false; _stillFor = 0; }
-            else if (input.sqrMagnitude >= 0.01f) { _ranMoving = true; _stillFor = 0; }
-            else if (_ranMoving)
-            {
-                _stillFor += Time.deltaTime;
-                if (_stillFor > 0.25f) _running = false;
-            }
+            // 切換模式：按一下之後一直用跑的（停下來、開面板都不取消），再按一下才改回走
             if (GameSettings.RunToggle) run = _running;
             if (input.sqrMagnitude > 1) input.Normalize();
             var fwd = Quaternion.Euler(0, _yaw, 0) * Vector3.forward;
@@ -207,7 +198,7 @@ namespace GoNoGo.Presentation
             }
             cam.nearClipPlane = 0.1f;
             // 第三人稱：正後上方（左右置中）；撞到牆就拉近
-            var pivot = Pivot + Vector3.up * 0.15f;
+            var pivot = transform.position + Vector3.up * ThirdPersonPivotY;
             var dir = rot * ThirdPersonOffset;
             float want = thirdPersonDistance;
             if (Physics.SphereCast(pivot, 0.22f, dir, out var hit, want, ~(1 << IgnoreRaycast), QueryTriggerInteraction.Ignore))
@@ -218,5 +209,20 @@ namespace GoNoGo.Presentation
 
         /// <summary>準星的射線（畫面中央）。</summary>
         public Ray AimRay => cam != null ? new Ray(cam.transform.position, cam.transform.forward) : new Ray(Pivot, transform.forward);
+
+        /// <summary>
+        /// 準星射線從哪裡開始算「對到東西」：第一人稱就是鏡頭；第三人稱鏡頭在角色背後，
+        /// 從射線上離角色最近的那一點開始（鏡頭和角色之間的東西不算）。
+        /// </summary>
+        public Ray PickRay
+        {
+            get
+            {
+                var r = AimRay;
+                if (_firstPerson) return r;
+                float t = Mathf.Max(0f, Vector3.Dot(Pivot - r.origin, r.direction) - 0.3f);
+                return new Ray(r.origin + r.direction * t, r.direction);
+            }
+        }
     }
 }

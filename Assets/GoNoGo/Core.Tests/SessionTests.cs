@@ -83,7 +83,7 @@ namespace GoNoGo.Core.Tests
             var s = SessionRules.NewSession(_data, scenario, diff, false, false);
             Ok(s, Command.Of(CommandType.Join, 1));
             Ok(s, Command.Of(CommandType.BeginDesign, 1));
-            return s;
+            return s.TickDefaults(_data);
         }
 
         void Ok(SessionState s, Command c) => Flow.Do(s, _data, c);
@@ -102,24 +102,48 @@ namespace GoNoGo.Core.Tests
             Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
             Ok(s, Command.Of(CommandType.StartMission, 1));
             Ok(s, Command.Of(CommandType.BeginDesign, 1));
-            return s;
+            return s.TickDefaults(_data);
         }
 
         // ---------------------------------------------------------------- 開局
 
         [Test]
-        public void AMissionStartsWithTheDefaultDesignTickedAndAnEmptySatellite()
+        public void AMissionStartsWithNothingTickedAndAnEmptySatellite()
+        {
+            foreach (var diff in new[] { "cadet", "engineer", "director" })
+            {
+                var s = SessionRules.NewSession(_data, "earth_observation", diff, false, false);
+                Ok(s, Command.Of(CommandType.Join, 1));
+                Ok(s, Command.Of(CommandType.BeginDesign, 1));
+                var start = GameData.DefaultDesign(_data.Scenario("earth_observation"), diff);
+                Assert.That(s.Bench.Instruments, Is.Empty, diff + "：零件一個都不先勾");
+                foreach (var c in PartCategory.Single)
+                    if (c != PartCategory.GroundStation) Assert.That(s.Bench.Get(c), Is.Null.Or.Empty, diff + " " + c);
+                // 軌道、火箭、地面站、年數留預設：儀表板才算得出東西
+                Assert.That(s.Bench.OrbitId, Is.EqualTo(start.OrbitId));
+                Assert.That(s.Bench.LauncherId, Is.EqualTo(start.LauncherId));
+                Assert.That(s.Bench.Get(PartCategory.GroundStation), Is.EqualTo(start.Get(PartCategory.GroundStation)));
+                Assert.That(s.Bench.MissionYears, Is.EqualTo(start.MissionYears));
+                Assert.That(s.Confirmed, Is.False);
+                Assert.That(s.Benches.Count, Is.EqualTo(GameData.BenchCount), "兩座組裝台");
+                Assert.That(s.Installed, Is.Empty, "衛星是空的");
+                Assert.That(Try(s, CommandType.Confirm, 1, "", 1), Is.EqualTo("err.design_incomplete"), "沒選齊不能確定設計");
+                Assert.That(s.Solo, Is.True);
+                // 儀表板、任務需求在什麼都沒選的時候也算得出來（不會丟例外）
+                Assert.DoesNotThrow(() => Evaluator.EvaluateDesign(s.Bench, _data, diff, true));
+            }
+        }
+
+        [Test]
+        public void TickingTheDefaultDesignGivesTheOldStart()
         {
             var s = Solo();
             var start = _data.Scenario("earth_observation").DefaultDesign;
-            Assert.That(s.Bench.Instruments, Is.EqualTo(start.Instruments), "大屏幕上先勾好預設設計");
+            Assert.That(s.Bench.Instruments, Is.EqualTo(start.Instruments));
             foreach (var c in PartCategory.Single) Assert.That(s.Bench.Get(c), Is.EqualTo(start.Get(c)), c);
-            Assert.That(s.Confirmed, Is.False);
-            Assert.That(s.Benches.Count, Is.EqualTo(GameData.BenchCount), "兩座組裝台");
             // 衛星是空的：只有不用組裝的封板（不裝推進）選了就在上面
             Assert.That(s.Installed, Is.EqualTo(new[] { "prop_none" }));
             Assert.That(SessionRules.NotInstalled(s, _data).Count, Is.EqualTo(7));
-            Assert.That(s.Solo, Is.True);
         }
 
         [Test]
@@ -469,7 +493,7 @@ namespace GoNoGo.Core.Tests
         public void AFailedLaunchStartsTheMissionOverButKeepsWhatWasLearned()
         {
             var s = Solo("earth_observation", null);
-            var start = s.Bench.Clone();
+            var start = SessionRules.StartDesign(s.Scenario(_data), s.Difficulty(_data));
             var cell = Blanks.Cells(_data, s).First();
             Ok(s, Command.Of(CommandType.Fill, 1, Blanks.FillArg(cell.part, cell.field, 12.5)));
             Ok(s, Command.Of(CommandType.SelectPart, 1, "batt_medium", 1));
@@ -486,13 +510,14 @@ namespace GoNoGo.Core.Tests
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design));
             Assert.That(s.Restarts, Is.EqualTo(1));
             Assert.That(s.Bench.Parts, Is.EquivalentTo(start.Parts), "零件和地面站回到開局");
-            Assert.That(s.Bench.Instruments, Is.EqualTo(start.Instruments));
+            Assert.That(s.Bench.Parts.Keys, Is.EqualTo(new[] { PartCategory.GroundStation }), "開局沒有勾任何零件");
+            Assert.That(s.Bench.Instruments, Is.Empty);
             Assert.That(s.Bench.OrbitId, Is.EqualTo(start.OrbitId));
             Assert.That(s.Bench.LauncherId, Is.EqualTo(start.LauncherId));
             Assert.That(s.Bench.MissionYears, Is.EqualTo(start.MissionYears));
             Assert.That(s.Confirmed, Is.False, "回大屏幕重選");
-            Assert.That(s.Installed, Is.EqualTo(new[] { "prop_none" }), "衛星回到開局：重新組裝");
-            Assert.That(s.Built, Is.EqualTo(new[] { "prop_none" }));
+            Assert.That(s.Installed, Is.Empty, "衛星回到開局：重新組裝");
+            Assert.That(s.Built, Is.Empty);
             Assert.That(s.Held, Is.Empty);
             Assert.That(s.Comps, Is.Empty);
             Assert.That(s.Benches.All(b => b.Job == null && b.Left.Count == 0));
@@ -511,6 +536,7 @@ namespace GoNoGo.Core.Tests
             Fly(s);
             var first = s.LastLaunch;
             Ok(s, Command.Of(CommandType.FinishLaunch, 1));
+            s.TickDefaults(_data);
             Ok(s, Command.Of(CommandType.SetOrbit, 1, "geo"));
             Fly(s);
             Assert.That(s.LastLaunch.Design.StableHash(), Is.EqualTo(first.Design.StableHash()), "照原樣組回同一個設計");
@@ -547,7 +573,7 @@ namespace GoNoGo.Core.Tests
             Assert.That(ev.Power.ActualDod, Is.LessThanOrEqualTo(1.0), "電池撐得過地影");
             Assert.That(ev.LaunchFeasible);
             // 其他難度、歷史關卡不受影響
-            Assert.That(SessionRules.NewSession(_data, "earth_observation", "engineer", false, false).Bench.Get(PartCategory.Solar), Is.EqualTo("solar_body"));
+            Assert.That(SessionRules.NewSession(_data, "earth_observation", "engineer", false, false).Bench.Get(PartCategory.Solar), Is.Null.Or.Empty, "一般難度開局不先勾");
             Assert.That(SessionRules.NewSession(_data, "hist_oco", "tutorial", true, false).Bench.Get(PartCategory.Solar),
                 Is.EqualTo(_data.Scenario("hist_oco").Historical.PresetDesign.Get(PartCategory.Solar)));
         }

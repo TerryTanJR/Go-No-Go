@@ -75,9 +75,9 @@ namespace GoNoGo.Presentation
         {
             var go = new GameObject("LocalPlayer");
             var cc = go.AddComponent<CharacterController>();
-            cc.height = 1.2f;
+            cc.height = AvatarBuilder.WorldHeight;
             cc.radius = 0.3f;
-            cc.center = new Vector3(0, 0.62f, 0);
+            cc.center = new Vector3(0, AvatarBuilder.WorldHeight / 2 + 0.02f, 0);
             cc.stepOffset = 0.3f;
             _player = go.AddComponent<PlayerController>();
             _player.cam = playerCamera;
@@ -92,6 +92,7 @@ namespace GoNoGo.Presentation
         {
             if (_localRig != null) Destroy(_localRig.gameObject);
             _localRig = AvatarBuilder.Build(Profile.Look, _player.transform);
+            AvatarBuilder.ApplyWorldScale(_localRig);
             _player.SetRig(_localRig);
             _localHeldId = null;
         }

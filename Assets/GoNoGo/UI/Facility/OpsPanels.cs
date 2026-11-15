@@ -17,6 +17,7 @@ namespace GoNoGo.UI
         int _turnShown = -1;
         bool _resolvedShown;
         float _left;
+        int _lastSecond = -1;
 
         public OpsBar(VisualElement parent)
         {
@@ -42,7 +43,8 @@ namespace GoNoGo.UI
                 _turnShown = s.OpsTurn;
                 _resolvedShown = false;
                 _left = M.Difficulty.TurnSeconds;
-                Sfx.Alert();
+                _lastSecond = -1;
+                Sfx.Alarm();
                 if (e != null)
                 {
                     OpsClock.Day = e.Day;
@@ -57,7 +59,15 @@ namespace GoNoGo.UI
             _event.text = s.TurnResolved ? Loc.T("ui.ops.resolved")
                 : (M.Difficulty.EventReveal || e?.Kind == EventKind.Alien) && e != null ? Loc.T("event.title." + OpsEvents.Key(e.Kind))
                 : Loc.T("ui.ops.unknown_event");
-            if (s.TurnResolved && !_resolvedShown) { _resolvedShown = true; Hud.Open("ops_desk"); }
+            if (s.TurnResolved && !_resolvedShown)
+            {
+                _resolvedShown = true;
+                // 結算的那一刻：處置成功一段上行的音，沒處置好一段下行的音
+                var o = M.CurrentOutcome;
+                bool good = o != null && o.JudgedCorrect && o.StepsRequired > 0 && o.StepsDone >= o.StepsRequired && o.WrongActions.Count == 0;
+                if (good) Sfx.Success(); else Sfx.Fail();
+                Hud.Open("ops_desk");
+            }
         }
 
         public void Tick(float dt)
@@ -73,6 +83,13 @@ namespace GoNoGo.UI
             if (!(Hud.Paused && !M.S.Multiplayer)) _left -= dt;
             _timer.text = Fmt.Clock(_left);
             _timer.EnableInClassList("over", _left < 20);
+            // 最後 10 秒：每秒響一聲
+            int sec = Mathf.CeilToInt(_left);
+            if (sec != _lastSecond)
+            {
+                if (sec <= 10 && sec > 0 && _lastSecond > 0) Sfx.Countdown();
+                _lastSecond = sec;
+            }
             if (_left <= 0 && GameSession.IsHost)
             {
                 _left = 9999;
@@ -105,15 +122,10 @@ namespace GoNoGo.UI
                 bool mine = resp.Mini.ContainsKey(me);
                 var card = Ui.El("mini-link").AddTo(body);
                 Ui.Text(Loc.T("mini." + def.Id + ".name"), "h3").AddTo(card);
-                Ui.Text(Loc.T("mini." + def.Id + ".goal"), "small").AddTo(card);
-                string rule = def.Rule == MiniRule.Sum
-                    ? Loc.T("mini.rule.sum", ("pct", def.PassScore / 10))
-                    : Loc.T("mini.rule.ratio", ("need", System.Math.Max(1, (int)System.Math.Ceiling(def.RatioNeeded * players - 1e-9))), ("n", players));
-                Ui.Text(players > 1 ? rule : Loc.T("mini.rule.solo"), "small", "faint").AddTo(card);
-                if (players > 1) Ui.Text(Loc.T("ui.ops.treat_done", ("a", resp.Mini.Count), ("n", players)), "small", "dim").AddTo(card);
+                OpsGoal.Bar(card, def, players, true);
+                if (players > 1) Ui.Text(Loc.T("ui.ops.treat_done", ("a", resp.Mini.Count), ("n", players)), "body", "dim").AddTo(card);
                 if (mine)
-                    Ui.Text(Loc.T("ui.ops.treat_mine", ("v", resp.Mini[me] / 10)), "body", MinigameRules.PlayerPassed(def, resp.Mini[me]) ? "go" : "over").AddTo(card);
-                Ui.Text(Loc.T("mini.no_retry"), "small", "tight").AddTo(card);
+                    Ui.Text(Loc.T("ui.ops.treat_mine", ("v", resp.Mini[me] / 10)), "h3", MinigameRules.PlayerPassed(def, resp.Mini[me]) ? "go" : "over").AddTo(card);
                 var play = Ui.Btn(Loc.T(mine ? "ui.ops.treat_waiting" : "ui.ops.treat_start"), () => Hud.Open("minigame"), "btn-primary", "btn-big").AddTo(card);
                 play.SetEnabled(!mine);
             }
@@ -140,6 +152,18 @@ namespace GoNoGo.UI
 
             if (!s.TurnResolved)
             {
+                // 這回合怎樣算過關：寫在最上面
+                if (OpsMinigames.Enabled)
+                {
+                    var goal = Ui.El("turn-goal").AddTo(body);
+                    Ui.Text(Loc.T("ui.ops.turn_goal_k"), "goalbar-k").AddTo(goal);
+                    bool known = diff.EventReveal || e.Kind == EventKind.Alien;
+                    bool judged = known || !string.IsNullOrEmpty(resp.Judged);
+                    var steps = Ui.Row("turn-goal-steps").AddTo(goal);
+                    if (!known) Ui.Text((judged ? "✔ " : "① ") + Loc.T("ui.ops.turn_goal_judge"), "turn-goal-step").Cls("turn-goal-step--done", judged).AddTo(steps);
+                    bool played = resp.Mini.ContainsKey(GameSession.LocalPlayer);
+                    Ui.Text((played ? "✔ " : known ? "① " : "② ") + Loc.T("ui.ops.turn_goal_treat"), "turn-goal-step").Cls("turn-goal-step--done", played).AddTo(steps);
+                }
                 // 1. 判斷
                 Ui.Text(Loc.T("ui.ops.step_judge"), "h3").AddTo(body);
                 if (diff.EventReveal || e.Kind == EventKind.Alien)
@@ -153,7 +177,7 @@ namespace GoNoGo.UI
                     foreach (var t in types)
                     {
                         var key = t;
-                        var chip = Ui.Btn(Loc.T("event.title." + key), () => { GameSession.Send(CommandType.Judge, key); Sfx.Click(); }, "chip")
+                        var chip = Ui.Btn(Loc.T("event.title." + key), () => { GameSession.Send(CommandType.Judge, key); Sfx.Confirm(); }, "chip")
                             .Cls("chip--on", resp.Judged == key).AddTo(row);
                         chip.SetEnabled(!locked);
                     }
@@ -329,7 +353,6 @@ namespace GoNoGo.UI
             if (Alone(s)) Ui.Text(Loc.T("err.need_players"), "lobby-count", "tight").AddTo(body);
             else Ui.Text(Loc.T("ui.lobby.ready_count", ("r", ready), ("n", s.Players.Count)), "lobby-count", LobbyView.AllReady(s) ? "go" : "dim").AddTo(body);
 
-            if (!wall) Ui.Text(Loc.T("ui.lobby.no_teams"), "small", "dim").AddTo(body);
             if (wall) return;
             var actions = Ui.Row("modal-actions").AddTo(body);
             Ui.Btn(Loc.T("ui.lobby.leave"), () => GameSession.EndMission(), "btn-ghost").AddTo(actions);

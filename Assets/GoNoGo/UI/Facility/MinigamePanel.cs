@@ -229,6 +229,43 @@ namespace GoNoGo.UI
     }
 
     /// <summary>
+    /// 通關條件：這個處置遊戲要做到什麼才算過（mini.&lt;id&gt;.goal）、全隊怎麼算、能不能重打。
+    /// 放在最顯眼的地方：飛行指揮台的處置卡、遊戲開始前的說明、遊玩中的畫面最上面。
+    /// </summary>
+    public static class OpsGoal
+    {
+        /// <summary>全隊規則的文字（單人：通過就等於做完整套程序）。</summary>
+        public static string Rule(MinigameDef def, int players)
+        {
+            if (players <= 1) return Loc.T("mini.rule.solo");
+            return def.Rule == MiniRule.Sum
+                ? Loc.T("mini.rule.sum", ("pct", def.PassScore / 10))
+                : Loc.T("mini.rule.ratio", ("need", Mathf.Max(1, Mathf.CeilToInt((float)(def.RatioNeeded * players) - 1e-4f))), ("n", players));
+        }
+
+        /// <summary>大的橫條：標題「通關條件」、條件本身（大字）、全隊規則、不能重打。</summary>
+        public static VisualElement Bar(VisualElement parent, MinigameDef def, int players, bool noRetry)
+        {
+            var bar = Ui.El("goalbar").AddTo(parent);
+            Ui.Text(Loc.T("mini.goal_label"), "goalbar-k").AddTo(bar);
+            Ui.Text(Ui.NoOrphan(Loc.T("mini." + def.Id + ".goal")), "goalbar-v").AddTo(bar);
+            var foot = Ui.Row("goalbar-foot").AddTo(bar);
+            Ui.Text(Rule(def, players), "goalbar-rule").AddTo(foot);
+            if (noRetry) Ui.Text(Loc.T("mini.no_retry"), "goalbar-rule", "goalbar-warn").AddTo(foot);
+            return bar;
+        }
+
+        /// <summary>遊玩中的一行：標題 + 條件。</summary>
+        public static VisualElement Line(VisualElement parent, MinigameDef def)
+        {
+            var row = Ui.Row("goalline").AddTo(parent);
+            Ui.Text(Loc.T("mini.goal_label"), "goalline-k").AddTo(row);
+            Ui.Text(Loc.T("mini." + def.Id + ".goal"), "goalline-v").AddTo(row);
+            return row;
+        }
+    }
+
+    /// <summary>
     /// 營運小遊戲面板：說明 → 玩 → 結果 → 送出成績。
     /// 事件模式（id = "minigame"）：玩的是「飛行指揮台判斷的事件」對應的遊戲，送出成績後回到飛行指揮台。
     /// 除錯模式（id = "minigame:遊戲id:嚴重度"）：直接玩任一個遊戲，不會送出成績，可以重玩、看自動駕駛示範。
@@ -254,6 +291,9 @@ namespace GoNoGo.UI
         VisualElement _statRow;
         Label _caption;
         string _captionKey = "";
+        // 音效：上一格的訊號數、說明的語氣、各種聲音的冷卻
+        int _goodSeen, _badSeen, _shotSeen, _toneSeen;
+        float _tapCd, _gainCd, _badCd, _shotCd;
 
         /// <summary>事件模式。</summary>
         public MinigamePanel()
@@ -339,21 +379,13 @@ namespace GoNoGo.UI
         {
             string id = _def.Id;
             Ui.Text(Loc.T("mini." + id + ".name"), "h2").AddTo(body);
-            Ui.Text(Loc.T("mini.goal_label"), "eyebrow").AddTo(body);
-            Ui.Text(Loc.T("mini." + id + ".goal"), "body").AddTo(body);
+            int players = Mathf.Max(1, _debug ? 1 : M.S.Players.Count);
+            OpsGoal.Bar(body, _def, players, !_debug);
             Ui.Text(Loc.T("mini.controls_label"), "eyebrow", "mini-gap").AddTo(body);
             Ui.Text(Loc.T("mini." + id + ".controls"), "body").AddTo(body);
             var link = Ui.El("mini-link").AddTo(body);
             Ui.Text(Loc.T("mini.link_label"), "eyebrow").AddTo(link);
             Ui.Text(Loc.T("mini." + id + ".link"), "small", "dim").AddTo(link);
-
-            // 多人規則
-            int players = Mathf.Max(1, _debug ? 1 : M.S.Players.Count);
-            string rule = _def.Rule == MiniRule.Sum
-                ? Loc.T("mini.rule.sum", ("pct", _def.PassScore / 10))
-                : Loc.T("mini.rule.ratio", ("need", Mathf.Max(1, Mathf.CeilToInt((float)(_def.RatioNeeded * players) - 1e-4f))), ("n", players));
-            Ui.Text(players > 1 || _debug ? rule : Loc.T("mini.rule.solo"), "small", "faint").AddTo(body);
-            if (!_debug) Ui.Text(Loc.T("mini.no_retry"), "small", "tight").AddTo(body);
 
             var actions = Ui.Row("modal-actions").AddTo(body);
             Ui.Btn(Loc.T(_debug ? "mini.debug.back" : "ui.gmenu.cancel"), () => { Close(); if (_debug) Hud.Open("minigame_debug"); else Hud.Open("ops_desk"); }, "btn-ghost").AddTo(actions);
@@ -368,6 +400,8 @@ namespace GoNoGo.UI
             _stage = Stage.Playing;
             _startFrame = Time.frameCount;
             _submitted = false;
+            _goodSeen = _badSeen = _shotSeen = _toneSeen = 0;
+            _tapCd = _gainCd = _badCd = _shotCd = 0;
             Sfx.Go();
             Refresh2();
         }
@@ -384,6 +418,8 @@ namespace GoNoGo.UI
 
         void BuildPlaying(VisualElement body)
         {
+            // 通關條件一直留在最上面（玩到一半不用回想要做到什麼）
+            OpsGoal.Line(body, _def);
             _statRow = Ui.Row("mini-stats").AddTo(body);
             _statLabels.Clear();
             _caption = Ui.Text("", "mini-caption").AddTo(body);
@@ -443,12 +479,36 @@ namespace GoNoGo.UI
                 inp.Pressed = _canvas.ConsumePressed();
             }
             _game.Step(dt, inp);
+            PlayCues(dt, inp);
             _shapes.Clear();
             _game.Draw(_shapes);
             _canvas.Present(_shapes);
             UpdateStats();
             UpdateCaption();
             if (_game.State != MiniState.Running) Finish(false);
+        }
+
+        /// <summary>
+        /// 小遊戲的音效：按下去有回饋；做對一件事（核心的 GoodCues）一聲上揚的「叮」，進度越高音越高；
+        /// 被打中、失誤（BadCues）一聲低沉的悶響；開火有射擊聲；畫面上方的說明轉成「好／壞」的那一刻也響一聲。
+        /// 每種聲音都有冷卻，同一格發生好幾次不會疊成噪音。
+        /// </summary>
+        void PlayCues(float dt, MiniInput inp)
+        {
+            _tapCd -= dt; _gainCd -= dt; _badCd -= dt; _shotCd -= dt;
+            bool good = _game.GoodCues != _goodSeen, bad = _game.BadCues != _badSeen, shot = _game.ShotCues != _shotSeen;
+            _goodSeen = _game.GoodCues; _badSeen = _game.BadCues; _shotSeen = _game.ShotCues;
+            int tone = _game.Caption.Tone;
+            if (tone != _toneSeen)
+            {
+                if (tone == 1) good = true; else if (tone == 3) bad = true;
+                _toneSeen = tone;
+            }
+            float progress = Mathf.Clamp01(_game.Score / 1000f);
+            if (bad && _badCd <= 0) { Sfx.MiniBad(); _badCd = 0.22f; }
+            else if (good && _gainCd <= 0) { Sfx.MiniGain(progress); _gainCd = 0.09f; }
+            else if ((shot || inp.Fire) && _def.Kind == EventKind.Alien && _shotCd <= 0) { Sfx.MiniShot(); _shotCd = 0.2f; }
+            else if ((inp.Pressed || inp.Action || inp.Number != 0) && _tapCd <= 0) { Sfx.MiniTap(); _tapCd = 0.07f; }
         }
 
         static int DigitPressed(Keyboard kb)
@@ -505,7 +565,7 @@ namespace GoNoGo.UI
             if (_game == null) return;
             if (forfeit && _game.State == MiniState.Running) _game.Forfeit();
             _stage = Stage.Result;
-            if (_game.Passed) Sfx.Go(); else Sfx.Alert();
+            if (_game.Passed) Sfx.MiniWin(); else Sfx.MiniLose();
             Refresh2();
         }
 
@@ -528,8 +588,7 @@ namespace GoNoGo.UI
             foreach (var st in _game.Stats) Ui.Text(Loc.T(st.Key) + "  " + st.Value, "small", "dim", "mono").AddTo(box);
             if (!_debug)
             {
-                int players = M.S.Players.Count;
-                Ui.Text(Loc.T(players > 1 ? "mini.team_note" : "mini.solo_note"), "small", "faint").AddTo(box);
+                if (M.S.Players.Count > 1) Ui.Text(Loc.T("mini.team_note"), "small", "dim").AddTo(box);
                 Ui.Text(Loc.T(pass ? "mini.pass_note" : "mini.fail_note"), "small", pass ? "go" : "tight").AddTo(box);
             }
 

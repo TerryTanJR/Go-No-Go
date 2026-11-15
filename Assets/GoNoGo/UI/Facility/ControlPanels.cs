@@ -168,6 +168,7 @@ namespace GoNoGo.UI
         public override string WideClass => "modal--wide";
         public override bool CloseWithE => false;
         static int _tab;
+        protected override string ScrollKey => _tab.ToString();
 
         protected override void Build(VisualElement body)
         {
@@ -185,7 +186,6 @@ namespace GoNoGo.UI
                 case 3: ManualView.Build(sv, "rules"); break;
                 default: FailureBoardView.Build(sv); break;
             }
-            Ui.Text(Loc.T("ui.tablet.readonly"), "small", "faint").AddTo(body);
         }
     }
 }

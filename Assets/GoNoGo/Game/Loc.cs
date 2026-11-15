@@ -11,34 +11,30 @@ namespace GoNoGo.Game
     /// 中英文切換。字串全部放在 strings.json（和核心共用一份），格式為 "{name}" 或 "{name:0.0}"。
     /// 參數值以 "part:" / "launcher:" / "orbit:" / "sw:" 開頭時，換成對應的名稱。
     /// 選 strings.json 而不是 Unity Localization 套件：同一份 JSON 網頁版也能讀，核心測試也能檢查缺字。
+    /// 語言不記在本機：每次開遊戲都從英文開始（不看系統語言），玩家在選單切換後只維持到關掉遊戲。
     /// </summary>
     public static class Loc
     {
-        const string PrefKey = "gonogo.lang";
+        /// <summary>每次開遊戲的語言。</summary>
+        public const string DefaultLang = Core.Lang.En;
         static string _lang;
 
         public static event Action Changed;
 
         public static string Lang
         {
-            get
-            {
-                if (_lang == null)
-                {
-                    _lang = PlayerPrefs.GetString(PrefKey, "");
-                    if (_lang != Core.Lang.En && _lang != Core.Lang.ZhTW)
-                        _lang = Application.systemLanguage == SystemLanguage.ChineseTraditional ? Core.Lang.ZhTW : Core.Lang.En;
-                }
-                return _lang;
-            }
+            get => _lang ??= DefaultLang;
             set
             {
                 if (value == _lang) return;
                 _lang = value;
-                PlayerPrefs.SetString(PrefKey, value);
                 Changed?.Invoke();
             }
         }
+
+        // 編輯器關掉 Domain Reload 時靜態欄位會留到下一次 Play：每次開始都回到預設語言
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => _lang = null;
 
         public static bool IsZh => Lang == Core.Lang.ZhTW;
 

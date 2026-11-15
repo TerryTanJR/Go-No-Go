@@ -150,6 +150,21 @@ namespace GoNoGo.Presentation
 
         static void Reparent(Transform t, Transform parent) => t.SetParent(parent, true);
 
+        /// <summary>
+        /// 設施裡的角色比選單裡的模型大多少：模型站起來約 1.2 m，設施裡放大到約 1.5 m
+        /// （中控台、螢幕、架子是照真人尺寸做的，角色太矮看起來像小孩）。
+        /// </summary>
+        public const float WorldScale = 1.25f;
+        /// <summary>設施裡角色的身高（m）：碰撞體、頭上的名牌用。</summary>
+        public const float WorldHeight = 1.5f;
+
+        /// <summary>把角色放大到設施裡的尺寸；手上拿的東西維持原本的大小。</summary>
+        public static void ApplyWorldScale(AvatarRig rig)
+        {
+            rig.transform.localScale = Vector3.one * WorldScale;
+            if (rig.hold != null) rig.hold.localScale = Vector3.one / (ModelScale * WorldScale);
+        }
+
         public static AvatarRig Build(AvatarLook look, Transform parent)
         {
             look = (look ?? new AvatarLook()).Sanitized();

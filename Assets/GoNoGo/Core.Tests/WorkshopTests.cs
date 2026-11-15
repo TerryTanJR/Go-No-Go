@@ -19,7 +19,7 @@ namespace GoNoGo.Core.Tests
             var s = SessionRules.NewSession(_data, scenario, diff, false, false);
             Ok(s, Command.Of(CommandType.Join, 1));
             Ok(s, Command.Of(CommandType.BeginDesign, 1));
-            return s;
+            return s.TickDefaults(_data);
         }
 
         SessionState Duo()
@@ -30,7 +30,7 @@ namespace GoNoGo.Core.Tests
             Ok(s, Command.Of(CommandType.SetReady, 1, "", 1));
             Ok(s, Command.Of(CommandType.SetReady, 2, "", 1));
             Ok(s, Command.Of(CommandType.StartMission, 1));
-            return s;
+            return s.TickDefaults(_data);
         }
 
         void Ok(SessionState s, Command c) => Flow.Do(s, _data, c);
@@ -266,7 +266,18 @@ namespace GoNoGo.Core.Tests
             // 右側正在組：一次拿一個去裝
             Ok(s, Command.Of(CommandType.BenchTake, 1, "cells", 0));
             Assert.That(Try(s, CommandType.BenchTake, 1, "bms", 0), Is.EqualTo("err.hands_full"));
+            // 拿錯了（或改變主意）：放回左側，再拿一次；放回去不算裝錯
+            int mistakes = b.Job.Mistakes;
+            Ok(s, Command.Of(CommandType.BenchPut, 1, "", 0));
+            Assert.That(b.Left, Has.Member("cells"));
+            Assert.That(s.CompsOf(1), Is.Empty);
+            Assert.That(b.Job.Mistakes, Is.EqualTo(mistakes));
+            Assert.That(b.Job.Step, Is.EqualTo(0));
+            // 不屬於這個零件的小零件還是不收
+            Ok(s, Command.Of(CommandType.CompPick, 1, "nozzle"));
             Assert.That(Try(s, CommandType.BenchPut, 1, "", 0), Is.EqualTo("err.bench_busy"));
+            Ok(s, Command.Of(CommandType.CompDrop, 1));
+            Ok(s, Command.Of(CommandType.BenchTake, 1, "cells", 0));
             Ok(s, Command.Of(CommandType.CompFit, 1, "", 0));
             Assert.That(b.Job.LastOk);
             Assert.That(b.Job.Step, Is.EqualTo(1));

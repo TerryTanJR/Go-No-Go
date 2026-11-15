@@ -125,6 +125,29 @@ namespace GoNoGo.Game
         /// <summary>翻書頁：一陣紙張摩擦的沙沙聲。</summary>
         public static void Page() => I.Play("page", 0.4f);
 
+        // ---------------- 營運、處置小遊戲 ----------------
+
+        /// <summary>營運：新事件的警報（三聲一高一低的警示音）。</summary>
+        public static void Alarm() => I.Play("alarm", 0.42f);
+        /// <summary>營運：這回合處置成功（上行的四個音）。</summary>
+        public static void Success() => I.Play("success", 0.5f);
+        /// <summary>營運：這回合處置失敗（下行的三個音）。</summary>
+        public static void Fail() => I.Play("fail", 0.5f);
+        /// <summary>回合倒數最後幾秒：每秒一聲。</summary>
+        public static void Countdown() => I.Play("count", 0.3f);
+        /// <summary>小遊戲：按下去的回饋（很短的一聲）。</summary>
+        public static void MiniTap() => I.Play("tap", 0.22f);
+        /// <summary>小遊戲：做對一件事（命中、送出、接對）；進度越高音越高。</summary>
+        public static void MiniGain(float progress) => I.Play("gain" + Mathf.Clamp(Mathf.RoundToInt(progress * 10), 0, 10), 0.32f);
+        /// <summary>小遊戲：被打中、失誤。</summary>
+        public static void MiniBad() => I.Play("bad", 0.42f);
+        /// <summary>小遊戲：開火。</summary>
+        public static void MiniShot() => I.Play("shot", 0.16f);
+        /// <summary>小遊戲：通關。</summary>
+        public static void MiniWin() => I.Play("win", 0.55f);
+        /// <summary>小遊戲：沒過。</summary>
+        public static void MiniLose() => I.Play("lose", 0.5f);
+
         // ---------------- 背景音樂 ----------------
 
         /// <summary>Menu：標題、主選單、報告；Facility：設施裡小聲一點，不蓋過電話和音效；None：發射（有自己的聲音）。</summary>
@@ -199,6 +222,12 @@ namespace GoNoGo.Game
                 float f = 500f + step * 70f;
                 return Tone(id, 0.05f, t => Sine(f, t) * Env(t, 0.002f, 0.045f));
             }
+            if (id.StartsWith("gain") && int.TryParse(id.Substring(4), out int g))
+            {
+                // 進度 0 → 10：音高升一個八度；兩個音疊在一起（主音 + 五度），聽起來是「叮」
+                float f = 620f * Mathf.Pow(2f, g / 10f);
+                return Tone(id, 0.16f, t => (Sine(f, t) * 0.6f + Sine(f * 1.5f, t) * 0.25f + Sine(f * 2f, t) * 0.12f) * Env(t, 0.003f, 0.14f));
+            }
             switch (id)
             {
                 case "pick": return Tone(id, 0.12f, t => (Sine(520 + 900 * t, t) * 0.6f + Sine(1040, t) * 0.2f) * Env(t, 0.003f, 0.1f));
@@ -241,6 +270,59 @@ namespace GoNoGo.Game
                         return hp * 0.9f * env;
                     });
                 }
+                case "alarm":
+                    // 三聲：每聲前半高、後半低（方波太刺耳，用正弦加一點方波）
+                    return Tone(id, 0.96f, t =>
+                    {
+                        float u = t % 0.32f;
+                        float hz = u < 0.14f ? 880f : 660f;
+                        return (Sine(hz, t) * 0.5f + Square(hz, t) * 0.12f) * (u < 0.28f ? Env(u % 0.14f, 0.004f, 0.16f) : 0f);
+                    });
+                case "success":
+                    return Tone(id, 0.75f, t =>
+                    {
+                        float[] n = { 523.25f, 659.25f, 783.99f, 1046.5f };
+                        int i = Mathf.Min(3, (int)(t / 0.11f));
+                        float u = t - i * 0.11f;
+                        return (Sine(n[i], t) * 0.55f + Sine(n[i] * 2f, t) * 0.18f) * Env(u, 0.004f, i == 3 ? 0.4f : 0.16f);
+                    });
+                case "fail":
+                    return Tone(id, 0.8f, t =>
+                    {
+                        float[] n = { 392f, 311.13f, 233.08f };
+                        int i = Mathf.Min(2, (int)(t / 0.2f));
+                        float u = t - i * 0.2f;
+                        return (Sine(n[i], t) * 0.5f + Saw(n[i] / 2f, t) * 0.22f) * Env(u, 0.006f, i == 2 ? 0.38f : 0.22f);
+                    });
+                case "count": return Tone(id, 0.09f, t => Sine(1040, t) * Env(t, 0.002f, 0.08f) * 0.7f);
+                case "tap": return Tone(id, 0.05f, t => (Sine(980 - 2400 * t, t) * 0.7f + Sine(1960, t) * 0.15f) * Env(t, 0.001f, 0.045f));
+                case "shot": return Tone(id, 0.11f, t => (Sine(1500 - 9000 * t, t) * 0.6f + Saw(700 - 3000 * t, t) * 0.2f) * Env(t, 0.001f, 0.1f));
+                case "bad":
+                {
+                    var rnd = new System.Random(31);
+                    return Tone(id, 0.28f, t =>
+                    {
+                        float n = (float)(rnd.NextDouble() * 2 - 1);
+                        return (Saw(170 - 220 * t, t) * 0.45f + Sine(85, t) * 0.5f + n * 0.25f * Env(t, 0.001f, 0.06f)) * Env(t, 0.003f, 0.25f);
+                    });
+                }
+                case "win":
+                    return Tone(id, 1.05f, t =>
+                    {
+                        float[] n = { 523.25f, 659.25f, 783.99f, 1046.5f, 1318.5f };
+                        int i = Mathf.Min(4, (int)(t / 0.1f));
+                        float u = t - i * 0.1f;
+                        float chord = i == 4 ? Sine(1046.5f, t) * 0.25f + Sine(783.99f, t) * 0.2f : 0f;
+                        return (Sine(n[i], t) * 0.5f + Sine(n[i] * 2f, t) * 0.15f + chord) * Env(u, 0.004f, i == 4 ? 0.6f : 0.14f);
+                    });
+                case "lose":
+                    return Tone(id, 0.95f, t =>
+                    {
+                        float[] n = { 440f, 369.99f, 311.13f, 220f };
+                        int i = Mathf.Min(3, (int)(t / 0.17f));
+                        float u = t - i * 0.17f;
+                        return (Sine(n[i], t) * 0.5f + Saw(n[i] / 2f, t) * 0.2f) * Env(u, 0.006f, i == 3 ? 0.42f : 0.2f);
+                    });
                 case "click": return Tone(id, 0.045f, t => Sine(2400, t) * Env(t, 0.002f, 0.04f) * 0.6f + Sine(1200, t) * Env(t, 0.001f, 0.02f) * 0.4f);
                 case "hover": return Tone(id, 0.03f, t => Sine(1800, t) * Env(t, 0.003f, 0.025f));
                 case "tick": return Tone(id, 0.02f, t => Sine(3200, t) * Env(t, 0.001f, 0.015f));

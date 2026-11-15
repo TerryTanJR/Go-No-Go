@@ -157,6 +157,7 @@ namespace GoNoGo.Core
                 {
                     var f = _foes[i];
                     _killedWeight += f.Weight;
+                    CueGood();
                     Burst(f.X, f.Y, f.Kind == 2 ? 40 : 10, f.Kind == 2 ? MiniColor.Red : MiniColor.Amber);
                     _foes.RemoveAt(i);
                 }
@@ -202,6 +203,7 @@ namespace GoNoGo.Core
         void Hit()
         {
             _lives--;
+            CueBad();
             _invuln = 1.6f;
             Burst(_px, _py, 14, MiniColor.Red);
             _clearShots = true; // 被打中時清掉畫面上的敵彈（迴圈跑完再清，才不會在迴圈裡改到 list）

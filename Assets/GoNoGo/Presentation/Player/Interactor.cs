@@ -7,7 +7,8 @@ using UnityEngine.InputSystem;
 namespace GoNoGo.Presentation
 {
     /// <summary>
-    /// 互動：第一人稱從畫面中央打射線；第三人稱挑角色身邊、鏡頭前方的物件（見 <see cref="Nearby"/>）。送出資訊框內容給 HUD；
+    /// 互動：兩種視角都從畫面中央的準星打射線（第三人稱從角色的位置開始算，見 <see cref="PlayerController.PickRay"/>），
+    /// 差一點沒對到會吸附（<see cref="Assist"/>）。送出資訊框內容給 HUD；
     /// E 使用（大屏幕、線索、發射鈕…；手上有小零件時對著組裝台 = 放到左側），C 拿取／放回，
     /// V 長按：拿著小零件對著組裝台右側裝上去（0.6 秒）、拿著組好的零件在整合台旁邊裝上衛星（1.2 秒）。
     /// </summary>
@@ -54,9 +55,9 @@ namespace GoNoGo.Presentation
             // ---- 對到什麼 ----
             Interactable found = null;
             Collider hitCol = null;
-            if (active && _pc.FirstPerson)
+            if (active)
             {
-                var ray = _pc.AimRay;
+                var ray = _pc.PickRay;
                 if (Physics.Raycast(ray, out var hit, 16f, ~(1 << 2), QueryTriggerInteraction.Collide))
                 {
                     var it = hit.collider.GetComponentInParent<Interactable>();
@@ -68,7 +69,6 @@ namespace GoNoGo.Presentation
                 }
                 if (found == null) found = Assist(out hitCol);
             }
-            else if (active) found = Nearby(out hitCol);
             if (found is IntegrationStand st) st.Aim(hitCol);
             SetCurrent(found);
 
@@ -85,12 +85,10 @@ namespace GoNoGo.Presentation
                 target = PartHud.Info(m.Data.Part(held));
                 if (canInstall == SessionRules.Ok) target.Keys.Add(new KeyHint("V", Loc.T("ui.hint.install")));
                 else target.Subtitle = Loc.T(canInstall);
-                if (!_pc.FirstPerson) target.Anchor = TopOf(stand);
             }
             else if (_current != null)
             {
                 target = _current.Describe(this);
-                if (target != null && !_pc.FirstPerson) target.Anchor = TopOf(_current);
             }
             else if (comps.Count > 0 && active)
             {
@@ -174,54 +172,12 @@ namespace GoNoGo.Presentation
         }
 
         /// <summary>
-        /// 第三人稱：不靠準星，挑角色身邊、在鏡頭朝向前方的互動物件（開放世界遊戲的做法，不用低頭對準桌上的東西）。
-        /// 分數 = 距離 + 偏離鏡頭水平朝向的角度 + 偏離畫面中央的角度；同一處有好幾個時，轉一下鏡頭就能換。
-        /// </summary>
-        Interactable Nearby(out Collider col)
-        {
-            col = null;
-            var pivot = _pc.Pivot;
-            var aim = _pc.AimRay;
-            var fwd = aim.direction;
-            fwd.y = 0;
-            fwd.Normalize();
-            Interactable best = null;
-            float bestScore = float.MaxValue;
-            foreach (var it in Interactable.All)
-            {
-                if (it == null || !it.isActiveAndEnabled) continue;
-                foreach (var c in it.Colliders)
-                {
-                    if (c == null || !c.enabled || !c.gameObject.activeInHierarchy) continue;
-                    var b = c.bounds;
-                    var p = b.ClosestPoint(pivot);
-                    float d = Vector3.Distance(pivot, p);
-                    if (d > it.Range) continue;
-                    var flat = p - pivot;
-                    flat.y = 0;
-                    float yaw = flat.sqrMagnitude < 0.0025f ? 0f : Vector3.Angle(fwd, flat);
-                    if (yaw > 75f) continue;
-                    // 很大的東西（前方大屏幕）用「離畫面中央最近的那一點」算角度：站在它前面看哪裡都算對著它
-                    var look = b.ClosestPoint(aim.origin + aim.direction * Mathf.Max(0, Vector3.Dot(b.center - aim.origin, aim.direction)));
-                    float score = d * 0.6f + yaw / 60f + Vector3.Angle(aim.direction, look - aim.origin) / 30f;
-                    if (score >= bestScore || Blocked(it, pivot, look)) continue;
-                    best = it;
-                    bestScore = score;
-                    col = c;
-                }
-            }
-            // 衛星在角色前方偏下，鏡頭中央的射線常常從上方穿過：改挑離畫面中央角度最小的零件（30° 內）
-            if (best is IntegrationStand stand) col = stand.NearestPart(aim, 30f, true);
-            return best;
-        }
-
-        /// <summary>
-        /// 第一人稱的吸附：準星差一點沒對到（偏 8° 以內）也算，架上的小零件、牆上的草稿紙不用對得剛剛好。
+        /// 吸附：準星差一點沒對到（偏 8° 以內）也算，架上的小零件、牆上的草稿紙不用對得剛剛好。
         /// </summary>
         Interactable Assist(out Collider col)
         {
             col = null;
-            var aim = _pc.AimRay;
+            var aim = _pc.PickRay;
             float best = 8f;
             Interactable pick = null;
             foreach (var it in Interactable.All)
@@ -250,30 +206,6 @@ namespace GoNoGo.Presentation
             if (!Physics.Linecast(from, to, out var hit, ~(1 << 2), QueryTriggerInteraction.Ignore)) return false;
             if (hit.collider.GetComponentInParent<Interactable>() == it) return false;
             return hit.distance < Vector3.Distance(from, to) - 0.15f;
-        }
-
-        /// <summary>物件頂端上方一點：提示框貼在這裡。用看得到的模型算（碰撞框常常比模型矮，提示框會蓋住模型）。</summary>
-        static Vector3 TopOf(Interactable it)
-        {
-            Bounds b = default;
-            bool any = false;
-            foreach (var r in it.GetComponentsInChildren<Renderer>())
-            {
-                if (!r.enabled || !r.gameObject.activeInHierarchy) continue;
-                if (!any) { b = r.bounds; any = true; }
-                else b.Encapsulate(r.bounds);
-            }
-            if (!any)
-                foreach (var c in it.Colliders)
-                {
-                    if (c == null || !c.enabled) continue;
-                    if (!any) { b = c.bounds; any = true; }
-                    else b.Encapsulate(c.bounds);
-                }
-            if (!any) return it.transform.position + Vector3.up * 0.3f;
-            // 整面牆那麼大的東西（前方大屏幕）：提示框放在角色面前的高度，不要貼到天花板上
-            if (b.size.y > 3f) return new Vector3(b.center.x, Mathf.Min(b.max.y, 2.6f), b.center.z);
-            return new Vector3(b.center.x, b.max.y + 0.15f, b.center.z);
         }
 
         void CancelHold()

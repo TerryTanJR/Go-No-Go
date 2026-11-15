@@ -39,12 +39,13 @@ namespace GoNoGo.UI
             var track = Ui.El("codex-track").AddTo(head);
             var fill = Ui.El("codex-fill").AddTo(track);
             fill.style.width = Length.Percent(total > 0 ? 100f * have / total : 0);
-            Ui.Text(Loc.T("ui.codex.how"), "small", "dim", "codex-how").AddTo(parent);
+            Ui.Text(Ui.NoOrphan(Loc.T("ui.codex.how")), "small", "dim", "codex-how").AddTo(parent);
 
             var wrap = Ui.Row("codex-wrap").AddTo(parent);
             var list = new ScrollView(ScrollViewMode.Vertical);
             list.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             list.AddToClassList("codex-list");
+            list.AddToClassList(FacPanel.KeepScrollClass);
             wrap.Add(list);
             if (_sel == null || cards.All(p => p.Id != _sel))
                 _sel = cards.FirstOrDefault(p => Codex.Has(p.Id))?.Id ?? cards.FirstOrDefault()?.Id;
@@ -63,7 +64,7 @@ namespace GoNoGo.UI
                         .Cls("codex-tile--locked", !has).Cls("codex-tile--on", p.Id == _sel).AddTo(grid);
                     b.Clear();
                     Ui.Text((Codex.IsMaster(p.Id) ? "★ " : "") + p.Code, "codex-tile-code", "mono").Cls("codex-tile-code--master", Codex.IsMaster(p.Id)).AddTo(b);
-                    Ui.Text(has ? Loc.T(p.Name) : "?", "codex-tile-name").AddTo(b);
+                    Ui.Text(has ? Ui.NoOrphan(Loc.T(p.Name)) : "?", "codex-tile-name").AddTo(b);
                     if (ColorUtility.TryParseHtmlString(p.Color, out var c) && has) b.style.borderTopColor = c;
                 }
             }
@@ -81,12 +82,12 @@ namespace GoNoGo.UI
             Ui.Text(sel.Code, "man-code", "mono").AddTo(top);
             if (Codex.Has(sel.Id))
             {
-                Ui.Text(Loc.T(sel.Name), "h3", "asm-name").AddTo(top);
+                Ui.Text(Ui.NoOrphan(Loc.T(sel.Name)), "h3", "asm-name").AddTo(top);
                 Ui.Text(Loc.T("ui.cat." + sel.Category), "eyebrow", "codex-detail-cat").AddTo(detail);
                 // 精通：組裝這種構造時一次都沒裝錯。還沒精通、又要組裝的零件，寫出怎麼拿到
                 if (Codex.IsMaster(sel.Id)) Ui.Text(Loc.T("ui.codex.master_tag"), "codex-master").AddTo(detail);
-                else if (data.Recipe(sel) != null) Ui.Text(Loc.T("ui.codex.master_how"), "small", "dim", "codex-master-how").AddTo(detail);
-                Ui.Text(Loc.T(sel.Function), "codex-fact").AddTo(detail);
+                else if (data.Recipe(sel) != null) Ui.Text(Ui.NoOrphan(Loc.T("ui.codex.master_how")), "small", "dim", "codex-master-how").AddTo(detail);
+                Ui.Text(Ui.NoOrphan(Loc.T(sel.Function)), "codex-fact").AddTo(detail);
                 Ui.Text(Ui.NoOrphan(Loc.T(sel.Explainer)), "body", "codex-text").AddTo(detail);
                 // 這個零件由哪些小零件組成（組裝工作台的配方）
                 var recipe = data.Recipe(sel);
@@ -96,8 +97,8 @@ namespace GoNoGo.UI
                     foreach (var c in recipe.Components)
                     {
                         var row = Ui.Row("codex-comp").AddTo(detail);
-                        Ui.Text(Loc.T(c.Name), "codex-comp-name").AddTo(row);
-                        Ui.Text(Loc.T(c.Role), "small", "dim", "codex-comp-role").AddTo(row);
+                        Ui.Text(Ui.NoOrphan(Loc.T(c.Name)), "codex-comp-name").AddTo(row);
+                        Ui.Text(Ui.NoOrphan(Loc.T(c.Role)), "codex-comp-role").AddTo(row);
                     }
                 }
             }
@@ -105,7 +106,7 @@ namespace GoNoGo.UI
             {
                 Ui.Text("? ? ?", "h3", "asm-name", "faint").AddTo(top);
                 Ui.Text(Loc.T("ui.cat." + sel.Category), "eyebrow", "codex-detail-cat").AddTo(detail);
-                Ui.Text(Loc.T("ui.codex.locked"), "body", "codex-text").AddTo(detail);
+                Ui.Text(Ui.NoOrphan(Loc.T("ui.codex.locked")), "body", "codex-text").AddTo(detail);
             }
         }
     }
@@ -115,6 +116,7 @@ namespace GoNoGo.UI
     {
         public override string Title => Loc.T("ui.codex.title");
         public override string WideClass => "modal--manual";
+        protected override string ScrollKey => "codex";
         protected override void Build(VisualElement body) => CodexView.Build(body, Refresh);
     }
 }

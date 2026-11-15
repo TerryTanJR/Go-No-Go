@@ -21,7 +21,7 @@ namespace GoNoGo.Core.Tests
             s.Phase = SessionPhase.Design;
             s.Players.Add(new PlayerInfo { Id = 1 });
             if (multi) s.Players.Add(new PlayerInfo { Id = 2 });
-            return s;
+            return s.PresetDefaults(_data);
         }
 
         void Ok(SessionState s, Command c) => Flow.Do(s, _data, c);
@@ -330,6 +330,10 @@ namespace GoNoGo.Core.Tests
                 Assert.That(map.Where(kv => kv.Value.Count > 0).Select(kv => Clues.Spot(kv.Key).Zone).Distinct(), Is.EquivalentTo(new[] { "control", "bay" }));
                 int total = map.Values.Sum(x => x.Count);
                 Assert.That(map.Values.Max(x => x.Count), Is.LessThanOrEqualTo(total / 4 + 2));
+                // 散到各個角落：有線索的區塊數至少是「線索數」和「區塊總數的一半」中比較小的那個
+                int areas = map.Where(kv => kv.Value.Count > 0).Select(kv => Clues.Spot(kv.Key).Area).Distinct().Count();
+                int allAreas = Clues.Spots.Select(x => x.Area).Distinct().Count();
+                Assert.That(areas, Is.GreaterThanOrEqualTo(System.Math.Min(total, allAreas / 2)), "線索擠在少數幾個區塊");
             }
             Assert.That(Clues.At(_data, a, "no_such_spot"), Is.Empty);
         }
@@ -344,6 +348,7 @@ namespace GoNoGo.Core.Tests
                 var placed = Clues.Place(_data, s).Where(kv => kv.Value.Count > 0).ToList();
                 Assert.That(placed, Is.Not.Empty, "新手訓練有一格挖空，就有一則線索");
                 Assert.That(placed.Select(kv => Clues.Spot(kv.Key).Zone).Distinct(), Is.EquivalentTo(new[] { "control" }), "seed " + seed);
+                Assert.That(placed.All(kv => Clues.Spot(kv.Key).Obvious), "新手訓練的線索要放在顯眼的地方（seed " + seed + "）");
                 Assert.That(placed.SelectMany(kv => kv.Value).Select(c => c.Id), Is.EquivalentTo(Clues.For(_data, s).Select(c => c.Id)));
             }
         }
@@ -355,7 +360,7 @@ namespace GoNoGo.Core.Tests
             Assert.That(Clues.Spots.Select(x => x.Zone).Distinct(), Is.EquivalentTo(new[] { "control", "bay" }));
             // 中控室：研究牆（草稿紙）、白板、黑板、書堆；組裝區：設計圖、架子旁
             var control = Clues.Spots.Where(x => x.Zone == "control").Select(x => x.Medium).Distinct().ToList();
-            Assert.That(control, Is.EquivalentTo(new[] { "paper", "whiteboard", "blackboard", "book" }));
+            Assert.That(control, Is.EquivalentTo(new[] { "paper", "whiteboard", "blackboard", "book", "blueprint" }));
             Assert.That(Clues.Spots.Where(x => x.Zone == "bay").Select(x => x.Medium), Has.Member("blueprint"));
             foreach (ClueKind kind in System.Enum.GetValues(typeof(ClueKind)))
                 Assert.That(Clues.Spots.Count(x => Clues.Accepts(x.Medium, kind)), Is.GreaterThanOrEqualTo(2), kind.ToString());

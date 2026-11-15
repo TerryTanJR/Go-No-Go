@@ -53,7 +53,6 @@ namespace GoNoGo.UI
                 Ui.Spacer().AddTo(foot);
                 Ui.Btn(Loc.T("ui.manual.next") + "  ›", () => Flip(1), "book-turn").AddTo(foot).SetEnabled(_page < clues.Count - 1);
             }
-            Ui.Text(Loc.T("ui.clue.private"), "small", "faint", "clue-foot").AddTo(body);
         }
 
         /// <summary>同一個位置每次看到的都是同一張沒用的紙（三種裡挑一種）。</summary>

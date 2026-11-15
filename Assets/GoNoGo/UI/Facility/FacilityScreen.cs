@@ -471,8 +471,8 @@ namespace GoNoGo.UI
                     BenchOrderView.Build(_order, near, false);
                 }
             }
-            // 第三人稱不靠準星選目標（角色的頭也剛好在畫面中央），只有第一人稱顯示
-            _crosshair.style.display = playing && Hud.FirstPerson ? DisplayStyle.Flex : DisplayStyle.None;
+            // 兩種視角都靠準星選目標（第三人稱的鏡頭比頭頂高，準星不會被角色擋住）
+            _crosshair.style.display = playing ? DisplayStyle.Flex : DisplayStyle.None;
             // 對到能互動的東西：準星變成一個圈
             _crosshair.EnableInClassList("crosshair--on", Hud.Target != null && Hud.Target.Keys.Count > 0);
             _hud.style.opacity = _panel == null ? 1f : 0.35f;
@@ -504,8 +504,6 @@ namespace GoNoGo.UI
                 }
             }
             _ring.Value = Hud.Progress;
-            // 第三人稱畫面中央是角色的頭：進度環移到下方、手上零件的上面
-            _ring.EnableInClassList("hold-ring--low", !Hud.FirstPerson);
             _ring.style.display = Hud.Progress > 0 ? DisplayStyle.Flex : DisplayStyle.None;
 
             _mic.style.display = Multiplayer.VoiceConnected ? DisplayStyle.Flex : DisplayStyle.None;
@@ -571,10 +569,17 @@ namespace GoNoGo.UI
 
         /// <summary>控制台名稱（tag）只在角色走到這麼近時才顯示；看板（sign）、零件編號照各自的 maxDistance。</summary>
         const float TagNear = 3f;
+        /// <summary>看板（整合台、小零件架、發射台這些機台的名稱）：走到這麼近才出現，不會隔著半個房間一直掛在畫面上。</summary>
+        const float SignNear = 5f;
+        /// <summary>架上、組裝台上小零件的名稱：離鏡頭這麼近才出現；<see cref="CompFull"/> 公尺內是原本的大小，再遠就縮小。</summary>
+        const float CompNear = 3.4f;
+        const float CompFull = 1.7f;
 
         /// <summary>
         /// 場景裡的文字標籤：投影到畫面上（太遠、在背後、被牆擋住的不畫）。
-        /// 控制台名稱不常駐：走到旁邊才出現，正對著的那台已經有提示框，就不重複。
+        /// 機台、看板的名稱都不常駐：走到旁邊才出現（名牌 <see cref="TagNear"/>、看板 <see cref="SignNear"/> 公尺內），
+        /// 正對著的那一個已經有提示框，就不重複。架上小零件的名稱只在 <see cref="CompNear"/> 公尺內出現，
+        /// 字跟著距離縮小（遠一點的不會疊在一起）。
         /// </summary>
         void DrawLabels()
         {
@@ -589,11 +594,18 @@ namespace GoNoGo.UI
                 var v = cam.WorldToViewportPoint(wp);
                 float dist = Vector3.Distance(cam.transform.position, wp);
                 bool visible = v.z > 0.1f && v.x > -0.05f && v.x < 1.05f && v.y > -0.05f && v.y < 1.05f && dist < wl.maxDistance;
-                if (visible && wl.style == "tag")
+                float k = 1f;
+                if (visible && (wl.style == "tag" || wl.style == "sign"))
                 {
                     var me = PoseFeed.Local.Position;
                     float near = Vector2.Distance(new Vector2(me.x, me.z), new Vector2(wp.x, wp.z));
-                    visible = near < TagNear && (Hud.Target == null || Hud.Target.Title != wl.Resolve());
+                    visible = near < (wl.style == "tag" ? TagNear : SignNear) && (Hud.Target == null || Hud.Target.Title != wl.Resolve());
+                }
+                else if (visible && wl.style == "comp")
+                {
+                    // 小零件的名稱：近的才顯示，越遠字越小；準星對到的那一格看提示框就好
+                    visible = dist < CompNear && (Hud.Target == null || Hud.Target.Title != wl.Resolve());
+                    k = Mathf.Clamp(CompFull / Mathf.Max(0.1f, dist), 0.62f, 1f);
                 }
                 if (visible && Physics.Linecast(cam.transform.position, wp, out var hit, ~(1 << 2), QueryTriggerInteraction.Ignore)
                     && hit.distance < dist - 0.4f && hit.collider.GetComponentInParent<WorldLabel>() != wl)
@@ -612,7 +624,8 @@ namespace GoNoGo.UI
                 var sp = RuntimePanelUtils.CameraTransformWorldToPanel(panel, wp, cam);
                 el.style.left = sp.x;
                 el.style.top = sp.y;
-                el.style.opacity = Mathf.Clamp01((wl.maxDistance - dist) / 2f);
+                el.style.scale = new Scale(new Vector3(k, k, 1f));
+                el.style.opacity = wl.style == "comp" ? Mathf.Clamp01((CompNear - dist) / 0.6f) : Mathf.Clamp01((wl.maxDistance - dist) / 2f);
             }
             var stale = new List<WorldLabel>();
             foreach (var kv in _labelEls) if (!seen.Contains(kv.Key)) stale.Add(kv.Key);

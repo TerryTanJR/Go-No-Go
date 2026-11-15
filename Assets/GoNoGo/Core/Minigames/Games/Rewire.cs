@@ -141,6 +141,7 @@ namespace GoNoGo.Core
         void Hurt()
         {
             _lives--;
+            CueBad();
             _hurt = 0.4f;
             if (_lives <= 0) Lose();
         }
@@ -219,6 +220,7 @@ namespace GoNoGo.Core
                 {
                     _connected[pp] = true;
                     _done++;
+                    CueGood();
                     _selPlug = -1;
                     if (_done >= _need) { _stage = 3; _pause = 0.7f; NewZone(); }
                 }
@@ -256,6 +258,7 @@ namespace GoNoGo.Core
             if (_lastOk)
             {
                 _streak++;
+                CueGood();
                 if (_streak >= _nStreak) Win();
             }
             else

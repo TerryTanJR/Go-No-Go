@@ -514,16 +514,20 @@ namespace GoNoGo.EditorTools
         /// <summary>
         /// 一個放線索的位置（平面的：紙、設計圖、白板、黑板）。物件名稱是 Clue_ 加位置 id（新手訓練的標記找這個名字）。
         /// Quad 正面朝局部 -Z：yaw 0 = 掛在北牆朝南、180 = 掛在南牆朝北、-90 = 掛在西牆朝東、90 = 掛在東牆朝西。
+        /// pitch：往後仰幾度（0 = 直立掛在牆上，90 = 平放、正面朝上）。平放在地上、桌上的紙用 trigger 碰撞框：
+        /// 準星對得到，但人走過去不會被絆到。
         /// </summary>
-        static GameObject ClueFlat(Transform parent, string spotId, Vector3 pos, float yaw, Vector2 size, Material face, float roll = 0f, float range = 2.6f)
+        static GameObject ClueFlat(Transform parent, string spotId, Vector3 pos, float yaw, Vector2 size, Material face, float roll = 0f, float range = 2.6f,
+            float pitch = 0f, bool trigger = false)
         {
             var go = new GameObject("Clue_" + spotId);
             go.transform.SetParent(parent, false);
             go.transform.localPosition = pos;
-            go.transform.localRotation = Quaternion.Euler(0, yaw, roll);
+            go.transform.localRotation = Quaternion.Euler(pitch, yaw, roll);
             var q = Quad("Face", go.transform, Vector3.zero, Quaternion.identity, size, face);
             var col = go.AddComponent<BoxCollider>();
             col.size = new Vector3(size.x, size.y, 0.08f);
+            col.isTrigger = trigger;
             var cs = go.AddComponent<ClueSpot>();
             cs.spotId = spotId;
             cs.glow = q.GetComponent<Renderer>();
@@ -531,23 +535,16 @@ namespace GoNoGo.EditorTools
             return go;
         }
 
-        /// <summary>組裝區的線索：西牆和北牆上的四張設計圖、小零件架之間的面板上夾著的三張便條。</summary>
+        /// <summary>
+        /// 組裝區的線索：西牆和北牆上的四張設計圖、小零件架之間的面板上夾著的三張便條，
+        /// 加上散落在各處的（南牆的設計圖、工作台上的書、櫃門和門邊的紙、組裝台和整合台旁的夾板、掉在地上的紙）。
+        /// </summary>
         static void BuildBayClues(ArtBuilder.Art art, FacMats fm, Transform bay)
         {
             var g = BuildUtil.Group("BayClues", bay);
             var print = ClueMat("blueprint");
             var paper = ClueMat("paper");
-            var size = new Vector2(1.15f, 0.86f);
-            void Print(string id, Vector3 pos, float yaw)
-            {
-                var go = ClueFlat(g, id, pos, yaw, size, print);
-                // 背板（局部 +Z 是牆那一面）、四個角的磁鐵、下緣的夾條
-                Box("Backing", go.transform, new Vector3(0, 0, 0.025f), new Vector3(size.x + 0.16f, size.y + 0.16f, 0.03f), art.consoleBody, shadows: false);
-                foreach (float sx in new[] { -1f, 1f })
-                    foreach (float sy in new[] { -1f, 1f })
-                        Box("Magnet", go.transform, new Vector3(sx * (size.x / 2 - 0.05f), sy * (size.y / 2 - 0.05f), -0.012f), new Vector3(0.05f, 0.05f, 0.02f), fm.hazard, shadows: false);
-                Box("Rail", go.transform, new Vector3(0, -size.y / 2 - 0.02f, -0.005f), new Vector3(size.x + 0.06f, 0.03f, 0.02f), _steel, shadows: false);
-            }
+            void Print(string id, Vector3 pos, float yaw) => CluePrint(art, fm, g, id, pos, yaw);
             // 西牆（朝東）：徽章北邊
             Print("print_1", new Vector3(BayX0 + 0.06f, 1.95f, 8.6f), -90f);
             Print("print_2", new Vector3(BayX0 + 0.06f, 1.95f, 6.0f), -90f);
@@ -566,6 +563,97 @@ namespace GoNoGo.EditorTools
                 Box("Clip" + i, g, new Vector3(x, 1.72f, frontZ - 0.012f), new Vector3(0.16f, 0.05f, 0.02f), _steel, shadows: false);
                 ClueFlat(g, "shelfnote_" + (i + 1), new Vector3(x, 1.45f, frontZ - 0.005f), 0f, new Vector2(0.4f, 0.5f), paper, i % 2 == 0 ? 2f : -3f, 2.9f);
             }
+
+            // ---- 散落在組裝區各處的線索（不標名稱，要自己找）----
+            // 南牆：窗戶兩邊各一張設計圖（西邊在工作台和窗戶之間，東邊在儀器櫃和東牆之間）
+            Print("print_5", new Vector3(-7.55f, 1.95f, -BayZ + 0.11f), 180f);
+            Print("print_6", new Vector3(11.9f, 1.95f, -BayZ + 0.11f), 180f);
+            // 南牆工作台上攤著一本書
+            ClueBook(fm, g, "workbook", new Vector3(-10.7f, 0.9f, -BayZ + 0.5f), 168f, new Color(0.14f, 0.3f, 0.46f));
+            // 南牆中間那台儀器櫃的門上貼著一張紙
+            ClueNote(art, g, "cabinetnote", new Vector3(9.15f, 1.32f, -BayZ + 0.645f), 180f, -3f, backing: false);
+            // 東牆：門的北邊貼著一張便條
+            ClueNote(art, g, "doornote", new Vector3(BayX1 - 0.07f, 1.62f, 2.15f), 90f, 2f);
+            // 兩座組裝台旁邊、整合台北邊：立著的夾板
+            ClueStand(art, g, "benchnote_1", new Vector3(-8.25f, 0, -2.9f), 52f);
+            ClueStand(art, g, "benchnote_2", new Vector3(8.25f, 0, -2.9f), -52f);
+            ClueStand(art, g, "standnote", new Vector3(-2.6f, 0, 7.3f), 180f);
+            // 掉在地上的兩張紙：整合台西北邊、東南角的組裝台後面
+            ClueLoose(g, "floor_b1", new Vector3(-5.6f, 0.012f, 5.9f), 24f);
+            ClueLoose(g, "floor_b2", new Vector3(4.4f, 0.012f, -9.6f), -38f);
+        }
+
+        /// <summary>牆上的設計圖：背板、四個角的磁鐵、下緣的夾條。</summary>
+        static GameObject CluePrint(ArtBuilder.Art art, FacMats fm, Transform parent, string id, Vector3 pos, float yaw)
+        {
+            var size = new Vector2(1.15f, 0.86f);
+            var go = ClueFlat(parent, id, pos, yaw, size, ClueMat("blueprint"));
+            // 背板（局部 +Z 是牆那一面）、四個角的磁鐵、下緣的夾條
+            Box("Backing", go.transform, new Vector3(0, 0, 0.025f), new Vector3(size.x + 0.16f, size.y + 0.16f, 0.03f), art.consoleBody, shadows: false);
+            foreach (float sx in new[] { -1f, 1f })
+                foreach (float sy in new[] { -1f, 1f })
+                    Box("Magnet", go.transform, new Vector3(sx * (size.x / 2 - 0.05f), sy * (size.y / 2 - 0.05f), -0.012f), new Vector3(0.05f, 0.05f, 0.02f), fm.hazard, shadows: false);
+            Box("Rail", go.transform, new Vector3(0, -size.y / 2 - 0.02f, -0.005f), new Vector3(size.x + 0.06f, 0.03f, 0.02f), _steel, shadows: false);
+            return go;
+        }
+
+        /// <summary>貼在牆上、櫃門上的一張紙：上緣一條膠帶；backing = 後面墊一片小板子（貼在大片空白牆上時才看得出來）。</summary>
+        static GameObject ClueNote(ArtBuilder.Art art, Transform parent, string id, Vector3 pos, float yaw, float roll, bool backing = true)
+        {
+            var size = new Vector2(0.4f, 0.5f);
+            var go = ClueFlat(parent, id, pos, yaw, size, ClueMat("paper"), roll, 2.8f);
+            if (backing) Box("Backing", go.transform, new Vector3(0, 0, 0.02f), new Vector3(size.x + 0.14f, size.y + 0.14f, 0.025f), art.consoleBody, shadows: false);
+            Box("Tape", go.transform, new Vector3(0, size.y / 2 - 0.02f, -0.006f), new Vector3(0.14f, 0.04f, 0.006f), art.trim, shadows: false);
+            return go;
+        }
+
+        /// <summary>平放在地上、桌面、沙發上的一張紙（正面朝上，走過去不會被絆到）。</summary>
+        static GameObject ClueLoose(Transform parent, string id, Vector3 pos, float yaw) =>
+            ClueFlat(parent, id, pos, yaw, new Vector2(0.42f, 0.54f), ClueMat("paper"), 0f, 3.0f, 90f, true);
+
+        /// <summary>立在地上的夾板：一根立柱撐著一片斜板，上面夾著一張紙（局部 -Z 是看的人那一面）。</summary>
+        static GameObject ClueStand(ArtBuilder.Art art, Transform parent, string id, Vector3 pos, float yaw)
+        {
+            var root = new GameObject("ClueStand_" + id);
+            root.transform.SetParent(parent, false);
+            root.transform.localPosition = pos;
+            root.transform.localRotation = Quaternion.Euler(0, yaw, 0);
+            var t = root.transform;
+            Solid("Base", t, new Vector3(0, 0.025f, 0), new Vector3(0.46f, 0.05f, 0.46f), art.consoleBody, true);
+            Solid("Pole", t, new Vector3(0, 0.56f, 0), new Vector3(0.06f, 1.04f, 0.06f), _steel, true);
+            // 斜板往後仰 52°：站在前面低頭就看得到
+            const float tilt = 52f;
+            var rot = Quaternion.Euler(tilt, 0, 0);
+            var top = new Vector3(0, 1.1f, -0.02f);
+            Box("Board", t, top, new Vector3(0.52f, 0.66f, 0.03f), art.consoleBody, rot, shadows: false);
+            Box("Clip", t, top + rot * new Vector3(0, 0.3f, -0.03f), new Vector3(0.16f, 0.05f, 0.03f), _steel, rot, shadows: false);
+            ClueFlat(t, id, top + rot * new Vector3(0, -0.01f, -0.02f), 0f, new Vector2(0.4f, 0.52f), ClueMat("paper"), 0f, 2.6f, tilt);
+            return root;
+        }
+
+        /// <summary>一本可以翻的書（平放）：上下兩片書皮、書背、書頁、一條書籤。pos 是書底的中心。</summary>
+        static GameObject ClueBook(FacMats fm, Transform parent, string id, Vector3 pos, float yaw, Color cover)
+        {
+            const float bh = 0.07f;
+            var mat = BuildUtil.Lit("M_ClueBook_" + id, cover, 0f, 0.3f);
+            var go = new GameObject("Clue_" + id);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = pos;
+            go.transform.localRotation = Quaternion.Euler(0, yaw, 0);
+            var bt = go.transform;
+            var top = Box("Cover", bt, new Vector3(0, bh - 0.006f, 0), new Vector3(0.36f, 0.012f, 0.26f), mat, shadows: false);
+            Box("CoverBottom", bt, new Vector3(0, 0.006f, 0), new Vector3(0.36f, 0.012f, 0.26f), mat, shadows: false);
+            Box("Spine", bt, new Vector3(0, bh / 2, -0.126f), new Vector3(0.36f, bh, 0.012f), mat, shadows: false);
+            Box("Pages", bt, new Vector3(0, bh / 2, 0.004f), new Vector3(0.34f, bh - 0.024f, 0.236f), fm.paper, shadows: false);
+            Box("Bookmark", bt, new Vector3(0.09f, bh - 0.013f, 0.15f), new Vector3(0.025f, 0.004f, 0.08f), fm.red, shadows: false);
+            var col = go.AddComponent<BoxCollider>();
+            col.center = new Vector3(0, bh / 2 + 0.01f, 0);
+            col.size = new Vector3(0.38f, bh + 0.04f, 0.28f);
+            var cs = go.AddComponent<ClueSpot>();
+            cs.spotId = id;
+            cs.glow = top.GetComponent<Renderer>();
+            cs.range = 2.6f;
+            return go;
         }
 
         /// <summary>
@@ -734,6 +822,27 @@ namespace GoNoGo.EditorTools
                         Box("ShelfBook", g, new Vector3(x + 0.2f + k * 0.07f, sy + 0.02f + (0.3f - k * 0.03f) / 2, sz - 0.02f), new Vector3(0.05f, 0.3f - k * 0.03f, 0.2f), covers[(i + k) % covers.Length], shadows: false);
             }
             Label(g, "ui.clue.zone.books", new Vector3(bayB, 2.25f, -wallZ + 0.3f), "tag", 10f);
+
+            // ---- 散落在中控室各處的線索（不標名稱，要自己找）。家具的位置見 BuildControlDecor ----
+            const float bayD = 28.22f, bayE = 32.38f, bayF = 36.54f;
+            float furnN = wallZ - 0.7f, furnS = -furnN;   // 靠北、南牆的家具中心 z
+            // 北牆：左邊那台機櫃的正面、左邊那台資料櫃的正面各貼一張紙
+            ClueNote(art, g, "racknote", new Vector3(bayD - 1.2f, 1.5f, furnN - 0.475f), 0f, 3f, backing: false);
+            ClueNote(art, g, "archivenote", new Vector3(bayE - 0.75f, 1.12f, furnN + 0.1f - 0.365f), 0f, -2f, backing: false);
+            // 南牆休息區：茶几上一本書、沙發上一張紙
+            ClueBook(fm, g, "loungebook", new Vector3(bayD + 0.5f - 0.6f, 0.547f, furnS + 0.2f + 1.65f), 24f, new Color(0.46f, 0.3f, 0.1f));
+            ClueLoose(g, "sofanote", new Vector3(bayD + 0.5f + 0.7f, 0.512f, furnS + 0.2f + 0.05f), 196f);
+            // 南牆：右邊那台置物櫃的門上貼一張紙
+            ClueNote(art, g, "lockernote", new Vector3(bayE + 1.2f, 1.28f, furnS - 0.1f + 0.365f), 180f, 2f, backing: false);
+            // 隔牆（朝中控室這一面）：門的北邊一張設計圖、南邊一張公告
+            CluePrint(art, fm, g, "divider_1", new Vector3(CtrlX0 + 0.12f, 1.95f, 5.2f), -90f);
+            ClueNote(art, g, "divider_2", new Vector3(CtrlX0 + 0.09f, 1.55f, -5.2f), -90f, -2f);
+            // 前方兩側（旗子下面）：北牆一張設計圖、南牆一張便條
+            CluePrint(art, fm, g, "frontprint", new Vector3(bayF, 1.75f, wallZ - 0.11f), 0f);
+            ClueNote(art, g, "frontnote", new Vector3(bayF, 1.55f, -wallZ + 0.08f), 180f, 3f);
+            // 掉在地上的兩張紙
+            ClueLoose(g, "floor_c1", new Vector3(21.6f, 0.012f, 3.2f), 18f);
+            ClueLoose(g, "floor_c2", new Vector3(25.8f, 0.012f, -4.6f), -52f);
         }
 
         // ---------------- 組裝區裝潢 ----------------

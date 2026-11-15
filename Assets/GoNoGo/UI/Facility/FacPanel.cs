@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using GoNoGo.Core;
 using GoNoGo.Game;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace GoNoGo.UI
@@ -25,11 +27,47 @@ namespace GoNoGo.UI
             Refresh();
         }
 
+        /// <summary>
+        /// 重畫之後要不要留住捲動位置：回傳 null = 不留（每次重畫回到最上面）；回傳字串 = 和上一次一樣才留
+        /// （例如同一個分頁、同一類零件：填了一格數值、勾了一個零件，清單不會跳回最上面；換分頁就從頭開始）。
+        /// </summary>
+        protected virtual string ScrollKey => null;
+        string _scrollKey;
+
         public virtual void Refresh()
         {
             if (Body == null) return;
+            string key = ScrollKey;
+            List<Vector2> offsets = null;
+            if (key != null && key == _scrollKey)
+            {
+                offsets = new List<Vector2>();
+                Body.Query<ScrollView>(className: KeepScrollClass).ForEach(sv => offsets.Add(sv.scrollOffset));
+            }
+            _scrollKey = key;
             Body.Clear();
             Build(Body);
+            if (offsets == null) return;
+            var now = Body.Query<ScrollView>(className: KeepScrollClass).ToList();
+            if (now.Count != offsets.Count) return;
+            for (int i = 0; i < now.Count; i++) RestoreScroll(now[i], offsets[i]);
+        }
+
+        /// <summary>有這個 class 的 ScrollView 重畫後會回到原本的捲動位置（見 <see cref="ScrollKey"/>）。</summary>
+        public const string KeepScrollClass = "keep-scroll";
+
+        /// <summary>內容排好版之後才捲得過去：等第一次排版完再設，下一幀再設一次（捲軸的範圍晚一點才更新）。</summary>
+        static void RestoreScroll(ScrollView sv, Vector2 offset)
+        {
+            if (offset == Vector2.zero) return;
+            EventCallback<GeometryChangedEvent> once = null;
+            once = _ =>
+            {
+                sv.contentContainer.UnregisterCallback(once);
+                sv.scrollOffset = offset;
+                sv.schedule.Execute(() => sv.scrollOffset = offset);
+            };
+            sv.contentContainer.RegisterCallback(once);
         }
 
         protected abstract void Build(VisualElement body);
@@ -81,6 +119,7 @@ namespace GoNoGo.UI
         {
             var sv = new ScrollView(ScrollViewMode.Vertical);
             sv.AddToClassList(cls);
+            sv.AddToClassList(KeepScrollClass);
             parent.Add(sv);
             return sv;
         }

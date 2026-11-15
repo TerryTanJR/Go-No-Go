@@ -214,7 +214,7 @@ namespace GoNoGo.Core
                         _flash[i] = 0.6f;
                         _left--; _used++;
                         ComputeLive();
-                        if (Solved()) { _solvedT = Time; return; }
+                        if (Solved()) { _solvedT = Time; CueGood(); return; }
                         if (_left <= 0) Lose();
                     }
                 }

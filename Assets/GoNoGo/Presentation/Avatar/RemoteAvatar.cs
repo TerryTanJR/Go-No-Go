@@ -25,6 +25,7 @@ namespace GoNoGo.Presentation
                 _lookKey = key;
                 if (_rig != null) Destroy(_rig.gameObject);
                 _rig = AvatarBuilder.Build(look, transform);
+                AvatarBuilder.ApplyWorldScale(_rig);
                 _heldId = null;
                 // 其他人的 avatar 不擋準星，也不擋路（CharacterController 才有碰撞）
                 foreach (var t in _rig.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = 2;
@@ -33,7 +34,7 @@ namespace GoNoGo.Presentation
             {
                 _tag = gameObject.AddComponent<WorldLabel>();
                 _tag.style = "tag";
-                _tag.offset = new Vector3(0, 1.45f, 0);
+                _tag.offset = new Vector3(0, AvatarBuilder.WorldHeight + 0.3f, 0);
                 _tag.maxDistance = 30f;
             }
             _tag.text = string.IsNullOrEmpty(look.Name) ? "P" + playerId : look.Name;

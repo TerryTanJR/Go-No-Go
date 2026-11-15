@@ -189,6 +189,17 @@ namespace GoNoGo.Core
 
         public bool Passed => State == MiniState.Won;
 
+        /// <summary>
+        /// 音效訊號：好事（命中、送出、接對）、壞事（被打中、失誤）、開火各發生了幾次。只會增加；
+        /// 介面層每一格比較前後的數字來播音效（核心不碰聲音）。
+        /// </summary>
+        public int GoodCues { get; private set; }
+        public int BadCues { get; private set; }
+        public int ShotCues { get; private set; }
+        protected void CueGood() => GoodCues++;
+        protected void CueBad() => BadCues++;
+        protected void CueShot() => ShotCues++;
+
         /// <summary>測試用的時間上限（秒）。超過就視為壞掉。</summary>
         public virtual float MaxSeconds => 120;
 

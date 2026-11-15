@@ -34,13 +34,19 @@ namespace GoNoGo.Core
         public string Id { get; }
         /// <summary>control（中控室）或 bay（組裝區）。</summary>
         public string Zone { get; }
-        /// <summary>paper（釘在牆上的草稿紙）、whiteboard、blackboard、book（書堆裡的一本書）、blueprint（牆上的設計圖）。</summary>
+        /// <summary>paper（草稿紙、便條）、whiteboard、blackboard、book（一本書）、blueprint（設計圖）。</summary>
         public string Medium { get; }
-        public ClueSpotDef(string id, string zone, string medium) { Id = id; Zone = zone; Medium = medium; }
+        /// <summary>房間裡的哪一塊（研究牆、書桌、休息區、組裝台旁…）。擺線索時先填滿不同的區塊，才不會擠在同一面牆上。</summary>
+        public string Area { get; }
+        /// <summary>顯眼、好找的位置（牆上的板子、書桌）：新手訓練的線索只放這些。</summary>
+        public bool Obvious { get; }
+        public ClueSpotDef(string id, string zone, string medium, string area, bool obvious = false)
+        { Id = id; Zone = zone; Medium = medium; Area = area; Obvious = obvious; }
     }
 
     /// <summary>
-    /// 線索：放在中控室（研究牆、白板、黑板、書堆）和組裝區（設計圖、架子旁的便條）。
+    /// 線索：散落在中控室（研究牆、白板、黑板、書堆、機櫃、休息區、置物櫃、隔牆、地上）
+    /// 和組裝區（設計圖、架子旁的便條、組裝台旁的夾板、整合台邊、工作台、儀器櫃、門邊、地上）。
     /// 內容每局固定（同一關、同一個難度、同樣的人數模式都一樣），擺放位置每局隨機（<see cref="SessionState.ClueSeed"/>）。
     /// 每一格挖空的數值都剛好出現在一則線索裡；只產生這一關能選的零件的線索。
     /// 玩家靠近按互動鍵放大才看得到內容，而且只有自己看得到，要靠口頭告訴隊友。
@@ -55,29 +61,54 @@ namespace GoNoGo.Core
         public static readonly ClueSpotDef[] Spots =
         {
             // 中控室：研究牆上釘的草稿紙
-            new ClueSpotDef("wall_1", "control", "paper"),
-            new ClueSpotDef("wall_2", "control", "paper"),
-            new ClueSpotDef("wall_3", "control", "paper"),
-            new ClueSpotDef("wall_4", "control", "paper"),
-            new ClueSpotDef("wall_5", "control", "paper"),
-            new ClueSpotDef("wall_6", "control", "paper"),
+            new ClueSpotDef("wall_1", "control", "paper", "research", true),
+            new ClueSpotDef("wall_2", "control", "paper", "research", true),
+            new ClueSpotDef("wall_3", "control", "paper", "research", true),
+            new ClueSpotDef("wall_4", "control", "paper", "research", true),
+            new ClueSpotDef("wall_5", "control", "paper", "research", true),
+            new ClueSpotDef("wall_6", "control", "paper", "research", true),
             // 中控室：白板、黑板
-            new ClueSpotDef("whiteboard", "control", "whiteboard"),
-            new ClueSpotDef("blackboard", "control", "blackboard"),
+            new ClueSpotDef("whiteboard", "control", "whiteboard", "whiteboard", true),
+            new ClueSpotDef("blackboard", "control", "blackboard", "blackboard", true),
             // 中控室：書堆
-            new ClueSpotDef("book_1", "control", "book"),
-            new ClueSpotDef("book_2", "control", "book"),
-            new ClueSpotDef("book_3", "control", "book"),
-            new ClueSpotDef("book_4", "control", "book"),
-            new ClueSpotDef("book_5", "control", "book"),
+            new ClueSpotDef("book_1", "control", "book", "books", true),
+            new ClueSpotDef("book_2", "control", "book", "books", true),
+            new ClueSpotDef("book_3", "control", "book", "books", true),
+            new ClueSpotDef("book_4", "control", "book", "books", true),
+            new ClueSpotDef("book_5", "control", "book", "books", true),
+            // 中控室其他角落：機櫃和資料櫃上貼的紙、休息區茶几上的書和沙發上的紙、置物櫃門上的便條、
+            // 隔牆上的設計圖和公告、前方兩側牆上的設計圖和便條、掉在地上的紙
+            new ClueSpotDef("racknote", "control", "paper", "racks"),
+            new ClueSpotDef("archivenote", "control", "paper", "racks"),
+            new ClueSpotDef("loungebook", "control", "book", "lounge"),
+            new ClueSpotDef("sofanote", "control", "paper", "lounge"),
+            new ClueSpotDef("lockernote", "control", "paper", "lockers"),
+            new ClueSpotDef("divider_1", "control", "blueprint", "divider_n"),
+            new ClueSpotDef("divider_2", "control", "paper", "divider_s"),
+            new ClueSpotDef("frontprint", "control", "blueprint", "front_n"),
+            new ClueSpotDef("frontnote", "control", "paper", "front_s"),
+            new ClueSpotDef("floor_c1", "control", "paper", "floor_c1"),
+            new ClueSpotDef("floor_c2", "control", "paper", "floor_c2"),
             // 組裝區：牆上的設計圖、架子旁的便條
-            new ClueSpotDef("print_1", "bay", "blueprint"),
-            new ClueSpotDef("print_2", "bay", "blueprint"),
-            new ClueSpotDef("print_3", "bay", "blueprint"),
-            new ClueSpotDef("print_4", "bay", "blueprint"),
-            new ClueSpotDef("shelfnote_1", "bay", "paper"),
-            new ClueSpotDef("shelfnote_2", "bay", "paper"),
-            new ClueSpotDef("shelfnote_3", "bay", "paper"),
+            new ClueSpotDef("print_1", "bay", "blueprint", "westwall"),
+            new ClueSpotDef("print_2", "bay", "blueprint", "westwall"),
+            new ClueSpotDef("print_3", "bay", "blueprint", "shelf_w"),
+            new ClueSpotDef("print_4", "bay", "blueprint", "shelf_e"),
+            new ClueSpotDef("shelfnote_1", "bay", "paper", "shelves"),
+            new ClueSpotDef("shelfnote_2", "bay", "paper", "shelves"),
+            new ClueSpotDef("shelfnote_3", "bay", "paper", "shelves"),
+            // 組裝區其他角落：兩座組裝台旁的夾板、整合台邊的夾板、南牆的設計圖、工作台上的書、儀器櫃門上的紙、
+            // 門邊貼的便條、掉在地上的紙
+            new ClueSpotDef("benchnote_1", "bay", "paper", "bench_w"),
+            new ClueSpotDef("benchnote_2", "bay", "paper", "bench_e"),
+            new ClueSpotDef("standnote", "bay", "paper", "stand"),
+            new ClueSpotDef("print_5", "bay", "blueprint", "southwall_w"),
+            new ClueSpotDef("print_6", "bay", "blueprint", "southwall_e"),
+            new ClueSpotDef("workbook", "bay", "book", "workbench"),
+            new ClueSpotDef("cabinetnote", "bay", "paper", "cabinets"),
+            new ClueSpotDef("doornote", "bay", "paper", "door"),
+            new ClueSpotDef("floor_b1", "bay", "paper", "floor_b1"),
+            new ClueSpotDef("floor_b2", "bay", "paper", "floor_b2"),
         };
 
         public static ClueSpotDef Spot(string id) => Array.Find(Spots, x => x.Id == id);
@@ -136,7 +167,8 @@ namespace GoNoGo.Core
 
         /// <summary>
         /// 這一局每個位置放了哪些線索（位置 id → 線索，可能是空的）。照 <see cref="SessionState.ClueSeed"/> 打散：
-        /// 每則線索放到「放得下這種呈現方式、目前線索最少」的位置，所以會平均分散在兩個房間。
+        /// 每則線索放到「放得下這種呈現方式」的位置裡最空的那一個——先比位置上有幾則，再比那一塊區域有幾則，
+        /// 再比那個房間有幾則。所以線索會散到兩個房間的各個角落，不會擠在同一面牆上。
         /// </summary>
         public static Dictionary<string, List<Clue>> Place(GameData data, SessionState s)
         {
@@ -157,19 +189,26 @@ namespace GoNoGo.Core
                     (xs[i], xs[j]) = (xs[j], xs[i]);
                 }
             }
-            // 新手訓練：線索只放在中控室（玩家還沒去過組裝區，第一件事就是找它）
-            var spots = (s.Tutorial ? Spots.Where(x => x.Zone == "control") : Spots).ToList();
+            // 新手訓練：線索只放在中控室顯眼的地方（玩家還沒去過組裝區，第一件事就是找它）
+            var spots = (s.Tutorial ? Spots.Where(x => x.Zone == "control" && x.Obvious) : Spots).ToList();
             Shuffle(spots);
             Shuffle(clues);
+            var perArea = new Dictionary<string, int>();
+            var perZone = new Dictionary<string, int>();
+            int Count(Dictionary<string, int> d, string k) => d.TryGetValue(k, out var n) ? n : 0;
             foreach (var c in clues)
             {
                 ClueSpotDef best = null;
+                (int, int, int) bestKey = default;
                 foreach (var sp in spots)
                 {
                     if (!Accepts(sp.Medium, c.Kind)) continue;
-                    if (best == null || map[sp.Id].Count < map[best.Id].Count) best = sp;
+                    var key = (map[sp.Id].Count, Count(perArea, sp.Area), Count(perZone, sp.Zone));
+                    if (best == null || key.CompareTo(bestKey) < 0) { best = sp; bestKey = key; }
                 }
                 map[best.Id].Add(c);
+                perArea[best.Area] = Count(perArea, best.Area) + 1;
+                perZone[best.Zone] = Count(perZone, best.Zone) + 1;
             }
             return map;
         }

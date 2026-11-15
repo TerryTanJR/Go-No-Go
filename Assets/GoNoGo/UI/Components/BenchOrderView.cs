@@ -84,9 +84,6 @@ namespace GoNoGo.UI
             }
 
             Ui.Text(Loc.T("ui.asm.howto"), "ord-how").AddTo(root);
-            // 裝錯沒有懲罰（不加時程、不扣分），只記次數：所有人照樣看得到
-            if (job.Mistakes > 0)
-                Ui.Text(Loc.T("ui.asm.mistakes", ("n", job.Mistakes)), "ord-rework").AddTo(root);
         }
     }
 }

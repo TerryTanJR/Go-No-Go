@@ -33,8 +33,8 @@ namespace GoNoGo.Game
         public static HudTarget Target;
         /// <summary>長按 V 安裝的進度 0–1（0 = 沒在按）。</summary>
         public static float Progress;
-        /// <summary>目前是不是第一人稱。</summary>
-        public static bool FirstPerson;
+        /// <summary>目前是不是第一人稱（預設第一人稱，Q 或選單切換）。</summary>
+        public static bool FirstPerson = true;
         /// <summary>目前在哪一區（"assembly"、"control"、"lobby"），畫面左上角顯示。</summary>
         public static string Area = "";
         /// <summary>人站在哪一座組裝台旁邊（0 或 1；-1 = 不在旁邊）。畫面右上角顯示那一座的組裝單。</summary>
@@ -67,7 +67,7 @@ namespace GoNoGo.Game
         {
             Target = null;
             Progress = 0;
-            FirstPerson = false;
+            FirstPerson = true;
             PanelOpen = false;
             Paused = false;
             Covered = false;

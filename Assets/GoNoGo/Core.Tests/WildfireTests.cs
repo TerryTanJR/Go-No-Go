@@ -160,6 +160,8 @@ namespace GoNoGo.Core.Tests
         public void ShelfAndStartFollowTheSpec()
         {
             var cadet = SessionRules.NewSession(_data, "wildfire", "cadet", false, false);
+            Assert.That(cadet.Bench.Instruments, Is.Empty, "開局不先勾零件");
+            cadet.PresetDefaults(_data);
             Assert.That(cadet.Bench.Instruments, Is.EqualTo(new[] { "inst_fire_mwir" }));
             Assert.That(cadet.Bench.Get(PartCategory.Solar), Is.EqualTo("solar_deployable"));
             var shelf = SessionRules.Catalog(_data, cadet).Select(p => p.Id).ToList();
@@ -170,11 +172,11 @@ namespace GoNoGo.Core.Tests
             Assert.That(_data.ShelfFor(_data.Scenario("wildfire"), _data.Difficulty("cadet")).Where(p => p.Category == PartCategory.Instrument && !p.Decoy).Select(p => p.Id),
                 Is.EqualTo(new[] { "inst_fire_mwir" }));
 
-            var eng = SessionRules.NewSession(_data, "wildfire", "engineer", false, false);
+            var eng = SessionRules.NewSession(_data, "wildfire", "engineer", false, false).PresetDefaults(_data);
             Assert.That(eng.Bench.Instruments, Is.EqualTo(new[] { "inst_thermal" }));
             var ev = Ev(eng.Bench);
-            Assert.That(ev.Fire.InstrumentDetection, Is.LessThan(0.5), "開局缺火點儀");
-            Assert.That(ev.Fire.LatencyMin, Is.GreaterThan(90), "開局通報延遲很長");
+            Assert.That(ev.Fire.InstrumentDetection, Is.LessThan(0.5), "預設設計缺火點儀");
+            Assert.That(ev.Fire.LatencyMin, Is.GreaterThan(90), "預設設計通報延遲很長");
         }
 
         [Test]

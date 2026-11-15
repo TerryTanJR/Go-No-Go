@@ -34,6 +34,9 @@ namespace GoNoGo.UI
             PartCategory.Computer, PartCategory.Adcs, PartCategory.Propulsion, PartCategory.Shielding,
         };
 
+        /// <summary>同一個分頁、同一類零件：填數值、勾零件、展開說明之後，清單留在原本捲到的位置。</summary>
+        protected override string ScrollKey => _tab + "/" + _cat + "/" + (M.S.Confirmed ? 1 : 0);
+
         /// <summary>正在空格裡打字時不重畫（別人改了別的東西，自己打到一半的數字不能被洗掉），離開空格再補畫。</summary>
         public override void Refresh()
         {
@@ -121,12 +124,12 @@ namespace GoNoGo.UI
             bool multi = p.Category == PartCategory.Instrument;
             var row = Ui.El("sel-part").Cls("sel-part--on", on).AddTo(list);
             var top = Ui.Row("sel-part-top").AddTo(row);
-            var tick = Ui.Btn(on ? (multi ? "✔" : "●") : "", () =>
+            var tick = Ui.Btn(on ? "✔" : "", () =>
             {
                 Sfx.Click();
                 GameSession.Send(CommandType.SelectPart, p.Id, multi && on ? 0 : 1);
                 Hud.Signal("select");
-            }, "sel-tick").Cls("sel-tick--radio", !multi).Cls("sel-tick--on", on).AddTo(top);
+            }, "sel-tick").Cls("sel-tick--on", on).AddTo(top);
             tick.focusable = false;
             tick.SetEnabled(canEdit && (multi || !on));
             Ui.Text(p.Code, "man-code", "mono").AddTo(top);
@@ -223,9 +226,6 @@ namespace GoNoGo.UI
             int missing = Blanks.MissingOf(D, M.S, p.Id);
             if (missing > 0) Ui.Text(Loc.T("ui.sel.desc_locked", ("n", missing)), "small", "faint").AddTo(box);
             else Ui.Text(Ui.NoOrphan(Loc.T(p.Description)), "small", "dim", "sel-info-desc").AddTo(box);
-            var recipe = D.Recipe(p);
-            if (recipe != null && !M.S.IsSandbox(D))
-                Ui.Text(Loc.T("ui.sel.recipe_n", ("n", recipe.Components.Count)), "small", "faint").AddTo(box);
         }
 
         // ---------------------------------------------------------------- 任務設定：軌道、火箭、地面站、年數
@@ -279,8 +279,6 @@ namespace GoNoGo.UI
             Ui.Text(Fmt.Years(d.MissionYears), "h3", "mono", "years-value").AddTo(yr);
             Ui.Btn("+", () => GameSession.Send(CommandType.SetYears, "", d.MissionYears + 1), "btn-small").AddTo(yr)
                 .SetEnabled(canEdit && d.MissionYears < SessionRules.MaxMissionYears(M.Scenario));
-            Ui.Text(Loc.T("ui.mc.years_hint", ("target", Fmt.Years(M.Scenario.TargetYears)),
-                ("max", Fmt.Years(SessionRules.MaxMissionYears(M.Scenario)))), "small", "faint").AddTo(lCol);
         }
 
         static Button Choice(VisualElement parent, string name, string sub, bool on, bool canEdit, Action pick)
@@ -526,7 +524,8 @@ namespace GoNoGo.UI
                     Derived(grid, Loc.T("ui.dash.detection"), 0, Fmt.Pct(f.Detection), f.Detection, null,
                         Loc.T("ui.dash.detection_x", ("inst", Fmt.Pct(f.InstrumentDetection)), ("orbit", "×" + Fmt.N(f.OrbitFactor, 1))));
             }
-            if (!compact) Ui.Text(Loc.T(colors ? "ui.dash.colors_on" : "ui.dash.colors_off"), "small", "faint", "sd-foot").AddTo(parent);
+            // 沒有顏色提示的難度才說一聲（不然會以為壞了）；有顏色的不用解釋
+            if (!compact && !colors) Ui.Text(Loc.T("ui.dash.colors_off"), "small", "faint", "sd-foot").AddTo(parent);
         }
 
         static string Status(ResourceStatus st) => st == ResourceStatus.Over ? "over" : st == ResourceStatus.Tight ? "tight" : "go";
@@ -630,17 +629,18 @@ namespace GoNoGo.UI
                     var dot = Ui.El("prog-dept", "req-dot--" + Departments.Key(a.Department)).AddTo(top);
                     Ui.Text(Loc.T("ui.prog.type." + req.Type), "prog-goal-name").AddTo(top);
                     if (req.ConflictGroup > 0) Ui.Text(Loc.T("ui.req.tradeoff"), "req-tag").AddTo(top);
-                    Ui.Spacer().AddTo(top);
+                    // 目前值 / 目標：自成一組靠右；名稱太長、放不下同一行時整組換到下一行（不會和名稱疊在一起）
+                    var val = Ui.Row("prog-goal-val").AddTo(top);
                     if (!can)
                     {
-                        Ui.Text(Loc.T("ui.dash.unknown"), "prog-goal-now", "sd-v--unknown").AddTo(top);
-                        Ui.Text(" / " + g.Target, "prog-goal-target", "mono").AddTo(top);
+                        Ui.Text(Loc.T("ui.dash.unknown"), "prog-goal-now", "sd-v--unknown").AddTo(val);
+                        Ui.Text(" / " + g.Target, "prog-goal-target", "mono").AddTo(val);
                     }
                     else
                     {
-                        Ui.Text(g.Now, "prog-goal-now", "mono").AddTo(top);
-                        Ui.Text(" / " + g.Target, "prog-goal-target", "mono").AddTo(top);
-                        if (verdict) Ui.Text(ok ? "✔" : "✘", "prog-goal-mark", ok ? "go" : "over").AddTo(top);
+                        Ui.Text(g.Now, "prog-goal-now", "mono").AddTo(val);
+                        Ui.Text(" / " + g.Target, "prog-goal-target", "mono").AddTo(val);
+                        if (verdict) Ui.Text(ok ? "✔" : "✘", "prog-goal-mark", ok ? "go" : "over").AddTo(val);
                     }
                     if (can && verdict)
                     {
@@ -648,7 +648,7 @@ namespace GoNoGo.UI
                         var fill = Ui.El("prog-fill", "prog-fill--" + state).AddTo(track);
                         fill.style.width = Length.Percent((float)(Math.Max(0, Math.Min(1, g.Fraction)) * 100));
                     }
-                    if (!compact) Ui.Text(Loc.T(req.Text), "small", "dim", "prog-goal-text").AddTo(row);
+                    if (!compact) Ui.Text(Ui.NoOrphan(Loc.T(req.Text)), "small", "dim", "prog-goal-text").AddTo(row);
                     if (!can && !compact)
                         Ui.Text(Loc.T("ui.dash.missing_n", ("n", Blanks.Missing(D, s, s.Bench, Blanks.FieldsForRequirement(req.Type)))), "small", "tight").AddTo(row);
                 }
@@ -805,7 +805,6 @@ namespace GoNoGo.UI
             Ui.Spacer().AddTo(head);
             Ui.Text(Loc.T("ui.sel.installed_n", ("n", total - left), ("total", total)), "small", left == 0 ? "go" : "dim").AddTo(head);
             AssemblyList(parent, compact);
-            if (!compact) Ui.Text(Loc.T("ui.bay.howto"), "small", "faint", "bay-how").AddTo(parent);
         }
 
         // ---------------------------------------------------------------- 牆上的螢幕

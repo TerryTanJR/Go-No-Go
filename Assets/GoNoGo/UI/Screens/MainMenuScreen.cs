@@ -20,8 +20,9 @@ namespace GoNoGo.UI
         static bool _multi;
         static int _missionTab;
         static string _scenario;
+        const string DefaultIp = "127.0.0.1";
         static string _code = "";
-        static string _ip = "127.0.0.1";
+        static string _ip = DefaultIp;
         static AvatarLook _edit;
         static bool _busy;
         static bool _lan;
@@ -225,7 +226,8 @@ namespace GoNoGo.UI
         {
             _busy = false;
             _error = err ?? "";
-            if (string.IsNullOrEmpty(_error)) return;
+            // 連上了：房間號不留（下一局回到選單時輸入框是空的，不會帶著上一個房間的號碼）
+            if (string.IsNullOrEmpty(_error)) { _code = ""; _ip = DefaultIp; return; }
             UIRoot.EndLoading();
             Sfx.NoGo();
             Rebuild();

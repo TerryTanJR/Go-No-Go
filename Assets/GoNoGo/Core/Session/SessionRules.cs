@@ -92,7 +92,16 @@ namespace GoNoGo.Core
             var start = (scenario.Historical != null ? scenario.Historical.PresetDesign : GameData.DefaultDesign(scenario, diff.Id)).Clone();
             start.ScenarioId = scenario.Id;
             if (scenario.Historical == null)
+            {
+                // 一般關卡：零件一個都不先勾，全部由玩家自己選（軌道、火箭、地面站、年數留預設，儀表板才算得出東西）。
+                // 新手訓練（難度有先組好的類別）維持整套預設設計。
+                if (diff.PrebuiltCategories.Count == 0)
+                {
+                    start.Instruments.Clear();
+                    foreach (var cat in start.Parts.Keys.Where(k => k != PartCategory.GroundStation).ToList()) start.Parts.Remove(cat);
+                }
                 foreach (var kv in diff.StartParts) start.Parts[kv.Key] = kv.Value;
+            }
             return start;
         }
 
@@ -630,11 +639,24 @@ namespace GoNoGo.Core
             if (b == null) return "err.unknown";
             var mine = s.CompsOf(player);
             if (mine.Count == 0) return "err.nothing_held";
-            // 右側正在組（或成品還沒拿走）：左側只放這個零件的小零件，不能再加別的
-            if (b.Job != null) return b.Job.Done ? "err.bench_take_first" : "err.bench_busy";
+            // 右側正在組（或成品還沒拿走）：左側只收這個零件還沒裝上去的小零件（拿錯了放回去換一個），不能再加別的
+            if (b.Job != null)
+            {
+                if (b.Job.Done) return "err.bench_take_first";
+                return mine.Any(id => Returnable(s, data, index, id)) ? Ok : "err.bench_busy";
+            }
             if (mine.All(b.Left.Contains)) return "err.comp_dup";
             if (b.Left.Count >= GameData.BenchSlots) return "err.bench_full";
             return Ok;
+        }
+
+        /// <summary>右側正在組的時候，這個小零件能不能放回左側：是這個零件的小零件、還沒裝上去、左側也沒有。</summary>
+        static bool Returnable(SessionState s, GameData data, int index, string compId)
+        {
+            var b = s.BenchAt(index);
+            var recipe = BenchRecipe(s, data, index);
+            if (b == null || recipe == null || b.Left.Contains(compId)) return false;
+            return recipe.Components.FindIndex(c => c.Id == compId) >= b.Job.Step;
         }
 
         static string BenchPut(SessionState s, GameData data, int player, int index)
@@ -646,6 +668,7 @@ namespace GoNoGo.Core
             foreach (var id in s.CompsOf(player).ToList())
             {
                 if (b.Left.Contains(id) || b.Left.Count >= GameData.BenchSlots) continue;
+                if (b.Job != null && !Returnable(s, data, index, id)) continue;
                 b.Left.Add(id);
                 RemoveComp(s, player, id);
             }

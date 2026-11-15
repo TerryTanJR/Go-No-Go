@@ -146,6 +146,7 @@ namespace GoNoGo.Core
                 return;
             }
             _lives--;
+            CueBad();
             _invuln = InvulnTime;
             _flash = 0.35f;
             Burst(_px, _py, 16, MiniColor.Red);
