@@ -171,7 +171,7 @@
     "source": {
       "title": "OCO launch press kit (NASA/JPL 2009); OCO Mishap Investigation summary",
       "url": "https://www.jpl.nasa.gov/news/press_kits/oco-launch.pdf",
-      "note": "sourced: instrument 135 kg; footprint 1.29 x 2.25 km; daily return 6.75 min at 150 Mbit/s = 7.6 GB/day (derived). estimate: 100 W, $110M so the spacecraft and instrument total about $209M (the loss figure in the mishap report, which appears to exclude the ~$70M Taurus XL launch). Adding the launch gives roughly the press kit's $273.4M total NASA investment used as the hist_oco budget"
+      "note": "sourced: instrument 135 kg; footprint 1.29 x 2.25 km; daily return 6.75 min at 150 Mbit/s = 7.6 GB/day (derived). sourced: instrument power < 125 W (press kit; game uses 100 W). estimate: $110M so the spacecraft and instrument total about $209M (the loss figure in the mishap report, which appears to exclude the ~$70M Taurus XL launch). Adding the launch gives roughly the press kit's $273.4M total NASA investment used as the hist_oco budget"
     }
   },
 
@@ -322,7 +322,7 @@
     "name": { "en": "High-rate X-band (1 Gbps)", "zh-TW": "高速 X 波段（1 Gbps）" },
     "function": { "en": "Sends data back to the ground, very fast.", "zh-TW": "把資料傳回地面，很快" },
     "explainer": { "en": "A fast X-band radio with a focused antenna. It squeezes far more data into each pass, but it draws a lot of power while transmitting and must be aimed at the ground station.", "zh-TW": "高速的 X 頻段無線電，配上聚焦的天線。每次過站能傳的資料多很多，但發送時很耗電，而且要對準地面站。" },
-    "description": { "en": "A modern high-rate downlink of the kind Planet flies. Empties a full recorder in one pass, but draws 50 W while it talks.", "zh-TW": "Planet 衛星用的那種新一代高速下傳。一次過境就能清空儲存，但傳輸時耗電 50 W。" },
+    "description": { "en": "A modern high-rate downlink of the kind Planet flies. Moves tens of gigabytes in a single pass, but draws 50 W while it talks.", "zh-TW": "Planet 衛星用的那種新一代高速下傳。一次過境就能傳幾十 GB，但傳輸時耗電 50 W。" },
     "mass_kg": 2.5,
     "power_w": 2,
     "cost_musd": 1.0,
@@ -668,20 +668,20 @@
     "function": { "en": "Spots flashes of lightning, day or night.", "zh-TW": "日夜都能看到閃電的閃光" },
     "explainer": { "en": "A fast camera that stares at the clouds and records every brief flash of lightning, even against bright daytime clouds. Weather scientists use it to understand storms. Lightning can start wildfires, but this sensor sees the flash, not the fire that follows.", "zh-TW": "一台很快的相機，盯著雲層記錄每一道短暫的閃電，連白天明亮的雲上也看得到。氣象學家用它研究暴風雨。閃電可能引發野火，但這台儀器看到的是閃光，不是之後燒起來的火。" },
     "description": {
-      "en": "A LIS-class storm sensor: catches lightning flashes over 4 km cells, day and night. It cannot detect a fire on the ground.",
-      "zh-TW": "LIS 等級的雷暴感測器：以 4 公里的格子日夜捕捉閃電。看不到地面上的火。"
+      "en": "A LIS-class storm sensor: catches lightning flashes over 8 km cells from 700 km, day and night. It cannot detect a fire on the ground.",
+      "zh-TW": "LIS 等級的雷暴感測器：從 700 公里高以 8 公里的格子日夜捕捉閃電。看不到地面上的火。"
     },
-    "mass_kg": 20,
-    "power_w": 40,
+    "mass_kg": 21,
+    "power_w": 33,
     "cost_musd": 8,
     "reliability_per_year": 0.98,
     "data_gb_per_day": 0.07,
     "science_value": 25,
-    "resolution_m": 4000,
+    "resolution_m": 8000,
     "objective_match": { "earth_observation": 0.1, "carbon_monitoring": 0, "lunar_mapping": 0, "wildfire": 0.1 },
     "mount": "nadir",
     "color": "#FFF59D",
-    "source": { "title": "Wikipedia: Tropical Rainfall Measuring Mission, Lightning Imaging Sensor", "url": "https://en.wikipedia.org/wiki/Tropical_Rainfall_Measuring_Mission", "note": "sourced: LIS detects total lightning day and night from low orbit. estimate: mass, power, ~6 kbit/s, 4 km footprint, cost" }
+    "source": { "title": "WMO OSCAR: Instrument LIS (TRMM); NASA Earthdata: LIS", "url": "https://space.oscar.wmo.int/instruments/view/lis", "note": "sourced: LIS 21 kg, 33 W, 6 kbit/s, 128 x 128 CCD, ~4 km at nadir from TRMM's 350 km, total lightning day and night. derived: 8 km at 700 km (4 x 700/350), 0.07 GB/day = 6 kbit/s x 86,400 s. estimate: cost" }
   },
   {
     "id": "inst_laser_altimeter",
@@ -842,7 +842,7 @@
     "isp_s": 2100,
     "mount": "internal",
     "color": "#64B5F6",
-    "source": { "title": "Busek BIT-3 RF ion thruster", "url": "https://www.busek.com/bit3", "note": "sourced: iodine RF ion thruster, ~2,100 s Isp class, ~75 W input. estimate: propellant load, dry mass, cost" }
+    "source": { "title": "Busek BIT-3 RF ion thruster", "url": "https://www.busek.com/bit3", "note": "sourced: iodine RF ion thruster, Isp up to 2,150 s (game 2,100), 56-75 W system input, 1.40 kg dry with gimbal; up to 2.39 km/s for a 14 kg CubeSat. derived: 1.5 kg iodine = 14 x (1 - exp(-2,390 / (2,150 x 9.81))). estimate: cost" }
   },
   {
     "id": "shield_lead",
