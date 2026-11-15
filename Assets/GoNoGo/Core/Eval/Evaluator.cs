@@ -180,7 +180,8 @@ namespace GoNoGo.Core
             fi.InstrumentDetection = Math.Min(1.0, instruments.Sum(i => i.FireDetection));
             fi.OrbitFactor = orbitMatch;
             fi.Detection = fi.InstrumentDetection * fi.OrbitFactor;
-            if (orbit != null && orbit.ContactFraction > 0) fi.WaitMin = 1440.0 * (1 - orbit.ContactFraction) / 2;
+            // 每天一段連續通聯：落在通聯時段內不用等，落在空檔（機率 1 − f）平均等空檔的一半
+            if (orbit != null && orbit.ContactFraction > 0) fi.WaitMin = (1 - orbit.ContactFraction) * 1440.0 * (1 - orbit.ContactFraction) / 2;
             else fi.WaitMin = oi.ContactsPerDay > 0 ? 1440.0 / oi.ContactsPerDay / 2 : 1440.0;
             fi.OrbitDataGb = oi.OrbitsPerDay > 0 ? dt.GeneratedGbPerDay / oi.OrbitsPerDay : dt.GeneratedGbPerDay;
             double mbps = rate * c.LinkEfficiency;
