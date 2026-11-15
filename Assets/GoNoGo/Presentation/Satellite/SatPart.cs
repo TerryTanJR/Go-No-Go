@@ -19,7 +19,8 @@ namespace GoNoGo.Presentation
             if (Mathf.Abs(g - _glow) < 0.002f) return;
             _glow = g;
             _mpb ??= new MaterialPropertyBlock();
-            var c = new Color(0.22f, 0.78f, 0.96f) * (g * 2.2f);
+            // 亮度壓在 1 以下：再亮會被 bloom 吃成一整塊白
+            var c = new Color(0.22f, 0.78f, 0.96f) * (g * 0.8f);
             foreach (var r in Renderers)
             {
                 if (r == null) continue;
