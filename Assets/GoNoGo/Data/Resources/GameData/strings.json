@@ -778,7 +778,7 @@
   "ui.manual.q.stations": { "en": "{n} station(s)", "zh-TW": "{n} 座站" },
   "cause.success_latency": { "en": "Fires reached the fire service in {min} min, inside the {limit}-minute limit.", "zh-TW": "火點 {min} 分鐘就通報到消防單位，在 {limit} 分鐘的時限內。" },
   "suggest.fire_tradeoff": { "en": "Next step: adding the long-wave thermal imager (P-3) rules out false fires and finds a few more, but costs mass and power. Whether it pays off depends on the difficulty and the budget.", "zh-TW": "下一步：加裝長波熱紅外線（P-3）能排除假火點、多找到一些火點，但更重、更耗電。值不值得，看難度和預算。" },
-  "ui.brief.back_to_work": { "en": "Back to work", "zh-TW": "進行任務" },
+  "ui.brief.back_to_work": { "en": "Start mission", "zh-TW": "進行任務" },
   "ui.brief.review_hint": { "en": "Mission briefing", "zh-TW": "任務說明" },
   "ui.lobby.start_btn": { "en": "START MISSION", "zh-TW": "開始任務" },
   "ui.lobby.window": { "en": "MISSION READY ROOM", "zh-TW": "任務整備室" },
