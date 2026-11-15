@@ -2026,9 +2026,9 @@ namespace GoNoGo.EditorTools
             ring.AddComponent<Spinner>().degreesPerSecond = degreesPerSecond;
         }
 
-        /// <summary>兩邊展示區共用的：地毯、邊線、兩根柱子 + 橫樑的拱門、區域名稱、看板（這個階段的說明和名單）、區域燈。</summary>
+        /// <summary>兩邊展示區共用的：地毯、邊線、兩根柱子 + 橫樑的拱門、看板（這個階段的說明和名單）、區域燈。</summary>
         static void TeamZone(ArtBuilder.Art art, FacMats fm, Transform lobby, float side, string tag, Material glow, Material floorMat,
-            Color col, string screenId, string nameKey, Material edge)
+            Color col, string screenId, Material edge)
         {
             const float ZA = 37f, ZB = 49f, ArchX = 5.8f;
             float zc = (ZA + ZB) / 2, mid = side * (ArchX + LX) / 2, w = LX - ArchX;
@@ -2043,8 +2043,7 @@ namespace GoNoGo.EditorTools
                 Box("PostGlow", g, new Vector3(side * (ArchX - 0.22f), 3.1f, z), new Vector3(0.05f, 6f, 0.14f), glow, shadows: false);
             }
             Box("Lintel", g, new Vector3(side * ArchX, 5.9f, zc), new Vector3(0.5f, 0.5f, ZB - ZA + 0.5f), art.trim, shadows: false);
-            
-            Label(g, nameKey, new Vector3(side * (ArchX - 0.4f), 5.1f, zc), "team", 22f);
+
             BuildUtil.Light("Glow_" + tag, LightType.Point, col, 3f, new Vector3(side * 9.5f, 4.2f, zc), Quaternion.identity, 11f, LightShadows.None, g);
             // 看板：面向房間內側（西牆朝 +x = yaw -90、東牆朝 -x = yaw 90）
             WallScreen(art, fm, g, "TeamBoard_" + tag, screenId, new Vector3(side * (LX - 0.08f), 3.3f, zc), side * 90f, new Vector2(6.4f, 3.2f), new Vector2Int(1280, 640));
@@ -2053,7 +2052,7 @@ namespace GoNoGo.EditorTools
         /// <summary>組裝區（西）：潔淨室風格 —— 淺色地板、警示黃條、吊架與工作燈、零件架、衛星展示台、機械手臂。</summary>
         static void BuildAssemblySide(ArtBuilder.Art art, FacMats fm, LobbyMats lm, Transform lobby)
         {
-            TeamZone(art, fm, lobby, -1f, "Asm", lm.asmGlow, lm.asmFloor, AsmColor, "lobby_assemble", "ui.area.assembly", fm.hazard);
+            TeamZone(art, fm, lobby, -1f, "Asm", lm.asmGlow, lm.asmFloor, AsmColor, "lobby_assemble", fm.hazard);
             var g = BuildUtil.Group("AsmDecor", lobby);
 
             // 吊架：兩根橫跨的桁架 + 工作燈 + 吊纜
@@ -2104,7 +2103,7 @@ namespace GoNoGo.EditorTools
         /// <summary>控制室（東）：深色風格 —— 暗地板、琥珀色光、監控桌與椅子、機櫃、天線。</summary>
         static void BuildControlSide(ArtBuilder.Art art, FacMats fm, LobbyMats lm, Transform lobby)
         {
-            TeamZone(art, fm, lobby, 1f, "Ctl", lm.ctlGlow, lm.ctlFloor, CtlColor, "lobby_select", "ui.area.control", lm.ctlGlow);
+            TeamZone(art, fm, lobby, 1f, "Ctl", lm.ctlGlow, lm.ctlFloor, CtlColor, "lobby_select", lm.ctlGlow);
             var g = BuildUtil.Group("CtlDecor", lobby);
 
             // 兩排監控桌（螢幕朝南：從入口就看得到），各配一張椅子

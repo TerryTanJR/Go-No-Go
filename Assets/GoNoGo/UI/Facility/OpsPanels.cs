@@ -360,7 +360,7 @@ namespace GoNoGo.UI
             var m = GameSession.Mission;
             var s = m.S;
             var head = Ui.Row("lobby-head").AddTo(body);
-            RoomCode(head, true, copy: !wall);
+            RoomCode(head, copy: !wall);
             Ui.Spacer().AddTo(head);
             var mis = Ui.El("lobby-mission").AddTo(head);
             Ui.Text(Loc.T(m.Scenario.Name), "h2").AddTo(mis);
@@ -381,14 +381,14 @@ namespace GoNoGo.UI
 
         /// <summary>
         /// 房間碼：一個字一格，下面一行寫朋友怎麼加入；用 IP 連線時改寫 IP。個人模式沒有房間碼，什麼都不畫。
-        /// <paramref name="big"/>：大廳的螢幕和面板用大格子，左上角的 HUD 用小的。
+        /// <paramref name="copy"/>：旁邊加一顆複製按鈕（牆上的螢幕點不到，不加）。
         /// </summary>
-        public static void RoomCode(VisualElement parent, bool big, bool copy = false)
+        public static void RoomCode(VisualElement parent, bool copy = false)
         {
             string code = GameSession.Link?.RoomCode ?? "";
             if (code.Length == 0) return;
             bool ip = System.Net.IPAddress.TryParse(code, out _);
-            var box = Ui.El("room-code").Cls("room-code--big", big).AddTo(parent);
+            var box = Ui.El("room-code").AddTo(parent);
             Ui.Text(Loc.T(ip ? "ui.lobby.ip_label" : "ui.lobby.code"), "room-code-label").AddTo(box);
             var tiles = Ui.Row("room-code-tiles").AddTo(box);
             if (ip) Ui.Text(code, "room-code-tile", "mono").AddTo(tiles);
@@ -396,7 +396,7 @@ namespace GoNoGo.UI
                 foreach (char c in code) Ui.Text(c.ToString(), "room-code-tile", "mono").AddTo(tiles);
             if (copy)
                 Ui.Btn(Loc.T("ui.lobby.copy"), () => { ClipboardUtil.Copy(code); Hud.Toast(Loc.T("ui.lobby.copied")); }, "btn-ghost", "room-code-copy").AddTo(tiles);
-            if (big) Ui.Text(Loc.T(ip ? "ui.lobby.ip" : "ui.lobby.code_how"), "room-code-how").AddTo(box);
+            Ui.Text(Loc.T(ip ? "ui.lobby.ip" : "ui.lobby.code_how"), "room-code-how").AddTo(box);
         }
 
         /// <summary>大廳兩側牆上的看板：任務流程的說明（side = "select" 選件與找線索、"assemble" 組裝與發射）和名單。</summary>

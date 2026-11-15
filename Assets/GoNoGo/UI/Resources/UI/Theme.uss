@@ -1360,16 +1360,14 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 
 /* 大廳：名單、全員就緒視窗 */
 /* 房間碼：一個字一格 */
-.room-code { margin-top: 6px; }
-.room-code-label { font-size: var(--fs-13); letter-spacing: 2px; color: var(--c-dim); -unity-font-style: bold; }
+.room-code { margin-top: 6px; padding: 8px 12px; border-radius: 6px; background-color: rgba(6, 12, 22, 0.72); }
+.room-code-label { font-size: var(--fs-16); letter-spacing: 2px; color: var(--c-dim); -unity-font-style: bold; }
 .room-code-tiles { flex-direction: row; align-items: center; margin-top: 4px; }
 .room-code-tile {
-    min-width: 26px; padding: 2px 6px; margin-right: 4px; border-radius: 4px;
+    min-width: 46px; padding: 4px 8px; margin-right: 6px; border-radius: 6px;
     border-width: 1px; border-color: var(--c-accent); background-color: var(--c-accent-dim);
-    font-size: var(--fs-18); -unity-font-style: bold; -unity-text-align: middle-center; color: var(--c-text);
+    font-size: var(--fs-30); -unity-font-style: bold; -unity-text-align: middle-center; color: var(--c-text);
 }
-.room-code--big .room-code-label { font-size: var(--fs-16); }
-.room-code--big .room-code-tile { min-width: 52px; padding: 6px 10px; margin-right: 8px; border-radius: 6px; font-size: var(--fs-36); }
 .room-code-copy { margin-left: 8px; }
 .room-code-how { margin-top: 6px; font-size: var(--fs-14); color: var(--c-dim); white-space: normal; }
 .lobby-mission { align-items: flex-end; }

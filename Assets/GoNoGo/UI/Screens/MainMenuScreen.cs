@@ -20,12 +20,9 @@ namespace GoNoGo.UI
         static bool _multi;
         static int _missionTab;
         static string _scenario;
-        const string DefaultIp = "127.0.0.1";
         static string _code = "";
-        static string _ip = DefaultIp;
         static AvatarLook _edit;
         static bool _busy;
-        static bool _lan;
         static string _error = "";
         Label _desc;
 
@@ -230,7 +227,7 @@ namespace GoNoGo.UI
             _busy = false;
             _error = err ?? "";
             // 連上了：房間號不留（下一局回到選單時輸入框是空的，不會帶著上一個房間的號碼）
-            if (string.IsNullOrEmpty(_error)) { _code = ""; _ip = DefaultIp; return; }
+            if (string.IsNullOrEmpty(_error)) { _code = ""; return; }
             UIRoot.EndLoading();
             Sfx.NoGo();
             Rebuild();
@@ -254,26 +251,6 @@ namespace GoNoGo.UI
                 if (string.IsNullOrEmpty(_code)) return;
                 Connect(() => Multiplayer.Join(_code, Done));
             }, "btn-primary").AddTo(row);
-
-            // 同一個網路直接連（測試用）：收在「進階」裡
-            Ui.Btn((_lan ? "▾  " : "▸  ") + Loc.T("ui.menu.advanced"), () => { _lan = !_lan; Rebuild(); }, "btn-ghost", "menu-sub", "menu-back").AddTo(col);
-            if (!_lan) return;
-            Ui.Text(Loc.T("ui.menu.lan"), "eyebrow").AddTo(col);
-            var ip = new TextField { value = _ip };
-            ip.AddToClassList("code-field");
-            ip.RegisterValueChangedCallback(e => _ip = e.newValue.Trim());
-            col.Add(ip);
-            var row2 = Ui.Row().AddTo(col);
-            Ui.Btn(Loc.T("ui.menu.lan_join"), () =>
-            {
-                if (Multiplayer.JoinDirect == null) { _error = "ui.menu.no_net"; Rebuild(); return; }
-                Connect(() => Multiplayer.JoinDirect(_ip, Done));
-            }, "menu-btn-gap").AddTo(row2);
-            Ui.Btn(Loc.T("ui.menu.lan_host"), () =>
-            {
-                if (Multiplayer.HostDirect == null) { _error = "ui.menu.no_net"; Rebuild(); return; }
-                Connect(() => Multiplayer.HostDirect(_scenario ?? "earth_observation", null, Done));
-            }).AddTo(row2);
         }
 
         // ---------------- 設定 ----------------

@@ -344,7 +344,8 @@ namespace GoNoGo.UI
         {
             _phaseBar.Clear();
             var s = M.S;
-            if (s.Phase == SessionPhase.Lobby) LobbyView.RoomCode(_phaseBar, false);
+            // 大廳：房間碼放在左上角（牆上的大螢幕一進門會被中央的地球擋住）
+            if (s.Phase == SessionPhase.Lobby) LobbyView.RoomCode(_phaseBar);
             else if (s.Phase == SessionPhase.Design)
             {
                 if (s.Launches.Count > 0)
