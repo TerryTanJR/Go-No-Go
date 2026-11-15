@@ -12,7 +12,7 @@ namespace GoNoGo.Game
     public sealed class Sfx : MonoBehaviour
     {
         static Sfx _i;
-        AudioSource _ui, _ambience, _music, _alarm;
+        AudioSource _ui, _ambience, _music, _alarm, _voice;
         readonly Dictionary<string, AudioClip> _synth = new Dictionary<string, AudioClip>();
         float _hoverCooldown;
         float _ambienceTarget, _musicTarget;
@@ -80,6 +80,8 @@ namespace GoNoGo.Game
             _music.loop = true;
             _music.playOnAwake = false;
             _music.volume = 0;
+            _voice = gameObject.AddComponent<AudioSource>();
+            _voice.playOnAwake = false;
             _alarm = gameObject.AddComponent<AudioSource>();
             _alarm.loop = true;
             _alarm.playOnAwake = false;
@@ -166,6 +168,25 @@ namespace GoNoGo.Game
             if (s._musicClip == null) s._musicClip = MusicLoop.Build();
             if (s._music.clip != s._musicClip) s._music.clip = s._musicClip;
             if (!s._music.isPlaying) s._music.Play();
+        }
+
+        // ---------------- 語音（任務簡報的主任） ----------------
+
+        /// <summary>播 Resources/Briefing/&lt;name&gt; 的語音（同一時間只有一句，新的一句會蓋掉上一句）。找不到檔案就什麼都不做。</summary>
+        public static void Voice(string name)
+        {
+            var s = I;
+            var clip = Resources.Load<AudioClip>("Briefing/" + name);
+            s._voice.Stop();
+            if (clip == null) return;
+            s._voice.clip = clip;
+            s._voice.volume = Mathf.Clamp01(EffectsVolume);
+            s._voice.Play();
+        }
+
+        public static void StopVoice()
+        {
+            if (_i != null) _i._voice.Stop();
         }
 
         void Play(string id, float vol) => _ui.PlayOneShot(Clip(id), vol * EffectsVolume);

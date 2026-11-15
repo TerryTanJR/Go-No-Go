@@ -108,7 +108,7 @@ namespace GoNoGo.Core.Tests
         public void BatteryThatCannotSurviveAShadowDiesOnOrbit()
         {
             var d = TestData.HighScience();
-            d.Parts[PartCategory.Battery] = "batt_small";
+            d.Parts[PartCategory.Battery] = "batt_cubesat";  // 43 Wh 撐不過地影（放電深度約 1.6）
             var ev = Evaluator.EvaluateDesign(d, _data);
             Assume.That(ev.Power.ActualDod, Is.GreaterThan(1.0));
             int seed = Enumerable.Range(1, 200).First(s => Simulator.PlanMission(d, _data, s, null).LaunchRoll < 0.9);
@@ -149,7 +149,9 @@ namespace GoNoGo.Core.Tests
         public void ThinMassMarginCanEndInLowerOrbit()
         {
             var d = TestData.Balanced();
-            d.Parts[PartCategory.Propulsion] = "prop_hydrazine";  // 加 60 kg，Electron 只剩不到 5% 運力
+            d.Parts[PartCategory.Propulsion] = "prop_hydrazine";  // 加推進器、大電池、矽太陽能板，Electron 只剩不到 5% 運力（約 4%）
+            d.Parts[PartCategory.Battery] = "batt_large";
+            d.Parts[PartCategory.Solar] = "solar_silicon";
             var ev = Evaluator.EvaluateDesign(d, _data);
             Assume.That(ev[ResourceId.Mass].Margin, Is.InRange(0.0, 0.05));
             var outcomes = Enumerable.Range(1, 60).Select(s => Simulator.SimulateMission(d, _data, s, null).Launch.Outcome).ToList();

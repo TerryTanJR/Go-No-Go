@@ -25,6 +25,8 @@ namespace GoNoGo.UI
         static object _seenFor;
 
         List<string> _lines;
+        List<string> _voices;  // 和 _lines 一一對應的語音檔名（沒有錄音的句子是 null）
+        int _voiceLine = -1;   // 已經開始播語音的那一句（重建畫面時不要重播）
         bool _init;
         int _shown;            // 已經講完的句數
         float _typed;          // 目前這句打到第幾個字
@@ -150,7 +152,7 @@ namespace GoNoGo.UI
             var row = Ui.Row("modal-actions").AddTo(_foot);
             // 回頭複習時：可以從頭再播一次
             if (M.S.Phase != SessionPhase.Briefing)
-                Ui.Btn(Loc.T("ui.brief.replay"), () => { _shown = 0; _typed = 0; _done = false; Sfx.Click(); Redraw(); }, "btn-ghost").AddTo(row);
+                Ui.Btn(Loc.T("ui.brief.replay"), () => { _shown = 0; _typed = 0; _done = false; _voiceLine = -1; Sfx.Click(); Redraw(); PlayVoice(); }, "btn-ghost").AddTo(row);
             Ui.Spacer().AddTo(row);
             if (M.S.Phase == SessionPhase.Briefing)
                 Ui.Btn(Loc.T(M.IsHistorical ? "ui.brief.launch_history" : "ui.brief.start"), () =>
@@ -165,6 +167,20 @@ namespace GoNoGo.UI
             }
 
             Redraw();
+            PlayVoice();
+        }
+
+        /// <summary>過場畫面還蓋著（載入場景、連線）：簡報先不開口、不打字，等過場收起來。</summary>
+        static bool Waiting => Hud.Covered || SceneFlow.Loading;
+
+        public override void Detach() { Sfx.StopVoice(); base.Detach(); }
+
+        /// <summary>目前這一句有錄音就播（每一句只播一次，按「下一句」才換下一句；切語言用同一份錄音）。</summary>
+        void PlayVoice()
+        {
+            if (_done || _voices == null || _shown >= _voices.Count || _voiceLine == _shown || Waiting) return;
+            _voiceLine = _shown;
+            if (_voices[_shown] != null) Sfx.Voice(_voices[_shown]); else Sfx.StopVoice();
         }
 
         /// <summary>這個情境的台詞（沒有專屬台詞就用通用的），最後接上「數值要自己找」。</summary>
@@ -174,14 +190,20 @@ namespace GoNoGo.UI
             string key = "ui.brief.speech." + M.S.ScenarioId;
             if (!strings.ContainsKey(key)) key = "ui.brief.speech.default";
             var list = new List<string>();
+            _voices = new List<string>();
             foreach (var l in Loc.T(key).Split('\n'))
-                if (!string.IsNullOrWhiteSpace(l)) list.Add(Ui.NoOrphan(l.Trim()));
+                if (!string.IsNullOrWhiteSpace(l)) { list.Add(Ui.NoOrphan(l.Trim())); _voices.Add(null); }
+            // 錄音：開場白（所有一般關卡共用）、地球觀測的兩句任務說明、單人的結尾提醒。中英文用同一份錄音
+            bool story = !M.IsHistorical && !M.Scenario.Sandbox;
+            if (story && _voices.Count > 0) _voices[0] = "brief_open";
+            if (M.S.ScenarioId == "earth_observation" && _voices.Count >= 3) { _voices[1] = "brief_eo_1"; _voices[2] = "brief_eo_2"; }
             // 結尾那句：單人、多人（分頭找線索）不同；歷史關卡是倒數開始
             string close = "ui.brief.close_solo";
             if (M.IsHistorical) close = "ui.brief.close_history";
             else if (M.Scenario.Sandbox) close = "ui.brief.close_sandbox";
             else if (M.S.Multiplayer) close = "ui.brief.close_team";
             list.Add(Ui.NoOrphan(Loc.T(close)));
+            _voices.Add(close == "ui.brief.close_solo" ? "brief_close_solo" : null);
             return list;
         }
 
@@ -194,14 +216,16 @@ namespace GoNoGo.UI
             _shown++;
             _typed = 0;
             Sfx.Tick();
-            if (_shown >= _lines.Count) { _done = true; Sfx.Confirm(); }
+            if (_shown >= _lines.Count) { _done = true; Sfx.StopVoice(); Sfx.Confirm(); }
             Redraw();
+            PlayVoice();
         }
 
         void SkipAll()
         {
             _shown = _lines.Count;
             _done = true;
+            Sfx.StopVoice();
             Redraw();
         }
 
@@ -227,7 +251,8 @@ namespace GoNoGo.UI
 
         public override void Tick(float dt)
         {
-            if (_current == null || _done) return;
+            if (_current == null || _done || Waiting) return;
+            PlayVoice();
             string line = _lines[_shown];
             bool talking = _typed < Ui.VisibleLength(line);
             if (talking)

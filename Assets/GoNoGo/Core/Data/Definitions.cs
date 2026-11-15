@@ -379,7 +379,7 @@ namespace GoNoGo.Core
         /// 有這麼大比例先不顯示，要找線索自己填回設計主螢幕。學員少，越難越多。
         /// </summary>
         public double BlankRatio { get; set; }
-        /// <summary>單人時的挖空比例（比照學員減少）。</summary>
+        /// <summary>單人時的挖空比例（比多人少，仍照難度遞增）。</summary>
         public double BlankRatioSolo { get; set; }
         /// <summary>有寫就只挖空這幾格（"零件 id/欄位"，例如 solar_deployable/mass_kg），不看比例。新手訓練用。</summary>
         public List<string> BlankCells { get; set; } = new List<string>();
