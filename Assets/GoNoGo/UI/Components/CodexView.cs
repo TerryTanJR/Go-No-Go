@@ -84,14 +84,15 @@ namespace GoNoGo.UI
             var detail = detailScroll.contentContainer;
             var sel = data.Part(_sel);
             if (sel == null) return;
-            var top = Ui.Row("asm-head").AddTo(detail);
+            // 第一行：編號和類別；第二行：名稱（名稱長也不會擠到編號）
+            var top = Ui.Row("codex-detail-top").AddTo(detail);
             Ui.Text(sel.Code, "man-code", "mono").AddTo(top);
+            Ui.Text(Loc.T("ui.cat." + sel.Category), "eyebrow", "codex-detail-cat").AddTo(top);
             if (Codex.Has(sel.Id))
             {
                 // 這個零件由哪些小零件組成（組裝台的配方）；null = 不用組裝
                 var recipe = data.Recipe(sel);
-                Ui.Text(Ui.NoOrphan(Loc.T(sel.Name)), "h3", "asm-name").AddTo(top);
-                Ui.Text(Loc.T("ui.cat." + sel.Category), "eyebrow", "codex-detail-cat").AddTo(detail);
+                Ui.Text(Ui.NoOrphan(Loc.T(sel.Name)), "codex-name").AddTo(detail);
                 // 精通：組裝這種構造時一次都沒裝錯。還沒精通、又要組裝的零件，寫出怎麼拿到
                 if (Codex.IsMaster(sel.Id)) Ui.Text(Loc.T("ui.codex.master_tag"), "codex-master").AddTo(detail);
                 else if (recipe != null) Ui.Text(Ui.NoOrphan(Loc.T("ui.codex.master_how")), "small", "dim", "codex-master-how").AddTo(detail);
@@ -99,7 +100,7 @@ namespace GoNoGo.UI
                 Ui.Text(Ui.NoOrphan(Loc.T(sel.Explainer)), "body", "codex-text").AddTo(detail);
                 if (recipe != null)
                 {
-                    Ui.Text(Loc.T("ui.codex.inside"), "eyebrow", "codex-detail-cat").AddTo(detail);
+                    Ui.Text(Loc.T("ui.codex.inside"), "eyebrow", "codex-inside").AddTo(detail);
                     foreach (var c in recipe.Components)
                     {
                         var row = Ui.Row("codex-comp").AddTo(detail);
@@ -110,8 +111,7 @@ namespace GoNoGo.UI
             }
             else
             {
-                Ui.Text("? ? ?", "h3", "asm-name", "faint").AddTo(top);
-                Ui.Text(Loc.T("ui.cat." + sel.Category), "eyebrow", "codex-detail-cat").AddTo(detail);
+                Ui.Text("? ? ?", "codex-name", "faint").AddTo(detail);
                 Ui.Text(Ui.NoOrphan(Loc.T("ui.codex.locked")), "body", "codex-text").AddTo(detail);
             }
         }
