@@ -126,6 +126,7 @@ Full list with terms of use: [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md). Per-f
 | B | Mission briefing |
 | K / L | Knowledge cards / design library (save, share, compare) |
 | T | Tablet (solo only) |
+| X (hold) | Emote wheel: wave, cheer, laugh, nod |
 | M | Mute or unmute mic (co-op) |
 | G / N | Vote in the Go/No-Go poll (co-op) |
 | Tab | Menu |
