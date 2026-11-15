@@ -14,6 +14,10 @@
 </p>
 
 <p align="center">
+  <b><a href="https://terrytanjr.github.io/Go-No-Go/">Play in your browser</a></b>
+</p>
+
+<p align="center">
   <b>English</b> · <a href="README.zh-TW.md">繁體中文</a>
 </p>
 
