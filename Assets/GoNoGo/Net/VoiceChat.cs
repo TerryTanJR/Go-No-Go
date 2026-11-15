@@ -23,6 +23,11 @@ namespace GoNoGo.Net
 #if UNITY_WEBGL && !UNITY_EDITOR
         [System.Runtime.InteropServices.DllImport("__Internal")]
         static extern void GoNoGoSetVoiceVolume(float volume);
+        // Vivox 網頁版 library.jslib 裡的函式：1 = 開麥克風、0 = 關（把本機麥克風音軌的 enabled 設掉）
+        [System.Runtime.InteropServices.DllImport("__Internal")]
+        static extern void vx_setLocalCapture(int isTransmitting);
+        // 網頁版的 IsInputDeviceMuted 永遠是 false（見 SetMicMuted），靜音狀態自己記
+        static bool _webMicMuted;
 #endif
 
         /// <summary>
@@ -55,14 +60,24 @@ namespace GoNoGo.Net
         /// <summary>0–1 → Vivox 的 -50…0（100% = 預設音量，不放大）。</summary>
         public static int VivoxVolume(float volume) => Mathf.RoundToInt(Mathf.Lerp(-50f, 0f, Mathf.Clamp01(volume)));
 
-        /// <summary>自己的麥克風靜音：別人聽不到你，你還是聽得到別人。換房間也保持。</summary>
+        /// <summary>
+        /// 自己的麥克風靜音：別人聽不到你，你還是聽得到別人。換房間也保持。
+        /// 瀏覽器版 Vivox 的 MuteInputDevice 最後呼叫的 AudioInputDevicesWeb.Mute 是空的（什麼都不做），
+        /// 改成直接呼叫它 jslib 的 vx_setLocalCapture。
+        /// </summary>
         public static void SetMicMuted(bool muted)
         {
             try
             {
+#if UNITY_WEBGL && !UNITY_EDITOR
+                _webMicMuted = muted;
+                vx_setLocalCapture(muted ? 0 : 1);
+                Multiplayer.MicMuted = muted;
+#else
                 if (muted) VivoxService.Instance.MuteInputDevice();
                 else VivoxService.Instance.UnmuteInputDevice();
                 Multiplayer.MicMuted = VivoxService.Instance.IsInputDeviceMuted;
+#endif
             }
             catch (Exception e)
             {
@@ -97,7 +112,12 @@ namespace GoNoGo.Net
                 await vivox.JoinGroupChannelAsync(channel, ChatCapability.AudioOnly);
                 _channel = channel;
                 Multiplayer.VoiceConnected = true;
+#if UNITY_WEBGL && !UNITY_EDITOR
+                // 新頻道沿用同一條麥克風音軌，再套一次確保換房間後還是靜音
+                SetMicMuted(_webMicMuted);
+#else
                 Multiplayer.MicMuted = vivox.IsInputDeviceMuted;
+#endif
                 SetVolume(GameSettings.VoiceVolume);
                 Debug.Log("[Voice] joined " + channel);
                 if (gen != _generation) await LeaveNow();
