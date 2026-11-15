@@ -104,8 +104,8 @@
       "zh-TW": "新手訓練"
     },
     "description": {
-      "en": "Guided training mission.",
-      "zh-TW": "引導式訓練任務。"
+      "en": "Step-by-step training.",
+      "zh-TW": "一步一步帶你玩一次。"
     },
     "hidden": true,
     "required_margin": 0.0,

@@ -6,7 +6,7 @@ namespace GoNoGo.Presentation
 {
     /// <summary>
     /// 組裝台左側的一格：小零件先放到這一側，系統比對這幾格的組合認配方。
-    /// 手上有小零件：按 E 放上來（籃子裡的一次全部放）。格子上有小零件：按 C 拿起來
+    /// 手上有小零件：對著空格按 E，手上第一個小零件放進這一格。格子上有小零件：按 C 拿起來
     /// （組合錯了拿走調整；配方認出來之後，照提示的順序一個一個拿到右側裝）。
     /// 擺什麼由 <see cref="BenchState.Left"/> 決定（第幾座 = <see cref="bench"/>、第幾格 = <see cref="index"/>）。
     /// </summary>
@@ -44,8 +44,7 @@ namespace GoNoGo.Presentation
         /// <summary>依狀態更新這一格擺的小零件（<see cref="Workbench.Sync"/> 呼叫）。</summary>
         public void Sync(MissionSession m)
         {
-            var left = m.S.BenchAt(bench)?.Left;
-            string id = left != null && index < left.Count ? left[index] : null;
+            string id = m.S.BenchAt(bench)?.At(index);
             if (id == _compId) return;
             if (_model != null) Destroy(_model);
             _model = null;
@@ -79,8 +78,8 @@ namespace GoNoGo.Presentation
             var status = SessionRules.BenchStatusOf(s, data, bench);
             if (comp == null) t.Body = Loc.T(BenchJig.StatusKey(status));
             else if (status != BenchStatus.Active) t.Subtitle = Loc.T(BenchJig.StatusKey(status));
-            // 手上有小零件：放到左側
-            if (who.Comps.Count > 0)
+            // 手上有小零件：放到這一格（這一格空著才行）
+            if (who.Comps.Count > 0 && comp == null)
             {
                 string why = SessionRules.CanPut(s, data, GameSession.LocalPlayer, bench);
                 if (why == SessionRules.Ok) t.Keys.Add(new KeyHint("E", Loc.T("ui.hint.bench_put")));
@@ -101,8 +100,8 @@ namespace GoNoGo.Presentation
             var s = M.S;
             if (key == 'E')
             {
-                if (who.Comps.Count == 0) return;
-                BenchJig.Put(bench);
+                if (who.Comps.Count == 0 || _compId != null) return;
+                BenchJig.Put(bench, index);
             }
             else if (key == 'C' && _compId != null)
             {

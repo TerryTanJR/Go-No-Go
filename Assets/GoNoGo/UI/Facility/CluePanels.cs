@@ -50,9 +50,9 @@ namespace GoNoGo.UI
             var sheet = Ui.El("clue", "clue--" + _medium).AddTo(body);
             if (clues.Count == 0)
             {
-                // 這裡這一局沒有線索：只是一張沒用的紙。放大看了才知道
-                Ui.Text(Loc.T("ui.clue.junk." + _medium + "." + Junk(_spot)), "clue-junk").AddTo(sheet);
-                Ui.Text(Loc.T("ui.clue.nothing"), "small", "faint", "clue-foot").AddTo(body);
+                // 這裡這一局沒有線索：寫的是一則太空知識，放大看了才知道沒有要找的數值
+                Ui.Text(Loc.T("ui.clue.trivia.head"), "clue-trivia-head").AddTo(sheet);
+                Ui.Text(Ui.NoOrphan(Loc.T("ui.clue.trivia." + M.TriviaAt(_spot))), "clue-trivia").AddTo(sheet);
                 return;
             }
             _page = Math.Max(0, Math.Min(clues.Count - 1, _page));
@@ -67,14 +67,6 @@ namespace GoNoGo.UI
                 Ui.Spacer().AddTo(foot);
                 Ui.Btn(Loc.T("ui.manual.next") + "  ›", () => Flip(1), "book-turn").AddTo(foot).SetEnabled(_page < clues.Count - 1);
             }
-        }
-
-        /// <summary>同一個位置每次看到的都是同一張沒用的紙（三種裡挑一種）。</summary>
-        static int Junk(string spot)
-        {
-            int h = 0;
-            foreach (char c in spot) h = unchecked(h * 31 + c);
-            return (h & 0x7fffffff) % 3;
         }
 
         void Flip(int dir)
@@ -133,7 +125,6 @@ namespace GoNoGo.UI
                 Ui.Text(Value(p, f), "clue-td", "clue-td--v", "mono").AddTo(row);
                 Ui.Text(Fmt.Unit(PartFields.Unit(f)), "clue-td", "clue-td--u").AddTo(row);
             }
-            Ui.Text(Loc.T("ui.clue.table.foot"), "clue-small").AddTo(sheet);
         }
 
         /// <summary>一段敘述：測試紀錄、工程師筆記裡提到的數字。每個欄位一句，接在一起。</summary>
@@ -174,7 +165,6 @@ namespace GoNoGo.UI
                 mark.style.left = Length.Percent(pct);
                 Ui.Text(SelectView.Num(v), "clue-bar-value", "mono").AddTo(mark);
             }
-            Ui.Text(Loc.T("ui.clue.chart.foot"), "clue-small").AddTo(sheet);
         }
 
         /// <summary>比數值大的「整數」上限（1、2、2.5、5 × 10ⁿ），而且數值不會剛好貼在最右邊。</summary>
@@ -205,7 +195,6 @@ namespace GoNoGo.UI
                 Ui.Text(Loc.T("ui.field." + f), "clue-call-k").AddTo(call);
                 Ui.Text(Value(p, f) + " " + Fmt.Unit(PartFields.Unit(f)), "clue-call-v", "mono").AddTo(call);
             }
-            Ui.Text(Loc.T("ui.clue.drawing.foot", ("cat", Loc.T("ui.cat." + p.Category))), "clue-small").AddTo(sheet);
         }
     }
 }

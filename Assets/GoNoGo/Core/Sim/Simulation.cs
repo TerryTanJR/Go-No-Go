@@ -60,6 +60,10 @@ namespace GoNoGo.Core
         /// <summary>全隊小遊戲有沒有過（結算時才有意義）。過了就等於做完手冊上的全部步驟。</summary>
         public bool MiniPassed { get; set; }
 
+        /// <summary>有人動手處理了：判斷過、做過操作，或有人交了小遊戲成績。</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool Started => !string.IsNullOrEmpty(Judged) || Actions.Count > 0 || Mini.Count > 0;
+
         public EventResponse Clone() => new EventResponse
         {
             Judged = Judged,

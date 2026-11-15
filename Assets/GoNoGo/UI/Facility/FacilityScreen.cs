@@ -25,6 +25,7 @@ namespace GoNoGo.UI
         readonly Dictionary<WorldLabel, LabelView> _labelEls = new Dictionary<WorldLabel, LabelView>();
         SessionPhase _lastPhase;
         OpsBar _opsBar;
+        readonly EmoteWheel _emotes = new EmoteWheel();
         TutorialCoach _coach;
         WorldScreens _screens;
         PollBanner _poll;
@@ -98,6 +99,7 @@ namespace GoNoGo.UI
             // 營運橫條的狀態（這回合剩幾秒、警報響過沒）留在同一個物件裡：切語言重建畫面時倒數不會重來
             _opsBar ??= new OpsBar();
             _opsBar.Attach(_hud);
+            _emotes.Attach(_hud);
 
             _modal = Ui.El("modal-layer").AddTo(Root);
             _modal.style.display = DisplayStyle.None;
@@ -307,7 +309,7 @@ namespace GoNoGo.UI
         /// <summary>簡報、大廳：階段一開始就打開的面板。</summary>
         void ShowPhasePanel()
         {
-            // 大廳不自動擋畫面：玩家在大廳裡走動，按兩邊的按鈕準備（場景裡的互動物件 LobbyButton）
+            // 大廳不自動擋畫面：玩家在大廳裡走動，到大廳中央按準備按鈕（場景裡的互動物件 LobbyButton）
             if (M.S.Phase == SessionPhase.Briefing) OpenPanel("briefing", "");
             else if (M.S.Phase == SessionPhase.Design && M.S.Multiplayer && !ReferenceEquals(_briefedFor, M))
             {
@@ -344,7 +346,9 @@ namespace GoNoGo.UI
         {
             _phaseBar.Clear();
             var s = M.S;
-            if (s.Phase == SessionPhase.Design)
+            // 大廳：房間碼放在左上角（牆上的大螢幕一進門會被中央的地球擋住）
+            if (s.Phase == SessionPhase.Lobby) LobbyView.RoomCode(_phaseBar);
+            else if (s.Phase == SessionPhase.Design)
             {
                 if (s.Launches.Count > 0)
                     Ui.Text(Loc.T("ui.hud.attempt", ("n", s.Launches.Count + 1)), "small", "tight").AddTo(_phaseBar);
@@ -471,6 +475,7 @@ namespace GoNoGo.UI
                 ? DisplayStyle.Flex : DisplayStyle.None;
             _panel?.Tick(dt);
             _opsBar.Tick(dt);
+            _emotes.Tick(keys && _panel == null && !Hud.InputBlocked && M.S.Phase != SessionPhase.Launch);
             _poll?.Tick(dt);
             _coach?.Tick(dt, _panel == null && !Hud.Paused);
 

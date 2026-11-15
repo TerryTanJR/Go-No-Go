@@ -38,7 +38,7 @@ namespace GoNoGo.UI
             SetCursor(false);
             Render();
             _layer.style.display = DisplayStyle.Flex;
-            Sfx.Whoosh();
+            Sfx.MenuOpen();
         }
 
         /// <summary>關掉選單回到遊戲。<paramref name="relock"/> = false：不要鎖游標（換場景、回主選單）。</summary>
@@ -50,6 +50,7 @@ namespace GoNoGo.UI
             _layer.Clear();
             Hud.Paused = false;
             Hud.ClosedFrame = Time.frameCount; // 同一幀的 E / 點擊不要又觸發別的東西
+            Sfx.MenuClose();
             GameSettings.Save();
             if (relock && _canRelockCursor()) SetCursor(true);
         }
@@ -185,6 +186,26 @@ namespace GoNoGo.UI
             Ui.Text(Loc.T("ui.gmenu.run.note"), "small", "dim").AddTo(body);
         }
 
+        /// <summary>畫質（主選單的設定頁也用）。</summary>
+        public static void QualityControl(VisualElement body)
+        {
+            var row = ChoiceRow(body, Loc.T("ui.gmenu.quality"));
+            var chips = new System.Collections.Generic.List<(Button b, GameSettings.GraphicsQuality q)>();
+            foreach (var quality in new[] { GameSettings.GraphicsQuality.High, GameSettings.GraphicsQuality.Low })
+            {
+                var q = quality;
+                var b = Ui.Btn(Loc.T(q == GameSettings.GraphicsQuality.High ? "ui.gmenu.quality.high" : "ui.gmenu.quality.low"), null, "chip").AddTo(row);
+                b.clicked += () =>
+                {
+                    GameSettings.Quality = q;
+                    foreach (var c in chips) c.b.EnableInClassList("chip--on", c.q == GameSettings.Quality);
+                };
+                b.EnableInClassList("chip--on", q == GameSettings.Quality);
+                chips.Add((b, q));
+            }
+            Ui.Text(Loc.T("ui.gmenu.quality.note"), "small", "dim").AddTo(body);
+        }
+
         /// <summary>滑鼠靈敏度拉桿（主選單的設定頁也用）。</summary>
         public static void MouseControl(VisualElement body) =>
             SliderRow(body, Loc.T("ui.gmenu.mouse"), GameSettings.MinMouse, GameSettings.MaxMouse, GameSettings.MouseSensitivity,
@@ -232,6 +253,7 @@ namespace GoNoGo.UI
 
             MouseControl(body);
             RunControl(body);
+            QualityControl(body);
             BackButton(body);
         }
 
@@ -248,6 +270,7 @@ namespace GoNoGo.UI
             KeyRow(body, "C", "ui.keys.pick");
             KeyRow(body, "V", "ui.keys.install");
             KeyRow(body, "B", "ui.keys.brief");
+            KeyRow(body, "X", "ui.keys.emote");
             if (!mp) KeyRow(body, "T", "ui.keys.tablet");
             KeyRow(body, "K", "ui.keys.codex");
             KeyRow(body, "L", "ui.keys.designs");

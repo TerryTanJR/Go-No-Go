@@ -177,6 +177,19 @@ namespace GoNoGo.EditorTools
             return go;
         }
 
+        /// <summary>
+        /// 看不見的擋牆：把整件家具（層板、箱子這些沒有碰撞的小東西）包成一個方塊，人走不進去。
+        /// 放在 Ignore Raycast 層，不擋準星。
+        /// </summary>
+        static void Blocker(Transform parent, Vector3 center, Vector3 size)
+        {
+            var go = new GameObject("Blocker") { layer = 2 };
+            go.transform.SetParent(parent, false);
+            var col = go.AddComponent<BoxCollider>();
+            col.center = center;
+            col.size = size;
+        }
+
         static void BuildShell(ArtBuilder.Art art, FacMats fm, Transform root, Transform bay)
         {
             float bayW = BayX1 - BayX0, depth = BayZ * 2;
@@ -343,7 +356,7 @@ namespace GoNoGo.EditorTools
 
         // ---------------- 小零件架 ----------------
 
-        static Material _hazardStripe, _steel, _rubber;
+        static Material _hazardStripe, _steel;
 
         /// <summary>斜紋警示貼圖（黃黑）。</summary>
         static Material HazardStripe(string name, Vector2 tiling)
@@ -366,7 +379,6 @@ namespace GoNoGo.EditorTools
         {
             _hazardStripe = HazardStripe("M_HazardStripe", Vector2.one);
             _steel = BuildUtil.Lit("M_Steel", new Color(0.62f, 0.64f, 0.68f), 0.9f, 0.6f);
-            _rubber = BuildUtil.Lit("M_Rubber", new Color(0.05f, 0.05f, 0.055f), 0f, 0.2f);
             var body = BuildUtil.Lit("M_DeliveryBooth", new Color(0.16f, 0.3f, 0.48f), 0.3f, 0.55f);
 
             var root = BuildUtil.Group("CompShelf", bay);
@@ -421,6 +433,8 @@ namespace GoNoGo.EditorTools
                     }
                 }
             }
+            // 立柱、層板和架子之間的空隙都沒有碰撞：整排包成一塊，人走不進去
+            Blocker(root, new Vector3(0, 1.1f, z), new Vector3(total, 2.2f, 0.66f));
             Label(root, "ui.fac.shelf", new Vector3(0, 3.0f, z - 0.2f), "sign", 22f);
             // 架子前的地面警示線
             var floorStripe = HazardStripe("M_HazardFloor", new Vector2(total / 0.3f, 1f));
@@ -535,8 +549,8 @@ namespace GoNoGo.EditorTools
         }
 
         /// <summary>
-        /// 組裝區的線索：西牆和北牆上的四張設計圖、小零件架之間的面板上夾著的三張便條，
-        /// 加上散落在各處的（南牆的設計圖、工作台上的書、櫃門和門邊的紙、組裝台和整合台旁的夾板、掉在地上的紙）。
+        /// 組裝區的線索：西牆和北牆上的四張設計圖、小零件架之間的面板上夾著的四張便條，
+        /// 加上散落在各處的（南牆的設計圖、工作台上的書和紙、櫃門和門邊的紙、組裝台和整合台旁的夾板、掉在地上的紙）。
         /// </summary>
         static void BuildBayClues(ArtBuilder.Art art, FacMats fm, Transform bay)
         {
@@ -553,7 +567,7 @@ namespace GoNoGo.EditorTools
 
             // 架子和架子之間：一片和架子正面齊平的面板，上面夾著一張便條
             float frontZ = BayZ - 0.62f - 0.27f;
-            int[] gaps = { 0, 1, 3 };
+            int[] gaps = { 0, 1, 3, 2 };
             for (int i = 0; i < gaps.Length; i++)
             {
                 float x = ShelfGapX(gaps[i]);
@@ -566,10 +580,12 @@ namespace GoNoGo.EditorTools
             // 南牆：窗戶兩邊各一張設計圖（西邊在工作台和窗戶之間，東邊在儀器櫃和東牆之間）
             Print("print_5", new Vector3(-7.55f, 1.95f, -BayZ + 0.11f), 180f);
             Print("print_6", new Vector3(11.9f, 1.95f, -BayZ + 0.11f), 180f);
-            // 南牆工作台上攤著一本書
+            // 南牆工作台上攤著一本書，旁邊一張紙
             ClueBook(fm, g, "workbook", new Vector3(-10.7f, 0.9f, -BayZ + 0.5f), 168f, new Color(0.14f, 0.3f, 0.46f));
-            // 南牆中間那台儀器櫃的門上貼著一張紙
+            ClueLoose(g, "benchpaper", new Vector3(-9.1f, 0.902f, -BayZ + 0.5f), 172f);
+            // 南牆儀器櫃：中間和東邊那台的門上各貼一張紙
             ClueNote(art, g, "cabinetnote", new Vector3(9.15f, 1.32f, -BayZ + 0.645f), 180f, -3f, backing: false);
+            ClueNote(art, g, "cabinetnote_2", new Vector3(10.1f, 1.05f, -BayZ + 0.645f), 180f, 2f, backing: false);
             // 東牆：門的北邊貼著一張便條
             ClueNote(art, g, "doornote", new Vector3(BayX1 - 0.07f, 1.62f, 2.15f), 90f, 2f);
             // 兩座組裝台旁邊、整合台北邊：立著的夾板
@@ -824,14 +840,17 @@ namespace GoNoGo.EditorTools
             // ---- 散落在中控室各處的線索（不標名稱，要自己找）。家具的位置見 BuildControlDecor ----
             const float bayD = 28.22f, bayE = 32.38f, bayF = 36.54f;
             float furnN = wallZ - 0.7f, furnS = -furnN;   // 靠北、南牆的家具中心 z
-            // 北牆：左邊那台機櫃的正面、左邊那台資料櫃的正面各貼一張紙
+            // 北牆：左右兩台機櫃的正面、兩台資料櫃的正面各貼一張紙
             ClueNote(art, g, "racknote", new Vector3(bayD - 1.2f, 1.5f, furnN - 0.475f), 0f, 3f, backing: false);
+            ClueNote(art, g, "racknote_2", new Vector3(bayD + 1.2f, 1.2f, furnN - 0.475f), 0f, -2f, backing: false);
             ClueNote(art, g, "archivenote", new Vector3(bayE - 0.75f, 1.12f, furnN + 0.1f - 0.365f), 0f, -2f, backing: false);
+            ClueNote(art, g, "archivenote_2", new Vector3(bayE + 0.75f, 1.3f, furnN + 0.1f - 0.365f), 0f, 3f, backing: false);
             // 南牆休息區：茶几上一本書、沙發上一張紙
             ClueBook(fm, g, "loungebook", new Vector3(bayD + 0.5f - 0.6f, 0.547f, furnS + 0.2f + 1.65f), 24f, new Color(0.46f, 0.3f, 0.1f));
             ClueLoose(g, "sofanote", new Vector3(bayD + 0.5f + 0.7f, 0.512f, furnS + 0.2f + 0.05f), 196f);
-            // 南牆：右邊那台置物櫃的門上貼一張紙
+            // 南牆：左右兩台置物櫃的門上各貼一張紙
             ClueNote(art, g, "lockernote", new Vector3(bayE + 1.2f, 1.28f, furnS - 0.1f + 0.365f), 180f, 2f, backing: false);
+            ClueNote(art, g, "lockernote_2", new Vector3(bayE - 1.2f, 1.45f, furnS - 0.1f + 0.365f), 180f, -3f, backing: false);
             // 隔牆（朝中控室這一面）：門的北邊一張設計圖、南邊一張公告
             CluePrint(art, fm, g, "divider_1", new Vector3(CtrlX0 + 0.12f, 1.95f, 5.2f), -90f);
             ClueNote(art, g, "divider_2", new Vector3(CtrlX0 + 0.09f, 1.55f, -5.2f), -90f, -2f);
@@ -1115,9 +1134,10 @@ namespace GoNoGo.EditorTools
                 var slot = new GameObject("Slot").transform;
                 slot.SetParent(ct, false);
                 slot.localPosition = new Vector3(0, 0.014f, 0);
+                // 貼著格子的薄片：做成一個高高的盒子的話，站在前面往下看時，準星會先打到前排那格，後排選不到
                 var col = cell.AddComponent<BoxCollider>();
-                col.center = new Vector3(0, 0.15f, 0);
-                col.size = new Vector3(0.32f, 0.3f, 0.28f);
+                col.center = new Vector3(0, 0.02f, 0);
+                col.size = new Vector3(0.32f, 0.04f, 0.28f);
                 var bs = cell.AddComponent<BenchSlot>();
                 bs.bench = index;
                 bs.index = i;
@@ -1828,7 +1848,7 @@ namespace GoNoGo.EditorTools
 
         sealed class LobbyMats
         {
-            public Material asmGlow, ctlGlow, goGlow, asmFloor, ctlFloor, runway, solar, asmBtn, ctlBtn, steel, dark, lamp;
+            public Material asmGlow, ctlGlow, goGlow, asmFloor, ctlFloor, runway, solar, readyBtn, steel, dark, lamp;
         }
 
         static LobbyMats MakeLobbyMats(ArtBuilder.Art art)
@@ -1842,8 +1862,7 @@ namespace GoNoGo.EditorTools
                 ctlFloor = BuildUtil.Lit("M_LobbyCtlFloor", new Color(0.07f, 0.075f, 0.09f), 0.3f, 0.8f),
                 runway = BuildUtil.Lit("M_LobbyRunway", new Color(0.06f, 0.08f, 0.13f), 0.4f, 0.85f),
                 solar = BuildUtil.Lit("M_LobbySolar", new Color(0.03f, 0.06f, 0.2f), 0.6f, 0.8f, emission: new Color(0.01f, 0.025f, 0.09f)),
-                asmBtn = BuildUtil.Lit("M_LobbyBtnAsm", AsmColor, 0.1f, 0.6f, emission: AsmColor * 0.5f),
-                ctlBtn = BuildUtil.Lit("M_LobbyBtnCtl", CtlColor, 0.1f, 0.6f, emission: CtlColor * 0.5f),
+                readyBtn = BuildUtil.Lit("M_LobbyBtnAsm", AsmColor, 0.1f, 0.6f, emission: AsmColor * 0.5f),
                 steel = BuildUtil.Lit("M_LobbySteel", new Color(0.55f, 0.58f, 0.62f), 0.8f, 0.55f),
                 dark = BuildUtil.Lit("M_LobbyDark", new Color(0.04f, 0.045f, 0.055f), 0.5f, 0.6f),
                 lamp = art.lightPanel,
@@ -1898,7 +1917,8 @@ namespace GoNoGo.EditorTools
                 Box("Wainscot", lobby, new Vector3(sx * (LX - 0.1f), 0.5f, cz), new Vector3(0.2f, 1f, len - 1f), art.trim, shadows: false);
             }
 
-            BuildLobbyCommand(art, fm, lm, lobby, sphere);
+            BuildLobbyCommand(art, fm, lm, lobby);
+            BuildLobbyCenter(art, lm, lobby, sphere);
             BuildAssemblySide(art, fm, lm, lobby);
             BuildControlSide(art, fm, lm, lobby);
         }
@@ -1916,8 +1936,8 @@ namespace GoNoGo.EditorTools
             Label(lobby, "ui.lobby.window", new Vector3(0, 5.6f, LZ0 + 0.3f), "sign", 16f);
         }
 
-        /// <summary>北邊的指揮台：弧形大控制台 + 全像地球 + 整面牆的任務螢幕。</summary>
-        static void BuildLobbyCommand(ArtBuilder.Art art, FacMats fm, LobbyMats lm, Transform lobby, Mesh sphere)
+        /// <summary>北邊的指揮台：弧形大控制台 + 整面牆的任務螢幕。</summary>
+        static void BuildLobbyCommand(ArtBuilder.Art art, FacMats fm, LobbyMats lm, Transform lobby)
         {
             // 升高的平台和階梯
             Solid("DeckStep1", lobby, new Vector3(0, 0.08f, 47.9f), new Vector3(12f, 0.16f, 0.9f), art.trim);
@@ -1955,32 +1975,60 @@ namespace GoNoGo.EditorTools
             ct.glow = midGlow;
             Label(cons, "ui.fac.lobby", new Vector3(0, 2.4f, 52.4f), "tag", 12f);
 
-            // 全像地球：控制台中央的投影座 → 一道光 → 慢慢自轉的地球和兩圈軌道
-            var holo = BuildUtil.Group("Hologram", lobby);
-            holo.position = new Vector3(0, 0, 55.6f);
-            BuildUtil.Prim(PrimitiveType.Cylinder, "Projector", holo, new Vector3(0, 0.5f, 0), new Vector3(0.9f, 0.04f, 0.9f), art.trim);
-            BuildUtil.Prim(PrimitiveType.Cylinder, "Beam", holo, new Vector3(0, 1.6f, 0), new Vector3(0.05f, 1.1f, 0.05f), lm.asmGlow);
-            var earth = Planet("HoloEarth", holo, sphere, art.earth, art.atmosphere, new Vector3(0, 3.3f, 0), 1.9f, out _);
-            var sp = earth.AddComponent<Spinner>();
-            sp.degreesPerSecond = 14f;
-            var r1 = MeshObj("OrbitRing1", holo, Annulus("LobbyHolo_1.35_1.39", 1.35f, 1.39f), lm.asmGlow, new Vector3(0, 3.3f, 0), 1f);
-            r1.transform.localRotation = Quaternion.Euler(28f, 0, 12f);
-            r1.AddComponent<Spinner>().degreesPerSecond = 25f;
-            var r2 = MeshObj("OrbitRing2", holo, Annulus("LobbyHolo_1.6_1.63", 1.6f, 1.63f), lm.ctlGlow, new Vector3(0, 3.3f, 0), 1f);
-            r2.transform.localRotation = Quaternion.Euler(-35f, 0, -20f);
-            r2.AddComponent<Spinner>().degreesPerSecond = -18f;
-            BuildUtil.Light("HoloLight", LightType.Point, new Color(0.5f, 0.85f, 1f), 3.5f, new Vector3(0, 3.3f, 55.0f), Quaternion.identity, 9f, LightShadows.None, lobby);
-
             // 後牆：任務大螢幕與兩側光柱
             WallScreen(art, fm, lobby, "LobbyScreen", "lobby", new Vector3(0, 3.9f, LZ1 - 0.08f), 0f, new Vector2(10f, 4.2f), new Vector2Int(1280, 540));
-            
             foreach (float sx in new[] { -1f, 1f })
                 Box("ScreenTower", lobby, new Vector3(sx * 5.8f, 3.2f, LZ1 - 0.15f), new Vector3(0.22f, 6.2f, 0.22f), sx < 0 ? lm.asmGlow : lm.ctlGlow, shadows: false);
         }
 
-        /// <summary>兩邊展示區共用的：地毯、邊線、兩根柱子 + 橫樑的拱門、區域名稱、看板（這個階段的說明和名單）、區域燈。</summary>
+        /// <summary>大廳中央的全像地球（第一眼就看到的地方）。</summary>
+        const float HoloZ = 44f;
+        /// <summary>全像地球的直徑和球心離地多高：球底比人高，從台座旁邊看得到整顆。</summary>
+        const float HoloDiameter = 2.8f, HoloY = 3.7f;
+
+        /// <summary>
+        /// 大廳中央：台座 → 一道光 → 慢慢自轉的大地球和兩圈軌道；台座正前方（入口那一側）是唯一一顆準備按鈕，
+        /// 所有人都到這裡準備。
+        /// </summary>
+        static void BuildLobbyCenter(ArtBuilder.Art art, LobbyMats lm, Transform lobby, Mesh sphere)
+        {
+            var holo = BuildUtil.Group("Hologram", lobby);
+            holo.position = new Vector3(0, 0, HoloZ);
+            BuildUtil.Prim(PrimitiveType.Cylinder, "Plinth", holo, new Vector3(0, 0.25f, 0), new Vector3(2.4f, 0.25f, 2.4f), art.consoleBody, collider: true);
+            BuildUtil.Prim(PrimitiveType.Cylinder, "PlinthGlow", holo, new Vector3(0, 0.45f, 0), new Vector3(2.44f, 0.02f, 2.44f), lm.asmGlow);
+            BuildUtil.Prim(PrimitiveType.Cylinder, "Projector", holo, new Vector3(0, 0.52f, 0), new Vector3(1.2f, 0.04f, 1.2f), art.trim);
+            float beamTop = HoloY - HoloDiameter / 2, beamH = beamTop - 0.54f;
+            BuildUtil.Prim(PrimitiveType.Cylinder, "Beam", holo, new Vector3(0, 0.54f + beamH / 2, 0), new Vector3(0.06f, beamH / 2, 0.06f), lm.asmGlow);
+            var earth = Planet("HoloEarth", holo, sphere, art.earth, art.atmosphere, new Vector3(0, HoloY, 0), HoloDiameter, out _);
+            earth.AddComponent<Spinner>().degreesPerSecond = 12f;
+            OrbitRing(holo, "Inner", lm.asmGlow, HoloDiameter * 0.71f, Quaternion.Euler(28f, 0, 12f), 25f);
+            OrbitRing(holo, "Outer", lm.ctlGlow, HoloDiameter * 0.84f, Quaternion.Euler(-35f, 0, -20f), -18f);
+            BuildUtil.Light("HoloLight", LightType.Point, new Color(0.5f, 0.85f, 1f), 4f, new Vector3(0, HoloY, HoloZ - 1.2f), Quaternion.identity, 10f, LightShadows.None, lobby);
+
+            // 準備按鈕：深色圓座 + 光環 + 圓形大按鈕
+            var bp = BuildUtil.Group("ReadyButton", lobby);
+            bp.position = new Vector3(0, 0, HoloZ - 2.6f);
+            BuildUtil.Prim(PrimitiveType.Cylinder, "Base", bp, new Vector3(0, 0.45f, 0), new Vector3(0.95f, 0.45f, 0.95f), art.consoleBody, collider: true);
+            BuildUtil.Prim(PrimitiveType.Cylinder, "Band", bp, new Vector3(0, 0.55f, 0), new Vector3(0.99f, 0.03f, 0.99f), lm.asmGlow);
+            BuildUtil.Prim(PrimitiveType.Cylinder, "Collar", bp, new Vector3(0, 0.93f, 0), new Vector3(0.82f, 0.03f, 0.82f), art.trim);
+            var cap = BuildUtil.Prim(PrimitiveType.Cylinder, "Cap", bp, new Vector3(0, 1.0f, 0), new Vector3(0.66f, 0.07f, 0.66f), lm.readyBtn);
+            var button = bp.gameObject.AddComponent<LobbyButton>();
+            button.idleColor = AsmColor;
+            button.cap = cap.GetComponent<Renderer>();
+            Label(bp, "ui.lobby.ready_button", new Vector3(0, 1.7f, 0), "team", 9f);
+        }
+
+        /// <summary>全像地球外面一圈自轉的軌道（細圓環）。</summary>
+        static void OrbitRing(Transform holo, string which, Material mat, float radius, Quaternion tilt, float degreesPerSecond)
+        {
+            var ring = MeshObj("OrbitRing" + which, holo, Annulus("LobbyHolo" + which, radius, radius + 0.04f), mat, new Vector3(0, HoloY, 0), 1f);
+            ring.transform.localRotation = tilt;
+            ring.AddComponent<Spinner>().degreesPerSecond = degreesPerSecond;
+        }
+
+        /// <summary>兩邊展示區共用的：地毯、邊線、兩根柱子 + 橫樑的拱門、看板（這個階段的說明和名單）、區域燈。</summary>
         static void TeamZone(ArtBuilder.Art art, FacMats fm, Transform lobby, float side, string tag, Material glow, Material floorMat,
-            Color col, string screenId, string nameKey, Material edge)
+            Color col, string screenId, Material edge)
         {
             const float ZA = 37f, ZB = 49f, ArchX = 5.8f;
             float zc = (ZA + ZB) / 2, mid = side * (ArchX + LX) / 2, w = LX - ArchX;
@@ -1995,17 +2043,16 @@ namespace GoNoGo.EditorTools
                 Box("PostGlow", g, new Vector3(side * (ArchX - 0.22f), 3.1f, z), new Vector3(0.05f, 6f, 0.14f), glow, shadows: false);
             }
             Box("Lintel", g, new Vector3(side * ArchX, 5.9f, zc), new Vector3(0.5f, 0.5f, ZB - ZA + 0.5f), art.trim, shadows: false);
-            
-            Label(g, nameKey, new Vector3(side * (ArchX - 0.4f), 5.1f, zc), "team", 22f);
+
             BuildUtil.Light("Glow_" + tag, LightType.Point, col, 3f, new Vector3(side * 9.5f, 4.2f, zc), Quaternion.identity, 11f, LightShadows.None, g);
             // 看板：面向房間內側（西牆朝 +x = yaw -90、東牆朝 -x = yaw 90）
             WallScreen(art, fm, g, "TeamBoard_" + tag, screenId, new Vector3(side * (LX - 0.08f), 3.3f, zc), side * 90f, new Vector2(6.4f, 3.2f), new Vector2Int(1280, 640));
         }
 
-        /// <summary>組裝區（西）：潔淨室風格 —— 淺色地板、警示黃條、吊架與工作燈、零件架、衛星展示台、機械手臂、方形按鈕。</summary>
+        /// <summary>組裝區（西）：潔淨室風格 —— 淺色地板、警示黃條、吊架與工作燈、零件架、衛星展示台、機械手臂。</summary>
         static void BuildAssemblySide(ArtBuilder.Art art, FacMats fm, LobbyMats lm, Transform lobby)
         {
-            TeamZone(art, fm, lobby, -1f, "Asm", lm.asmGlow, lm.asmFloor, AsmColor, "lobby_assemble", "ui.area.assembly", fm.hazard);
+            TeamZone(art, fm, lobby, -1f, "Asm", lm.asmGlow, lm.asmFloor, AsmColor, "lobby_assemble", fm.hazard);
             var g = BuildUtil.Group("AsmDecor", lobby);
 
             // 吊架：兩根橫跨的桁架 + 工作燈 + 吊纜
@@ -2051,24 +2098,12 @@ namespace GoNoGo.EditorTools
             Box("Arm2", arm, new Vector3(1.1f, 1.75f, 0), new Vector3(0.18f, 1.1f, 0.18f), fm.hazard, Quaternion.Euler(0, 0, 70f));
             Box("Claw", arm, new Vector3(1.7f, 1.55f, 0), new Vector3(0.12f, 0.3f, 0.3f), lm.dark);
 
-            // 方形按鈕：警示黃條紋的基座 + 青色大按鈕
-            var bp = BuildUtil.Group("ReadyButtonAsm", g);
-            bp.position = new Vector3(-6.9f, 0, 43f);
-            Solid("Base", bp, new Vector3(0, 0.45f, 0), new Vector3(1f, 0.9f, 1f), art.consoleBody, true);
-            Box("StripeA", bp, new Vector3(0, 0.3f, 0), new Vector3(1.04f, 0.08f, 1.04f), fm.hazard, shadows: false);
-            Box("StripeB", bp, new Vector3(0, 0.6f, 0), new Vector3(1.04f, 0.08f, 1.04f), fm.hazard, shadows: false);
-            Box("Frame", bp, new Vector3(0, 0.93f, 0), new Vector3(0.8f, 0.05f, 0.8f), art.trim);
-            var cap = Box("Cap", bp, new Vector3(0, 1.0f, 0), new Vector3(0.62f, 0.1f, 0.62f), lm.asmBtn);
-            var jb = bp.gameObject.AddComponent<LobbyButton>();
-            jb.teamColor = AsmColor;
-            jb.cap = cap.GetComponent<Renderer>();
-            Label(bp, "ui.lobby.ready_button", new Vector3(0, 1.7f, 0), "team", 9f);
         }
 
-        /// <summary>控制室（東）：深色風格 —— 暗地板、琥珀色光、監控桌與椅子、機櫃、天線、圓形按鈕。</summary>
+        /// <summary>控制室（東）：深色風格 —— 暗地板、琥珀色光、監控桌與椅子、機櫃、天線。</summary>
         static void BuildControlSide(ArtBuilder.Art art, FacMats fm, LobbyMats lm, Transform lobby)
         {
-            TeamZone(art, fm, lobby, 1f, "Ctl", lm.ctlGlow, lm.ctlFloor, CtlColor, "lobby_select", "ui.area.control", lm.ctlGlow);
+            TeamZone(art, fm, lobby, 1f, "Ctl", lm.ctlGlow, lm.ctlFloor, CtlColor, "lobby_select", lm.ctlGlow);
             var g = BuildUtil.Group("CtlDecor", lobby);
 
             // 兩排監控桌（螢幕朝南：從入口就看得到），各配一張椅子
@@ -2113,17 +2148,6 @@ namespace GoNoGo.EditorTools
             Box("Feed", dish, new Vector3(0, 0.55f, 0), new Vector3(0.05f, 0.9f, 0.05f), lm.steel, shadows: false);
             Box("FeedTip", dish, new Vector3(0, 1.0f, 0), new Vector3(0.14f, 0.1f, 0.14f), lm.ctlGlow, shadows: false);
 
-            // 圓形按鈕：深色基座 + 琥珀色光環 + 圓形大按鈕
-            var bp = BuildUtil.Group("ReadyButtonCtl", g);
-            bp.position = new Vector3(6.9f, 0, 43f);
-            BuildUtil.Prim(PrimitiveType.Cylinder, "Base", bp, new Vector3(0, 0.45f, 0), new Vector3(0.95f, 0.45f, 0.95f), art.consoleBody, collider: true);
-            BuildUtil.Prim(PrimitiveType.Cylinder, "Band", bp, new Vector3(0, 0.55f, 0), new Vector3(0.99f, 0.03f, 0.99f), lm.ctlGlow);
-            BuildUtil.Prim(PrimitiveType.Cylinder, "Collar", bp, new Vector3(0, 0.93f, 0), new Vector3(0.82f, 0.03f, 0.82f), art.trim);
-            var cap = BuildUtil.Prim(PrimitiveType.Cylinder, "Cap", bp, new Vector3(0, 1.0f, 0), new Vector3(0.66f, 0.07f, 0.66f), lm.ctlBtn);
-            var jb = bp.gameObject.AddComponent<LobbyButton>();
-            jb.teamColor = CtlColor;
-            jb.cap = cap.GetComponent<Renderer>();
-            Label(bp, "ui.lobby.ready_button", new Vector3(0, 1.7f, 0), "team", 9f);
         }
 
         /// <summary>零件架：兩根立柱、三層板、幾個零件盒。</summary>
@@ -2132,6 +2156,7 @@ namespace GoNoGo.EditorTools
             var s = BuildUtil.Group("Shelf", parent);
             s.position = pos;
             Solid("Back", s, new Vector3(0, 1.4f, 0), new Vector3(0.1f, 2.8f, 2.2f), lm.steel, true);
+            Blocker(s, new Vector3(0.45f, 1.4f, 0), new Vector3(1f, 2.8f, 2.2f));
             foreach (float z in new[] { -1.05f, 1.05f })
                 Box("Upright", s, new Vector3(0.45f, 1.4f, z), new Vector3(0.08f, 2.8f, 0.08f), lm.steel, shadows: false);
             for (int level = 0; level < 3; level++)

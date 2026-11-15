@@ -35,7 +35,7 @@ namespace GoNoGo.EditorTools
                 Report(art, sphere),
             };
             EditorBuildSettings.scenes = paths.Select(p => new EditorBuildSettingsScene(p, true)).ToArray();
-            SetWebGLDefaultQuality(1);
+            SetWebGLDefaultQuality("PC");
             BuildUtil.ApplyWebPublishSettings();
             AssetDatabase.SaveAssets();
             EditorSceneManager.OpenScene(paths[0]);
@@ -323,8 +323,10 @@ namespace GoNoGo.EditorTools
             return cam;
         }
 
-        static void SetWebGLDefaultQuality(int level)
+        static void SetWebGLDefaultQuality(string levelName)
         {
+            int level = System.Array.IndexOf(QualitySettings.names, levelName);
+            if (level < 0) throw new System.Exception("找不到品質等級 " + levelName);
             var qs = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/QualitySettings.asset")[0];
             var so = new SerializedObject(qs);
             var arr = so.FindProperty("m_PerPlatformDefaultQuality");

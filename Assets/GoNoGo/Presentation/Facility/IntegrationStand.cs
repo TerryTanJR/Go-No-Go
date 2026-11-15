@@ -116,7 +116,7 @@ namespace GoNoGo.Presentation
             }
             var c = new Color(0.3f, 0.85f, 1f, 0.35f);
             if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", c);
-            if (m.HasProperty("_EmissionColor")) { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", new Color(0.2f, 0.7f, 1f) * 1.2f); }
+            if (m.HasProperty("_EmissionColor")) { m.EnableKeyword("_EMISSION"); m.SetColor("_EmissionColor", new Color(0.2f, 0.7f, 1f) * 0.6f); }
             return m;
         }
 
@@ -169,6 +169,7 @@ namespace GoNoGo.Presentation
         public void Aim(Collider c)
         {
             var p = rig.PartOf(c);
+            if (p != null && string.IsNullOrEmpty(p.partId)) p = null;   // 船身不是零件，拆不下來，不發光
             if (p == _aimed) return;
             if (_aimed != null) _aimed.SetGlow(0);
             _aimed = p;

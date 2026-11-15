@@ -28,7 +28,7 @@
     "name": { "en": "Sun-Synchronous Orbit (700 km)", "zh-TW": "太陽同步軌道（700 公里）" },
     "description": {
       "en": "The Landsat / OCO orbit. Passes over every place at the same local time, so lighting is consistent. Almost no drag.",
-      "zh-TW": "Landsat 與 OCO 用的軌道。每天同一個地方時經過同一地點，光照條件一致，幾乎沒有大氣阻力。"
+      "zh-TW": "Landsat 與 OCO 用的軌道。每天在同一個當地時間經過同一地點，光照條件一致，幾乎沒有大氣阻力。"
     },
     "body": "earth",
     "altitude_km": 700,

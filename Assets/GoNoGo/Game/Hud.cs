@@ -56,6 +56,13 @@ namespace GoNoGo.Game
         public static event Action<string> ToastRequested;
         public static void Toast(string text) => ToastRequested?.Invoke(text);
 
+        /// <summary>表情輪盤開著（按住 X）：滑鼠拿來選動作，不轉鏡頭。</summary>
+        public static bool EmoteWheelOpen;
+
+        /// <summary>本機玩家選了一個表情動作。</summary>
+        public static event Action<Emote> EmoteRequested;
+        public static void PlayEmote(Emote e) => EmoteRequested?.Invoke(e);
+
         /// <summary>新手訓練：完成某個動作（"look"、"pick"、"install"…）。</summary>
         public static event Action<string> TutorialSignal;
         public static void Signal(string what) => TutorialSignal?.Invoke(what);
@@ -69,11 +76,13 @@ namespace GoNoGo.Game
             PanelOpen = false;
             Paused = false;
             Covered = false;
+            EmoteWheelOpen = false;
             ClosedFrame = -1;
             Area = "";
             NearBench = -1;
             PanelRequested = null;
             ToastRequested = null;
+            EmoteRequested = null;
             TutorialSignal = null;
         }
     }
@@ -87,6 +96,9 @@ namespace GoNoGo.Game
             public float Yaw;
             public float Speed;
             public bool Installing;
+            /// <summary>正在做的表情動作，和第幾次做（同一個動作連做兩次，靠這個數字分辨）。</summary>
+            public Emote Emote;
+            public byte EmoteSeq;
         }
 
         public static Pose Local;

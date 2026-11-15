@@ -36,6 +36,8 @@ namespace GoNoGo.Presentation
         readonly List<int> _gone = new List<int>();
         Transform _localHeld;
         string _localHeldId;
+        /// <summary>所有放線索的位置（包括這一局收起來的，所以開場就先找好）。</summary>
+        ClueSpot[] _clueSpots;
 
         public PlayerController Player => _player;
 
@@ -62,6 +64,7 @@ namespace GoNoGo.Presentation
             m.PhaseChanged += OnPhase;
             Profile.Changed += OnProfile;
             stand.Refresh(m, false);
+            _clueSpots = FindObjectsByType<ClueSpot>(FindObjectsInactive.Include);
             OnChanged();
             Sfx.SetAmbience(Sfx.Ambience.ControlRoom);
             Sfx.SetMusic(Sfx.Music.Facility);
@@ -150,6 +153,7 @@ namespace GoNoGo.Presentation
             var m = GameSession.Mission;
             stand.Refresh(m, true);
             foreach (var bench in Workbench.All) if (bench != null) bench.Sync(m);
+            foreach (var spot in _clueSpots) spot.Sync(m);
 
             // 本機手上的東西：組好的零件，或小零件（單人是一籃）
             var mine = m.S.HeldBy(GameSession.LocalPlayer);

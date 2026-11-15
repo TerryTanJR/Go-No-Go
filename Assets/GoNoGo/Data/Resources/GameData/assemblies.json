@@ -28,7 +28,7 @@
       "part_ids": ["inst_hyperspectral"],
       "components": [
         { "id": "optics", "name": { "en": "Optics", "zh-TW": "光學鏡組" }, "role": { "en": "Collects light from the ground and brings it to a focus.", "zh-TW": "把地面來的光收集起來，聚成清楚的影像" } },
-        { "id": "disperser", "name": { "en": "Dispersive element", "zh-TW": "分光元件" }, "role": { "en": "Spreads the light out like a rainbow into hundreds of narrow colours.", "zh-TW": "把光像彩虹一樣攤開，分成上百種很窄的顏色" }, "source": { "title": "NASA JPL EMIT: Instrument Overview", "url": "https://earth.jpl.nasa.gov/emit/instrument/overview/", "note": "An imaging spectrometer disperses light into hundreds of narrow bands; simplified for the game." } },
+        { "id": "disperser", "name": { "en": "Dispersive element", "zh-TW": "分光元件" }, "role": { "en": "Spreads the light into hundreds of narrow colours.", "zh-TW": "把光攤開，分成上百種很窄的顏色" }, "source": { "title": "NASA JPL EMIT: Instrument Overview", "url": "https://earth.jpl.nasa.gov/emit/instrument/overview/", "note": "An imaging spectrometer disperses light into hundreds of narrow bands; simplified for the game." } },
         { "id": "detector", "name": { "en": "Detector", "zh-TW": "感測器" }, "role": { "en": "Turns the focused light into an electrical signal.", "zh-TW": "把聚好的光變成電訊號" } },
         { "id": "readout", "name": { "en": "Readout electronics", "zh-TW": "讀出電路" }, "role": { "en": "Turns the signal into digital data and hands it to the onboard computer.", "zh-TW": "把訊號變成數位資料，交給衛星的電腦" } }
       ],
@@ -71,7 +71,7 @@
       "category": "instrument",
       "part_ids": ["inst_laser_altimeter"],
       "components": [
-        { "id": "pulse_laser", "name": { "en": "Pulsed laser", "zh-TW": "脈衝雷射" }, "role": { "en": "Fires very short flashes of laser light down at the ground.", "zh-TW": "向地面打出一下一下、非常短的雷射光" }, "source": { "title": "NASA ICESat-2: Space Lasers", "url": "https://icesat-2.gsfc.nasa.gov/space-lasers", "note": "A laser altimeter fires pulses and times their return; simplified for the game." } },
+        { "id": "pulse_laser", "name": { "en": "Pulsed laser", "zh-TW": "脈衝雷射" }, "role": { "en": "Fires very short flashes of laser light down at the ground.", "zh-TW": "向地面打出一發發很短的雷射光" }, "source": { "title": "NASA ICESat-2: Space Lasers", "url": "https://icesat-2.gsfc.nasa.gov/space-lasers", "note": "A laser altimeter fires pulses and times their return; simplified for the game." } },
         { "id": "optics", "name": { "en": "Optics", "zh-TW": "光學鏡組" }, "role": { "en": "Collects light from the ground and brings it to a focus.", "zh-TW": "把地面來的光收集起來，聚成清楚的影像" } },
         { "id": "detector", "name": { "en": "Detector", "zh-TW": "感測器" }, "role": { "en": "Turns the focused light into an electrical signal.", "zh-TW": "把聚好的光變成電訊號" } },
         { "id": "timer", "name": { "en": "Timing electronics", "zh-TW": "計時電路" }, "role": { "en": "Times each flash on its trip down and back; the time gives the height of the ground.", "zh-TW": "量每一道光來回花多久，時間就換算成地面的高度" }, "source": { "title": "NASA ICESat-2: Space Lasers", "url": "https://icesat-2.gsfc.nasa.gov/space-lasers", "note": "Height comes from the round-trip travel time of each laser pulse; simplified for the game." } }
@@ -134,7 +134,7 @@
     {
       "category": "battery",
       "components": [
-        { "id": "cells", "name": { "en": "Energy cells", "zh-TW": "儲能電芯" }, "role": { "en": "Where the electrical energy is actually stored.", "zh-TW": "真正把電存起來的地方" } },
+        { "id": "cells", "name": { "en": "Energy cells", "zh-TW": "儲能電芯" }, "role": { "en": "Where the energy is stored.", "zh-TW": "電就存在這裡" } },
         { "id": "bms", "name": { "en": "Battery management board", "zh-TW": "電池管理板" }, "role": { "en": "Watches every cell's voltage and temperature so none is overcharged or drained too far.", "zh-TW": "盯著每顆電芯的電壓和溫度，不讓它過充或放得太深" } },
         { "id": "heater", "name": { "en": "Heater", "zh-TW": "加熱片" }, "role": { "en": "Keeps the pack warm when the spacecraft gets very cold.", "zh-TW": "衛星很冷的時候，替電池保溫" } },
         { "id": "housing", "name": { "en": "Housing", "zh-TW": "外殼" }, "role": { "en": "Holds everything in place through the shaking of launch.", "zh-TW": "把裡面的東西固定住，撐過發射時的振動" } }

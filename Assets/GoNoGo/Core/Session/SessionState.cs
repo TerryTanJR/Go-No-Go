@@ -116,8 +116,51 @@ namespace GoNoGo.Core
     /// </summary>
     public sealed class BenchState
     {
-        /// <summary>左側擺著的小零件（不重複）。</summary>
-        public List<string> Left { get; set; } = new List<string>();
+        /// <summary>
+        /// 左側的格子各擺什麼小零件（第幾格 → 小零件 id，空字串 = 空格；最多 <see cref="GameData.BenchSlots"/> 格）。
+        /// 玩家自己挑格子放，拿走一個也不會讓別格往前補。
+        /// </summary>
+        public List<string> Slots { get; set; } = new List<string>();
+
+        /// <summary>左側擺著的小零件（照格子順序，不重複）。配方只看有哪些，不看擺在哪一格。</summary>
+        [JsonIgnore]
+        public List<string> Left => Slots.Where(id => !string.IsNullOrEmpty(id)).ToList();
+
+        public bool Holds(string compId) => Slots.Contains(compId);
+
+        /// <summary>第幾格擺的小零件（空格 = null）。</summary>
+        public string At(int slot) => slot >= 0 && slot < Slots.Count && !string.IsNullOrEmpty(Slots[slot]) ? Slots[slot] : null;
+
+        /// <summary>第一個空格（都滿了 = -1）。</summary>
+        public int FirstFree()
+        {
+            for (int i = 0; i < GameData.BenchSlots; i++)
+                if (At(i) == null) return i;
+            return -1;
+        }
+
+        public void Place(string compId, int slot)
+        {
+            while (Slots.Count < GameData.BenchSlots) Slots.Add("");
+            Slots[slot] = compId;
+        }
+
+        /// <summary>放到第一個空格；滿了就放不下（回傳 false）。</summary>
+        public bool PlaceInFirstFree(string compId)
+        {
+            int slot = FirstFree();
+            if (slot < 0) return false;
+            Place(compId, slot);
+            return true;
+        }
+
+        public void Take(string compId)
+        {
+            int i = Slots.IndexOf(compId);
+            if (i >= 0) Slots[i] = "";
+        }
+
+        public void ClearSlots() => Slots.Clear();
         /// <summary>右側正在組的零件（null = 還沒認出配方）。</summary>
         public BenchJob Job { get; set; }
         /// <summary>左側放了東西之後被判定為錯誤的次數。畫面看這個數字有沒有變，決定要不要跳「組合錯誤」。</summary>

@@ -57,6 +57,11 @@ namespace GoNoGo.Core
         public const int MaxFields = 3;
         /// <summary>敘述模板的數量（strings.json 的 ui.clue.note.0 …）。</summary>
         public const int NoteVariants = 4;
+        /// <summary>
+        /// 太空知識的數量（strings.json 的 ui.clue.trivia.0 …）：一部分沒放線索的位置放一則（見 <see cref="Trivia"/>）。
+        /// 不能少於位置數，同一局每個位置才拿得到不同的一則。
+        /// </summary>
+        public const int TriviaCount = 64;
 
         public static readonly ClueSpotDef[] Spots =
         {
@@ -79,10 +84,13 @@ namespace GoNoGo.Core
             // 中控室其他角落：機櫃和資料櫃上貼的紙、休息區茶几上的書和沙發上的紙、置物櫃門上的便條、
             // 隔牆上的設計圖和公告、前方兩側牆上的設計圖和便條、掉在地上的紙
             new ClueSpotDef("racknote", "control", "paper", "racks"),
-            new ClueSpotDef("archivenote", "control", "paper", "racks"),
+            new ClueSpotDef("racknote_2", "control", "paper", "racks"),
+            new ClueSpotDef("archivenote", "control", "paper", "archive"),
+            new ClueSpotDef("archivenote_2", "control", "paper", "archive"),
             new ClueSpotDef("loungebook", "control", "book", "lounge"),
             new ClueSpotDef("sofanote", "control", "paper", "lounge"),
             new ClueSpotDef("lockernote", "control", "paper", "lockers"),
+            new ClueSpotDef("lockernote_2", "control", "paper", "lockers"),
             new ClueSpotDef("divider_1", "control", "blueprint", "divider_n"),
             new ClueSpotDef("divider_2", "control", "paper", "divider_s"),
             new ClueSpotDef("frontprint", "control", "blueprint", "front_n"),
@@ -97,7 +105,8 @@ namespace GoNoGo.Core
             new ClueSpotDef("shelfnote_1", "bay", "paper", "shelves"),
             new ClueSpotDef("shelfnote_2", "bay", "paper", "shelves"),
             new ClueSpotDef("shelfnote_3", "bay", "paper", "shelves"),
-            // 組裝區其他角落：兩座組裝台旁的夾板、整合台邊的夾板、南牆的設計圖、工作台上的書、儀器櫃門上的紙、
+            new ClueSpotDef("shelfnote_4", "bay", "paper", "shelves"),
+            // 組裝區其他角落：兩座組裝台旁的夾板、整合台邊的夾板、南牆的設計圖、工作台上的書和紙、儀器櫃門上的紙、
             // 門邊貼的便條、掉在地上的紙
             new ClueSpotDef("benchnote_1", "bay", "paper", "bench_w"),
             new ClueSpotDef("benchnote_2", "bay", "paper", "bench_e"),
@@ -105,7 +114,9 @@ namespace GoNoGo.Core
             new ClueSpotDef("print_5", "bay", "blueprint", "southwall_w"),
             new ClueSpotDef("print_6", "bay", "blueprint", "southwall_e"),
             new ClueSpotDef("workbook", "bay", "book", "workbench"),
+            new ClueSpotDef("benchpaper", "bay", "paper", "workbench"),
             new ClueSpotDef("cabinetnote", "bay", "paper", "cabinets"),
+            new ClueSpotDef("cabinetnote_2", "bay", "paper", "cabinets"),
             new ClueSpotDef("doornote", "bay", "paper", "door"),
             new ClueSpotDef("floor_b1", "bay", "paper", "floor_b1"),
             new ClueSpotDef("floor_b2", "bay", "paper", "floor_b2"),
@@ -189,24 +200,11 @@ namespace GoNoGo.Core
             var map = Spots.ToDictionary(x => x.Id, x => new List<Clue>());
             var clues = For(data, s);
             if (clues.Count == 0) return map;
-            uint seed = unchecked((uint)s.ClueSeed * 2654435761u + 0x9E3779B9u);
-            uint Next()
-            {
-                seed = unchecked(seed * 1664525 + 1013904223);
-                return seed >> 8;
-            }
-            void Shuffle<T>(IList<T> xs)
-            {
-                for (int i = xs.Count - 1; i > 0; i--)
-                {
-                    int j = (int)(Next() % (uint)(i + 1));
-                    (xs[i], xs[j]) = (xs[j], xs[i]);
-                }
-            }
+            var rng = new SeededShuffle(s.ClueSeed, 0x9E3779B9u);
             // 新手訓練：線索只放在中控室顯眼的地方（玩家還沒去過組裝區，第一件事就是找它）
             var spots = (s.Tutorial ? Spots.Where(x => x.Zone == "control" && x.Obvious) : Spots).ToList();
-            Shuffle(spots);
-            Shuffle(clues);
+            rng.Shuffle(spots);
+            rng.Shuffle(clues);
             var perArea = new Dictionary<string, int>();
             var perZone = new Dictionary<string, int>();
             int Count(Dictionary<string, int> d, string k) => d.TryGetValue(k, out var n) ? n : 0;
@@ -225,6 +223,47 @@ namespace GoNoGo.Core
                 perZone[best.Zone] = Count(perZone, best.Zone) + 1;
             }
             return map;
+        }
+
+        /// <summary>
+        /// 這一局哪些沒放線索的位置放太空知識、放哪一則（位置 id → 第幾則）。放知識的位置和放線索的位置一樣多，
+        /// 找線索時不會被一大堆知識淹沒；其他空位置這一局什麼都不放。同一局不重複；照 <see cref="SessionState.ClueSeed"/> 打散，
+        /// 每局不一樣，同一個種子每台電腦算出來都一樣。<paramref name="placed"/> 是 <see cref="Place"/> 的結果。
+        /// </summary>
+        public static Dictionary<string, int> Trivia(Dictionary<string, List<Clue>> placed, int clueSeed)
+        {
+            var empty = Spots.Where(sp => !placed.TryGetValue(sp.Id, out var here) || here.Count == 0).Select(sp => sp.Id).ToList();
+            int withClues = Spots.Length - empty.Count;
+            var order = Enumerable.Range(0, TriviaCount).ToList();
+            var rng = new SeededShuffle(clueSeed, 0x7F4A7C15u);
+            rng.Shuffle(empty);
+            rng.Shuffle(order);
+            var map = new Dictionary<string, int>();
+            for (int i = 0; i < Math.Min(withClues, empty.Count); i++) map[empty[i]] = order[i];
+            return map;
+        }
+
+        /// <summary>照種子打散清單（線性同餘）。C# 的 Random 在不同 .NET 版本可能不一樣，多人時每台電腦要算出同一個結果，所以自己寫。</summary>
+        sealed class SeededShuffle
+        {
+            uint _state;
+
+            public SeededShuffle(int seed, uint salt) => _state = unchecked((uint)seed * 2654435761u + salt);
+
+            uint Next()
+            {
+                _state = unchecked(_state * 1664525 + 1013904223);
+                return _state >> 8;
+            }
+
+            public void Shuffle<T>(IList<T> xs)
+            {
+                for (int i = xs.Count - 1; i > 0; i--)
+                {
+                    int j = (int)(Next() % (uint)(i + 1));
+                    (xs[i], xs[j]) = (xs[j], xs[i]);
+                }
+            }
         }
 
         /// <summary>這個位置這一局放的線索。</summary>

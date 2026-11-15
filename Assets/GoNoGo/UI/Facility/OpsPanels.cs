@@ -21,6 +21,8 @@ namespace GoNoGo.UI
         /// <summary>計時器上現在寫的是什麼：剩幾秒，或下面兩個特殊值（空白、「不計時」）。一樣就不重組字串。</summary>
         int _timerShown = TimerBlank;
         const int TimerBlank = int.MinValue, TimerNone = int.MinValue + 1;
+        /// <summary>新事件的警鈴最多響幾秒；有人先動手處理就提早停。</summary>
+        const float AlarmSeconds = 8f;
 
         /// <summary>
         /// 建立橫條的元素（畫面每次重建都要重新建，包括切語言）。回合的狀態——現在第幾回合、剩幾秒、警報響過沒——
@@ -52,7 +54,7 @@ namespace GoNoGo.UI
                 _resolvedShown = false;
                 _left = M.Difficulty.TurnSeconds;
                 _lastSecond = -1;
-                Sfx.Alarm();
+                Sfx.StartAlarm(AlarmSeconds);
                 if (e != null)
                 {
                     OpsClock.Day = e.Day;
@@ -66,6 +68,7 @@ namespace GoNoGo.UI
             _event.text = s.TurnResolved ? Loc.T("ui.ops.resolved")
                 : (M.Difficulty.EventReveal || e?.Kind == EventKind.Alien) && e != null ? Loc.T("event.title." + OpsEvents.Key(e.Kind))
                 : Loc.T("ui.ops.unknown_event");
+            if (s.TurnResolved || (e?.Id != null && s.Responses.TryGetValue(e.Id, out var r) && r.Started)) Sfx.StopAlarm();
             if (s.TurnResolved && !_resolvedShown)
             {
                 _resolvedShown = true;
@@ -355,13 +358,9 @@ namespace GoNoGo.UI
         public static void Build(VisualElement body, bool wall)
         {
             var m = GameSession.Mission;
-            var link = GameSession.Link;
             var s = m.S;
             var head = Ui.Row("lobby-head").AddTo(body);
-            bool ip = System.Net.IPAddress.TryParse(link?.RoomCode ?? "", out _);
-            var codeBox = Ui.El().AddTo(head);
-            Ui.Text(Loc.T(ip ? "ui.lobby.ip" : "ui.lobby.code"), "small", "dim").AddTo(codeBox);
-            Ui.Text(link?.RoomCode ?? "", "lobby-code", "mono").AddTo(codeBox);
+            RoomCode(head, copy: !wall);
             Ui.Spacer().AddTo(head);
             var mis = Ui.El("lobby-mission").AddTo(head);
             Ui.Text(Loc.T(m.Scenario.Name), "h2").AddTo(mis);
@@ -378,6 +377,26 @@ namespace GoNoGo.UI
             Ui.Spacer().AddTo(actions);
             if (GameSession.IsHost && AllReady(s))
                 Ui.Btn(Loc.T("ui.lobby.start_btn"), () => { Sfx.Go(); GameSession.Send(CommandType.StartMission); }, "btn-go", "btn-big").AddTo(actions);
+        }
+
+        /// <summary>
+        /// 房間碼：一個字一格，下面一行寫朋友怎麼加入；用 IP 連線時改寫 IP。個人模式沒有房間碼，什麼都不畫。
+        /// <paramref name="copy"/>：旁邊加一顆複製按鈕（牆上的螢幕點不到，不加）。
+        /// </summary>
+        public static void RoomCode(VisualElement parent, bool copy = false)
+        {
+            string code = GameSession.Link?.RoomCode ?? "";
+            if (code.Length == 0) return;
+            bool ip = System.Net.IPAddress.TryParse(code, out _);
+            var box = Ui.El("room-code").AddTo(parent);
+            Ui.Text(Loc.T(ip ? "ui.lobby.ip_label" : "ui.lobby.code"), "room-code-label").AddTo(box);
+            var tiles = Ui.Row("room-code-tiles").AddTo(box);
+            if (ip) Ui.Text(code, "room-code-tile", "mono").AddTo(tiles);
+            else
+                foreach (char c in code) Ui.Text(c.ToString(), "room-code-tile", "mono").AddTo(tiles);
+            if (copy)
+                Ui.Btn(Loc.T("ui.lobby.copy"), () => { ClipboardUtil.Copy(code); Hud.Toast(Loc.T("ui.lobby.copied")); }, "btn-ghost", "room-code-copy").AddTo(tiles);
+            Ui.Text(Loc.T(ip ? "ui.lobby.ip" : "ui.lobby.code_how"), "room-code-how").AddTo(box);
         }
 
         /// <summary>大廳兩側牆上的看板：任務流程的說明（side = "select" 選件與找線索、"assemble" 組裝與發射）和名單。</summary>

@@ -128,7 +128,7 @@ namespace GoNoGo.Net
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void Reset()
+        static void ResetStatics()
         {
             _channel = null;
             _generation = 0;
