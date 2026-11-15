@@ -28,10 +28,7 @@ namespace GoNoGo.Core.Tests
             if (SessionRules.NeedsApproval(s)) Ok(s, Command.Of(CommandType.ApproveOrder, 2));
         }
         /// <summary>手上的零件如果還是一箱小零件，先在組裝工作台組好。</summary>
-        void Assemble(SessionState s, int player = 1)
-        {
-            if (SessionRules.NeedsAssembly(s, _data, s.HeldBy(player))) Ok(s, Command.Of(CommandType.Assemble, player));
-        }
+        void Assemble(SessionState s, int player = 1) => BenchFlow.Build(s, _data, player);
 
         /// <summary>把手上的零件裝上船（買來的要先組裝）。</summary>
         void Install(SessionState s, int player = 1)

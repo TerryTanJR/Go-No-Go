@@ -103,6 +103,29 @@ namespace GoNoGo.Core
     }
 
     /// <summary>
+    /// 組裝工作台上正在組的那一箱：玩家把箱子放上工作台，再到零件盤一個一個拿小零件回來裝。
+    /// 全隊共用一張工作台（一次組一箱），誰拿、誰裝都可以。
+    /// </summary>
+    public sealed class BenchJob
+    {
+        public string PartId { get; set; } = "";
+        /// <summary>已經裝好幾個小零件（照配方的順序）。</summary>
+        public int Step { get; set; }
+        /// <summary>這一箱裝錯了幾次。</summary>
+        public int Mistakes { get; set; }
+        /// <summary>不屬於這個零件、硬裝上去報廢掉的小零件（零件盤上那一格就空了）。</summary>
+        public List<string> Scrapped { get; set; } = new List<string>();
+        /// <summary>全部裝好了：成品放在工作台上，等人拿走。</summary>
+        public bool Done { get; set; }
+        /// <summary>裝了幾次（不管對錯）。畫面看這個數字有沒有變，決定要不要播音效、跳提示。</summary>
+        public int Fits { get; set; }
+        /// <summary>最近一次裝的是哪個小零件、誰裝的、對不對。</summary>
+        public string LastComp { get; set; } = "";
+        public int LastBy { get; set; }
+        public bool LastOk { get; set; }
+    }
+
+    /// <summary>
     /// 一局的完整狀態（純資料，可以整包序列化）。多人時房主持有正本，每次改變後把整包廣播給其他人；
     /// 評估、模擬結果都不放在這裡，各台電腦用一樣的輸入自己算（核心是決定性的）。
     /// </summary>
@@ -131,6 +154,22 @@ namespace GoNoGo.Core
         /// 開局就在船上的零件本來就是組好的。組好之後拆下來、放回去都不用再組。
         /// </summary>
         public List<string> Built { get; set; } = new List<string>();
+        /// <summary>組裝工作台上正在組的那一箱（null = 工作台是空的）。</summary>
+        public BenchJob Workbench { get; set; }
+        /// <summary>誰手上拿著哪個小零件（玩家 id → 小零件 id）。手上不是零件就是小零件，不會兩個都有。</summary>
+        public Dictionary<int, string> HeldComp { get; set; } = new Dictionary<int, string>();
+        /// <summary>
+        /// 這一局學會的構造（<see cref="AssemblyRecipe.Key"/>）：同一種構造親手組過一次，之後同類的零件到貨就是成品，
+        /// 不用重複做一樣的事（發射失敗重來也不用再組）。
+        /// </summary>
+        public List<string> Learned { get; set; } = new List<string>();
+        /// <summary>一次都沒裝錯就組好的構造（<see cref="AssemblyRecipe.Key"/>）：知識卡升級成「精通」。</summary>
+        public List<string> Flawless { get; set; } = new List<string>();
+        /// <summary>
+        /// 這一局總共裝錯了幾次小零件。每一次都要拆下來重裝，花掉時程（<see cref="Constants.ReworkMonths"/>）；
+        /// 發射失敗重來也不會歸零（花掉的時間拿不回來）。
+        /// </summary>
+        public int Rework { get; set; }
         /// <summary>組裝區採購終端的購物車（還沒下單）。</summary>
         public List<string> Cart { get; set; } = new List<string>();
         public List<OrderRecord> Orders { get; set; } = new List<OrderRecord>();
@@ -165,6 +204,7 @@ namespace GoNoGo.Core
 
         public PlayerInfo Player(int id) => Players.FirstOrDefault(p => p.Id == id);
         public string HeldBy(int player) => Held.TryGetValue(player, out var id) ? id : null;
+        public string HeldCompBy(int player) => HeldComp.TryGetValue(player, out var id) ? id : null;
         public int? HolderOf(string partId) => Held.Where(kv => kv.Value == partId).Select(kv => (int?)kv.Key).FirstOrDefault();
 
         static readonly JsonSerializerSettings Json = new JsonSerializerSettings

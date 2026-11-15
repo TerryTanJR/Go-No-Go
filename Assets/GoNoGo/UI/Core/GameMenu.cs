@@ -129,6 +129,13 @@ namespace GoNoGo.UI
             }
             if (Multiplayer) Ui.Text(Loc.T("ui.gmenu.hint_mp"), "small", "dim").AddTo(body);
             Ui.Btn(Loc.T("ui.gmenu.resume"), () => Close(), "btn-primary", "gm-btn").AddTo(body);
+            // 任務說明：設計、營運階段（人在設施裡）隨時可以再看一次
+            if (GameSession.HasMission && (GameSession.Mission.S.Phase == Core.SessionPhase.Design || GameSession.Mission.S.Phase == Core.SessionPhase.Ops))
+                Ui.Btn(Loc.T("ui.menu.briefing") + "  [B]", () =>
+                {
+                    Close(false);
+                    Hud.Open("briefing");
+                }, "gm-btn").AddTo(body);
             Ui.Btn(Loc.T("ui.gmenu.sound"), () => Show(Page.Sound), "gm-btn").AddTo(body);
             Ui.Btn(Loc.T("ui.gmenu.settings"), () => Show(Page.Settings), "gm-btn").AddTo(body);
             if (GameSession.HasMission) Ui.Btn(Loc.T("ui.gmenu.controls"), () => Show(Page.Controls), "gm-btn").AddTo(body);
@@ -212,6 +219,7 @@ namespace GoNoGo.UI
             KeyRow(body, "E", "ui.keys.use");
             KeyRow(body, "C", "ui.keys.pick");
             KeyRow(body, "V", "ui.keys.install");
+            KeyRow(body, "B", "ui.keys.brief");
             if (!mp) KeyRow(body, "T", "ui.keys.tablet");
             KeyRow(body, "K", "ui.keys.codex");
             KeyRow(body, "L", "ui.keys.designs");

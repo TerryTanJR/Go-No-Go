@@ -100,7 +100,8 @@ namespace GoNoGo.UI
             if (r.Status == ResourceStatus.Ok) return "";
             double v = System.Math.Abs(r.Capacity - r.Used);
             bool storage = r.Id == ResourceId.Data || r.Id == ResourceId.Comms;
-            string amount = (r.Id == ResourceId.Budget ? Fmt.Money(v) : Fmt.N(v, storage ? 1 : 0) + " " + Fmt.Unit(r.Unit)).Trim();
+            string amount = (r.Id == ResourceId.Budget ? Fmt.Money(v) : r.Id == ResourceId.Time ? Fmt.Months(v) + " " + Fmt.Unit(r.Unit)
+                : Fmt.N(v, storage ? 1 : 0) + " " + Fmt.Unit(r.Unit)).Trim();
             string key = r.Used <= r.Capacity ? "ui.dash.gap_left" : storage ? "ui.dash.gap_short" : "ui.dash.gap_over";
             return Loc.T(key, ("v", amount));
         }
@@ -420,6 +421,12 @@ namespace GoNoGo.UI
             if (s.Scenario(D)?.Sandbox == true) Gate(gate, "dim", Loc.T("ui.launchp.sandbox_note"));
             else if (s.Scenario(D)?.Historical == null) Gate(gate, "dim", Loc.T("ui.launchp.restart_note"));
             if (poll) Gate(gate, "dim", Loc.T("ui.launchp.poll_note", ("n", s.Players.Count)));
+            // 火箭只帶走整合台上的東西：工作台上、手上還沒裝上去的零件先講清楚
+            var job = s.Workbench;
+            if (job != null)
+                Gate(gate, "tight", Loc.T(job.Done ? "ui.launchp.bench_built" : "ui.launchp.bench_left", ("code", D.Part(job.PartId)?.Code ?? "")));
+            var inHand = s.Held.Values.Where(id => id != null).Select(id => D.Part(id)?.Code).Where(c => !string.IsNullOrEmpty(c)).Distinct().ToList();
+            if (inHand.Count > 0) Gate(gate, "tight", Loc.T("ui.launchp.held_left", ("list", string.Join("、", inHand))));
 
             var why = SessionRules.CanLaunch(s);
             var row = Ui.Row("modal-actions").AddTo(body);

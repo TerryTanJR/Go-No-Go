@@ -536,6 +536,157 @@ namespace GoNoGo.Presentation
                 Box(g, c + new Vector3(depth / 2 + 0.003f * s, 0, z * size * s * 0.25f), new Vector3(0.006f * s, size * h * 0.8f, 0.02f * s), m.metal);
         }
 
+        // ---------------- 小零件（組裝工作台） ----------------
+
+        /// <summary>小零件的外型：形狀種類 + 顏色。沒列到的用一個灰色盒子。</summary>
+        static readonly Dictionary<string, (string shape, string color)> CompLooks = new Dictionary<string, (string, string)>
+        {
+            ["optics"] = ("lens", "#7FE3FF"), ["beam_telescope"] = ("lens", "#E8C15A"),
+            ["detector"] = ("chip", "#3B6BD6"), ["readout"] = ("board", "#2E9E5B"), ["bms"] = ("board", "#D6453B"),
+            ["cpu"] = ("board", "#2E9E5B"), ["memory"] = ("board", "#3B6BD6"), ["power_board"] = ("board", "#E08A2E"),
+            ["control"] = ("board", "#8A5BD6"),
+            ["baffle"] = ("tube", "#2A2E36"), ["star_tracker"] = ("tube", "#E9EDF2"), ["laser"] = ("tube", "#E0453B"),
+            ["neutralizer"] = ("tube", "#9AA3AE"),
+            ["cryocooler"] = ("cooler", "#C9D2DC"), ["catalyst"] = ("cooler", "#B88A4A"), ["ionizer"] = ("cooler", "#5B8FE0"),
+            ["radar_antenna"] = ("plate", "#E9EDF2"), ["substrate"] = ("plate", "#E9EDF2"), ["plates"] = ("plate", "#AEB6C0"),
+            ["spot_shield"] = ("plate", "#E8C15A"), ["heater"] = ("plate", "#E0703B"), ["radiator"] = ("plate", "#E9EDF2"),
+            ["cover_glass"] = ("glass", "#BFE9FF"), ["solar_cells"] = ("solar", "#274B9E"),
+            ["transmitter"] = ("box", "#8E98A4"), ["receiver"] = ("box", "#4E7FC2"), ["diplexer"] = ("box", "#C9D2DC"),
+            ["sensor_head"] = ("box", "#E8C15A"), ["housing"] = ("shell", "#3A404A"), ["pointing"] = ("gimbal", "#C9D2DC"),
+            ["boom"] = ("rod", "#C9D2DC"), ["feed"] = ("rod", "#C98A3B"), ["harness"] = ("rod", "#E0703B"),
+            ["torquer"] = ("rod", "#B8743B"), ["hinge"] = ("hinge", "#AEB6C0"), ["valve"] = ("valve", "#D6453B"),
+            ["wheels"] = ("wheel", "#AEB6C0"), ["grids"] = ("wheel", "#4A515C"),
+            ["cells"] = ("cells", "#3BB36B"), ["tank"] = ("tank", "#E9EDF2"), ["nozzle"] = ("nozzle", "#8E98A4"),
+            ["fasteners"] = ("bolts", "#AEB6C0"),
+        };
+
+        /// <summary>
+        /// 一個小零件（零件盤上、拿在手上、裝在工作台上的）：依 id 用幾種基本形狀拼出來，顏色也不同，
+        /// 遠遠看得出是板子、鏡頭、桶子還是桿子。最長邊大約 <paramref name="size"/> 公尺，底部在 parent 的原點。
+        /// </summary>
+        public static GameObject BuildComponent(string compId, Transform parent, float size)
+        {
+            var root = new GameObject("Comp_" + compId);
+            root.transform.SetParent(parent, false);
+            var m = SatMaterials.Load();
+            if (m == null) return root;
+            root.AddComponent<SatPart>();
+            var t = root.transform;
+            if (!CompLooks.TryGetValue(compId ?? "", out var look)) look = ("box", "#8E98A4");
+            ColorUtility.TryParseHtmlString(look.color, out var col);
+            var mpb = new MaterialPropertyBlock();
+            mpb.SetColor("_BaseColor", col);
+            GameObject Tint(GameObject go) { go.GetComponent<Renderer>().SetPropertyBlock(mpb); return go; }
+            float s = size;
+            switch (look.shape)
+            {
+                case "board":
+                    Tint(Box(t, new Vector3(0, 0.03f * s, 0), new Vector3(s, 0.06f * s, 0.7f * s), m.accent));
+                    Box(t, new Vector3(-0.15f * s, 0.09f * s, 0.05f * s), new Vector3(0.3f * s, 0.06f * s, 0.3f * s), m.frameDark);
+                    Box(t, new Vector3(0.28f * s, 0.085f * s, -0.15f * s), new Vector3(0.18f * s, 0.05f * s, 0.14f * s), m.frameDark);
+                    Box(t, new Vector3(0.3f * s, 0.09f * s, 0.2f * s), new Vector3(0.24f * s, 0.07f * s, 0.1f * s), m.metal);
+                    break;
+                case "chip":
+                    Box(t, new Vector3(0, 0.04f * s, 0), new Vector3(0.8f * s, 0.08f * s, 0.8f * s), m.frameDark);
+                    Tint(Box(t, new Vector3(0, 0.09f * s, 0), new Vector3(0.5f * s, 0.03f * s, 0.5f * s), m.accent));
+                    foreach (var x in new[] { -1, 1 })
+                        Box(t, new Vector3(x * 0.42f * s, 0.03f * s, 0), new Vector3(0.06f * s, 0.03f * s, 0.6f * s), m.metal);
+                    break;
+                case "lens":
+                    Cyl(t, new Vector3(0, 0.3f * s, 0), 0.3f * s, 0.6f * s, Vector3.up, m.frameDark);
+                    Tint(Cyl(t, new Vector3(0, 0.62f * s, 0), 0.32f * s, 0.06f * s, Vector3.up, m.accent));
+                    Cyl(t, new Vector3(0, 0.655f * s, 0), 0.25f * s, 0.02f * s, Vector3.up, m.lens);
+                    break;
+                case "tube":
+                    Tint(Cyl(t, new Vector3(0, 0.4f * s, 0), 0.2f * s, 0.8f * s, Vector3.up, m.accent));
+                    Cyl(t, new Vector3(0, 0.81f * s, 0), 0.16f * s, 0.02f * s, Vector3.up, m.frameDark);
+                    Box(t, new Vector3(0, 0.05f * s, 0), new Vector3(0.5f * s, 0.1f * s, 0.5f * s), m.metal);
+                    break;
+                case "cooler":
+                    Tint(Cyl(t, new Vector3(0, 0.35f * s, 0), 0.22f * s, 0.7f * s, Vector3.up, m.accent));
+                    for (int i = 0; i < 4; i++)
+                        Cyl(t, new Vector3(0, (0.2f + i * 0.14f) * s, 0), 0.3f * s, 0.03f * s, Vector3.up, m.metal);
+                    break;
+                case "plate":
+                    Tint(Box(t, new Vector3(0, 0.035f * s, 0), new Vector3(s, 0.07f * s, 0.7f * s), m.accent));
+                    Box(t, new Vector3(0, 0.03f * s, 0), new Vector3(1.04f * s, 0.03f * s, 0.74f * s), m.metal);
+                    break;
+                case "glass":
+                    Box(t, new Vector3(0, 0.02f * s, 0), new Vector3(1.04f * s, 0.03f * s, 0.74f * s), m.metal);
+                    Box(t, new Vector3(0, 0.045f * s, 0), new Vector3(s, 0.03f * s, 0.7f * s), m.lens);
+                    break;
+                case "solar":
+                    Box(t, new Vector3(0, 0.02f * s, 0), new Vector3(1.04f * s, 0.03f * s, 0.74f * s), m.metal);
+                    for (int i = 0; i < 3; i++)
+                        Box(t, new Vector3((i - 1) * 0.33f * s, 0.045f * s, 0), new Vector3(0.3f * s, 0.03f * s, 0.68f * s), m.solarCell);
+                    break;
+                case "shell":
+                    Tint(Box(t, new Vector3(0, 0.25f * s, 0), new Vector3(0.9f * s, 0.5f * s, 0.7f * s), m.accent));
+                    Box(t, new Vector3(0, 0.51f * s, 0), new Vector3(0.7f * s, 0.02f * s, 0.5f * s), m.frameDark);
+                    foreach (var x in new[] { -1, 1 })
+                        foreach (var z in new[] { -1, 1 })
+                            Cyl(t, new Vector3(x * 0.4f * s, 0.52f * s, z * 0.3f * s), 0.035f * s, 0.03f * s, Vector3.up, m.metal);
+                    break;
+                case "gimbal":
+                    Box(t, new Vector3(0, 0.08f * s, 0), new Vector3(0.6f * s, 0.16f * s, 0.6f * s), m.frameDark);
+                    Tint(Cyl(t, new Vector3(0, 0.3f * s, 0), 0.24f * s, 0.2f * s, Vector3.up, m.accent));
+                    Cyl(t, new Vector3(0, 0.55f * s, 0), 0.1f * s, 0.34f * s, new Vector3(0.5f, 1, 0).normalized, m.lens);
+                    break;
+                case "rod":
+                    Tint(Cyl(t, new Vector3(0, 0.07f * s, 0), 0.06f * s, s, Vector3.right, m.accent));
+                    foreach (var x in new[] { -1, 1 })
+                        Cyl(t, new Vector3(x * 0.48f * s, 0.07f * s, 0), 0.09f * s, 0.08f * s, Vector3.right, m.metal);
+                    break;
+                case "hinge":
+                    foreach (var x in new[] { -1, 1 })
+                        Tint(Box(t, new Vector3(x * 0.28f * s, 0.04f * s, 0), new Vector3(0.44f * s, 0.06f * s, 0.6f * s), m.accent));
+                    Cyl(t, new Vector3(0, 0.08f * s, 0), 0.07f * s, 0.7f * s, Vector3.forward, m.metal);
+                    break;
+                case "valve":
+                    Cyl(t, new Vector3(0, 0.12f * s, 0), 0.12f * s, 0.9f * s, Vector3.right, m.metal);
+                    Cyl(t, new Vector3(0, 0.3f * s, 0), 0.08f * s, 0.3f * s, Vector3.up, m.metal);
+                    Tint(Cyl(t, new Vector3(0, 0.47f * s, 0), 0.26f * s, 0.05f * s, Vector3.up, m.accent));
+                    break;
+                case "wheel":
+                    Tint(Cyl(t, new Vector3(0, 0.1f * s, 0), 0.45f * s, 0.2f * s, Vector3.up, m.accent));
+                    Cyl(t, new Vector3(0, 0.15f * s, 0), 0.14f * s, 0.3f * s, Vector3.up, m.frameDark);
+                    break;
+                case "cells":
+                    for (int i = 0; i < 3; i++)
+                    {
+                        Tint(Cyl(t, new Vector3((i - 1) * 0.3f * s, 0.35f * s, 0), 0.14f * s, 0.7f * s, Vector3.up, m.accent));
+                        Cyl(t, new Vector3((i - 1) * 0.3f * s, 0.72f * s, 0), 0.06f * s, 0.05f * s, Vector3.up, m.metal);
+                    }
+                    break;
+                case "tank":
+                    Tint(Cyl(t, new Vector3(0, 0.4f * s, 0), 0.28f * s, 0.6f * s, Vector3.up, m.accent));
+                    Cyl(t, new Vector3(0, 0.08f * s, 0), 0.2f * s, 0.1f * s, Vector3.up, m.metal);
+                    Cyl(t, new Vector3(0, 0.74f * s, 0), 0.2f * s, 0.1f * s, Vector3.up, m.metal);
+                    Cyl(t, new Vector3(0, 0.84f * s, 0), 0.06f * s, 0.12f * s, Vector3.up, m.metal);
+                    break;
+                case "nozzle":
+                    // 圓錐底面在下：開口朝下放在盤子上，上面接一小段喉部
+                    Tint(Cone(t, Vector3.zero, 0.4f * s, 0.7f * s, Vector3.up, m.accent));
+                    Cyl(t, new Vector3(0, 0.74f * s, 0), 0.12f * s, 0.2f * s, Vector3.up, m.metal);
+                    break;
+                case "bolts":
+                    for (int i = 0; i < 4; i++)
+                    {
+                        var c = new Vector3((i % 2 == 0 ? -1 : 1) * 0.22f * s, 0, (i < 2 ? -1 : 1) * 0.22f * s);
+                        Tint(Cyl(t, c + new Vector3(0, 0.2f * s, 0), 0.06f * s, 0.4f * s, Vector3.up, m.accent));
+                        Cyl(t, c + new Vector3(0, 0.42f * s, 0), 0.12f * s, 0.06f * s, Vector3.up, m.metal);
+                    }
+                    break;
+                default:
+                    Tint(Box(t, new Vector3(0, 0.2f * s, 0), new Vector3(0.8f * s, 0.4f * s, 0.6f * s), m.accent));
+                    Box(t, new Vector3(0.2f * s, 0.2f * s, -0.31f * s), new Vector3(0.2f * s, 0.14f * s, 0.04f * s), m.metal);
+                    Box(t, new Vector3(-0.2f * s, 0.2f * s, -0.31f * s), new Vector3(0.2f * s, 0.14f * s, 0.04f * s), m.metal);
+                    Box(t, new Vector3(0, 0.41f * s, 0), new Vector3(0.6f * s, 0.02f * s, 0.4f * s), m.frameDark);
+                    break;
+            }
+            return root;
+        }
+
         // ---------------- 幾何工具 ----------------
 
         static Transform Group(Transform root, string category, string partId)

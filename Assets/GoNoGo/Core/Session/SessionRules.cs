@@ -29,6 +29,10 @@ namespace GoNoGo.Core
         Assemble,
         // 沙盒：把一份存過（或別人分享）的設計直接放上整合台（A = 設計分享碼）
         LoadDesign,
+        // 組裝工作台（手動組裝）：把手上那一箱放上工作台；從零件盤拿一個小零件（A = 小零件 id）；
+        // 把手上的小零件放回去；把手上的小零件裝上去。加在最後，其他人的編號不變。
+        // （上面的 Assemble 是舊的「在面板上點一點就組好」，已經不能用，留著編號）
+        BenchPlace, CompPick, CompDrop, CompFit,
     }
 
     /// <summary>
@@ -151,7 +155,11 @@ namespace GoNoGo.Core
             var installed = new HashSet<string>(s.Bench.AllPartIds());
             s.Bench.ProcurementMusd = s.Owned.Distinct().Where(id => !installed.Contains(id)).Sum(id => data.Part(id)?.CostMusd ?? 0);
             s.Bench.CallMonths = CallMonths(s, data);
+            s.Bench.ReworkMonths = ReworkMonths(s, data);
         }
+
+        /// <summary>組裝工作台裝錯小零件、返工花掉的時程：裝錯的次數 × 每次的月數。</summary>
+        public static double ReworkMonths(SessionState s, GameData data) => s.Rework * data.Constants.ReworkMonths;
 
         /// <summary>打電話花掉的時程：問過的不同問題數 × 每題的月數（同一題再問一次不算）。</summary>
         public static double CallMonths(SessionState s, GameData data) => s.Calls.Count * data.Constants.CallMonths;
@@ -246,6 +254,9 @@ namespace GoNoGo.Core
             s.Reported = start.Clone();
             s.Owned = StartOwned(data, start);
             s.Built = StartOwned(data, start);
+            // 工作台清空；學會的構造（Learned）和返工花掉的時間（Rework）留著
+            s.Workbench = null;
+            s.HeldComp.Clear();
             s.Cart.Clear();
             s.Orders.Clear();
             s.Request = null;
@@ -313,7 +324,8 @@ namespace GoNoGo.Core
         /// <summary>組裝區的操作（嚴格分工時只有組裝區的人能做）。</summary>
         public static bool IsAssemblyCommand(CommandType t) =>
             t == CommandType.Pick || t == CommandType.Drop || t == CommandType.Install || t == CommandType.Report
-            || t == CommandType.Assemble
+            || t == CommandType.Assemble || t == CommandType.BenchPlace || t == CommandType.CompPick
+            || t == CommandType.CompDrop || t == CommandType.CompFit
             || t == CommandType.CartAdd || t == CommandType.CartRemove || t == CommandType.PlaceOrder || t == CommandType.WithdrawOrder;
 
         /// <summary>中控室的操作（嚴格分工時只有中控室的人能做）。</summary>
@@ -339,7 +351,7 @@ namespace GoNoGo.Core
         /// <summary>點名中不能改設計（要改就喊 NO-GO）。</summary>
         static bool ChangesDesign(CommandType t) =>
             t == CommandType.Install || t == CommandType.Report || t == CommandType.PlaceOrder || t == CommandType.ApproveOrder
-            || t == CommandType.Assemble || t == CommandType.LoadDesign
+            || t == CommandType.LoadDesign
             || t == CommandType.SetOrbit || t == CommandType.SetLauncher || t == CommandType.SetGroundStation || t == CommandType.SetYears;
 
         static string ApplyInner(SessionState s, GameData data, Command c)
@@ -357,6 +369,7 @@ namespace GoNoGo.Core
                 case CommandType.Leave:
                     s.Players.RemoveAll(p => p.Id == c.Player);
                     s.Held.Remove(c.Player);
+                    s.HeldComp.Remove(c.Player);
                     // 嚴格分工但有一區沒人了：取消限制，不然剩下的人永遠做不完
                     if (s.StrictRoles && s.Phase != SessionPhase.Lobby && !BothStationsManned(s)) s.StrictRoles = false;
                     if (s.Poll != null)
@@ -418,7 +431,12 @@ namespace GoNoGo.Core
                     if (!s.Held.Remove(c.Player)) return "err.nothing_held";
                     return Ok;
                 case CommandType.Install: return Install(s, data, c.Player);
-                case CommandType.Assemble: return Assemble(s, data, c.Player, c.A);
+                case CommandType.BenchPlace: return BenchPlace(s, data, c.Player);
+                case CommandType.CompPick: return CompPick(s, data, c.Player, c.A);
+                case CommandType.CompDrop:
+                    if (!s.HeldComp.Remove(c.Player)) return "err.nothing_held";
+                    return Ok;
+                case CommandType.CompFit: return CompFit(s, data, c.Player);
                 case CommandType.LoadDesign: return LoadDesign(s, data, c.A);
                 case CommandType.Report:
                     if (s.Phase != SessionPhase.Design) return "err.phase";
@@ -462,6 +480,7 @@ namespace GoNoGo.Core
                     if (s.LastLaunch.Reached) { StartOps(s, data); return Ok; }
                     s.Phase = SessionPhase.Design;
                     s.Held.Clear();
+                    s.HeldComp.Clear();
                     // 失敗重來（歷史關卡另外處理：保留設計，接著改；沙盒沒有懲罰，也保留設計）
                     if (s.Scenario(data)?.Historical == null && s.Scenario(data)?.Sandbox != true) ResetAfterFailure(s, data);
                     return Ok;
@@ -506,10 +525,16 @@ namespace GoNoGo.Core
         static string Pick(SessionState s, GameData data, int player, string partId)
         {
             if (s.Phase != SessionPhase.Design && s.Phase != SessionPhase.Briefing) return "err.phase";
-            if (s.HeldBy(player) != null) return "err.hands_full";
+            if (s.HeldBy(player) != null || s.HeldComp.ContainsKey(player)) return "err.hands_full";
             var part = data.Part(partId);
             if (part == null || part.Category == PartCategory.GroundStation) return "err.unknown";
             if (s.HolderOf(partId) != null) return "err.taken";
+            if (s.Workbench != null && s.Workbench.PartId == partId)
+            {
+                // 工作台上的那一個：組好了才能拿走（組到一半不能拿，零件盤上的小零件會對不上）
+                if (!s.Workbench.Done) return "err.bench_busy";
+                s.Workbench = null;
+            }
             if (s.Bench.AllPartIds().Contains(partId))
             {
                 // 從船上拆下來
@@ -545,37 +570,122 @@ namespace GoNoGo.Core
         }
 
         // ---------------------------------------------------------------- 組裝工作台（小零件 → 零件）
+        //
+        // 買來的零件是一箱小零件。玩家把箱子放上工作台（BenchPlace），零件盤上就擺出這一箱的小零件和幾個混進來的；
+        // 看工作台上寫的「這一步需要做什麼事的小零件」，到零件盤拿（CompPick）、走回來裝上去（CompFit）。
+        // 裝對了往下一步；裝錯了要拆下來重裝（返工，花時程），不屬於這個零件的還會報廢。
+        // 全部裝好，成品留在工作台上，拿走（Pick）就可以裝上船。全隊共用一張工作台，誰拿、誰裝都可以。
 
         /// <summary>
         /// 這個零件還是一箱沒組的小零件：要先拿到組裝工作台組好，才能裝上船。
-        /// 沒有配方的零件（封板、地面站）和沙盒裡的零件不用組。
+        /// 沒有配方的零件（封板、地面站）、沙盒裡的零件、還有這一局已經學會的構造（同類的組過一次）都不用組。
         /// </summary>
         public static bool NeedsAssembly(SessionState s, GameData data, string partId)
         {
             var part = data.Part(partId);
             if (part == null || s.Built.Contains(partId)) return false;
             if (s.Scenario(data)?.Sandbox == true) return false;
-            return data.Recipe(part) != null;
+            var recipe = data.Recipe(part);
+            return recipe != null && !s.Learned.Contains(recipe.Key);
         }
 
-        /// <summary>手上的那一箱能不能在工作台組裝。回傳 Ok 或原因。</summary>
-        public static string CanAssemble(SessionState s, GameData data, int player)
+        static string BenchPhase(SessionState s, GameData data)
         {
             if (s.Phase != SessionPhase.Design && s.Phase != SessionPhase.Briefing) return "err.phase";
             if (s.DesignLocked(data)) return "err.locked";
-            var id = s.HeldBy(player);
-            if (id == null) return "err.nothing_held";
-            if (!NeedsAssembly(s, data, id)) return "err.already_built";
             return Ok;
         }
 
-        static string Assemble(SessionState s, GameData data, int player, string partId)
+        /// <summary>手上的那一箱能不能放上工作台。回傳 Ok 或原因。</summary>
+        public static string CanPlaceOnBench(SessionState s, GameData data, int player)
         {
-            var why = CanAssemble(s, data, player);
+            var why = BenchPhase(s, data);
             if (why != Ok) return why;
             var id = s.HeldBy(player);
-            if (!string.IsNullOrEmpty(partId) && partId != id) return "err.unknown";
-            s.Built.Add(id);
+            if (id == null) return "err.nothing_held";
+            if (!NeedsAssembly(s, data, id)) return "err.already_built";
+            if (s.Workbench != null) return "err.bench_busy";
+            return Ok;
+        }
+
+        static string BenchPlace(SessionState s, GameData data, int player)
+        {
+            var why = CanPlaceOnBench(s, data, player);
+            if (why != Ok) return why;
+            s.Workbench = new BenchJob { PartId = s.HeldBy(player) };
+            s.Held.Remove(player);
+            return Ok;
+        }
+
+        /// <summary>工作台上正在組的零件的配方（沒有在組、或已經組好 = null）。</summary>
+        public static AssemblyRecipe BenchRecipe(SessionState s, GameData data) =>
+            s.Workbench == null || s.Workbench.Done ? null : data.Recipe(data.Part(s.Workbench.PartId));
+
+        /// <summary>這一步要裝的小零件（沒有在組 = null）。</summary>
+        public static AssemblyComponent BenchWants(SessionState s, GameData data)
+        {
+            var r = BenchRecipe(s, data);
+            return r != null && s.Workbench.Step < r.Components.Count ? r.Components[s.Workbench.Step] : null;
+        }
+
+        /// <summary>
+        /// 零件盤現在的樣子：一格一個小零件，照 <see cref="GameData.Tray"/> 的順序；
+        /// 已經裝上去的、報廢的、被人拿在手上的那一格是 null。工作台沒有在組東西時是空清單。
+        /// </summary>
+        public static List<AssemblyComponent> TrayNow(SessionState s, GameData data)
+        {
+            var recipe = BenchRecipe(s, data);
+            if (recipe == null) return new List<AssemblyComponent>();
+            var job = s.Workbench;
+            var gone = new HashSet<string>(recipe.Components.Take(job.Step).Select(c => c.Id));
+            gone.UnionWith(job.Scrapped);
+            gone.UnionWith(s.HeldComp.Values);
+            return data.Tray(data.Part(job.PartId)).Select(c => gone.Contains(c.Id) ? null : c).ToList();
+        }
+
+        static string CompPick(SessionState s, GameData data, int player, string compId)
+        {
+            var why = BenchPhase(s, data);
+            if (why != Ok) return why;
+            if (BenchRecipe(s, data) == null) return "err.no_job";
+            if (s.HeldBy(player) != null || s.HeldComp.ContainsKey(player)) return "err.hands_full";
+            if (!TrayNow(s, data).Any(c => c != null && c.Id == compId)) return "err.comp_gone";
+            s.HeldComp[player] = compId;
+            return Ok;
+        }
+
+        /// <summary>
+        /// 把手上的小零件裝上去。對的（這一步要的那一個）往下一步；錯的算一次返工，手上的小零件放回零件盤，
+        /// 不屬於這個零件的直接報廢。對錯都回傳 Ok（狀態有變），畫面看 <see cref="BenchJob.LastOk"/>。
+        /// </summary>
+        static string CompFit(SessionState s, GameData data, int player)
+        {
+            var why = BenchPhase(s, data);
+            if (why != Ok) return why;
+            var recipe = BenchRecipe(s, data);
+            if (recipe == null) return "err.no_job";
+            if (!s.HeldComp.TryGetValue(player, out var id)) return "err.nothing_held";
+            var job = s.Workbench;
+            var want = recipe.Components[job.Step];
+            s.HeldComp.Remove(player);
+            job.Fits++;
+            job.LastComp = id;
+            job.LastBy = player;
+            job.LastOk = id == want.Id;
+            if (!job.LastOk)
+            {
+                job.Mistakes++;
+                s.Rework++;
+                if (recipe.Components.All(c => c.Id != id)) job.Scrapped.Add(id);
+                return Ok;
+            }
+            job.Step++;
+            if (job.Step < recipe.Components.Count) return Ok;
+            // 組好了：成品留在工作台上；這種構造算學會了，同類的零件之後不用再組
+            job.Done = true;
+            if (!s.Built.Contains(job.PartId)) s.Built.Add(job.PartId);
+            if (!s.Learned.Contains(recipe.Key)) s.Learned.Add(recipe.Key);
+            if (job.Mistakes == 0 && !s.Flawless.Contains(recipe.Key)) s.Flawless.Add(recipe.Key);
             return Ok;
         }
 
@@ -702,6 +812,7 @@ namespace GoNoGo.Core
                 Reached = r.ReachedOrbit,
             });
             s.Held.Clear();
+            s.HeldComp.Clear();
             s.Responses.Clear();
             s.OpsTurn = 0;
             s.TurnResolved = false;

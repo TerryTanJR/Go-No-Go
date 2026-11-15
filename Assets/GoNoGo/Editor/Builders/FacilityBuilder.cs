@@ -791,7 +791,7 @@ namespace GoNoGo.EditorTools
         /// 組裝工作台：一張厚實的工作桌（操作員站在 -Z 那一側看向 +Z）。桌面中央是發光的組裝墊，
         /// 後面一片掛工具的洞洞板和工作燈，桌上一排小零件盒。按 E 打開組裝面板（ConsoleTarget panel = assemble）。
         /// </summary>
-        static ConsoleTarget Workbench(ArtBuilder.Art art, FacMats fm, Transform parent, string name, Vector3 pos, float yaw)
+        static Workbench BuildWorkbench(ArtBuilder.Art art, FacMats fm, Transform parent, string name, Vector3 pos, float yaw)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
@@ -832,15 +832,20 @@ namespace GoNoGo.EditorTools
             Box("BackPlate", t, new Vector3(0, 1.5f, 0.595f), new Vector3(1.2f, 0.5f, 0.012f), art.wallDark, shadows: false);
             Box("BackHazard", t, new Vector3(0, 1.2f, 0.6f), new Vector3(1.2f, 0.06f, 0.012f), _hazardStripe, shadows: false);
             Box("BackSkirt", t, new Vector3(0, 0.45f, 0.51f), new Vector3(w - 1.0f, 0.7f, 0.02f), art.consoleBody, shadows: false);
-            float[] toolX = { -0.95f, -0.75f, -0.55f, 0.5f, 0.72f, 0.95f };
+            float[] toolX = { -1.06f, -0.9f, -0.74f, 0.74f, 0.9f, 1.06f };
             float[] toolH = { 0.42f, 0.3f, 0.36f, 0.34f, 0.46f, 0.28f };
             for (int i = 0; i < toolX.Length; i++)
             {
                 Box("Tool", t, new Vector3(toolX[i], 1.62f - toolH[i] / 2, 0.52f), new Vector3(0.05f, toolH[i], 0.03f), i % 2 == 0 ? _steel : fm.hazard, shadows: false);
                 Box("Hook", t, new Vector3(toolX[i], 1.64f, 0.52f), new Vector3(0.09f, 0.03f, 0.04f), art.trim, shadows: false);
             }
-            // 洞洞板中間的小螢幕：顯示組裝圖（沿用控制台的螢幕材質）
-            Quad("Screen", t, new Vector3(0, 1.5f, 0.525f), Quaternion.identity, new Vector2(0.8f, 0.5f), art.consoleScreens[1 % art.consoleScreens.Length]);
+            // 洞洞板中間的螢幕：組裝單（現在組的是什麼、下一個小零件要做什麼事）。畫面由 UI 層畫上去（WorldScreen "bench"）
+            Box("ScreenFrame", t, new Vector3(0, 1.5f, 0.535f), new Vector3(1.26f, 0.84f, 0.03f), art.trim, shadows: false);
+            var screen = Quad("Screen", t, new Vector3(0, 1.5f, 0.515f), Quaternion.identity, new Vector2(1.2f, 0.78f), fm.screenOff);
+            var ws = screen.AddComponent<WorldScreen>();
+            ws.id = "bench";
+            ws.resolution = new Vector2Int(768, 500);
+            ws.target = screen.GetComponent<Renderer>();
             Box("LampArm", t, new Vector3(0, 2.18f, 0.3f), new Vector3(0.05f, 0.05f, 0.56f), art.trim, shadows: false);
             Box("Lamp", t, new Vector3(0, 2.15f, 0.04f), new Vector3(1.3f, 0.04f, 0.14f), art.lightPanel, shadows: false);
             var lamp = BuildUtil.Light("BenchLight", LightType.Spot, new Color(1f, 0.95f, 0.85f), 9f, Vector3.zero, Quaternion.identity, 4f, LightShadows.None, t);
@@ -848,15 +853,109 @@ namespace GoNoGo.EditorTools
             lamp.transform.localRotation = Quaternion.Euler(90, 0, 0);
             lamp.spotAngle = 70f;
 
-            var ct = go.AddComponent<ConsoleTarget>();
-            ct.panel = "assemble";
-            ct.titleKey = "ui.fac.bench";
-            ct.bodyKey = "ui.fac.bench_body";
-            ct.phases = "design,briefing";
-            ct.actionKey = "ui.hint.assemble";
-            ct.glow = glow.GetComponent<Renderer>();
+            // 組裝墊的中心：箱子、裝好的小零件、成品都擺在這上面
+            var jig = new GameObject("Jig").transform;
+            jig.SetParent(t, false);
+            jig.localPosition = new Vector3(0, 0.892f, 0.02f);
+
+            var wb = go.AddComponent<Workbench>();
+            wb.jig = jig;
+            wb.glow = glow.GetComponent<Renderer>();
+            wb.sparks = Sparks(art, t, new Vector3(0, 1.0f, 0.02f), 0.12f);
             Label(t, "ui.fac.bench", new Vector3(0, 2.4f, 0.3f), "tag", 9f);
-            return ct;
+            return wb;
+        }
+
+        /// <summary>裝上零件時噴的火花（不循環，程式呼叫 Emit）。</summary>
+        static ParticleSystem Sparks(ArtBuilder.Art art, Transform parent, Vector3 localPos, float radius)
+        {
+            var sparks = new GameObject("Sparks");
+            sparks.transform.SetParent(parent, false);
+            sparks.transform.localPosition = localPos;
+            var ps = sparks.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            var main = ps.main;
+            main.loop = false;
+            main.playOnAwake = false;
+            main.duration = 1f;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.3f, 0.6f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(1f, 2.6f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.015f, 0.04f);
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.9f, 0.6f), new Color(0.5f, 0.9f, 1f));
+            main.gravityModifier = 1.2f;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = 200;
+            var em = ps.emission;
+            em.rateOverTime = 0;
+            var sh = ps.shape;
+            sh.shapeType = ParticleSystemShapeType.Sphere;
+            sh.radius = radius;
+            var psr = sparks.GetComponent<ParticleSystemRenderer>();
+            psr.sharedMaterial = art.sparkle;
+            psr.renderMode = ParticleSystemRenderMode.Stretch;
+            psr.velocityScale = 0.04f;
+            psr.lengthScale = 2f;
+            psr.shadowCastingMode = ShadowCastingMode.Off;
+            return ps;
+        }
+
+        /// <summary>
+        /// 零件盤：一張長桌上排著 <see cref="GameData.TraySize"/> 個盤子。工作台上放了一箱小零件，盤子裡就擺出小零件
+        /// （執行時由 <see cref="CompTray"/> 放模型和名稱）。局部 -Z 是拿零件的人那一面。
+        /// </summary>
+        static void BuildCompRack(ArtBuilder.Art art, FacMats fm, Transform parent, string name, Vector3 pos, float yaw)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = pos;
+            go.transform.localRotation = Quaternion.Euler(0, yaw, 0);
+            go.transform.localScale = Vector3.one * 1.2f;
+            var t = go.transform;
+            const int n = GameData.TraySize;
+            const float pitch = 0.58f, w = pitch * n + 0.2f;
+            // 桌體：兩側櫃腳、桌板、前緣發光條、後面一道矮背板
+            foreach (float sx in new[] { -1f, 1f })
+                Solid("Leg", t, new Vector3(sx * (w / 2 - 0.2f), 0.41f, 0.05f), new Vector3(0.4f, 0.82f, 0.6f), art.consoleBody, true);
+            Solid("Shelf", t, new Vector3(0, 0.3f, 0.05f), new Vector3(w - 0.8f, 0.05f, 0.56f), art.wallDark, true);
+            Box("Plinth", t, new Vector3(0, 0.04f, 0.05f), new Vector3(w + 0.08f, 0.08f, 0.7f), art.trim, shadows: false);
+            Solid("Top", t, new Vector3(0, 0.85f, 0.05f), new Vector3(w + 0.1f, 0.06f, 0.72f), art.trim, true);
+            Box("Glow", t, new Vector3(0, 0.852f, -0.315f), new Vector3(w + 0.1f, 0.03f, 0.03f), fm.glow, shadows: false);
+            Box("Back", t, new Vector3(0, 1.2f, 0.4f), new Vector3(w + 0.1f, 0.7f, 0.05f), art.consoleBody);
+            Box("BackGlow", t, new Vector3(0, 1.5f, 0.37f), new Vector3(w - 0.1f, 0.03f, 0.012f), art.accentGlow, shadows: false);
+            Box("BackHazard", t, new Vector3(0, 0.93f, 0.37f), new Vector3(w - 0.1f, 0.05f, 0.012f), _hazardStripe, shadows: false);
+            Box("LampArm", t, new Vector3(0, 1.62f, 0.3f), new Vector3(w * 0.7f, 0.04f, 0.26f), art.trim, shadows: false);
+            Box("Lamp", t, new Vector3(0, 1.595f, 0.22f), new Vector3(w * 0.66f, 0.015f, 0.12f), art.lightPanel, shadows: false);
+            var lamp = BuildUtil.Light("RackLight", LightType.Spot, new Color(1f, 0.95f, 0.85f), 7f, Vector3.zero, Quaternion.identity, 3.5f, LightShadows.None, t);
+            lamp.transform.localPosition = new Vector3(0, 1.9f, -0.1f);
+            lamp.transform.localRotation = Quaternion.Euler(80, 0, 0);
+            lamp.spotAngle = 110f;
+
+            for (int i = 0; i < n; i++)
+            {
+                float x = (i - (n - 1) / 2f) * pitch;
+                var tray = new GameObject("Tray" + i);
+                tray.transform.SetParent(t, false);
+                tray.transform.localPosition = new Vector3(x, 0.88f, 0.02f);
+                var tt = tray.transform;
+                // 盤子：深色盤底、四邊矮框、前緣一條小燈（對到時變亮）
+                Box("Base", tt, new Vector3(0, 0.01f, 0), new Vector3(0.48f, 0.02f, 0.42f), art.wallDark, shadows: false);
+                Box("RimF", tt, new Vector3(0, 0.035f, -0.2f), new Vector3(0.48f, 0.05f, 0.02f), art.consoleBody, shadows: false);
+                Box("RimB", tt, new Vector3(0, 0.035f, 0.2f), new Vector3(0.48f, 0.05f, 0.02f), art.consoleBody, shadows: false);
+                Box("RimL", tt, new Vector3(-0.23f, 0.035f, 0), new Vector3(0.02f, 0.05f, 0.42f), art.consoleBody, shadows: false);
+                Box("RimR", tt, new Vector3(0.23f, 0.035f, 0), new Vector3(0.02f, 0.05f, 0.42f), art.consoleBody, shadows: false);
+                var led = Box("Led", tt, new Vector3(0, 0.03f, -0.214f), new Vector3(0.3f, 0.02f, 0.01f), fm.glow, shadows: false);
+                var slot = new GameObject("Slot").transform;
+                slot.SetParent(tt, false);
+                slot.localPosition = new Vector3(0, 0.022f, 0);
+                var col = tray.AddComponent<BoxCollider>();
+                col.center = new Vector3(0, 0.19f, 0);
+                col.size = new Vector3(0.5f, 0.38f, 0.44f);
+                var ct = tray.AddComponent<CompTray>();
+                ct.index = i;
+                ct.slot = slot;
+                ct.glow = led.GetComponent<Renderer>();
+            }
+            Label(t, "ui.fac.rack", new Vector3(0, 1.85f, 0.3f), "tag", 9f);
         }
 
         /// <summary>牆上的大螢幕：畫面由 UI 層依 id 畫上去（WorldScreen）。</summary>
@@ -892,7 +991,12 @@ namespace GoNoGo.EditorTools
             proc.actionKey = "ui.hint.procure";
 
             // 組裝工作台：買來的零件是一箱小零件，要先在這裡組好才能裝上船。位置和採購終端左右對稱
-            Workbench(art, fm, bay, "AssemblyBench", new Vector3(-6.2f, 0, -4.6f), 52f);
+            BuildWorkbench(art, fm, bay, "AssemblyBench", new Vector3(-6.2f, 0, -4.6f), 52f);
+            // 零件盤：在工作台的左前方、和工作台排成 L 形（盤子朝向工作台前面那塊空地）。
+            // 小零件要自己走過去拿、拿回來裝。不放在操作的人正後方：兩張桌子面對面時，
+            // 第三人稱的鏡頭會被身後那一張擋住、貼到桌面上。
+            var benchRot = Quaternion.Euler(0, 52f, 0);
+            BuildCompRack(art, fm, bay, "CompRack", new Vector3(-6.2f, 0, -4.6f) + benchRot * new Vector3(-3.2f, 0, -3.2f), 52f - 90f);
             // （環境測試台在採購機制 v2 拿掉了：發射前不再檢查）
 
             // 東牆（門的南邊）：失敗原因看板

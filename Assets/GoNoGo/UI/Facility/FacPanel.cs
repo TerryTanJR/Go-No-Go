@@ -54,7 +54,6 @@ namespace GoNoGo.UI
                 "dashboard" => new DashboardPanel(),
                 "goals" => new GoalsPanel(),
                 "procure" => new ProcurePanel(),
-                "assemble" => new AssemblePanel(),
                 "codex" => new CodexPanel(),
                 "designs" => new DesignsPanel(),
                 "manual" => new ManualIndexPanel(),

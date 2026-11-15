@@ -48,6 +48,11 @@ namespace GoNoGo.UI
             {
                 // 手上拿著零件 → 裝上去；買了還沒裝 → 去拿；什麼都還沒買 → 採購
                 var held = s.HeldBy(GameSession.LocalPlayer);
+                // 組裝工作台：組好了 → 拿起成品；正在組 → 到零件盤拿小零件回來裝；手上是一箱小零件 → 放上工作台
+                var job = s.Workbench;
+                if (job != null && job.Done && held == null) return Make("take", "AssemblyBench");
+                if (job != null && !job.Done && held == null)
+                    return Make("fit", s.HeldCompBy(GameSession.LocalPlayer) != null ? "AssemblyBench" : "CompRack");
                 if (held != null && SessionRules.NeedsAssembly(s, data, held)) return Make("assemble", "AssemblyBench");
                 if (held != null) return Make("install", "IntegrationStand");
                 var bench = new HashSet<string>(s.Bench.AllPartIds());

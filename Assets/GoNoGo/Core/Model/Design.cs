@@ -25,6 +25,11 @@ namespace GoNoGo.Core
         /// 評估時加進時程。單純比較設計時是 0。
         /// </summary>
         public double CallMonths { get; set; }
+        /// <summary>
+        /// 組裝工作台裝錯小零件、返工花掉的時程（月）：每裝錯一次 <see cref="Constants.ReworkMonths"/>。
+        /// 由 SessionRules 算好放進來，評估時加進時程。單純比較設計時是 0。
+        /// </summary>
+        public double ReworkMonths { get; set; }
 
         public string Get(string category) =>
             Parts != null && Parts.TryGetValue(category, out var id) ? id : null;
@@ -39,6 +44,7 @@ namespace GoNoGo.Core
             MissionYears = MissionYears,
             ProcurementMusd = ProcurementMusd,
             CallMonths = CallMonths,
+            ReworkMonths = ReworkMonths,
         };
 
         /// <summary>所有選到的零件 id（儀器 + 各單選類別），依固定順序。</summary>

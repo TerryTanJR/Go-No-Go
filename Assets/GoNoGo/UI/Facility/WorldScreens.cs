@@ -104,6 +104,10 @@ namespace GoNoGo.UI
                 case "notes":
                     NotesView.Build(body, true);
                     break;
+                case "bench":
+                    // 組裝工作台洞洞板上的螢幕：組裝單
+                    BenchOrderView.Build(body, true);
+                    break;
                 case "lobby":
                     LobbyView.Build(body, true);
                     break;

@@ -641,3 +641,33 @@
     - 原因：新到貨的零件要沿著輸送帶滑大約 12 秒才停，這段時間它一直在動，測試腳本走到「上一刻的位置」就撲空。不是遊戲的問題。
     - 解法：下單後先 `tools/playtest/pt.sh flow Wait 800` 再 `AimFrom "Item_<id>",1.5`。長按 V 安裝要 1.2 秒，Editor 沒有焦點時幀率很高，`Hold "v",700` 才夠。
     - `pt.sh flow <進入點> <參數>` 的參數是「一個」用逗號隔開的 JSON 字串（`'"batt_small",false'`）；分成兩個引數會變成不合法的 JSON，指令直接失敗、沒有任何輸出。
+
+128. **兩張桌子面對面時，第三人稱鏡頭會貼到身後那張桌子上**
+    - 現象：零件盤一開始放在組裝工作台操作位置的正後方 3.7 m。站在兩張桌子中間面向零件盤時，鏡頭要往後退 3.8 m，
+      被身後的工作台擋住、拉到桌面前緣，整個畫面只剩桌緣的發光條。
+    - 解法：兩張桌子排成 L 形（零件盤在工作台左前方、轉 90°），面向任何一張時身後都是空地。
+      之後在第三人稱會站著操作的東西旁邊，留至少 4 m 的空地給鏡頭，或不要讓兩個要面對的東西背對背。
+
+129. **場景標籤的 `code` 樣式沒有中文字**
+    - 現象：零件盤上小零件的名稱用 `WorldLabel.style = "code"`，畫面上只有灰色小方塊，看不到字。
+    - 原因：`.world-label--code` 指定等寬字型（Mono.asset），那套字型只有英數字，是給零件編號用的。
+    - 解法：新增 `.world-label--comp`（一般字型、深色底）。要顯示中文的標籤不要用 `code`。
+
+130. **實機測試：第二次進 Play 之後鍵盤注入全部失效**
+    - 現象：`pt.sh flow Key` 丟 `MissingReferenceException: InputSettings has been destroyed`，或一直回「keyboard still disabled」。
+    - 原因：`LetInputThrough` 把 `InputSystem.settings` 換成 `Instantiate` 出來的一份，離開 Play 時那一份被銷毀，
+      Input System 還拿著它；下一次 Play 一碰就丟例外。（上一輪主控台那一條 Input System 的 Assertion failed 也是這個。）
+    - 解法：那一份設定加 `HideFlags.HideAndDontSave`（離開 Play 不銷毀）；拿到 null 就重建；鍵盤還是停用時再換一份新的設定物件
+      逼 Input System 重新套用，並等幾幀。都寫在 `tools/playtest/Flow.cs`。
+
+131. **Git Bash 的 heredoc 裡寫 Python／C# 的 `\\n` 會變成真的換行**
+    - 現象：用 `python - <<'EOF'` 把一段含 `"\\n"` 的 C# 寫進檔案，結果字串中間出現真的換行，編譯失敗（Newline in constant）。
+    - 解法：內容裡有反斜線或引號時，不要用 heredoc：用 Write 工具把 Python 腳本寫成檔案（內容放 raw string `r'''…'''`）再執行。
+
+132. **Play 模式中重新編譯，這一局就壞了**
+    - 現象：Play 中執行 `tools/unity-refresh.sh`（只改了 USS 也一樣會觸發），之後 `pt.sh flow State` 回 `screen=-`，
+      主控台同一秒出現 `OpsView.UpdateSatelliteLights` 的 ArgumentNullException（dest）和 `UIRoot.UpdateMenu` 的 NullReferenceException。
+    - 原因：重新編譯會重載程式，MonoBehaviour 留著，但沒有序列化的欄位（`MaterialPropertyBlock`、選單物件）變回 null。
+      正式版（WebGL）不會在執行中重載，不是遊戲的 bug。
+    - 解法：改完程式先 `pt.sh stop`，再 refresh，再重新 `play`。看到這兩個例外先對時間，是不是剛好在 refresh 那一秒。
+

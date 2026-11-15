@@ -29,6 +29,7 @@ namespace GoNoGo.Core
         Dictionary<string, LauncherDef> _launchers;
         Dictionary<string, ScenarioDef> _scenarios;
         Dictionary<string, DifficultyDef> _difficulties;
+        Dictionary<string, AssemblyComponent> _components;
 
         public void BuildIndex()
         {
@@ -37,6 +38,9 @@ namespace GoNoGo.Core
             _launchers = Launchers.ToDictionary(l => l.Id);
             _scenarios = Scenarios.ToDictionary(s => s.Id);
             _difficulties = Difficulties.ToDictionary(d => d.Id);
+            _components = new Dictionary<string, AssemblyComponent>();
+            foreach (var c in (Assemblies?.Recipes ?? new List<AssemblyRecipe>()).SelectMany(r => r.Components))
+                if (!_components.ContainsKey(c.Id)) _components[c.Id] = c;
             if (Sandbox != null)
             {
                 _scenarios[Sandbox.Scenario.Id] = Sandbox.Scenario;
@@ -57,6 +61,34 @@ namespace GoNoGo.Core
             if (part == null || Assemblies == null || Assemblies.Prebuilt.Contains(part.Id)) return null;
             return Assemblies.Recipes.Find(r => r.PartIds.Contains(part.Id))
                    ?? Assemblies.Recipes.Find(r => r.PartIds.Count == 0 && r.Category == part.Category);
+        }
+
+        /// <summary>小零件（組裝工作台）：依 id 查名稱和功能；找不到是 null。</summary>
+        public AssemblyComponent Component(string id) =>
+            id != null && _components != null && _components.TryGetValue(id, out var c) ? c : null;
+
+        /// <summary>零件盤的格數：這個零件的小零件加上混進來的，一共這麼多個。</summary>
+        public const int TraySize = 6;
+
+        /// <summary>
+        /// 這個零件放上組裝工作台時，零件盤上擺出來的小零件（<see cref="TraySize"/> 個）：自己的小零件加上混進來的，
+        /// 照固定的方式打散（同一個零件每次都一樣，房主和每台電腦算出來的也一樣）。不用組裝的零件回傳空清單。
+        /// </summary>
+        public List<AssemblyComponent> Tray(PartDef part)
+        {
+            var recipe = Recipe(part);
+            if (recipe == null) return new List<AssemblyComponent>();
+            var list = recipe.Components.Concat(Distractors(part, TraySize - recipe.Components.Count)).ToList();
+            // 自己寫的亂數（不用 System.Random：不同執行環境的實作可能不一樣）
+            uint seed = 2166136261;
+            foreach (char ch in part.Id) seed = unchecked((seed ^ ch) * 16777619);
+            for (int i = list.Count - 1; i > 0; i--)
+            {
+                seed = unchecked(seed * 1664525 + 1013904223);
+                int j = (int)((seed >> 8) % (uint)(i + 1));
+                (list[i], list[j]) = (list[j], list[i]);
+            }
+            return list;
         }
 
         /// <summary>組裝工作台上混進來的「不是這個零件的小零件」：從別類的配方裡照固定順序挑 n 個。</summary>
@@ -419,6 +451,9 @@ namespace GoNoGo.Core
             foreach (var p in d.Parts.Where(p => p.Category != PartCategory.GroundStation && !d.Assemblies.Prebuilt.Contains(p.Id)))
                 Check(d.Recipe(p) != null, $"零件 {p.Id}：沒有組裝配方");
             Check(d.SpaceWeather.Count > 0, "缺太空天氣事件");
+            Check(d.Constants.ReworkMonths > 0, "裝錯小零件的返工時間（rework_months）必須 > 0");
+            foreach (var pt in d.Parts.Where(x => d.Recipe(x) != null))
+                Check(d.Tray(pt).Select(c => c.Id).Distinct().Count() == GameData.TraySize, $"零件 {pt.Id}：零件盤湊不滿 {GameData.TraySize} 個不重複的小零件");
             Check(d.Constants.BatteryCycleLife.Count >= 2, "電池循環壽命表至少要兩個點");
             return errors;
         }

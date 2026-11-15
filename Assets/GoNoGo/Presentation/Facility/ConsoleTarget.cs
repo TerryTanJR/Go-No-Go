@@ -33,7 +33,7 @@ namespace GoNoGo.Presentation
         /// </summary>
         public static Station? StationOf(string panel) => panel switch
         {
-            "report" or "bay_manual" or "procure" or "dashboard" or "assemble" => Station.Assembly,
+            "report" or "bay_manual" or "procure" or "dashboard" => Station.Assembly,
             "goals" or "mission" or "phone" or "notes" or "launch" or "manual" => Station.Control,
             // 後排的手冊各章（manual:payload…）也是中控室的
             _ when panel != null && panel.StartsWith("manual:") => Station.Control,

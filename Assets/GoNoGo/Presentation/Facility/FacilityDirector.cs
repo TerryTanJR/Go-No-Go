@@ -93,7 +93,9 @@ namespace GoNoGo.Presentation
         {
             var installed = new HashSet<string>(m.S.Bench.AllPartIds());
             var held = new HashSet<string>(m.S.Held.Values);
-            bool Loose(string id) => m.S.Owned.Contains(id) && !installed.Contains(id) && !held.Contains(id);
+            // 放在組裝工作台上的那一個（正在組、或組好了還沒拿走）不在輸送帶上
+            string onBench = m.S.Workbench?.PartId;
+            bool Loose(string id) => m.S.Owned.Contains(id) && !installed.Contains(id) && !held.Contains(id) && id != onBench;
             foreach (var kv in _items)
             {
                 // 還沒組裝的零件是一箱小零件；在組裝工作台組好之後才變成零件本身
@@ -185,19 +187,22 @@ namespace GoNoGo.Presentation
             var m = GameSession.Mission;
             stand.Refresh(m, true);
             SyncDelivery(m);
+            SyncWorkshop(m);
 
-            // 本機手上的零件
+            // 本機手上的零件（或組裝工作台的小零件）
             var mine = m.S.HeldBy(GameSession.LocalPlayer);
+            var mineComp = m.S.HeldCompBy(GameSession.LocalPlayer);
             // 手上拿的是箱子還是組好的零件（組裝完成時要換模型，所以一起記）
             bool mineKit = mine != null && SessionRules.NeedsAssembly(m.S, m.Data, mine);
-            string mineKey = mine == null ? null : mine + (mineKit ? "#kit" : "");
+            string mineKey = mine != null ? mine + (mineKit ? "#kit" : "") : mineComp != null ? "comp:" + mineComp : null;
             if (mineKey != _localHeldId)
             {
                 _localHeldId = mineKey;
                 if (_localHeld != null) Destroy(_localHeld.gameObject);
-                _localHeld = mine == null ? null : HeldModel(mine, mineKit, m.Data, _localRig.hold);
+                _localHeld = mine != null ? HeldModel(mine, mineKit, m.Data, _localRig.hold)
+                    : mineComp != null ? HeldComponent(mineComp, _localRig.hold) : null;
             }
-            _localRig.holding = mine != null;
+            _localRig.holding = mine != null || mineComp != null;
             PoseFeed.Local.Held = mine;
 
             SyncRemotes(m);
@@ -224,8 +229,41 @@ namespace GoNoGo.Presentation
                     go.transform.position = start.position;
                 }
                 var held = m.S.HeldBy(p.Id);
-                ra.Apply(p.Look, held, m.Data, held != null && SessionRules.NeedsAssembly(m.S, m.Data, held));
+                ra.Apply(p.Look, held, m.Data, held != null && SessionRules.NeedsAssembly(m.S, m.Data, held), m.S.HeldCompBy(p.Id));
             }
+        }
+
+        // ---------------- 組裝工作台與零件盤 ----------------
+
+        int _fitsSeen = -1;
+        string _fitsPart;
+
+        /// <summary>工作台上的箱子／小零件／成品、零件盤每一格擺的小零件，都照狀態更新；有人裝了一個小零件就播效果。</summary>
+        void SyncWorkshop(MissionSession m)
+        {
+            var bench = Workbench.Instance;
+            if (bench != null) bench.Sync(m);
+            foreach (var tray in CompTray.Trays) if (tray != null) tray.Sync(m);
+
+            var job = m.S.Workbench;
+            if (job == null) { _fitsSeen = -1; _fitsPart = null; return; }
+            if (_fitsPart != job.PartId) { _fitsPart = job.PartId; _fitsSeen = job.Fits == 0 ? 0 : -1; }
+            // 第一次看到（中途加入、換場景回來）不播；之後每多裝一次播一次
+            if (_fitsSeen >= 0 && job.Fits > _fitsSeen)
+            {
+                if (bench != null) bench.FitFx(job.LastOk);
+                if (job.LastOk) Sfx.Install(); else Sfx.NoGo();
+            }
+            _fitsSeen = job.Fits;
+        }
+
+        /// <summary>拿在手上的小零件（組裝工作台）。</summary>
+        public static Transform HeldComponent(string compId, Transform hand)
+        {
+            var go = SatelliteBuilder.BuildComponent(compId, hand, 0.24f);
+            // 模型的原點在底部：往下移一點，拿起來才在兩手中間
+            go.transform.localPosition = new Vector3(0, -0.08f, 0);
+            return go.transform;
         }
 
         /// <summary>拿在手上的模型：還沒組裝是一箱小零件，組好了是零件本身。</summary>

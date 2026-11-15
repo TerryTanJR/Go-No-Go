@@ -100,14 +100,34 @@ public static class Flow
     static void LetInputThrough()
     {
         var s = InputSystem.settings;
+        // 上一次 Play 留下來的那份設定在離開 Play 時被銷毀了：重新建一份（否則一碰就丟例外）
+        if (s == null)
+        {
+            s = ScriptableObject.CreateInstance<InputSettings>();
+            s.hideFlags = HideFlags.HideAndDontSave;
+            InputSystem.settings = s;
+        }
         if (s.backgroundBehavior != InputSettings.BackgroundBehavior.IgnoreFocus
             || s.editorInputBehaviorInPlayMode != InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView)
         {
             var copy = Object.Instantiate(s);
             copy.name = "PlaytestInputSettings";
+            // 離開 Play 時不要被銷毀（Input System 還拿著它）
+            copy.hideFlags = HideFlags.HideAndDontSave;
             copy.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
             copy.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
             InputSystem.settings = copy;
+        }
+        // 設定物件沒換（上一次 Play 留下來的那一份）時 Input System 不會重新套用，鍵盤會停在「背景停用」：
+        // 換一份新的設定物件，逼它重新套用一次
+        if (Keyboard.current != null && !Keyboard.current.enabled)
+        {
+            var again = Object.Instantiate(InputSystem.settings);
+            again.name = "PlaytestInputSettings";
+            again.hideFlags = HideFlags.HideAndDontSave;
+            again.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+            again.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
+            InputSystem.settings = again;
         }
         foreach (var d in InputSystem.devices)
             if (!d.enabled) InputSystem.EnableDevice(d);
@@ -119,6 +139,12 @@ public static class Flow
         await Frames(2);
         var kb = Keyboard.current;
         if (kb == null) return "no keyboard";
+        // 重新套用設定後，鍵盤要過幾幀才會啟用
+        for (int i = 0; i < 20 && !kb.enabled; i++)
+        {
+            InputSystem.EnableDevice(kb);
+            await Frames(2);
+        }
         if (!kb.enabled) return "keyboard still disabled";
         var k = (Key)System.Enum.Parse(typeof(Key), key, true);
         InputSystem.QueueStateEvent(kb, new KeyboardState(k));
@@ -428,5 +454,73 @@ public static class Flow
             .Select(e => e.text).Where(t => t.Contains("[[") || t.Contains("]]") || System.Text.RegularExpressions.Regex.IsMatch(t, @"^(ui|err|res|warn|event|ops|mini|cause|suggest|objective)\.[a-z0-9_.]+$")
                                             || System.Text.RegularExpressions.Regex.IsMatch(t, @"\{[a-z_]+(:[^}]*)?\}")).Distinct().ToList();
         return bad.Count == 0 ? "clean" : "LEAKS: " + string.Join(" | ", bad);
+    }
+
+    // ---------------- 組裝工作台與零件盤 ----------------
+
+    /// <summary>組裝工作台的狀態：正在組什麼、零件盤、手上、畫面右上的組裝單、通知。</summary>
+    public static string Bench()
+    {
+        var s = GameSession.Mission.S;
+        var d = GameSession.Data;
+        var sb = new StringBuilder();
+        var job = s.Workbench;
+        sb.Append("job=").Append(job == null ? "-" : job.PartId + " step " + job.Step + " mistakes " + job.Mistakes + " done " + job.Done + " fits " + job.Fits + " lastOk " + job.LastOk);
+        sb.Append(" rework=").Append(s.Rework).Append(" held=").Append(s.HeldBy(GameSession.LocalPlayer) ?? "-")
+          .Append(" comp=").Append(s.HeldCompBy(GameSession.LocalPlayer) ?? "-");
+        var want = GoNoGo.Core.SessionRules.BenchWants(s, d);
+        sb.Append(" wants=").Append(want == null ? "-" : want.Id);
+        sb.Append("\ntray: ").Append(string.Join(" | ", GoNoGo.Core.SessionRules.TrayNow(s, d).Select(c => c == null ? "-" : c.Id)));
+        sb.Append("\ntrays3d: ").Append(string.Join(" | ", CompTray.Trays.OrderBy(t => t.index).Select(t => t.Component == null ? "-" : t.Component.Id)));
+        var ord = Elements().FirstOrDefault(e => e.ClassListContains("ord-hud") && Visible(e));
+        sb.Append("\norder: ").Append(ord == null ? "(hidden)" : TextOf(ord).Replace("\n", " "));
+        var toast = Elements().FirstOrDefault(e => e.ClassListContains("toast--on"));
+        sb.Append("\ntoast: ").Append(toast == null ? "-" : TextOf(toast).Replace("\n", " / "));
+        sb.Append("\nlearned=").Append(string.Join(",", s.Learned)).Append(" flawless=").Append(string.Join(",", s.Flawless));
+        return sb.ToString();
+    }
+
+    /// <summary>準星／身邊對到的東西（資訊框全文）。</summary>
+    public static string Target()
+    {
+        var h = Hud.Target;
+        if (h == null) return "nothing targeted";
+        return h.Title + (string.IsNullOrEmpty(h.Subtitle) ? "" : " (" + h.Subtitle + ")") + (string.IsNullOrEmpty(h.Body) ? "" : " [" + h.Body.Replace("\n", " / ") + "]")
+               + " keys=" + string.Join(",", h.Keys.Select(k => k.Key + ":" + k.Label));
+    }
+
+    /// <summary>
+    /// 走到工作台或零件盤的正面（局部 -Z 那一側）dist 公尺、面向它，回傳對到什麼。
+    /// name = "AssemblyBench" 或 "Tray0"…"Tray5"。第三人稱只轉水平方向，俯仰不動（玩家平常走過去的樣子）。
+    /// </summary>
+    public static async Task<string> AimFront(string name, float dist, bool firstPerson)
+    {
+        var ct = Object.FindObjectsByType<Interactable>().FirstOrDefault(c => c.name == name);
+        if (ct == null) return "no target " + name;
+        var root = ct is CompTray ? ct.transform.parent : ct.transform;
+        var outward = -root.forward;
+        outward.y = 0;
+        outward.Normalize();
+        Vector3 c = ct is CompTray ? CenterOf(ct) : ct.transform.position + Vector3.up * 1.2f;
+        var stand = new Vector3(c.x, 0, c.z) + outward * dist;
+        var pc = FacilityDirector.Instance.Player;
+        Hud.FirstPerson = firstPerson;
+        pc.Teleport(new Vector3(stand.x, 0.05f, stand.z), Quaternion.LookRotation(-outward).eulerAngles.y);
+        await Frames(4);
+        var t = typeof(PlayerController);
+        var eye = pc.Eye;
+        var dir = c - eye;
+        t.GetField("_yaw", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(pc, Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg);
+        if (firstPerson)
+            t.GetField("_pitch", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(pc, -Mathf.Atan2(dir.y, new Vector2(dir.x, dir.z).magnitude) * Mathf.Rad2Deg);
+        await Frames(8);
+        return "aim " + name + (firstPerson ? " (1st)" : " (3rd)") + ": " + Target();
+    }
+
+    /// <summary>哪一格零件盤上放著這個小零件（-1 = 不在盤上）。</summary>
+    public static int TrayOf(string compId)
+    {
+        var t = CompTray.Trays.FirstOrDefault(x => x.Component != null && x.Component.Id == compId);
+        return t == null ? -1 : t.index;
     }
 }

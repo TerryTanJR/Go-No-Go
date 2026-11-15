@@ -12,6 +12,9 @@ namespace GoNoGo.UI
 
         public static string N(double v, int dec = 0) => v.ToString("N" + dec, Inv);
 
+        /// <summary>月數：最多兩位小數、不補零（18、18.5、18.25）。</summary>
+        public static string Months(double v) => v.ToString("#,0.##", Inv);
+
         /// <summary>沙盒的預算、期限「沒有上限」：資料裡是一個很大的數字，畫面一律寫 ∞。</summary>
         public static bool Unlimited(double v) => v >= ScenarioDef.NoLimit / 2;
 
@@ -40,6 +43,8 @@ namespace GoNoGo.UI
                 case ResourceId.Budget: return $"{Money(r.Used)} / {Money(r.Capacity)}";
                 case ResourceId.Comms: return $"{N(r.Used, 1)} / {N(r.Capacity, 1)} {Unit(r.Unit)}";
                 case ResourceId.Data: return $"{N(r.Used, 1)} / {N(r.Capacity, 0)} {Unit(r.Unit)}";
+                // 時程：返工一次 +0.25 個月，取整數的話玩家看不到變化
+                case ResourceId.Time when !Unlimited(r.Capacity): return $"{Months(r.Used)} / {Months(r.Capacity)} {Unit(r.Unit)}";
                 default: return Unlimited(r.Capacity) ? $"{N(r.Used)} / ∞ {Unit(r.Unit)}" : $"{N(r.Used)} / {N(r.Capacity)} {Unit(r.Unit)}";
             }
         }
@@ -51,6 +56,7 @@ namespace GoNoGo.UI
                 case ResourceId.Budget: return Money(v);
                 case ResourceId.Comms:
                 case ResourceId.Data: return $"{N(v, 1)} {Unit(unit)}";
+                case ResourceId.Time: return $"{Months(v)} {Unit(unit)}";
                 default: return $"{N(v)} {Unit(unit)}";
             }
         }

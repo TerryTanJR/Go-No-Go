@@ -35,6 +35,7 @@ namespace GoNoGo.UI
 
             var head = Ui.Row("codex-head").AddTo(parent);
             Ui.Text(Loc.T("ui.codex.count", ("n", have), ("total", total)), "h3", have >= total ? "go" : "accent").AddTo(head);
+            Ui.Text(Loc.T("ui.codex.mastered", ("n", Codex.MasterCount(data))), "codex-master-count").AddTo(head);
             var track = Ui.El("codex-track").AddTo(head);
             var fill = Ui.El("codex-fill").AddTo(track);
             fill.style.width = Length.Percent(total > 0 ? 100f * have / total : 0);
@@ -61,7 +62,7 @@ namespace GoNoGo.UI
                     var b = Ui.Btn("", () => { _sel = part.Id; rebuild?.Invoke(); }, "codex-tile")
                         .Cls("codex-tile--locked", !has).Cls("codex-tile--on", p.Id == _sel).AddTo(grid);
                     b.Clear();
-                    Ui.Text(p.Code, "codex-tile-code", "mono").AddTo(b);
+                    Ui.Text((Codex.IsMaster(p.Id) ? "★ " : "") + p.Code, "codex-tile-code", "mono").Cls("codex-tile-code--master", Codex.IsMaster(p.Id)).AddTo(b);
                     Ui.Text(has ? Loc.T(p.Name) : "?", "codex-tile-name").AddTo(b);
                     if (ColorUtility.TryParseHtmlString(p.Color, out var c) && has) b.style.borderTopColor = c;
                 }
@@ -82,6 +83,9 @@ namespace GoNoGo.UI
             {
                 Ui.Text(Loc.T(sel.Name), "h3", "asm-name").AddTo(top);
                 Ui.Text(Loc.T("ui.cat." + sel.Category), "eyebrow", "codex-detail-cat").AddTo(detail);
+                // 精通：組裝這種構造時一次都沒裝錯。還沒精通、又要組裝的零件，寫出怎麼拿到
+                if (Codex.IsMaster(sel.Id)) Ui.Text(Loc.T("ui.codex.master_tag"), "codex-master").AddTo(detail);
+                else if (data.Recipe(sel) != null) Ui.Text(Loc.T("ui.codex.master_how"), "small", "dim", "codex-master-how").AddTo(detail);
                 Ui.Text(Loc.T(sel.Function), "codex-fact").AddTo(detail);
                 Ui.Text(Ui.NoOrphan(Loc.T(sel.Explainer)), "body", "codex-text").AddTo(detail);
                 // 這個零件由哪些小零件組成（組裝工作台的配方）

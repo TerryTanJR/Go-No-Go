@@ -112,7 +112,15 @@ namespace GoNoGo.UI
             Fact(you, "ui.report.f.mass", Fmt.N(ev.Mass.WetKg) + " kg");
             // 這一局收進圖鑑的知識卡（組裝、安裝零件時收的）
             int cards = Codex.NewThisMission.Count;
-            if (cards > 0) Fact(you, "ui.report.f.cards", Loc.T("ui.report.cards", ("n", cards), ("have", Codex.Count(D)), ("total", Codex.Total(D))));
+            int mastered = Codex.MasteredThisMission.Count;
+            if (cards > 0 || mastered > 0)
+                Fact(you, "ui.report.f.cards", Loc.T("ui.report.cards", ("n", cards), ("have", Codex.Count(D)), ("total", Codex.Total(D)))
+                    + (mastered > 0 ? (Loc.IsZh ? "，" : ", ") + Loc.T("ui.report.mastered", ("n", mastered)) : ""));
+            // 組裝工作台：裝錯幾次、賠了多少時間（有親手組過東西才列）
+            if (M.S.Rework > 0)
+                Fact(you, "ui.report.f.assembly", Loc.T("ui.report.assembly", ("n", M.S.Rework), ("m", BenchOrderView.Months(SessionRules.ReworkMonths(M.S, D)))));
+            else if (M.S.Learned.Count > 0)
+                Fact(you, "ui.report.f.assembly", Loc.T("ui.report.assembly_clean"));
 
             // 沒有對照任務的關卡（月球、野火）不放空的面板
             var missions = M.Scenario.ComparisonMissions.Select(id => D.Missions.FirstOrDefault(x => x.Id == id)).Where(x => x != null).ToList();

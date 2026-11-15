@@ -412,6 +412,9 @@
     transition-duration: 0.25s;
 }
 .toast--on { opacity: 1; }
+/* 長的提示（裝錯小零件…）換行，不要橫跨到左上的引導卡和右上的組裝單 */
+.toast { max-width: 44%; }
+.toast > .small { white-space: normal; -unity-text-align: middle-center; }
 .tooltip {
     position: absolute;
     max-width: 360px;
@@ -928,6 +931,17 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     background-color: rgba(230, 238, 248, 0.92);
     -unity-font-definition: url("project://database/Assets/GoNoGo/UI/Resources/UI/Fonts/Mono.asset");
     padding: 1px 5px;
+}
+
+/* 零件盤上小零件的名稱：中文字，要看得清楚（code 那種是等寬字型，只有英數字） */
+.world-label--comp {
+    font-size: var(--fs-14);
+    -unity-font-style: bold;
+    color: var(--c-text);
+    background-color: rgba(6, 12, 22, 0.85);
+    border-bottom-width: 2px;
+    border-color: var(--c-accent);
+    padding: 2px 8px;
 }
 
 /* ---------- 面板（按 E 打開） ---------- */
@@ -1983,74 +1997,81 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .mini-caption--warn { color: rgb(255, 176, 32); border-color: rgb(255, 176, 32); background-color: rgba(255, 176, 32, 0.08); }
 .mini-caption--bad { color: rgb(255, 90, 95); border-color: rgb(255, 90, 95); background-color: rgba(255, 90, 95, 0.08); }
 
-/* ---------- 組裝工作台（AssemblePanel）：左 3D 預覽、中組裝順序、右零件盤 ---------- */
+/* ---------- 組裝單（BenchOrderView）：組裝區右上角、工作台的螢幕 ---------- */
 .asm-head { flex-direction: row; align-items: center; margin-bottom: 6px; }
 .asm-name { margin-left: 12px; flex-shrink: 1; }
 .modal--manual .asm-name { font-size: var(--fs-24); letter-spacing: 1px; }
-.modal--manual .asm-how { margin: 2px 0 10px 0; font-size: var(--fs-17); }
-.asm-wrap { flex-direction: row; align-items: stretch; height: 470px; flex-shrink: 0; overflow: hidden; }
-.asm-preview { width: 380px; height: 380px; margin-right: 18px; }
-/* 完成畫面：高度跟著內容（知識卡的字數每個零件不一樣），不要裁掉 */
-.asm-wrap--done { height: auto; min-height: 400px; overflow: visible; }
-.asm-steps { flex-grow: 1; flex-shrink: 1; flex-basis: 0; margin-right: 18px; min-width: 0; }
-.asm-step {
-    flex-direction: row;
-    align-items: center;
-    margin-top: 8px;
-    padding: 9px 12px;
+.ord-hud { position: absolute; right: 18px; top: 60px; width: 400px; }
+.ord {
+    padding: 12px 14px;
     border-radius: 8px;
-    border-width: 1px;
-    border-color: var(--c-line);
-    background-color: rgba(10, 18, 32, 0.5);
-    opacity: 0.55;
+    background-color: rgba(9, 16, 28, 0.88);
+    border-left-width: 4px;
+    border-color: var(--c-accent);
 }
-.asm-step--now { opacity: 1; border-color: var(--c-accent); background-color: var(--c-accent-dim); }
-.asm-step--done { opacity: 1; border-color: rgba(61, 220, 132, 0.6); background-color: rgba(61, 220, 132, 0.08); }
-.asm-step-n {
-    width: 34px;
-    height: 34px;
+.ord-head { flex-direction: row; align-items: center; }
+.ord-count { font-size: var(--fs-18); color: var(--c-accent); -unity-font-style: bold; }
+.ord-title { flex-direction: row; align-items: center; margin: 4px 0 8px 0; }
+.ord-name { margin-left: 10px; font-size: var(--fs-18); -unity-font-style: bold; color: var(--c-text); flex-shrink: 1; white-space: normal; }
+.ord-step { flex-direction: row; align-items: center; margin-top: 5px; }
+.ord-n {
+    width: 24px;
     flex-shrink: 0;
-    margin-right: 12px;
-    border-radius: 17px;
-    border-width: 2px;
-    border-color: var(--c-line-hi);
-    -unity-text-align: middle-center;
-    font-size: var(--fs-17);
+    margin-right: 8px;
+    font-size: var(--fs-15);
     -unity-font-style: bold;
+    -unity-text-align: middle-center;
     color: var(--c-dim);
 }
-.asm-step--now .asm-step-n { border-color: var(--c-accent); color: var(--c-accent); }
-.asm-step--done .asm-step-n { border-color: var(--c-go); color: var(--c-go); }
-.asm-step-col { flex-grow: 1; flex-shrink: 1; min-width: 0; }
-.asm-step-name { font-size: var(--fs-17); -unity-font-style: bold; color: var(--c-dim); }
-.asm-step--now .asm-step-name { color: var(--c-accent); }
-.asm-step--done .asm-step-name { color: var(--c-go); }
-.asm-step-role { font-size: var(--fs-18); color: var(--c-text); white-space: normal; margin-top: 2px; }
-.asm-feedback { margin-top: 12px; font-size: var(--fs-17); color: var(--c-go); white-space: normal; }
-.asm-feedback--bad { color: var(--c-tight); }
-.asm-tray { width: 30%; flex-shrink: 0; }
-.asm-grid { flex-direction: row; flex-wrap: wrap; margin-top: 8px; }
-.asm-piece {
-    width: 46%;
-    min-height: 70px;
-    margin: 0 4% 12px 0;
-    padding: 10px 8px;
-    border-radius: 8px;
-    border-width: 2px;
-    border-color: var(--c-line-hi);
-    background-color: rgba(10, 22, 40, 0.85);
-    font-size: var(--fs-18);
-    -unity-font-style: bold;
-    white-space: normal;
-    -unity-text-align: middle-center;
+.ord-step-text { flex-shrink: 1; font-size: var(--fs-15); color: var(--c-dim); white-space: normal; }
+.ord-step--done .ord-n, .ord-step--done .ord-step-text { color: var(--c-go); }
+.ord-step--done .ord-step-text { -unity-font-style: bold; }
+.ord-step--later { opacity: 0.75; }
+.ord-now {
+    margin-top: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: var(--c-accent);
+    background-color: var(--c-accent-dim);
 }
-.asm-piece:hover:enabled { border-color: var(--c-accent); background-color: rgba(57, 198, 244, 0.14); }
-.asm-piece--used, .asm-piece--used:disabled { opacity: 0.28; border-color: rgba(61, 220, 132, 0.6); }
-.asm-done { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-width: 0; }
-.asm-empty { padding: 24px 8px 8px 8px; }
-.asm-waiting { margin-top: 12px; }
-.asm-chips { flex-direction: row; flex-wrap: wrap; margin-top: 8px; }
-.asm-chip { margin: 0 8px 8px 0; }
+.ord-now .eyebrow { color: var(--c-accent); margin-bottom: 2px; }
+.ord-role { font-size: var(--fs-20); -unity-font-style: bold; color: var(--c-text); white-space: normal; }
+.ord-how { margin-top: 10px; font-size: var(--fs-14); color: var(--c-dim); white-space: normal; }
+.ord-rework { margin-top: 4px; font-size: var(--fs-14); color: var(--c-dim); white-space: normal; }
+.ord-rework--bad { color: var(--c-tight); -unity-font-style: bold; }
+.ord-take { margin-top: 6px; font-size: var(--fs-20); -unity-font-style: bold; color: var(--c-go); white-space: normal; }
+.ord-idle { margin-top: 10px; font-size: var(--fs-20); color: var(--c-dim); white-space: normal; }
+/* 工作台的螢幕：要從幾步外看得到，字放得很大（固定大小，不跟字體設定：螢幕就這麼大） */
+.ord--screen { flex-grow: 1; padding: 20px 26px; border-left-width: 0; border-radius: 0; background-color: rgba(0, 0, 0, 0); }
+.ord--screen .eyebrow { font-size: 30px; }
+.ord--screen .ord-count { font-size: 40px; }
+.ord--screen .ord-title { margin: 6px 0 4px 0; }
+.ord--screen .ord-name { font-size: 40px; }
+.ord--screen .man-code { font-size: 32px; }
+.ord--screen .ord-n { width: 50px; font-size: 32px; }
+.ord--screen .ord-step-text { font-size: 30px; }
+.ord--screen .ord-step { margin-top: 8px; }
+.ord--screen .ord-now { margin-top: 12px; padding: 12px 18px; border-width: 3px; }
+.ord--screen .ord-role { font-size: 52px; }
+.ord--screen .ord-how { display: none; }
+.ord--screen .ord-rework { font-size: 28px; margin-top: 12px; }
+.ord--screen .ord-take { font-size: 56px; margin-top: 30px; }
+.ord--screen .ord-idle { font-size: 52px; margin-top: 30px; }
+
+/* 任務說明的按鍵提示（右上角）：鍵帽 + 文字 */
+.brief-chip {
+    flex-direction: row;
+    align-items: center;
+    margin-left: 10px;
+    padding: 5px 12px 5px 8px;
+    border-radius: 16px;
+    background-color: rgba(9, 16, 28, 0.8);
+    border-width: 1px;
+    border-color: var(--c-line-hi);
+}
+.brief-chip-label { font-size: var(--fs-15); color: var(--c-text); }
+.brief-again { margin-top: 10px; font-size: var(--fs-16); color: var(--c-dim); white-space: normal; }
 
 /* ---------- 知識卡（採購終端的翻牌、組裝完成的獎勵、圖鑑） ---------- */
 .codex-card {
@@ -2066,7 +2087,8 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .codex-card--open { background-color: rgba(181, 140, 255, 0.10); }
 .codex-card--big { padding: 14px 16px; }
 .codex-flip {
-    align-self: flex-start;
+    align-self: stretch;
+    white-space: normal;
     margin: 0;
     padding: 4px 6px;
     border-width: 0;
@@ -2114,16 +2136,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .codex-comp-name { width: 150px; flex-shrink: 0; font-size: var(--fs-16); color: var(--c-text); -unity-font-style: bold; }
 .codex-comp-role { flex-grow: 1; flex-shrink: 1; min-width: 0; }
 .proc-kit-title { margin-top: 14px; }
-.proc-kit { flex-direction: row; flex-wrap: wrap; margin-top: 6px; }
-.proc-kit-chip {
-    margin: 0 6px 6px 0;
-    padding: 3px 10px;
-    border-radius: 12px;
-    border-width: 1px;
-    border-color: var(--c-line-hi);
-    font-size: var(--fs-15);
-    color: var(--c-dim);
-}
 
 /* ---------- 設計圖庫（DesignsView）：上方儲存與匯入、左清單、右比較表 ---------- */
 .dsg-top { flex-direction: row; align-items: stretch; margin-bottom: 6px; }
@@ -2198,3 +2210,10 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     background-color: rgba(18, 12, 34, 0.94);
 }
 .codex-overlay .codex-text { margin: 6px 0 0 0; }
+
+/* 知識卡精通（組裝時一次都沒裝錯） */
+.codex-master-count { margin-left: 14px; font-size: var(--fs-17); -unity-font-style: bold; color: #FFC94A; }
+.codex-tile-code--master { color: #FFC94A; }
+.codex-master { margin: 4px 0; font-size: var(--fs-15); -unity-font-style: bold; color: #FFC94A; white-space: normal; }
+.codex-master-how { margin: 4px 0; white-space: normal; }
+.brief-chip .keycap { min-width: 24px; font-size: var(--fs-14); -unity-text-align: middle-center; }

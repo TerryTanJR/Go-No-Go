@@ -8,7 +8,7 @@ using UnityEngine.UIElements;
 namespace GoNoGo.UI
 {
     /// <summary>
-    /// 新手訓練：左上角的任務追蹤，平常只有一行「3/13 打一通電話」；換步驟時展開說明 8 秒，按 H 可以再展開或收起。
+    /// 新手訓練：左上角的任務追蹤，平常只有一行「3/14 打一通電話」；換步驟時展開說明 8 秒，按 H 可以再展開或收起。
     /// 目標物件上方有標記和距離（不在畫面裡時貼在畫面邊緣），不必靠文字找位置。
     /// 做到了（收到 <see cref="Hud.Signal"/>）就打勾、換下一步。步驟跨場景保留（發射畫面回來後接著做營運的步驟）。
     /// <para>
@@ -37,7 +37,9 @@ namespace GoNoGo.UI
             new Step { Key = "notes", Phase = SessionPhase.Design, Done = s => s == "open:notes", Target = "Screen_notes" },
             new Step { Key = "procure", Phase = SessionPhase.Design, Done = s => s == "order", Target = "ProcureConsole" },
             new Step { Key = "pick", Phase = SessionPhase.Design, Done = s => s.StartsWith("pick:"), Target = "code" },
-            new Step { Key = "assemble", Phase = SessionPhase.Design, Done = s => s == "assemble", Target = "AssemblyBench" },
+            // 組裝分兩步：先把箱子放上工作台，再到零件盤拿小零件回來裝（組好才算完成）
+            new Step { Key = "bench", Phase = SessionPhase.Design, Done = s => s == "bench_place", Target = "AssemblyBench" },
+            new Step { Key = "assemble", Phase = SessionPhase.Design, Done = s => s == "assemble", Target = "CompRack" },
             new Step { Key = "install", Phase = SessionPhase.Design, Done = s => s == "install", Target = "IntegrationStand" },
             new Step { Key = "dashboard", Phase = SessionPhase.Design, Done = s => s == "open:dashboard" || s == "open:tablet", Target = "BayDashboard" },
             // 後排北座的手冊 2・電力（組裝區的完整手冊也算，裡面一樣翻得到第 2 章）

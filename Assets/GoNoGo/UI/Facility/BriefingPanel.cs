@@ -123,7 +123,12 @@ namespace GoNoGo.UI
                 Ui.Text(Loc.T("ui.brief.dossier"), "eyebrow").AddTo(dos);
                 Ui.Text(Ui.NoOrphan(Loc.T(sc.Historical.Background)), "body").AddTo(dos);
             }
+            // 之後想再看：隨時按 B（很多人以為簡報只出現一次，看過就沒了）
+            Ui.Text(Loc.T("ui.brief.again"), "brief-again").AddTo(_foot);
             var row = Ui.Row("modal-actions").AddTo(_foot);
+            // 回頭複習時：可以從頭再播一次
+            if (M.S.Phase != SessionPhase.Briefing)
+                Ui.Btn(Loc.T("ui.brief.replay"), () => { _shown = 0; _typed = 0; _done = false; Sfx.Click(); Redraw(); }, "btn-ghost").AddTo(row);
             Ui.Spacer().AddTo(row);
             if (M.S.Phase == SessionPhase.Briefing)
                 Ui.Btn(Loc.T(M.IsHistorical ? "ui.brief.launch_history" : "ui.brief.start"), () =>

@@ -8,19 +8,25 @@ namespace GoNoGo.Presentation
     /// <summary>
     /// 互動：第一人稱從畫面中央打射線；第三人稱挑角色身邊、鏡頭前方的物件（見 <see cref="Nearby"/>）。送出資訊框內容給 HUD；
     /// C 拿取／放下／拆下，V 長按 1.2 秒安裝，E 使用控制台。
+    /// 組裝工作台：拿著小零件對著工作台長按 V（比安裝短）裝上去；拿著小零件按 C 放回零件盤。
     /// </summary>
     [RequireComponent(typeof(PlayerController))]
     public sealed class Interactor : MonoBehaviour
     {
         public const float HoldSeconds = 1.2f;
+        /// <summary>在組裝工作台裝一個小零件要按多久（一個零件要裝好幾次，比安裝短）。</summary>
+        public const float FitSeconds = 0.6f;
 
         PlayerController _pc;
         Interactable _current;
         float _hold;
         float _chargeTick;
+        bool _holdDone;
 
         /// <summary>本機玩家手上的零件（null = 空手）。</summary>
         public string Holding => GameSession.HasMission ? GameSession.Mission.S.HeldBy(GameSession.LocalPlayer) : null;
+        /// <summary>本機玩家手上的小零件（組裝工作台用；null = 沒有）。</summary>
+        public string HoldingComp => GameSession.HasMission ? GameSession.Mission.S.HeldCompBy(GameSession.LocalPlayer) : null;
         public bool Installing => _hold > 0;
         public PlayerController Controller => _pc;
 
@@ -40,6 +46,7 @@ namespace GoNoGo.Presentation
             var kb = Keyboard.current;
             bool active = !Hud.InputBlocked && !_pc.Frozen && Hud.ClosedFrame != Time.frameCount;
             string held = Holding;
+            string heldComp = HoldingComp;
 
             // ---- 對到什麼 ----
             Interactable found = null;
@@ -99,6 +106,13 @@ namespace GoNoGo.Presentation
                 target = _current.Describe(this);
                 if (target != null && !_pc.FirstPerson) target.Anchor = TopOf(_current);
             }
+            else if (heldComp != null && active)
+            {
+                // 手上拿著小零件、沒對著東西：提醒拿去工作台
+                var comp = m.Data.Component(heldComp);
+                target = new HudTarget { Title = comp != null ? Loc.T(comp.Name) : "", Subtitle = Loc.T("ui.hint.holding_comp") };
+                target.Keys.Add(new KeyHint("C", Loc.T("ui.hint.drop")));
+            }
             else if (held != null && active)
             {
                 var def = m.Data.Part(held);
@@ -115,26 +129,56 @@ namespace GoNoGo.Presentation
                 return;
             }
 
-            // ---- V：長按安裝 ----
-            if (nearStand && canInstall == SessionRules.Ok && kb.vKey.isPressed)
+            // ---- V：長按安裝（整合台）／長按把小零件裝上去（組裝工作台） ----
+            bool canFit = heldComp != null && _current is Workbench && SessionRules.BenchRecipe(m.S, m.Data) != null;
+            bool canHold = canFit || (nearStand && canInstall == SessionRules.Ok);
+            if (canHold && kb.vKey.isPressed && !_holdDone)
             {
+                float need = canFit ? FitSeconds : HoldSeconds;
                 _hold += Time.deltaTime;
                 _chargeTick -= Time.deltaTime;
-                if (_chargeTick <= 0) { Sfx.Charge(_hold / HoldSeconds); _chargeTick = 0.1f; }
-                Hud.Progress = Mathf.Clamp01(_hold / HoldSeconds);
-                if (_hold >= HoldSeconds)
+                if (_chargeTick <= 0) { Sfx.Charge(_hold / need); _chargeTick = 0.1f; }
+                Hud.Progress = Mathf.Clamp01(_hold / need);
+                if (_hold >= need)
                 {
-                    GameSession.Send(CommandType.Install);
-                    Hud.Signal("install");
+                    if (canFit)
+                    {
+                        GameSession.Send(CommandType.CompFit);
+                        Hud.Signal("comp_fit");
+                    }
+                    else
+                    {
+                        GameSession.Send(CommandType.Install);
+                        Hud.Signal("install");
+                    }
                     CancelHold();
+                    // 放開 V 之前不再開始下一次（多人時狀態晚一點才回來，不要連續送兩次）
+                    _holdDone = true;
                 }
             }
-            else CancelHold();
+            else
+            {
+                CancelHold();
+                if (!kb.vKey.isPressed) _holdDone = false;
+            }
 
             // ---- C：拿取、放下、拆下 ----
             if (kb.cKey.wasPressedThisFrame)
             {
-                if (_current != null && !(nearStand && held != null)) _current.OnKey(this, 'C');
+                // 手上拿著小零件：不管對著什麼都是放回零件盤
+                if (heldComp != null)
+                {
+                    GameSession.Send(CommandType.CompDrop);
+                    Sfx.Drop();
+                }
+                // 拿著零件對著控制台、工作台、零件盤：放下手上的零件（這些東西沒有「拿」可以做）
+                else if (held != null && (_current is ConsoleTarget || _current is CompTray
+                                          || (_current is Workbench && !(GameSession.Mission.S.Workbench?.Done ?? false))))
+                {
+                    GameSession.Send(CommandType.Drop);
+                    Sfx.Drop();
+                }
+                else if (_current != null && !(nearStand && held != null)) _current.OnKey(this, 'C');
                 else if (held != null)
                 {
                     GameSession.Send(CommandType.Drop);
