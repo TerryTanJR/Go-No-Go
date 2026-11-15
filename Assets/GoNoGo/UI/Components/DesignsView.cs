@@ -91,7 +91,10 @@ namespace GoNoGo.UI
             irow.Add(code);
             Ui.Btn(Loc.T("ui.designs.paste"), () => ClipboardUtil.Paste(t =>
             {
-                _code = (t ?? "").Trim();
+                // 拿不到剪貼簿（瀏覽器拒絕權限、不支援，或剪貼簿是空的）：保留已經打好的內容，請玩家自己貼
+                t = (t ?? "").Trim();
+                if (t.Length > 0) { _code = t; _msg = ""; }
+                else Say(Loc.T("ui.designs.paste_failed"), true);
                 rebuild?.Invoke();
             }), "btn-ghost").AddTo(irow);
             Ui.Btn(Loc.T("ui.designs.import"), () =>

@@ -1322,6 +1322,7 @@
   "ui.designs.saved": { "en": "Saved: {name}", "zh-TW": "已儲存：{name}" },
   "ui.designs.import_title": { "en": "IMPORT A SHARED CODE", "zh-TW": "匯入分享碼" },
   "ui.designs.paste": { "en": "Paste", "zh-TW": "貼上" },
+  "ui.designs.paste_failed": { "en": "Couldn't read the clipboard. Click the box and press Ctrl+V (Cmd+V on Mac) to paste the code.", "zh-TW": "讀不到剪貼簿。請點一下輸入框，按 Ctrl+V（Mac 是 Cmd+V）把分享碼貼進去。" },
   "ui.designs.import": { "en": "Import", "zh-TW": "匯入" },
   "ui.designs.imported": { "en": "Imported: {name}", "zh-TW": "已匯入：{name}" },
   "ui.designs.list": { "en": "SAVED DESIGNS  {n} / {max}", "zh-TW": "存過的設計  {n} / {max}" },
