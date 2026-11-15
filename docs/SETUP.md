@@ -301,6 +301,21 @@ unity command build run -- --target WebGL --output-path Builds/WebGL --confirm t
 - 上傳 Unity Play：https://play.unity.com 登入 → Upload → 拖進 Web 的 zip → 填名稱、縮圖 → 可見度選 Unlisted（只有拿到連結的人能玩）→ Publish。
 - 更新版本時，房主和所有玩家都要換成同一版（網頁重新整理、Windows 版換新 zip），新舊版本可能連不進同一個房間。
 
+### 11.6 部署到 GitHub Pages
+
+網頁版放在 `gh-pages` 分支（只放打包結果，跟 main 分開、沒有 LFS），網址 https://terrytanjr.github.io/Go-No-Go/ 。main 更新不會自動部署，要更新網站時執行：
+
+```bash
+bash tools/deploy-pages.sh              # 用開著的編輯器打包 → 換掉 gh-pages 的內容 → commit → push
+bash tools/deploy-pages.sh --skip-build # 不重新打包，部署現有的 Builds/Release/Web
+bash tools/deploy-pages.sh --no-push    # 只 commit，先在本機檢查
+```
+
+- 編輯器要開著、不在 Play 模式。打包會把編輯器的平台切到 WebGL。
+- 第一次執行會在專案旁邊建 `../Go-no-go-pages`（gh-pages 的 git worktree）。不要在裡面手動改檔，每次部署都會整個換掉。
+- 第一次部署後要開 Pages（repo 必須是 Public）：Settings → Pages → Deploy from a branch → `gh-pages` / `(root)`。
+- 推完約 1–3 分鐘生效，瀏覽器用 Ctrl+Shift+R 強制重新整理。
+
 ---
 
 ## 12. Mac 安裝（和 Windows 不同的地方）
