@@ -133,7 +133,8 @@ namespace GoNoGo.Presentation
                     rollZ = Mathf.Sin(_phase * 0.5f) * 3f * _walk;
                     break;
                 }
-                default: // Legs
+                case Legs:
+                default:
                 {
                     _phase += dt * Mathf.Lerp(6f, 13f, Mathf.Clamp01(speed / 5f)) * (_walk > 0.01f ? 1f : 0f);
                     float s = Mathf.Sin(_phase);

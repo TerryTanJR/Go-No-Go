@@ -86,6 +86,7 @@ def main():
         "ui.bench.status.": ["empty", "partial", "unknown", "notindesign", "waiting", "active", "done"],
         "ui.lobby.board.": ["select", "select.body", "assemble", "assemble.body"],
         "ui.wall.howto.": [str(i) for i in range(6)],
+        "ui.emote.": [e + suffix for e in ["wave", "cheer", "laugh", "nod"] for suffix in ["", ".say"]],      # Emotes.Wheel
     }
 
     # Core 也掃：規則回傳的錯誤碼（err.*）、原因與建議（cause.*、suggest.*、warn.*）都是字串鍵

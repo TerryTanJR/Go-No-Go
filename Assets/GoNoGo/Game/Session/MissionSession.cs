@@ -84,13 +84,13 @@ namespace GoNoGo.Game
             PlayerData = Blanks.PlayerData(Data, S);
             Dashboard = Evaluator.EvaluateDesign(S.Bench, PlayerData, S.DifficultyId, false);
             BenchEval = Evaluator.EvaluateDesign(S.Bench, Data, S.DifficultyId, false);
-            Satellite = InstalledDesign(S, Data);
+            Satellite = InstalledDesign(S);
             SatelliteEval = Evaluator.EvaluateDesign(Satellite, Data, S.DifficultyId, false);
             _cacheRev = -1;
         }
 
         /// <summary>設計主螢幕選的設計裡，已經裝上衛星的零件（軌道、火箭、地面站照設計）。</summary>
-        static Design InstalledDesign(SessionState s, GameData data)
+        static Design InstalledDesign(SessionState s)
         {
             var d = s.Bench.Clone();
             d.Instruments.RemoveAll(id => !s.Installed.Contains(id));

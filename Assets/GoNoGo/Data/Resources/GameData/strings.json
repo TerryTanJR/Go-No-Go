@@ -525,7 +525,7 @@
   "ui.net.joined": { "en": "{name} joined", "zh-TW": "{name} 加入了" },
   "ui.net.left": { "en": "{name} left", "zh-TW": "{name} 離開了" },
   "ui.net.host_left": { "en": "The host left. Room closed.", "zh-TW": "房主離開，房間關了。" },
-  "ui.net.err.cloud": { "en": "Room codes need Unity Cloud linked. Use the same-network option below for now.", "zh-TW": "房間碼要先把遊戲連上 Unity Cloud。先改用下面的「同一個網路」。" },
+  "ui.net.err.cloud": { "en": "Room codes need Unity Cloud linked, so rooms can't be created right now.", "zh-TW": "房間碼要先把遊戲連上 Unity Cloud，目前無法建立房間。" },
   "ui.net.err.create": { "en": "Couldn't create a room. Check your connection and try again.", "zh-TW": "開不了房間。檢查網路後再試一次。" },
   "ui.net.err.code": { "en": "No room with that code.", "zh-TW": "找不到這個房間碼。" },
   "ui.net.err.full": { "en": "That room is full (4 players).", "zh-TW": "這個房間滿了（4 人）。" },

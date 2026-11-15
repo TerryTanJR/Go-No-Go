@@ -59,7 +59,7 @@ namespace GoNoGo.Presentation
             if (key != 'E' || !_used) return;
             Sfx.Click();
             Hud.Open("clue:" + spotId);
-            // 新手訓練的「放大看一則線索」：這個位置真的有線索才算（空的只是一張沒用的紙）
+            // 新手訓練的「放大看一則線索」：這個位置真的有線索才算（太空知識不算）
             if (GameSession.HasMission && GameSession.Mission.CluesAt(spotId).Count > 0) Hud.Signal("clue");
         }
 

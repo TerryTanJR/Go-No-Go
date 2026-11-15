@@ -356,7 +356,7 @@ namespace GoNoGo.EditorTools
 
         // ---------------- 小零件架 ----------------
 
-        static Material _hazardStripe, _steel, _rubber;
+        static Material _hazardStripe, _steel;
 
         /// <summary>斜紋警示貼圖（黃黑）。</summary>
         static Material HazardStripe(string name, Vector2 tiling)
@@ -379,7 +379,6 @@ namespace GoNoGo.EditorTools
         {
             _hazardStripe = HazardStripe("M_HazardStripe", Vector2.one);
             _steel = BuildUtil.Lit("M_Steel", new Color(0.62f, 0.64f, 0.68f), 0.9f, 0.6f);
-            _rubber = BuildUtil.Lit("M_Rubber", new Color(0.05f, 0.05f, 0.055f), 0f, 0.2f);
             var body = BuildUtil.Lit("M_DeliveryBooth", new Color(0.16f, 0.3f, 0.48f), 0.3f, 0.55f);
 
             var root = BuildUtil.Group("CompShelf", bay);
@@ -2014,7 +2013,7 @@ namespace GoNoGo.EditorTools
             BuildUtil.Prim(PrimitiveType.Cylinder, "Collar", bp, new Vector3(0, 0.93f, 0), new Vector3(0.82f, 0.03f, 0.82f), art.trim);
             var cap = BuildUtil.Prim(PrimitiveType.Cylinder, "Cap", bp, new Vector3(0, 1.0f, 0), new Vector3(0.66f, 0.07f, 0.66f), lm.readyBtn);
             var button = bp.gameObject.AddComponent<LobbyButton>();
-            button.teamColor = AsmColor;
+            button.idleColor = AsmColor;
             button.cap = cap.GetComponent<Renderer>();
             Label(bp, "ui.lobby.ready_button", new Vector3(0, 1.7f, 0), "team", 9f);
         }
