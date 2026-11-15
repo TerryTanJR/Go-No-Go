@@ -339,7 +339,7 @@ namespace GoNoGo.Core.Tests
         }
 
         [Test]
-        public void EmptySpotsGetSpaceTriviaWithoutRepeats()
+        public void AsManySpaceFactsAsCluesWithoutRepeats()
         {
             Assert.That(Clues.TriviaCount, Is.GreaterThanOrEqualTo(Clues.Spots.Length), "位置比知識多，一定會重複");
             foreach (int seed in new[] { 0, 11, 12345 })
@@ -347,7 +347,9 @@ namespace GoNoGo.Core.Tests
                 var s = New("earth_observation", "engineer", true, seed);
                 var placed = Clues.Place(_data, s);
                 var trivia = Clues.Trivia(placed, s.ClueSeed);
-                Assert.That(trivia.Keys, Is.EquivalentTo(placed.Where(kv => kv.Value.Count == 0).Select(kv => kv.Key)), "沒放線索的位置才放知識");
+                Assert.That(trivia.Keys.All(id => placed[id].Count == 0), "沒放線索的位置才放知識");
+                int withClues = placed.Count(kv => kv.Value.Count > 0);
+                Assert.That(trivia.Count, Is.EqualTo(System.Math.Min(withClues, placed.Count - withClues)), "知識和線索一樣多（空位置不夠就全放）");
                 Assert.That(trivia.Values.Distinct().Count(), Is.EqualTo(trivia.Count), "同一局不重複");
                 Assert.That(trivia.Values, Has.All.InRange(0, Clues.TriviaCount - 1));
                 Assert.That(Clues.Trivia(placed, s.ClueSeed), Is.EqualTo(trivia), "同一個種子放法一樣（多人時每台電腦算出來都一樣）");

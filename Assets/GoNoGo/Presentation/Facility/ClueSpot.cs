@@ -19,13 +19,36 @@ namespace GoNoGo.Presentation
         public float range = 2.6f;
 
         MaterialPropertyBlock _mpb;
+        /// <summary>這一局這裡有東西可看（線索或太空知識）。</summary>
+        bool _used = true;
 
         public override float Range => range;
 
         string Medium => Clues.Spot(spotId)?.Medium ?? "paper";
 
+        /// <summary>
+        /// 拿不走的東西：白板、黑板、書，和研究牆上用紅線連著的草稿紙。這一局沒用到時留著當擺設（只是不能放大）；
+        /// 其他便條、設計圖整張收起來。
+        /// </summary>
+        bool Fixture
+        {
+            get
+            {
+                var spot = Clues.Spot(spotId);
+                return spot == null || spot.Medium != "paper" && spot.Medium != "blueprint" || spot.Area == "research";
+            }
+        }
+
+        /// <summary>照這一局的擺法決定這裡有沒有東西（<see cref="MissionSession.CluesAt"/>、<see cref="MissionSession.TriviaAt"/>）。</summary>
+        public void Sync(MissionSession m)
+        {
+            _used = m.CluesAt(spotId).Count > 0 || m.TriviaAt(spotId) >= 0;
+            if (!Fixture) gameObject.SetActive(_used);
+        }
+
         public override HudTarget Describe(Interactor who)
         {
+            if (!_used) return null;
             var t = new HudTarget { Title = Loc.T("ui.clue.medium." + Medium), Body = Loc.T("ui.clue.look") };
             t.Keys.Add(new KeyHint("E", Loc.T("ui.hint.zoom")));
             return t;
@@ -33,7 +56,7 @@ namespace GoNoGo.Presentation
 
         public override void OnKey(Interactor who, char key)
         {
-            if (key != 'E') return;
+            if (key != 'E' || !_used) return;
             Sfx.Click();
             Hud.Open("clue:" + spotId);
             // 新手訓練的「放大看一則線索」：這個位置真的有線索才算（空的只是一張沒用的紙）

@@ -58,7 +58,7 @@ namespace GoNoGo.Core
         /// <summary>敘述模板的數量（strings.json 的 ui.clue.note.0 …）。</summary>
         public const int NoteVariants = 4;
         /// <summary>
-        /// 太空知識的數量（strings.json 的 ui.clue.trivia.0 …）：沒放線索的位置放一則。
+        /// 太空知識的數量（strings.json 的 ui.clue.trivia.0 …）：一部分沒放線索的位置放一則（見 <see cref="Trivia"/>）。
         /// 不能少於位置數，同一局每個位置才拿得到不同的一則。
         /// </summary>
         public const int TriviaCount = 64;
@@ -226,17 +226,20 @@ namespace GoNoGo.Core
         }
 
         /// <summary>
-        /// 這一局沒放線索的位置各放哪一則太空知識（位置 id → 第幾則）。同一局不重複；照 <see cref="SessionState.ClueSeed"/> 打散，
-        /// 每局放的不一樣，同一個種子每台電腦算出來都一樣。<paramref name="placed"/> 是 <see cref="Place"/> 的結果。
+        /// 這一局哪些沒放線索的位置放太空知識、放哪一則（位置 id → 第幾則）。放知識的位置和放線索的位置一樣多，
+        /// 找線索時不會被一大堆知識淹沒；其他空位置這一局什麼都不放。同一局不重複；照 <see cref="SessionState.ClueSeed"/> 打散，
+        /// 每局不一樣，同一個種子每台電腦算出來都一樣。<paramref name="placed"/> 是 <see cref="Place"/> 的結果。
         /// </summary>
         public static Dictionary<string, int> Trivia(Dictionary<string, List<Clue>> placed, int clueSeed)
         {
+            var empty = Spots.Where(sp => !placed.TryGetValue(sp.Id, out var here) || here.Count == 0).Select(sp => sp.Id).ToList();
+            int withClues = Spots.Length - empty.Count;
             var order = Enumerable.Range(0, TriviaCount).ToList();
-            new SeededShuffle(clueSeed, 0x7F4A7C15u).Shuffle(order);
+            var rng = new SeededShuffle(clueSeed, 0x7F4A7C15u);
+            rng.Shuffle(empty);
+            rng.Shuffle(order);
             var map = new Dictionary<string, int>();
-            foreach (var spot in Spots)
-                if (!placed.TryGetValue(spot.Id, out var here) || here.Count == 0)
-                    map[spot.Id] = order[map.Count];
+            for (int i = 0; i < Math.Min(withClues, empty.Count); i++) map[empty[i]] = order[i];
             return map;
         }
 
