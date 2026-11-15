@@ -1061,6 +1061,7 @@
   "ui.gmenu.run.hold": { "en": "Hold Shift", "zh-TW": "按住 Shift" },
   "ui.gmenu.run.toggle": { "en": "Tap Shift to toggle", "zh-TW": "按一下 Shift 切換" },
   "ui.gmenu.run.note": { "en": "Toggle: press once to keep running, again to walk.", "zh-TW": "切換模式：按一下一直跑，再按一下改回走。" },
+  "ui.gmenu.quality": { "en": "Graphics", "zh-TW": "畫質" },
   "ui.launchp.need_design": { "en": "Design incomplete: {list}", "zh-TW": "設計還沒選齊：{list}" },
   "ui.launchp.need_confirm": { "en": "The design is not confirmed: confirm it on the design board.", "zh-TW": "設計還沒確定：到設計主螢幕按「確定設計」。" },
   "ui.launchp.need_install": { "en": "{n} part(s) not installed on the satellite: {list}", "zh-TW": "還有 {n} 個零件沒裝上衛星：{list}" },
@@ -1297,5 +1298,8 @@
   "ui.emote.laugh": { "en": "Laugh", "zh-TW": "大笑" },
   "ui.emote.laugh.say": { "en": "Haha!", "zh-TW": "哈哈哈" },
   "ui.emote.nod": { "en": "Nod", "zh-TW": "點頭" },
-  "ui.emote.nod.say": { "en": "Got it", "zh-TW": "了解" }
+  "ui.emote.nod.say": { "en": "Got it", "zh-TW": "了解" },
+  "ui.gmenu.quality.high": { "en": "High", "zh-TW": "高" },
+  "ui.gmenu.quality.low": { "en": "Low", "zh-TW": "低" },
+  "ui.gmenu.quality.note": { "en": "Low uses simpler shadows and a lower resolution. Try it if the game runs hot or stutters.", "zh-TW": "低畫質的陰影比較簡單、解析度比較低。電腦太燙或畫面卡頓時可以切換。" }
 }

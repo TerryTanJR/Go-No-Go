@@ -12,6 +12,7 @@ namespace GoNoGo.Game
         const string MouseKey = "gonogo.mouse";
         const string RunToggleKey = "gonogo.run.toggle";
         const string VoiceKey = "gonogo.voice";
+        const string QualityKey = "gonogo.quality";
         // 字級基準放大過一次（舊的 115% 變成現在的 100%），換一個 key，舊 key 的值換算過來
         const string TextKey = "gonogo.textscale.v2";
         const string OldTextKey = "gonogo.textscale";
@@ -30,6 +31,17 @@ namespace GoNoGo.Game
         static int? _text;
         static bool? _runToggle;
         static float? _voice;
+        static GraphicsQuality? _quality;
+
+        /// <summary>
+        /// 桌面版的幀率上限：不設的話顯示卡會一直滿載（Editor 裡量到兩百多 fps）。
+        /// 網頁版不設：瀏覽器本來就跟著螢幕更新率畫，設了反而會改用計時器、畫面不順。
+        /// </summary>
+        public const int FrameRateCap = 120;
+
+        /// <summary>畫質。High = 品質等級「PC」；Low = 「PC Low」（陰影一層、不柔化、渲染解析度 0.75），給比較舊的電腦用。</summary>
+        public enum GraphicsQuality { High, Low }
+
 
         /// <summary>字體大小改變時（UI 根元素換 class）。</summary>
         public static event Action TextScaleChanged;
@@ -75,6 +87,31 @@ namespace GoNoGo.Game
             }
         }
 
+        public static GraphicsQuality Quality
+        {
+            get => _quality ??= PlayerPrefs.GetInt(QualityKey, 0) == 1 ? GraphicsQuality.Low : GraphicsQuality.High;
+            set
+            {
+                _quality = value;
+                PlayerPrefs.SetInt(QualityKey, value == GraphicsQuality.Low ? 1 : 0);
+                ApplyGraphics();
+            }
+        }
+
+        /// <summary>套用畫質和幀率上限（開遊戲時一次，改畫質時再一次）。</summary>
+        public static void ApplyGraphics()
+        {
+            int level = Array.IndexOf(QualitySettings.names, Quality == GraphicsQuality.Low ? "PC Low" : "PC");
+            if (level >= 0) QualitySettings.SetQualityLevel(level, true);
+            if (Application.platform == RuntimePlatform.WebGLPlayer) return;
+            // 換品質等級會帶入那一級的垂直同步設定，所以每次換完都再設一次
+            QualitySettings.vSyncCount = 0;
+            Application.targetFrameRate = FrameRateCap;
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        static void ApplyOnStart() => ApplyGraphics();
+
         /// <summary>字體大小（百分比，只會是 <see cref="TextScales"/> 其中之一）。</summary>
         public static int TextScale
         {
@@ -117,6 +154,7 @@ namespace GoNoGo.Game
             _text = null;
             _runToggle = null;
             _voice = null;
+            _quality = null;
             TextScaleChanged = null;
         }
     }

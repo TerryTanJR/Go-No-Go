@@ -266,6 +266,7 @@ namespace GoNoGo.UI
             GameMenu.SoundControls(box);
             GameMenu.MouseControl(box);
             GameMenu.RunControl(box);
+            GameMenu.QualityControl(box);
             box.RegisterCallback<DetachFromPanelEvent>(_ => GameSettings.Save());
         }
 
