@@ -307,7 +307,7 @@ namespace GoNoGo.UI
         /// <summary>簡報、大廳：階段一開始就打開的面板。</summary>
         void ShowPhasePanel()
         {
-            // 大廳不自動擋畫面：玩家在大廳裡走動，按兩邊的按鈕準備（場景裡的互動物件 LobbyButton）
+            // 大廳不自動擋畫面：玩家在大廳裡走動，到大廳中央按準備按鈕（場景裡的互動物件 LobbyButton）
             if (M.S.Phase == SessionPhase.Briefing) OpenPanel("briefing", "");
             else if (M.S.Phase == SessionPhase.Design && M.S.Multiplayer && !ReferenceEquals(_briefedFor, M))
             {
@@ -344,7 +344,8 @@ namespace GoNoGo.UI
         {
             _phaseBar.Clear();
             var s = M.S;
-            if (s.Phase == SessionPhase.Design)
+            if (s.Phase == SessionPhase.Lobby) LobbyView.RoomCode(_phaseBar, false);
+            else if (s.Phase == SessionPhase.Design)
             {
                 if (s.Launches.Count > 0)
                     Ui.Text(Loc.T("ui.hud.attempt", ("n", s.Launches.Count + 1)), "small", "tight").AddTo(_phaseBar);

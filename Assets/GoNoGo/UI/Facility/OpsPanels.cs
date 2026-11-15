@@ -358,13 +358,9 @@ namespace GoNoGo.UI
         public static void Build(VisualElement body, bool wall)
         {
             var m = GameSession.Mission;
-            var link = GameSession.Link;
             var s = m.S;
             var head = Ui.Row("lobby-head").AddTo(body);
-            bool ip = System.Net.IPAddress.TryParse(link?.RoomCode ?? "", out _);
-            var codeBox = Ui.El().AddTo(head);
-            Ui.Text(Loc.T(ip ? "ui.lobby.ip" : "ui.lobby.code"), "small", "dim").AddTo(codeBox);
-            Ui.Text(link?.RoomCode ?? "", "lobby-code", "mono").AddTo(codeBox);
+            RoomCode(head, true, copy: !wall);
             Ui.Spacer().AddTo(head);
             var mis = Ui.El("lobby-mission").AddTo(head);
             Ui.Text(Loc.T(m.Scenario.Name), "h2").AddTo(mis);
@@ -381,6 +377,26 @@ namespace GoNoGo.UI
             Ui.Spacer().AddTo(actions);
             if (GameSession.IsHost && AllReady(s))
                 Ui.Btn(Loc.T("ui.lobby.start_btn"), () => { Sfx.Go(); GameSession.Send(CommandType.StartMission); }, "btn-go", "btn-big").AddTo(actions);
+        }
+
+        /// <summary>
+        /// 房間碼：一個字一格，下面一行寫朋友怎麼加入；用 IP 連線時改寫 IP。個人模式沒有房間碼，什麼都不畫。
+        /// <paramref name="big"/>：大廳的螢幕和面板用大格子，左上角的 HUD 用小的。
+        /// </summary>
+        public static void RoomCode(VisualElement parent, bool big, bool copy = false)
+        {
+            string code = GameSession.Link?.RoomCode ?? "";
+            if (code.Length == 0) return;
+            bool ip = System.Net.IPAddress.TryParse(code, out _);
+            var box = Ui.El("room-code").Cls("room-code--big", big).AddTo(parent);
+            Ui.Text(Loc.T(ip ? "ui.lobby.ip_label" : "ui.lobby.code"), "room-code-label").AddTo(box);
+            var tiles = Ui.Row("room-code-tiles").AddTo(box);
+            if (ip) Ui.Text(code, "room-code-tile", "mono").AddTo(tiles);
+            else
+                foreach (char c in code) Ui.Text(c.ToString(), "room-code-tile", "mono").AddTo(tiles);
+            if (copy)
+                Ui.Btn(Loc.T("ui.lobby.copy"), () => { ClipboardUtil.Copy(code); Hud.Toast(Loc.T("ui.lobby.copied")); }, "btn-ghost", "room-code-copy").AddTo(tiles);
+            if (big) Ui.Text(Loc.T(ip ? "ui.lobby.ip" : "ui.lobby.code_how"), "room-code-how").AddTo(box);
         }
 
         /// <summary>大廳兩側牆上的看板：任務流程的說明（side = "select" 選件與找線索、"assemble" 組裝與發射）和名單。</summary>

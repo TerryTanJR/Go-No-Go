@@ -1136,7 +1136,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 
 /* 大廳 */
 .lobby-head { flex-direction: row; align-items: center; margin-bottom: 10px; }
-.lobby-code { margin-left: 12px; color: var(--c-accent); letter-spacing: 6px; }
 .lobby-player { flex-direction: row; align-items: center; padding: 6px 0; border-bottom-width: 1px; border-color: rgba(31, 53, 80, 0.5); }
 .lobby-player > * { margin-right: 10px; }
 
@@ -1360,7 +1359,19 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .team-board-name--me { background-color: var(--c-accent-dim); border-width: 1px; border-color: var(--c-accent); }
 
 /* 大廳：名單、全員就緒視窗 */
-.lobby-code { font-size: var(--fs-30); letter-spacing: 4px; color: var(--c-accent); -unity-font-style: bold; }
+/* 房間碼：一個字一格 */
+.room-code { margin-top: 6px; }
+.room-code-label { font-size: var(--fs-13); letter-spacing: 2px; color: var(--c-dim); -unity-font-style: bold; }
+.room-code-tiles { flex-direction: row; align-items: center; margin-top: 4px; }
+.room-code-tile {
+    min-width: 26px; padding: 2px 6px; margin-right: 4px; border-radius: 4px;
+    border-width: 1px; border-color: var(--c-accent); background-color: var(--c-accent-dim);
+    font-size: var(--fs-18); -unity-font-style: bold; -unity-text-align: middle-center; color: var(--c-text);
+}
+.room-code--big .room-code-label { font-size: var(--fs-16); }
+.room-code--big .room-code-tile { min-width: 52px; padding: 6px 10px; margin-right: 8px; border-radius: 6px; font-size: var(--fs-36); }
+.room-code-copy { margin-left: 8px; }
+.room-code-how { margin-top: 6px; font-size: var(--fs-14); color: var(--c-dim); white-space: normal; }
 .lobby-mission { align-items: flex-end; }
 .lobby-team { flex-grow: 1; flex-basis: 0; margin: 0 6px; padding: 10px 12px; border-radius: 6px; border-width: 1px; border-top-width: 4px; background-color: rgba(255, 255, 255, 0.04); }
 .lobby-team-title { font-size: var(--fs-18); -unity-font-style: bold; letter-spacing: 2px; color: var(--c-text); margin-bottom: 6px; }
