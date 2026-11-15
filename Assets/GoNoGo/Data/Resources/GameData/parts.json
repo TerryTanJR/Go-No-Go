@@ -6,7 +6,7 @@
     "code": "P-1",
     "name": { "en": "Visible Camera", "zh-TW": "可見光相機" },
     "function": { "en": "Takes colour pictures of the ground in daylight.", "zh-TW": "白天拍地面的彩色照片" },
-    "explainer": { "en": "A small digital camera like the one in your phone, but pointed at Earth. It only works in daylight, because it needs sunlight bouncing off the ground. Swarms of shoebox-sized satellites carry cameras like this to photograph the whole planet every day.", "zh-TW": "和手機裡的相機原理一樣，只是對著地球拍。它只在白天能用，因為要靠陽光從地面反射回來。有些公司用一大群鞋盒大小的衛星裝這種相機，每天把整個地球拍一遍。" },
+    "explainer": { "en": "A small digital camera like the one in your phone, but pointed at Earth. It only works in daylight, because it needs sunlight bouncing off the ground. Swarms of shoebox-sized satellites carry cameras like this to photograph the whole planet every day.", "zh-TW": "跟手機相機同一個原理，只是鏡頭朝著地球。它靠地面反射的陽光，所以只能白天拍。有些公司放了一大群鞋盒大小的衛星，每天把整個地球拍一遍。" },
     "description": {
       "en": "A shoebox-sized colour camera, about 6-7 m per pixel from 700 km. Light and cheap, but it only works in daylight and sees no more than your eyes do.",
       "zh-TW": "鞋盒大小的彩色相機，從 700 公里高拍，每個像素約 6–7 公尺。輕又便宜，但只能在白天拍，看到的和肉眼差不多。"
@@ -35,7 +35,7 @@
     "code": "P-2",
     "name": { "en": "Multispectral Imager", "zh-TW": "多光譜成像儀" },
     "function": { "en": "Sees several colours of light, including near-infrared, to tell crops, water and soil apart.", "zh-TW": "分好幾種顏色的光拍照，分得出作物、水和土壤" },
-    "explainer": { "en": "Instead of one colour photo, it takes several pictures at once through different filters, including near-infrared light our eyes cannot see. Healthy plants reflect near-infrared strongly, so farmers and foresters use it to spot crops in trouble. The Landsat satellites have done this for half a century.", "zh-TW": "它不是拍一張彩色照片，而是隔著不同的濾鏡同時拍好幾張，其中包括眼睛看不到的近紅外光。健康的植物會強烈反射近紅外光，所以農業和林業單位用它找出生病的作物。Landsat 系列衛星做這件事已經半個世紀了。" },
+    "explainer": { "en": "Instead of one colour photo, it takes several pictures at once through different filters, including near-infrared light our eyes cannot see. Healthy plants reflect near-infrared strongly, so farmers and foresters use it to spot crops in trouble. The Landsat satellites have done this for half a century.", "zh-TW": "它隔著不同的濾鏡同時拍好幾張，其中一張是眼睛看不到的近紅外光。健康的植物很會反射近紅外光，農業和林業單位就靠這點找出生病的作物。Landsat 衛星拍這個已經拍了半個世紀。" },
     "description": {
       "en": "Seven colour bands from visible to near-infrared, about 2 m pixels from 700 km. Tells healthy crops from stressed ones and water from mud. Daylight only.",
       "zh-TW": "從可見光到近紅外線共 7 個波段，從 700 公里高拍像素約 2 公尺。分得出健康和缺水的作物、清水和泥水。只能白天拍。"
@@ -64,7 +64,7 @@
     "code": "P-3",
     "name": { "en": "Thermal Infrared Imager", "zh-TW": "熱紅外線成像儀" },
     "function": { "en": "Sees heat: finds fires and hot spots, day or night.", "zh-TW": "看得到熱：日夜都能找出火災和高溫點" },
-    "explainer": { "en": "Everything warm glows in long-wave infrared, even at night. This camera measures that glow to read the temperature of the ground: fires, volcanoes, hot cities, cool lakes. Its detector must be kept very cold by a small refrigerator called a cryocooler, otherwise the camera would see its own heat.", "zh-TW": "任何有溫度的東西都會發出長波紅外線，晚上也一樣。這台相機量的就是這種光，用來讀出地面的溫度：火災、火山、炎熱的城市、冰涼的湖泊。它的感測器要用一台叫製冷機的小冰箱保持低溫，不然相機會看到自己的熱。" },
+    "explainer": { "en": "Everything warm glows in long-wave infrared, even at night. This camera measures that glow to read the temperature of the ground: fires, volcanoes, hot cities, cool lakes. Its detector must be kept very cold by a small refrigerator called a cryocooler, otherwise the camera would see its own heat.", "zh-TW": "有溫度的東西都會發出長波紅外線，晚上也一樣。這台相機量的就是這種光，讀得出火災、火山、城市和湖面的溫度。感測器要靠一台叫製冷機的小冰箱降溫，不然相機會看到自己的熱。" },
     "description": {
       "en": "Sees heat instead of light, so it works at night: wildfires, volcanoes, city heat islands. Its cryocooler draws steady power.",
       "zh-TW": "看的是熱而不是光，所以晚上也能用：野火、火山、城市熱島。製冷機需要穩定供電。"
@@ -94,10 +94,10 @@
     "code": "P-4",
     "name": { "en": "Hyperspectral Imager", "zh-TW": "高光譜成像儀" },
     "function": { "en": "Splits light into hundreds of colours to identify materials.", "zh-TW": "把光分成上百種顏色，辨認地面是什麼物質" },
-    "explainer": { "en": "It splits light into hundreds of narrow colours, like a prism. Every material, from minerals to plastic to algae, leaves its own fingerprint in that rainbow, so scientists can tell what the ground is made of. The price is a flood of data.", "zh-TW": "它像稜鏡一樣，把光拆成上百種很窄的顏色。每種物質，從礦物、塑膠到藻類，在這道彩虹裡都有自己的指紋，科學家因此分得出地面是什麼做的。代價是資料量非常大。" },
+    "explainer": { "en": "It splits light into hundreds of narrow colours, like a prism. Every material, from minerals to plastic to algae, leaves its own fingerprint in that rainbow, so scientists can tell what the ground is made of. The price is a flood of data.", "zh-TW": "它像稜鏡一樣把光拆成上百種很窄的顏色。礦物、塑膠、藻類在這些顏色裡各有各的特徵，科學家看了就知道地面是什麼做的。代價是資料量很大。" },
     "description": {
-      "en": "239 narrow bands: a full spectrum for every pixel (about 34 m from 700 km), enough to identify minerals and plant species. Heavy, power-hungry and a firehose of data.",
-      "zh-TW": "239 個窄波段：每個像素（從 700 公里高約 34 公尺）都有完整光譜，能辨認礦物和植物種類。又重又耗電，資料量像消防水管。"
+      "en": "239 narrow bands: a full spectrum for every pixel (about 34 m from 700 km), enough to identify minerals and plant species. Heavy, power-hungry and full of data.",
+      "zh-TW": "239 個窄波段：每個像素（從 700 公里高約 34 公尺）都有完整光譜，能辨認礦物和植物種類。又重又耗電，資料量很大。"
     },
     "mass_kg": 90,
     "power_w": 110,
@@ -122,8 +122,8 @@
     "tier": 3,
     "code": "P-5",
     "name": { "en": "Synthetic Aperture Radar", "zh-TW": "合成孔徑雷達" },
-    "function": { "en": "A radar that images the ground through clouds and darkness.", "zh-TW": "雷達，穿過雲層和黑夜拍地面" },
-    "explainer": { "en": "A radar that sends out its own microwave pulses and listens for the echo. Because it brings its own 'light', it sees through clouds, smoke and darkness. By combining echoes along its path it builds a sharp image, as if it had a giant antenna. Used to map floods, ice and earthquakes.", "zh-TW": "一種雷達，自己發出微波脈衝、再收聽回波。因為自己帶「光源」，它看得穿雲層、濃煙和黑夜。它把沿途收到的回波組合起來，效果就像有一根巨大的天線，能拍出清楚的影像。常用來測繪洪水、冰層和地震。" },
+    "function": { "en": "A radar that images the ground through clouds and darkness.", "zh-TW": "穿過雲層和黑夜拍地面的雷達" },
+    "explainer": { "en": "A radar that sends out its own microwave pulses and listens for the echo. Because it brings its own 'light', it sees through clouds, smoke and darkness. By combining echoes along its path it builds a sharp image, as if it had a giant antenna. Used to map floods, ice and earthquakes.", "zh-TW": "這種雷達自己發出微波脈衝，再聽回波。「光源」自己帶，所以雲、煙和黑夜都擋不住它。把沿路收到的回波拼起來，效果就像一根巨大的天線，影像因此很清楚。常用來測繪洪水、冰層和地震。" },
     "description": {
       "en": "Brings its own light: radar pulses see through clouds, smoke and night, 3 m strips. Floods and hurricanes are usually cloudy, so this is the instrument that still works.",
       "zh-TW": "自己帶光源：雷達脈衝可以穿透雲、煙和黑夜，條帶解析度 3 公尺。洪水和颱風時通常是陰天，這時只有它照樣能用。"
@@ -152,10 +152,10 @@
     "code": "P-6",
     "name": { "en": "CO2 Grating Spectrometer", "zh-TW": "二氧化碳光柵光譜儀" },
     "function": { "en": "Measures how much carbon dioxide is in the air below.", "zh-TW": "量測下方空氣裡的二氧化碳有多少" },
-    "explainer": { "en": "Sunlight passing through the air loses a little of certain colours that carbon dioxide absorbs. This spectrometer measures exactly how much is missing, and from that works out how much carbon dioxide is in the column of air below. NASA's Orbiting Carbon Observatory missions map the whole planet this way.", "zh-TW": "陽光穿過大氣時，會被二氧化碳吸收掉某些特定的顏色。這台光譜儀精確量出少了多少，再推算下方整柱空氣裡有多少二氧化碳。NASA 的軌道碳觀測衛星就是這樣畫出全球的二氧化碳地圖。" },
+    "explainer": { "en": "Sunlight passing through the air loses a little of certain colours that carbon dioxide absorbs. This spectrometer measures exactly how much is missing, and from that works out how much carbon dioxide is in the column of air below. NASA's Orbiting Carbon Observatory missions map the whole planet this way.", "zh-TW": "陽光穿過大氣時，有幾種特定的顏色會被二氧化碳吸收。這台光譜儀量出少了多少，就能推算下方整柱空氣裡有多少二氧化碳。NASA 的軌道碳觀測衛星就是這樣畫出全球的二氧化碳地圖。" },
     "description": {
       "en": "Three high-resolution spectrometers that measure carbon dioxide from sunlight reflected off the surface, the instrument built for NASA's Orbiting Carbon Observatory.",
-      "zh-TW": "三台高解析度光譜儀，從地表反射的陽光測量二氧化碳濃度，是為 NASA 軌道碳觀測衛星（OCO）打造的儀器。"
+      "zh-TW": "三台高解析度光譜儀，從地表反射的陽光量二氧化碳濃度。原本是為 NASA 軌道碳觀測衛星（OCO）做的。"
     },
     "mass_kg": 135,
     "power_w": 100,
@@ -199,7 +199,7 @@
     "code": "S-2",
     "name": { "en": "Deployable Wings (1.2 m²)", "zh-TW": "展開式太陽能翼（1.2 m²）" },
     "function": { "en": "Fold-out solar wings: more power in sunlight.", "zh-TW": "展開式太陽能翼：日照時發更多電" },
-    "explainer": { "en": "Panels folded flat against the spacecraft for launch, then swung open like wings once in orbit. Opening them is one of the tensest moments after launch: if a hinge sticks, the mission may not have enough power.", "zh-TW": "發射時折起來貼在衛星上，入軌後才像翅膀一樣打開。展開太陽能板是發射後最緊張的時刻之一：如果鉸鏈卡住，任務可能就沒有足夠的電。" },
+    "explainer": { "en": "Panels folded flat against the spacecraft for launch, then swung open once in orbit. Opening them is one of the tensest moments after launch: if a hinge sticks, the mission may not have enough power.", "zh-TW": "發射時折起來貼著機身，入軌後才打開。這是發射後最讓人緊張的時刻之一：鉸鏈一卡住，電可能就不夠用。" },
     "description": { "en": "Two hinged wings that unfold after launch. Three times the area, at the cost of mass and a deployment that has to work.", "zh-TW": "發射後才展開的兩片鉸鏈翼。面積是三倍，但比較重，而且展開必須成功。" },
     "mass_kg": 7.2,
     "cost_musd": 0.15,
@@ -216,7 +216,7 @@
     "code": "S-3",
     "name": { "en": "Large Array (3.9 m²)", "zh-TW": "大型太陽能陣列（3.9 m²）" },
     "function": { "en": "A big fold-out solar array for power-hungry spacecraft.", "zh-TW": "大型展開太陽能陣列，給很耗電的太空船用" },
-    "explainer": { "en": "A big array of solar wings for power-hungry spacecraft, like the ones on large Earth-observation satellites. More area catches more sunlight, but it is heavier, wobbles more, and has more joints that must unfold perfectly.", "zh-TW": "給很耗電的衛星用的大型太陽能翼，大型地球觀測衛星上就有。面積越大接住越多陽光，但也更重、更容易晃，要完美展開的關節也更多。" },
+    "explainer": { "en": "A big array of solar wings for power-hungry spacecraft, like the ones on large Earth-observation satellites. More area catches more sunlight, but it is heavier, wobbles more, and has more joints that must unfold perfectly.", "zh-TW": "大型地球觀測衛星上那種大太陽能翼。面積越大接到的陽光越多，但也更重、更會晃，要順利打開的關節也更多。" },
     "description": { "en": "About the size of OCO's array. Enough to run a big instrument through years of degradation.", "zh-TW": "大約是 OCO 太陽能板的大小。即使衰退多年，也撐得起大型儀器。" },
     "mass_kg": 23.4,
     "cost_musd": 0.4,
@@ -250,7 +250,7 @@
     "code": "B-2",
     "name": { "en": "Medium Li-ion Pack (400 Wh)", "zh-TW": "中型鋰電池（400 Wh）" },
     "function": { "en": "Stores power for the shadow part of each orbit.", "zh-TW": "儲存電力，給每一圈的地影時段用" },
-    "explainer": { "en": "A larger lithium-ion pack. A bigger battery only needs to give up a small share of its charge in each shadow, and shallow cycles let a battery survive tens of thousands of orbits.", "zh-TW": "比較大的鋰電池組。電池越大，每次地影只需要用掉一小部分電量；放得淺，電池就能撐過好幾萬圈軌道。" },
+    "explainer": { "en": "A larger lithium-ion pack. A bigger battery only needs to give up a small share of its charge in each shadow, and shallow cycles let a battery survive tens of thousands of orbits.", "zh-TW": "比較大的鋰電池組。電池越大，每次地影只用掉一小部分電量；放得淺，就能撐過好幾萬圈。" },
     "description": { "en": "Enough for a microsatellite to ride through the shadow at shallow depth of discharge.", "zh-TW": "足夠讓微衛星以較淺的放電深度撐過地球影子。" },
     "mass_kg": 2.7,
     "cost_musd": 0.08,
@@ -320,8 +320,8 @@
     "tier": 3,
     "code": "X-3",
     "name": { "en": "High-rate X-band (1 Gbps)", "zh-TW": "高速 X 波段（1 Gbps）" },
-    "function": { "en": "Sends data back to the ground, very fast.", "zh-TW": "把資料傳回地面，非常快" },
-    "explainer": { "en": "A fast X-band radio with a focused antenna. It squeezes far more data into each pass, like widening a road, but it draws a lot of power while transmitting and must be aimed at the ground station.", "zh-TW": "高速的 X 頻段無線電，配上聚焦的天線。每次過站能塞進多很多資料，就像把馬路拓寬；但發射時很耗電，而且要對準地面站。" },
+    "function": { "en": "Sends data back to the ground, very fast.", "zh-TW": "把資料傳回地面，很快" },
+    "explainer": { "en": "A fast X-band radio with a focused antenna. It squeezes far more data into each pass, but it draws a lot of power while transmitting and must be aimed at the ground station.", "zh-TW": "高速的 X 頻段無線電，配上聚焦的天線。每次過站能傳的資料多很多，但發送時很耗電，而且要對準地面站。" },
     "description": { "en": "A modern high-rate downlink of the kind Planet flies. Empties a full recorder in one pass, but draws 50 W while it talks.", "zh-TW": "Planet 衛星用的那種新一代高速下傳。一次過境就能清空儲存，但傳輸時耗電 50 W。" },
     "mass_kg": 2.5,
     "power_w": 2,
@@ -452,7 +452,7 @@
     "code": "G-2",
     "name": { "en": "4 Reaction Wheels + Star Tracker", "zh-TW": "4 顆反應輪 + 星象儀" },
     "function": { "en": "Spinning wheels and a star camera that point the spacecraft steadily.", "zh-TW": "用旋轉的飛輪和星象儀穩定指向" },
-    "explainer": { "en": "Reaction wheels are heavy flywheels: spin one faster and the spacecraft turns the other way, without using any fuel. Paired with a star camera that recognises constellations, they hold the satellite very steady.", "zh-TW": "反應輪是很重的飛輪：讓它轉快一點，衛星就往反方向轉，完全不用燃料。搭配會認星座的星象儀，可以讓衛星非常穩定。" },
+    "explainer": { "en": "Reaction wheels are heavy flywheels: spin one faster and the spacecraft turns the other way, without using any fuel. Paired with a star camera that recognises constellations, they hold the satellite very steady.", "zh-TW": "反應輪是很重的飛輪：讓它轉快一點，衛星就往反方向轉，一滴燃料都不用。再配一台會認星座的星象儀，衛星就能指得很穩。" },
     "description": { "en": "Three wheels are needed to point; the fourth is a spare. Kepler lost two of four and nearly ended its mission.", "zh-TW": "指向需要三顆輪子，第四顆是備用。克卜勒太空望遠鏡四顆壞了兩顆，任務差點結束。" },
     "mass_kg": 20,
     "power_w": 30,
@@ -470,7 +470,7 @@
     "tier": 3,
     "code": "G-3",
     "name": { "en": "Precision ADCS (4 large wheels)", "zh-TW": "高精度姿態控制（4 顆大反應輪）" },
-    "function": { "en": "Very steady, very precise pointing.", "zh-TW": "非常穩、非常準的指向控制" },
+    "function": { "en": "Very steady, very precise pointing.", "zh-TW": "最穩、最準的指向控制" },
     "explainer": { "en": "Large reaction wheels and precise star trackers for the steadiest pointing, the kind space telescopes need. The Hubble Space Telescope can hold its aim as steadily as keeping a laser on a coin many kilometres away.", "zh-TW": "大型反應輪加上精密的星象儀，提供最穩的指向，太空望遠鏡就需要這種。哈伯太空望遠鏡能把指向穩定到像是在好幾公里外把雷射光點固定在一枚硬幣上。" },
     "description": { "en": "Big wheels for a big spacecraft and arc-second pointing, with a spare. Heavy and power-hungry.", "zh-TW": "大衛星用的大反應輪，指向精度到角秒，含備用。又重又耗電。" },
     "mass_kg": 32,
@@ -491,7 +491,7 @@
     "code": "T-1",
     "name": { "en": "No Propulsion", "zh-TW": "不裝推進系統" },
     "function": { "en": "A cover plate: no engine, no fuel.", "zh-TW": "封板：不裝引擎，也沒有燃料" },
-    "explainer": { "en": "No engine at all. Even very high up there is a whisper of air that slowly drags a satellite down; without an engine, the orbit's natural lifetime decides how long the mission can last.", "zh-TW": "完全不裝引擎。即使在很高的地方，還是有一點點空氣會慢慢把衛星往下拖；沒有引擎，任務能撐多久就由軌道自然衰減決定。" },
+    "explainer": { "en": "No engine at all. Even very high up there is a whisper of air that slowly drags a satellite down; without an engine, the orbit's natural lifetime decides how long the mission can last.", "zh-TW": "不裝引擎。就算飛得很高，還是有一點點空氣會慢慢把衛星往下拖；沒有引擎，任務能撐多久就看軌道自己掉得多快。" },
     "description": { "en": "Saves mass and money. The orbit is whatever the rocket gave you, and drag decides how long you stay.", "zh-TW": "省質量也省錢。軌道就是火箭給的那個，能待多久由大氣阻力決定。" },
     "mass_kg": 0,
     "cost_musd": 0,
@@ -578,7 +578,7 @@
     "code": "R-3",
     "name": { "en": "Heavy Shielding (10 mm + tantalum)", "zh-TW": "重型屏蔽（10 mm + 鉭）" },
     "function": { "en": "Heavy armour against radiation.", "zh-TW": "很重的防輻射裝甲" },
-    "explainer": { "en": "Heavy armour for the harshest radiation. Every extra layer stops more particles, but the gains shrink while the mass keeps growing, so engineers add only as much as the orbit really needs.", "zh-TW": "給最嚴苛輻射環境的重型裝甲。每多一層就多擋一些粒子，但效果越來越小、重量卻一直增加，所以工程師只加到軌道真正需要的程度。" },
+    "explainer": { "en": "Heavy armour for the harshest radiation. Every extra layer stops more particles, but the gains shrink while the mass keeps growing, so engineers add only as much as the orbit really needs.", "zh-TW": "給輻射最強的地方用的重裝甲。每多一層就多擋一些粒子，但多擋的越來越少，重量卻一直加上去，所以工程師只加到軌道用得到的厚度。" },
     "description": { "en": "A thick vault plus tantalum spot shields on the most sensitive chips. A quarter of the dose, for 8 kg.", "zh-TW": "厚屏蔽艙加上最敏感晶片的鉭片局部屏蔽。劑量剩四分之一，代價 8 公斤。" },
     "mass_kg": 8,
     "cost_musd": 0.5,
@@ -596,7 +596,7 @@
     "code": "P-7",
     "name": { "en": "Fire Detector (MWIR)", "zh-TW": "中波紅外線火點儀" },
     "function": { "en": "Finds fires on the ground, day or night.", "zh-TW": "找出地面上的火點，白天晚上都可以" },
-    "explainer": { "en": "A flame is far hotter than the ground around it, and hot things shine brightest in mid-wave infrared, around four microns. This camera looks only in that band, so a small fire stands out like a lamp in a dark room. Germany's FireBIRD satellites used the same idea to spot wildfires from orbit.", "zh-TW": "火焰比周圍的地面熱得多，而高溫的東西在中波紅外線、大約四微米的地方最亮。這台相機只看這個波段，所以小小的火點就像暗房裡的一盞燈。德國的 FireBIRD 衛星就是用這個原理從太空找野火。" },
+    "explainer": { "en": "A flame is far hotter than the ground around it, and hot things shine brightest in mid-wave infrared, around four microns. This camera looks only in that band, so even a small fire stands out. Germany's FireBIRD satellites used the same idea to spot wildfires from orbit.", "zh-TW": "火焰比周圍的地面熱得多，而高溫的東西在中波紅外線、大約四微米的地方最亮。這台相機只看這個波段，小小的火點在畫面上也很明顯。德國的 FireBIRD 衛星就是用這個原理從太空找野火。" },
     "description": { "en": "A mid-wave infrared camera tuned near 4 microns, where an 800 K flame shines brightest. Coarse pixels, little data, but it spots fires a normal camera cannot see.", "zh-TW": "調在 4 微米附近的中波紅外線相機，正是 800 K 火焰最亮的波段。像素粗、資料量小，但看得到一般相機看不出來的火點。" },
     "mass_kg": 6,
     "power_w": 18,
@@ -624,8 +624,8 @@
     "code": "B-0",
     "name": { "en": "CubeSat Battery Pack (43 Wh)", "zh-TW": "立方衛星電池組（43 Wh）" },
     "function": { "en": "Stores a little power for Earth's shadow.", "zh-TW": "儲存一點電力，給衛星進到地球影子裡時用" },
-    "explainer": { "en": "A palm-sized pack of rechargeable lithium-ion cells, the kind used in CubeSats. It is plenty for a tiny CubeSat; but every time the spacecraft passes behind Earth, everything runs on this little pack until the Sun comes back, and a microsatellite with a real payload empties it fast.", "zh-TW": "巴掌大的鋰電池組，立方衛星常用的那種。給小小的立方衛星用綽綽有餘；但每次衛星繞到地球背後，所有東西都只能靠這一小包電撐到太陽再出現，帶著真正酬載的微衛星很快就會把它用光。" },
-    "description": { "en": "A four-cell CubeSat pack. Fine for a CubeSat, but a microsatellite with a real payload drains it too deep even in the dawn-dusk orbit's 19-minute eclipse season, and a 35-minute shadow runs it flat.", "zh-TW": "四顆電芯的立方衛星電池組。立方衛星用剛好，但帶著真正酬載的微衛星，就算在晨昏軌道 19 分鐘的地影季也會放電太深；進 35 分鐘的地影就撐不住。" },
+    "explainer": { "en": "A palm-sized pack of rechargeable lithium-ion cells, the kind used in CubeSats. It is plenty for a tiny CubeSat; but every time the spacecraft passes behind Earth, everything runs on this little pack until the Sun comes back, and a microsatellite with a real payload empties it fast.", "zh-TW": "巴掌大的鋰電池組，立方衛星常用的那種。小立方衛星用很夠；但衛星每次繞到地球背後，所有東西都只能靠這一小包電撐到太陽出來，帶著完整酬載的微衛星很快就會用光。" },
+    "description": { "en": "A four-cell CubeSat pack. Fine for a CubeSat, but a microsatellite with a real payload drains it too deep even in the dawn-dusk orbit's 19-minute eclipse season, and a 35-minute shadow runs it flat.", "zh-TW": "四顆電芯的立方衛星電池組。立方衛星用剛好，但帶著完整酬載的微衛星，就算在晨昏軌道 19 分鐘的地影季也會放電太深；進 35 分鐘的地影就撐不住。" },
     "mass_kg": 0.26,
     "cost_musd": 0.01,
     "capacity_wh": 43,
@@ -642,10 +642,10 @@
     "decoy": true,
     "name": { "en": "Fluxgate Magnetometer", "zh-TW": "磁通門磁力計" },
     "function": { "en": "Measures Earth's magnetic field around the spacecraft.", "zh-TW": "量測衛星周圍的地球磁場" },
-    "explainer": { "en": "A small sensor on a boom that feels the strength and direction of the magnetic field, the same field that turns a compass needle. Scientists map the field to study Earth's core and the space around our planet. It takes no pictures at all.", "zh-TW": "裝在支桿上的小感測器，量的是磁場的強度和方向，也就是讓指南針轉動的那個磁場。科學家用它研究地球的核心和地球周圍的太空環境。它完全不會拍照。" },
+    "explainer": { "en": "A small sensor on a boom that feels the strength and direction of the magnetic field, the same field that turns a compass needle. Scientists map the field to study Earth's core and the space around our planet. It takes no pictures at all.", "zh-TW": "裝在支桿上的小感測器，量磁場的強度和方向，就是讓指南針轉動的那個磁場。科學家用它研究地球的核心和周圍的太空環境。它不會拍照。" },
     "description": {
       "en": "Tiny, cheap and frugal, and the data are real science, but they are about the magnetic field, not the ground. Almost no value for imaging, carbon or fire missions.",
-      "zh-TW": "又小又便宜又省電，資料也是真的科學，但量的是磁場而不是地面。對拍照、碳觀測、野火任務幾乎沒有幫助。"
+      "zh-TW": "又小又便宜又省電，資料也有科學價值，但量的是磁場，不是地面。對拍照、碳觀測和野火任務幾乎沒幫助。"
     },
     "mass_kg": 0.3,
     "power_w": 0.8,
@@ -694,7 +694,7 @@
     "explainer": { "en": "It times how long a laser pulse takes to bounce back from the surface, which gives the height of the ground below. The Lunar Reconnaissance Orbiter used one to build the best topographic map of the Moon, working in the dark as well as in sunlight. Around Earth it mostly measures ice sheets, not what is on the ground.", "zh-TW": "它計算雷射脈衝從地表彈回來要多久，就知道底下地面的高度。月球勘測軌道飛行器用它做出最精確的月球地形圖，在黑暗中也能量。繞地球時它主要用來量冰層，看不到地面上有什麼。" },
     "description": {
       "en": "A LOLA-class altimeter. Excellent for mapping the Moon's terrain, day or night; weak for most Earth missions and blind to fires and CO2.",
-      "zh-TW": "LOLA 等級的測高儀。畫月球地形非常好，白天晚上都能量；對大多數地球任務幫助不大，也看不到火和二氧化碳。"
+      "zh-TW": "LOLA 等級的測高儀。畫月球地形很好用，白天晚上都能量；對大多數地球任務幫助不大，也看不到火和二氧化碳。"
     },
     "mass_kg": 12.6,
     "power_w": 34,
@@ -740,8 +740,8 @@
     "function": { "en": "Stores a little energy and releases it very fast.", "zh-TW": "存一點點電，可以瞬間放出來" },
     "explainer": { "en": "A supercapacitor stores energy as separated electric charge instead of a chemical reaction, so it can charge and discharge in seconds and survive a huge number of cycles. Satellites use them to give short bursts of power. The weakness is how little energy they hold for their weight: far too little to keep a spacecraft running through the dark part of an orbit.", "zh-TW": "超級電容用分開的電荷存能量，不靠化學反應，所以幾秒內就能充放電，充放很多次也不會壞。衛星用它提供短暫的大電流。弱點是同樣重量存的能量太少：根本撐不過軌道上沒有陽光的那一段。" },
     "description": {
-      "en": "Survives endless cycles and delivers huge bursts, but 8 Wh cannot carry the spacecraft through an eclipse. A battery replacement it is not.",
-      "zh-TW": "可以無限次充放、瞬間輸出很大，但 8 Wh 撐不過日食。它不能拿來代替電池。"
+      "en": "Survives endless cycles and delivers huge bursts, but 8 Wh cannot carry the spacecraft through an eclipse. It cannot replace a battery.",
+      "zh-TW": "充放再多次也不會壞、瞬間電流很大，但 8 Wh 撐不過地影。不能拿來代替電池。"
     },
     "mass_kg": 1.2,
     "cost_musd": 0.04,
@@ -805,11 +805,11 @@
     "code": "G-4",
     "decoy": true,
     "name": { "en": "Control Moment Gyro Cluster", "zh-TW": "控制力矩陀螺組" },
-    "function": { "en": "Big spinning gyros that swing the spacecraft around very fast.", "zh-TW": "大型旋轉陀螺，能讓衛星非常快速地轉向" },
+    "function": { "en": "Big spinning gyros that swing the spacecraft around very fast.", "zh-TW": "大型旋轉陀螺，讓衛星快速轉向" },
     "explainer": { "en": "A control moment gyro tilts a fast-spinning wheel to produce a strong twist, far stronger than a reaction wheel. The International Space Station and agile imaging satellites use them to turn quickly from target to target. For a small satellite that only needs to point steadily, they are heavy, hungry and more than it will ever use.", "zh-TW": "控制力矩陀螺把高速旋轉的輪子傾斜，產生很大的扭力，比反應輪強很多。國際太空站和需要快速換目標的影像衛星都用它。對只需要穩穩指向的小衛星來說，它太重、太耗電，能力也遠超過需要。" },
     "description": {
       "en": "Points no better than G-3 but weighs and draws far more, and costs twice as much. Agility the mission does not need.",
-      "zh-TW": "指向精度和 G-3 一樣，但重很多、耗電很多，價錢是兩倍。是這個任務用不到的靈活度。"
+      "zh-TW": "指向精度和 G-3 一樣，但重很多、耗電很多，價錢是兩倍。這個任務用不到這麼靈活。"
     },
     "mass_kg": 45,
     "power_w": 90,
@@ -852,7 +852,7 @@
     "decoy": true,
     "name": { "en": "Lead Shielding", "zh-TW": "鉛屏蔽" },
     "function": { "en": "Heavy lead plates around the electronics.", "zh-TW": "在電子設備周圍加上厚重的鉛板" },
-    "explainer": { "en": "On Earth, lead is the classic radiation shield for X-rays at the dentist. In space it works worse than you would expect: when fast electrons slam into heavy lead atoms they give off new X-rays inside the box, and lead is so dense that every bit of protection costs a lot of mass. Spacecraft designers prefer aluminium, or a thin layer of a heavy metal backed by aluminium.", "zh-TW": "在地面上，鉛是擋 X 光的經典材料，牙醫照 X 光就用它。在太空中效果卻比想像的差：高速電子撞上沉重的鉛原子，會在盒子裡產生新的 X 光；而且鉛密度太高，每多一點保護就多很多重量。太空船設計師比較喜歡用鋁，或是薄薄一層重金屬再加上鋁。" },
+    "explainer": { "en": "On Earth, lead is the classic radiation shield for X-rays at the dentist. In space it works worse than you would expect: when fast electrons slam into heavy lead atoms they give off new X-rays inside the box, and lead is so dense that every bit of protection costs a lot of mass. Spacecraft designers prefer aluminium, or a thin layer of a heavy metal backed by aluminium.", "zh-TW": "在地面上，鉛是擋 X 光的經典材料，牙醫照 X 光就用它。到了太空效果反而變差：高速電子撞上沉重的鉛原子，會在盒子裡產生新的 X 光；而且鉛密度太高，每多一點保護就多很多重量。太空船設計師比較喜歡用鋁，或是薄薄一層重金屬再加上鋁。" },
     "description": {
       "en": "Four times the mass of the R-2 vault and blocks less: secondary X-rays (bremsstrahlung) from trapped electrons eat into the gain.",
       "zh-TW": "重量是 R-2 的四倍，擋得反而比較少：被困電子撞擊產生的二次 X 光（制動輻射）抵消了效果。"

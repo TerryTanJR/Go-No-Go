@@ -26,7 +26,7 @@
     "instruments": { "en": "Hyperspectral imager, 239 bands at 30 m, + 5 m panchromatic camera", "zh-TW": "高光譜成像儀（239 波段、30 公尺）+ 5 公尺全色相機" },
     "lesson": {
       "en": "A hyperspectral mission is a data mission: up to 600 Mbit/s into a 256 Gbit recorder, emptied at 155 Mbit/s.",
-      "zh-TW": "高光譜任務其實是資料任務：每秒最多 600 Mbit 寫進 256 Gbit 的記錄器，再用 155 Mbit/s 傳回地面。"
+      "zh-TW": "高光譜任務就是資料任務：每秒最多 600 Mbit 寫進 256 Gbit 的記錄器，再用 155 Mbit/s 傳回地面。"
     },
     "lifetime_years": 5,
     "url": "https://www.eoportal.org/satellite-missions/prisma-hyperspectral"
@@ -42,7 +42,7 @@
     "instruments": { "en": "3-5 m colour camera in a 3U CubeSat", "zh-TW": "3U 立方衛星裡的 3–5 公尺彩色相機" },
     "lesson": {
       "en": "Cheap and many instead of big and perfect: each Dove lives 2-3 years, but a constellation of 200 images the whole planet daily (~125 GB per satellite).",
-      "zh-TW": "用便宜和數量取代大而完美：每顆只活 2–3 年，但 200 顆的星系每天能拍遍全球（每顆約 125 GB）。"
+      "zh-TW": "不求大、不求完美，靠便宜和數量：每顆只活 2–3 年，但 200 顆組成的星座每天能拍遍全球（每顆約 125 GB）。"
     },
     "lifetime_years": 2.5,
     "url": "https://www.eoportal.org/satellite-missions/planet"

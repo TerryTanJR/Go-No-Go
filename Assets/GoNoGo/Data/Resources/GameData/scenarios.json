@@ -8,8 +8,8 @@
       "zh-TW": "看顧地球"
     },
     "briefing": {
-      "en": "Build a satellite that watches wildfires, floods and crops for at least 3 years. You have room for up to 3 instruments; the budget is below. Every choice costs mass, power, money or data.",
-      "zh-TW": "打造一顆監測野火、洪水和農作物的衛星，至少運作 3 年。最多裝 3 台儀器，預算見下方。每個選擇都要付出質量、電力、金錢或資料。"
+      "en": "Build a satellite that watches wildfires, floods and crops for at least 3 years. Up to 3 instruments; the budget is below. Every choice costs mass, power, money or data.",
+      "zh-TW": "做一顆監測野火、洪水和農作物的衛星，至少撐 3 年。儀器最多裝 3 台，預算在下面。每個選擇都會吃掉質量、電力、錢或資料。"
     },
     "budget_musd": 210,
     "target_years": 3,
@@ -275,7 +275,7 @@
     },
     "briefing": {
       "en": "Fire season is about to start. Design a satellite that spots wildfires while they are still small and tells the fire service within 30 minutes.",
-      "zh-TW": "火災季即將開始。你們要設計一顆衛星，在野火剛燒起來時就發現它，並在 30 分鐘內通知消防單位。"
+      "zh-TW": "火災季快到了。設計一顆衛星，在野火剛燒起來時就發現，30 分鐘內通知消防單位。"
     },
     "budget_musd": 40,
     "target_years": 3,
@@ -696,7 +696,7 @@
           "part_id": "inst_co2_spectrometer",
           "text": {
             "en": "Keep the CO2 spectrometer: it is the whole point.",
-            "zh-TW": "保留二氧化碳光譜儀：這就是任務的意義。"
+            "zh-TW": "二氧化碳光譜儀不能拿掉：整個任務就是為了它。"
           }
         },
         {

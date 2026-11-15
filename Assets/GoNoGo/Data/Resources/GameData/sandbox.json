@@ -46,7 +46,7 @@
     "tradeoffs": [
       { "id": "goal", "topic": "mission_lead", "title": { "en": "The goal here", "zh-TW": "這裡的目標" }, "text": { "en": "Whatever you choose. No one sets a target in the sandbox: try an idea, launch it, and read the report.", "zh-TW": "你自己決定。沙盒沒有人訂目標：想到什麼就試，射上去再看報告。" } },
       { "id": "lifetime", "topic": "mission_lead", "title": { "en": "How long a mission can be", "zh-TW": "任務可以排多久" }, "text": { "en": "Up to fifteen years. Longer missions earn more science, but propellant, battery wear and radiation all get their say.", "zh-TW": "最長十五年。年數越長科學越多，但推進劑、電池耗損和輻射都會跟你算帳。" } },
-      { "id": "budget", "topic": "budget_office", "title": { "en": "The budget", "zh-TW": "預算" }, "text": { "en": "There is no cap in the sandbox. The price of everything is still shown, so you can see what your design would really cost.", "zh-TW": "沙盒沒有上限。每樣東西的價錢還是照樣顯示，你看得到這個設計真正要花多少。" } },
+      { "id": "budget", "topic": "budget_office", "title": { "en": "The budget", "zh-TW": "預算" }, "text": { "en": "There is no cap in the sandbox. The price of everything is still shown, so you can see what your design would really cost.", "zh-TW": "沙盒沒有上限。每樣東西的價錢還是照樣顯示，看得到這個設計實際要花多少。" } },
       { "id": "costs", "topic": "budget_office", "title": { "en": "Where the money goes", "zh-TW": "哪裡最花錢" }, "text": { "en": "Usually the rocket. Ground stations are paid for every year, and big instruments are expensive too.", "zh-TW": "通常是火箭。地面站每年都要付租金，大儀器也很貴。" } },
       { "id": "target", "topic": "science", "title": { "en": "What counts as science here", "zh-TW": "這裡的科學怎麼算" }, "text": { "en": "Every instrument is scored on the job it does best, and every orbit on the mission it suits best. Mix freely.", "zh-TW": "每台儀器都照它最擅長的任務算分，每條軌道也是。可以自由搭配。" } },
       { "id": "orbit", "topic": "science", "title": { "en": "Which orbit suits", "zh-TW": "哪種軌道最適合" }, "text": { "en": "Sun-synchronous orbits pass at the same local time every day, which suits imaging. Geostationary is too far for sharp pictures. Lunar orbit is only for the Moon.", "zh-TW": "太陽同步軌道每天同一個當地時間經過，最適合拍地面；地球同步軌道太遠，拍不清楚；月球軌道只看得到月球。" } },
@@ -60,7 +60,7 @@
   "difficulty": {
     "id": "sandbox",
     "name": { "en": "Sandbox", "zh-TW": "沙盒" },
-    "description": { "en": "No preset limits. Every part is available, events are named for you, and a failed launch costs nothing.", "zh-TW": "沒有預設限制。所有零件都開放，營運事件直接告訴你名稱，發射失敗沒有任何代價。" },
+    "description": { "en": "No preset limits. Every part is available, events are named for you, and a failed launch costs nothing.", "zh-TW": "沒有預設限制。所有零件都開放，營運事件直接告訴你名稱，發射失敗不用付代價。" },
     "hidden": true,
     "required_margin": 0.0,
     "tiers_per_category": 3,

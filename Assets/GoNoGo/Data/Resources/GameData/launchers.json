@@ -50,7 +50,7 @@
     "name": { "en": "Medium launcher (Falcon 9 class)", "zh-TW": "中型火箭（Falcon 9 級）" },
     "description": {
       "en": "The workhorse. Enormous capacity for a satellite this size and an excellent record, but a dedicated flight costs about $70M.",
-      "zh-TW": "主力火箭。對這種大小的衛星來說運力綽綽有餘、紀錄極佳，但包一整枚要價約 7 千萬美元。"
+      "zh-TW": "主力火箭。對這種大小的衛星運力很夠、紀錄很好，但包一整枚約 7 千萬美元。"
     },
     "tier": 2,
     "capacity_kg": { "leo_400": 17400, "sso_700": 11000, "geo": 3100, "llo_100": 2500 },
@@ -273,7 +273,7 @@
   {
     "id": "falcon9_rideshare",
     "name": { "en": "Rideshare (Falcon 9 Transporter)", "zh-TW": "共乘（Falcon 9 Transporter）" },
-    "description": { "en": "A seat on a rocket full of small satellites. Very cheap, but it only goes where the mission is headed: a dawn-dusk sun-synchronous orbit.", "zh-TW": "搭一枚載滿小衛星的火箭。非常便宜，但只能去這趟任務的目的地：晨昏太陽同步軌道。" },
+    "description": { "en": "A seat on a rocket full of small satellites. Very cheap, but it only goes where the mission is headed: a dawn-dusk sun-synchronous orbit.", "zh-TW": "搭一枚載滿小衛星的火箭。很便宜，但只能去這趟任務的目的地：晨昏太陽同步軌道。" },
     "tier": 1,
     "capacity_kg": { "sso_dawn_dusk": 200 },
     "cost_musd": 1.4,
