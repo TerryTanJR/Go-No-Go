@@ -655,13 +655,13 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 
 /* 小零件的名稱（零件架、組裝台）：中文字，要看得清楚（code 那種是等寬字型，只有英數字） */
 .world-label--comp {
-    font-size: var(--fs-13);
+    font-size: var(--fs-20);
     -unity-font-style: bold;
     color: var(--c-text);
-    background-color: rgba(6, 12, 22, 0.8);
-    border-bottom-width: 1px;
+    background-color: rgba(6, 12, 22, 0.85);
+    border-bottom-width: 2px;
     border-color: var(--c-accent);
-    padding: 1px 6px;
+    padding: 2px 9px;
 }
 
 /* ---------- 面板（按 E 打開） ---------- */
