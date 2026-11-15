@@ -25,14 +25,7 @@
 
 ## Presentation
 
-<!--
-  TODO: add the pitch deck here. Pick one:
-  - Link:   [View the slides](https://...)
-  - PDF:    put the file at .github/assets/slides.pdf, then [Download the slides (PDF)](.github/assets/slides.pdf)
-  - Preview image: ![Title slide](.github/assets/slides-cover.png)
--->
-
-> Slides coming soon.
+**[View the slides (PowerPoint)](https://ncu365-my.sharepoint.com/:p:/g/personal/114522111_office365_ncu_edu_tw/IQCL2htBh3GOTZID3ydWQO3sAWHsiZlr9Sfn_UA_37T2mls?e=pBN0PD)**
 
 ## What the game is
 

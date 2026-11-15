@@ -25,14 +25,7 @@
 
 ## 簡報
 
-<!--
-  TODO：把簡報放在這裡，三選一：
-  - 連結：[看簡報](https://...)
-  - PDF：檔案放到 .github/assets/slides.pdf，再寫 [下載簡報（PDF）](.github/assets/slides.pdf)
-  - 封面圖：![簡報封面](.github/assets/slides-cover.png)
--->
-
-> 簡報即將放上。
+**[看簡報（PowerPoint）](https://ncu365-my.sharepoint.com/:p:/g/personal/114522111_office365_ncu_edu_tw/IQCL2htBh3GOTZID3ydWQO3sAWHsiZlr9Sfn_UA_37T2mls?e=pBN0PD)**
 
 ## 這是什麼遊戲
 
