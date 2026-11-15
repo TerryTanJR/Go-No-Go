@@ -1135,9 +1135,10 @@ namespace GoNoGo.EditorTools
                 var slot = new GameObject("Slot").transform;
                 slot.SetParent(ct, false);
                 slot.localPosition = new Vector3(0, 0.014f, 0);
+                // 貼著格子的薄片：做成一個高高的盒子的話，站在前面往下看時，準星會先打到前排那格，後排選不到
                 var col = cell.AddComponent<BoxCollider>();
-                col.center = new Vector3(0, 0.15f, 0);
-                col.size = new Vector3(0.32f, 0.3f, 0.28f);
+                col.center = new Vector3(0, 0.02f, 0);
+                col.size = new Vector3(0.32f, 0.04f, 0.28f);
                 var bs = cell.AddComponent<BenchSlot>();
                 bs.bench = index;
                 bs.index = i;
