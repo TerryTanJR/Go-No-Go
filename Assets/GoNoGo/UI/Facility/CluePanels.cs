@@ -53,7 +53,6 @@ namespace GoNoGo.UI
                 // 這裡這一局沒有線索：寫的是一則太空知識，放大看了才知道沒有要找的數值
                 Ui.Text(Loc.T("ui.clue.trivia.head"), "clue-trivia-head").AddTo(sheet);
                 Ui.Text(Ui.NoOrphan(Loc.T("ui.clue.trivia." + M.TriviaAt(_spot))), "clue-trivia").AddTo(sheet);
-                Ui.Text(Loc.T("ui.clue.nothing"), "small", "faint", "clue-foot").AddTo(body);
                 return;
             }
             _page = Math.Max(0, Math.Min(clues.Count - 1, _page));

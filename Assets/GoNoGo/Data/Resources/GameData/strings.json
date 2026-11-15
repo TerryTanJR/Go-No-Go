@@ -1173,7 +1173,6 @@
   "ui.clue.medium.book": { "en": "Book", "zh-TW": "書" },
   "ui.clue.medium.blueprint": { "en": "Blueprint", "zh-TW": "設計圖" },
   "ui.clue.look": { "en": "Zoom in to see whether it holds a value you need.", "zh-TW": "放大看看有沒有用得上的數值。" },
-  "ui.clue.nothing": { "en": "Nothing useful here.", "zh-TW": "這裡沒有用得上的數值。" },
   "ui.clue.zone.wall": { "en": "RESEARCH WALL", "zh-TW": "研究牆" },
   "ui.clue.zone.whiteboard": { "en": "WHITEBOARD", "zh-TW": "白板" },
   "ui.clue.zone.blackboard": { "en": "BLACKBOARD", "zh-TW": "黑板" },

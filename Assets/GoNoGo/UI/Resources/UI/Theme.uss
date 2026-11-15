@@ -1856,7 +1856,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .clue .unity-label { color: var(--ink); }
 .clue-trivia-head { margin: 24px 10px 0 10px; font-size: var(--fs-15); letter-spacing: 3px; -unity-font-style: bold; -unity-text-align: middle-center; opacity: 0.7; }
 .clue-trivia { margin: 28px 10px 40px 10px; font-size: var(--fs-24); white-space: normal; -unity-text-align: middle-center; }
-.clue-foot { margin-top: 10px; white-space: normal; color: var(--c-dim); }
 .clue-nav { flex-direction: row; align-items: center; margin-top: 10px; }
 .clue-kicker { font-size: var(--fs-14); -unity-font-style: bold; letter-spacing: 4px; opacity: 0.7; }
 .clue-title { margin-top: 4px; font-size: var(--fs-30); -unity-font-style: bold; white-space: normal; }
