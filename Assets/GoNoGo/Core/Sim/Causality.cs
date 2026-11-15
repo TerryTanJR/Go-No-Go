@@ -38,7 +38,6 @@ namespace GoNoGo.Core
         public static List<CausalChain> Build(Design d, GameData data, Evaluation ev, MissionResult r)
         {
             var chains = new List<CausalChain>();
-            var launcher = data.Launcher(d.LauncherId);
             var orbit = data.Orbit(d.OrbitId);
             string L = "launcher:" + d.LauncherId, O = "orbit:" + d.OrbitId;
             var lost = new CauseStep("cause.mission_lost");
@@ -246,8 +245,6 @@ namespace GoNoGo.Core
                         new CauseStep("cause.false_reported")));
             }
         }
-
-        public static string Suggest(List<CausalChain> chains, Evaluation ev) => Suggest(chains, ev, false);
 
         public static string Suggest(List<CausalChain> chains, Evaluation ev, bool fire)
         {

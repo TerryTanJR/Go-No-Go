@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace GoNoGo.Core.Tests
 {
     /// <summary>
-    /// 數值挖空、玩家填值、大屏幕的儀表板（用玩家的數字）、線索（模板產生、每局位置隨機）。
+    /// 數值挖空、玩家填值、設計主螢幕的儀表板（用玩家的數字）、線索（模板產生、每局位置隨機）。
     /// </summary>
     public class BlankTests
     {
@@ -48,7 +48,7 @@ namespace GoNoGo.Core.Tests
             int all = catalog.Sum(id => PartFields.All.Count(f => PartFields.Get(_data.Part(id), f) > 0));
             Assert.That(cells.Count, Is.EqualTo(all));
             Assert.That(cells.Select(c => c.field).Distinct(), Is.EquivalentTo(PartFields.All));
-            // 價格不挖空（也不在六個欄位裡）；地面站不在大屏幕的零件清單裡
+            // 價格不挖空（也不在六個欄位裡）；地面站不在設計主螢幕的零件清單裡
             Assert.That(PartFields.All, Has.No.Member("cost_musd"));
             Assert.That(Blanks.IsBlank(_data, s, "gs_3", PartFields.MassKg), Is.False);
             Assert.That(cells.Count, Is.LessThanOrEqualTo(catalog.Count * 6), "每個零件最多 6 個欄位");

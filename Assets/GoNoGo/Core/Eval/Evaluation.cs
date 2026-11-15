@@ -7,14 +7,6 @@ namespace GoNoGo.Core
 
     public enum ResourceStatus { Ok, Tight, Over }
 
-    /// <summary>一個零件對某項資源的貢獻量（滑鼠移上去時顯示）。</summary>
-    public sealed class Contribution
-    {
-        public string Key { get; set; }
-        public double Amount { get; set; }
-        public Contribution(string key, double amount) { Key = key; Amount = amount; }
-    }
-
     /// <summary>五條資源條之一。Margin = (Capacity − Used) / Capacity。</summary>
     public sealed class ResourceReport
     {
@@ -24,7 +16,6 @@ namespace GoNoGo.Core
         public string Unit { get; set; } = "";
         public double Margin { get; set; }
         public ResourceStatus Status { get; set; }
-        public List<Contribution> Contributions { get; set; } = new List<Contribution>();
 
         /// <summary>
         /// 資源條長度（0–1 以上）= 1 − Margin。電力的 Margin 取太陽能板和電池中較差的一個，
@@ -139,10 +130,6 @@ namespace GoNoGo.Core
         public string FromId { get; set; } = "";
         public string ToId { get; set; } = "";
         public int Years { get; set; }
-        /// <summary>套用後這項資源的餘裕。</summary>
-        public double NewMargin { get; set; }
-        public double CostDeltaMusd { get; set; }
-        public double ScienceDelta { get; set; }
 
         public Design ApplyTo(Design d)
         {

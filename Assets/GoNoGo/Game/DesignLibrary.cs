@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using GoNoGo.Core;
 using UnityEngine;
 
@@ -41,8 +40,6 @@ namespace GoNoGo.Game
         sealed class Store { public List<SavedDesign> items = new List<SavedDesign>(); }
 
         static Store _store;
-
-        public static event Action Changed;
 
         static Store S
         {
@@ -111,17 +108,6 @@ namespace GoNoGo.Game
             if (S.items.RemoveAll(x => x.id == id) > 0) Persist();
         }
 
-        public static void Rename(GameData data, string id, string name)
-        {
-            var item = Find(id);
-            name = DesignCode.CleanName(name);
-            if (item == null || name.Length == 0 || name == item.name) return;
-            if (!DesignCode.TryDecode(item.code, data, out var d, out _, out _)) return;
-            item.name = name;
-            item.code = DesignCode.Encode(d, data, name);
-            Persist();
-        }
-
         public static Design Decode(GameData data, SavedDesign s) =>
             s != null && DesignCode.TryDecode(s.code, data, out var d, out _, out _) ? d : null;
 
@@ -143,14 +129,9 @@ namespace GoNoGo.Game
         {
             PlayerPrefs.SetString(Key, JsonUtility.ToJson(S));
             PlayerPrefs.Save();
-            Changed?.Invoke();
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics()
-        {
-            _store = null;
-            Changed = null;
-        }
+        static void ResetStatics() => _store = null;
     }
 }

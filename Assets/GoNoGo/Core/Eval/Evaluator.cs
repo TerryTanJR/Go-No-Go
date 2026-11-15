@@ -22,7 +22,6 @@ namespace GoNoGo.Core
             var c = data.Constants;
             var ev = new Evaluation();
             var scenario = data.Scenario(design.ScenarioId);
-            var diff = data.Difficulty(difficultyId) ?? data.DefaultDifficulty ?? new DifficultyDef();
             ev.DesignErrors = GameDataLoader.ValidateDesign(data, design, "design");
 
             var orbit = data.Orbit(design.OrbitId);
@@ -68,27 +67,21 @@ namespace GoNoGo.Core
 
             // ---------- 電力 ----------
             var pw = ev.Power;
-            var powerContrib = new List<Contribution>();
             double pe = c.BusBasePowerW, pd = c.BusBasePowerW;
-            powerContrib.Add(new Contribution("bus", c.BusBasePowerW));
             foreach (var i in instruments)
             {
                 pd += i.PowerW;
                 if (!i.SunlitOnly) pe += i.PowerW;
-                double avg = i.SunlitOnly ? i.PowerW * (1 - oi.EclipseFraction) : i.PowerW;
-                powerContrib.Add(new Contribution(i.Id, avg));
             }
             foreach (var p in new[] { computer, adcs, propulsion, gs, solar, battery, shielding })
             {
                 if (p == null || p.PowerW <= 0) continue;
                 pe += p.PowerW; pd += p.PowerW;
-                powerContrib.Add(new Contribution(p.Id, p.PowerW));
             }
             if (antenna != null)
             {
                 double tx = antenna.TxPowerW * oi.ContactMinPerDay / 1440.0 + antenna.PowerW;
                 pe += tx; pd += tx;
-                powerContrib.Add(new Contribution(antenna.Id, tx));
             }
             double te = oi.EclipseMin, td = oi.SunlitMin;
             pw.LoadW = oi.PeriodMin > 0 ? (pe * te + pd * td) / oi.PeriodMin : pd;
@@ -105,35 +98,25 @@ namespace GoNoGo.Core
             pw.ArrayMargin = pw.ArrayEolW > 0 ? (pw.ArrayEolW - pw.RequiredArrayW) / pw.ArrayEolW : -1;
             pw.BatteryMargin = pw.EclipseEnergyWh <= 0 ? 1 : pw.BatteryWh > 0 ? (pw.BatteryWh - pw.BatteryRequiredWh) / pw.BatteryWh : -1;
             AddResource(ev, ResourceId.Power, pw.RequiredArrayW, pw.ArrayEolW, "W",
-                Math.Min(pw.ArrayMargin, pw.BatteryMargin), powerContrib);
+                Math.Min(pw.ArrayMargin, pw.BatteryMargin));
 
             // ---------- 質量 ----------
             var m = ev.Mass;
-            var massContrib = new List<Contribution>();
-            foreach (var p in design.AllPartIds().Select(data.Part).Where(p => p != null))
-            {
-                m.PartsKg += p.MassKg;
-                massContrib.Add(new Contribution(p.Id, p.MassKg));
-            }
+            // 選到的零件（質量和成本都要逐個加總，只查一次）
+            var parts = design.AllPartIds().Select(data.Part).Where(p => p != null).ToList();
+            foreach (var p in parts) m.PartsKg += p.MassKg;
             m.DryKg = m.PartsKg / (1 - c.StructureFraction);
             m.StructureKg = m.DryKg - m.PartsKg;
             m.PropellantKg = propulsion?.PropellantKg ?? 0;
             m.WetKg = m.DryKg + m.PropellantKg;
-            massContrib.Add(new Contribution("structure", m.StructureKg));
-            if (m.PropellantKg > 0) massContrib.Add(new Contribution("propellant", m.PropellantKg));
             m.OrbitReachable = orbit != null && GameData.Reaches(launcher, orbit.Id);
             m.LauncherCapacityKg = m.OrbitReachable ? launcher.CapacityKg[orbit.Id] : 0;
             AddResource(ev, ResourceId.Mass, m.WetKg, m.LauncherCapacityKg, "kg",
-                m.LauncherCapacityKg > 0 ? (m.LauncherCapacityKg - m.WetKg) / m.LauncherCapacityKg : -1, massContrib);
+                m.LauncherCapacityKg > 0 ? (m.LauncherCapacityKg - m.WetKg) / m.LauncherCapacityKg : -1);
 
             // ---------- 資料與通訊 ----------
             var dt = ev.Data;
-            var dataContrib = new List<Contribution>();
-            foreach (var i in instruments)
-            {
-                dt.GeneratedGbPerDay += i.DataGbPerDay;
-                dataContrib.Add(new Contribution(i.Id, i.DataGbPerDay));
-            }
+            foreach (var i in instruments) dt.GeneratedGbPerDay += i.DataGbPerDay;
             // 平均速率：雷射通訊之類的連線只有部分過站時間連得上
             double rate = (antenna?.DownlinkMbps ?? 0) * (antenna?.LinkAvailability ?? 1) * (orbit?.DownlinkRateFactor ?? 1);
             dt.DownlinkGbPerDay = rate * oi.ContactMinPerDay * 60.0 / 8.0 / 1000.0 * c.LinkEfficiency;
@@ -153,29 +136,21 @@ namespace GoNoGo.Core
             var storageStatus = storageMargin < 0 ? ResourceStatus.Over
                 : dt.StorageGb < dt.StorageNeededGb ? ResourceStatus.Tight
                 : ResourceStatus.Ok;
-            AddResource(ev, ResourceId.Data, dt.StorageNeededGb, dt.StorageGb, "GB", storageMargin, dataContrib, storageStatus);
+            AddResource(ev, ResourceId.Data, dt.StorageNeededGb, dt.StorageGb, "GB", storageMargin, storageStatus);
             AddResource(ev, ResourceId.Comms, dt.GeneratedGbPerDay, dt.DownlinkGbPerDay, "GB/day",
-                dt.DownlinkGbPerDay > 0 ? (dt.DownlinkGbPerDay - dt.GeneratedGbPerDay) / dt.DownlinkGbPerDay : (dt.GeneratedGbPerDay > 0 ? -1 : 1),
-                new List<Contribution>(dataContrib));
+                dt.DownlinkGbPerDay > 0 ? (dt.DownlinkGbPerDay - dt.GeneratedGbPerDay) / dt.DownlinkGbPerDay : (dt.GeneratedGbPerDay > 0 ? -1 : 1));
 
             // ---------- 預算 ----------
             var co = ev.Cost;
-            var costContrib = new List<Contribution> { new Contribution("bus", c.BusBaseCostMusd) };
             co.DevelopmentMusd = c.BusBaseCostMusd;
-            foreach (var p in design.AllPartIds().Select(data.Part).Where(p => p != null))
-            {
-                co.DevelopmentMusd += p.CostMusd;
-                costContrib.Add(new Contribution(p.Id, p.CostMusd));
-            }
+            foreach (var p in parts) co.DevelopmentMusd += p.CostMusd;
             co.LaunchMusd = launcher?.CostMusd ?? 0;
-            if (launcher != null) costContrib.Add(new Contribution(launcher.Id, co.LaunchMusd));
             co.OpsPerYearMusd = c.OpsBaseCostMusdPerYear + (gs?.OpsCostMusdPerYear ?? 0);
             co.OpsTotalMusd = co.OpsPerYearMusd * years;
-            costContrib.Add(new Contribution("operations", co.OpsTotalMusd));
             co.TotalMusd = co.DevelopmentMusd + co.LaunchMusd + co.OpsTotalMusd;
             co.BudgetMusd = GameData.Budget(scenario);
             AddResource(ev, ResourceId.Budget, co.TotalMusd, co.BudgetMusd, "M$",
-                co.BudgetMusd > 0 ? (co.BudgetMusd - co.TotalMusd) / co.BudgetMusd : -1, costContrib);
+                co.BudgetMusd > 0 ? (co.BudgetMusd - co.TotalMusd) / co.BudgetMusd : -1);
 
             // ---------- 壽命 ----------
             var lf = ev.Lifetime;
@@ -215,7 +190,7 @@ namespace GoNoGo.Core
             double limit = scenario?.LatencyLimitMin ?? 0;
             fi.TimelyFraction = limit > 0 ? Math.Min(1.0, limit / Math.Max(1e-6, fi.LatencyMin)) : 1.0;
 
-            BuildWarnings(ev, design, data, scenario, instruments, objective);
+            BuildWarnings(ev, design, scenario, instruments, objective);
             if (withFixes) FixFinder.AttachFixes(ev, design, data, difficultyId);
             return ev;
         }
@@ -237,7 +212,10 @@ namespace GoNoGo.Core
         /// <summary>依放電深度內插電池循環壽命。</summary>
         public static double CycleLife(Constants c, double dod)
         {
-            var pts = c.BatteryCycleLife.OrderBy(p => p[0]).ToList();
+            // 對照點通常已經照放電深度由小到大排好：排好的就直接用（穩定排序的結果和原本的順序一樣）
+            var pts = c.BatteryCycleLife;
+            for (int i = 1; i < pts.Count; i++)
+                if (pts[i][0] < pts[i - 1][0]) { pts = pts.OrderBy(p => p[0]).ToList(); break; }
             if (pts.Count == 0) return 0;
             if (dod <= pts[0][0]) return pts[0][1];
             for (int i = 1; i < pts.Count; i++)
@@ -253,7 +231,7 @@ namespace GoNoGo.Core
         }
 
         static void AddResource(Evaluation ev, ResourceId id, double used, double capacity, string unit,
-            double margin, List<Contribution> contrib, ResourceStatus? status = null)
+            double margin, ResourceStatus? status = null)
         {
             if (double.IsNaN(margin) || double.IsInfinity(margin)) margin = -1;
             ev.Resources[id] = new ResourceReport
@@ -264,11 +242,10 @@ namespace GoNoGo.Core
                 Unit = unit,
                 Margin = margin,
                 Status = status ?? (margin < 0 ? ResourceStatus.Over : margin < TightMargin ? ResourceStatus.Tight : ResourceStatus.Ok),
-                Contributions = contrib.Where(x => Math.Abs(x.Amount) > 1e-9).OrderByDescending(x => x.Amount).ToList(),
             };
         }
 
-        static void BuildWarnings(Evaluation ev, Design design, GameData data, ScenarioDef scenario,
+        static void BuildWarnings(Evaluation ev, Design design, ScenarioDef scenario,
             List<PartDef> instruments, string objective)
         {
             foreach (var r in ev.Resources.Values.Where(r => r.Status != ResourceStatus.Ok).OrderBy(r => r.Id))

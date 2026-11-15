@@ -194,8 +194,6 @@ namespace GoNoGo.Core
         void Aim(Foe f, float spread)
         {
             float dx = _px - f.X, dy = _py - f.Y;
-            float len = (float)Math.Sqrt(dx * dx + dy * dy);
-            if (len < 1) len = 1;
             float ang = (float)Math.Atan2(dx, dy) + spread;
             _theirs.Add(new Shot { X = f.X, Y = f.Y + f.R, Vx = (float)Math.Sin(ang) * _shotSpeed, Vy = (float)Math.Cos(ang) * _shotSpeed });
         }
@@ -276,23 +274,21 @@ namespace GoNoGo.Core
                 return inp;
             }
             float dodge = 0;
-            bool ignore = false;
-            if (!ignore)
-                foreach (var b in _theirs)
+            foreach (var b in _theirs)
+            {
+                if (b.Vy <= 0) continue;
+                float tt = (_py - b.Y) / b.Vy;
+                if (tt < -0.05f || tt > 0.8f) continue;
+                float bx = b.X + b.Vx * tt;
+                float d = _px - bx;
+                if (Math.Abs(d) < 30)
                 {
-                    if (b.Vy <= 0) continue;
-                    float tt = (_py - b.Y) / b.Vy;
-                    if (tt < -0.05f || tt > 0.8f) continue;
-                    float bx = b.X + b.Vx * tt;
-                    float d = _px - bx;
-                    if (Math.Abs(d) < 30)
-                    {
-                        float room = d >= 0 ? MiniField.W - 20 - _px : _px - 20;
-                        dodge += (d >= 0 ? 1 : -1) * (room > 60 ? 1 : -1);
-                    }
+                    float room = d >= 0 ? MiniField.W - 20 - _px : _px - 20;
+                    dodge += (d >= 0 ? 1 : -1) * (room > 60 ? 1 : -1);
                 }
+            }
             foreach (var f in _foes)
-                if (!ignore && f.Y < _py && _py - f.Y < 90 && Math.Abs(f.X - _px) < f.R + 24)
+                if (f.Y < _py && _py - f.Y < 90 && Math.Abs(f.X - _px) < f.R + 24)
                     dodge += (_px >= f.X ? 1 : -1);
             if (Math.Abs(dodge) > 0.01f) inp.MoveX = Clamp(dodge, -1, 1);
             else

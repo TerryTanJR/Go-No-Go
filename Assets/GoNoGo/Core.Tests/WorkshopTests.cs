@@ -215,7 +215,7 @@ namespace GoNoGo.Core.Tests
         {
             var s = Solo();
             Put(s, 0, "cells", "bms", "heater", "housing");
-            Assert.That(SessionRules.BenchStatusOf(s, _data, 0), Is.EqualTo(BenchStatus.Waiting), "設計還沒在大屏幕上確定");
+            Assert.That(SessionRules.BenchStatusOf(s, _data, 0), Is.EqualTo(BenchStatus.Waiting), "設計還沒在設計主螢幕上確定");
             Assert.That(s.Benches[0].Job, Is.Null);
             Assert.That(s.Benches[0].LastError, Is.EqualTo(BenchStatus.Waiting));
             Ok(s, Command.Of(CommandType.Confirm, 1, "", 1));
@@ -309,7 +309,7 @@ namespace GoNoGo.Core.Tests
             Assert.That(s.Installed, Has.Member("batt_small"));
             Assert.That(s.Held, Is.Empty);
 
-            // 裝錯沒有懲罰：不加時程、不扣分，設計的評估完全一樣；只留紀錄（所有人看得到誰裝錯）
+            // 裝錯沒有懲罰：不扣分，設計的評估完全一樣；只留紀錄（所有人看得到誰裝錯）
             Assert.That(s.Mistakes, Is.EqualTo(2));
             var after = Evaluator.EvaluateDesign(s.Bench, _data, s.DifficultyId, false);
             Assert.That(after.Cost.TotalMusd, Is.EqualTo(before.Cost.TotalMusd));

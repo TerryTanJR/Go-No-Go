@@ -6,7 +6,7 @@ using Newtonsoft.Json.Serialization;
 
 namespace GoNoGo.Core
 {
-    /// <summary>所有遊戲資料（從 Data/*.json 載入）。核心計算只讀這裡。</summary>
+    /// <summary>所有遊戲資料（從 Data/Resources/GameData/*.json 載入）。核心計算只讀這裡。</summary>
     public sealed class GameData
     {
         public Constants Constants { get; set; } = new Constants();
@@ -50,7 +50,7 @@ namespace GoNoGo.Core
         }
 
         /// <summary>
-        /// 同一份資料、換一批零件的複本（其他都共用）。大屏幕的儀表板用「玩家填的數值」跑評估時用這個，
+        /// 同一份資料、換一批零件的複本（其他都共用）。設計主螢幕的儀表板用「玩家填的數值」跑評估時用這個，
         /// 原本的資料（真實數值）不會被動到。
         /// </summary>
         public GameData WithParts(List<PartDef> parts)
@@ -130,7 +130,7 @@ namespace GoNoGo.Core
         public ScenarioDef Scenario(string id) => id != null && _scenarios.TryGetValue(id, out var s) ? s : null;
         public DifficultyDef Difficulty(string id) => id != null && _difficulties.TryGetValue(id, out var d) ? d : null;
         /// <summary>
-        /// 沒指定難度時用的基準難度（工程師：預算倍率 1）。不照 difficulty.json 的順序取第一個：
+        /// 沒指定難度時用的基準難度（工程師）。不照 difficulty.json 的順序取第一個：
         /// 那個順序是選單的排列（由易到難），調整選單不應該改到評估和模擬的基準。
         /// </summary>
         public DifficultyDef DefaultDifficulty => Difficulty("engineer") ?? Difficulties.FirstOrDefault();
@@ -207,7 +207,7 @@ namespace GoNoGo.Core
             ByDifficulty(s?.EventTypes, d?.Id) ?? d?.EventTypes ?? new List<string>();
 
         /// <summary>
-        /// 這一關大屏幕上列得出來的零件（不含地面站）：關卡有指定就照指定，否則依難度開放的等級；
+        /// 這一關設計主螢幕上列得出來的零件（不含地面站）：關卡有指定就照指定，否則依難度開放的等級；
         /// 再加上這個難度開放類別的誘餌零件。
         /// </summary>
         public IEnumerable<PartDef> ShelfFor(ScenarioDef s, DifficultyDef d)
@@ -222,7 +222,7 @@ namespace GoNoGo.Core
             return regular.Concat(decoys).Distinct();
         }
 
-        /// <summary>這一關、這個難度列在大屏幕上的取捨說明（關卡有自己寫的就用關卡的，否則用通用的）。</summary>
+        /// <summary>這一關、這個難度列在設計主螢幕上的取捨說明（關卡有自己寫的就用關卡的，否則用通用的）。</summary>
         public List<TradeoffNote> TradeoffsFor(ScenarioDef s, DifficultyDef d)
         {
             var list = s != null && s.Tradeoffs.Count > 0 ? s.Tradeoffs : Tradeoffs;

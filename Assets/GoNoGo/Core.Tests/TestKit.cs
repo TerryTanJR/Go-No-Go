@@ -25,7 +25,7 @@ namespace GoNoGo.Core.Tests
         }
 
         /// <summary>
-        /// 直接把預設設計放到大屏幕上（不經過指令、不檢查這個難度能不能選）：
+        /// 直接把預設設計放到設計主螢幕上（不經過指令、不檢查這個難度能不能選）：
         /// 只需要「有一套設計」來算儀表板、挖空的測試用。
         /// </summary>
         public static SessionState PresetDefaults(this SessionState s, GameData data)

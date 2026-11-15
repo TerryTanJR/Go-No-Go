@@ -38,8 +38,8 @@ namespace GoNoGo.Net
         }
 
         /// <summary>
-        /// 測試用：命令列 <c>-gng-join 127.0.0.1</c> 開起來就用 IP 加入，<c>-gng-code ABC123</c> 用房間碼加入（可加 <c>-gng-name 名字</c>），
-        /// 加 <c>-gng-control</c> 會在進房後要求去中控室（測試客戶端送操作給房主）；<c>-gng-host</c> 直接用 IP 當房主。
+        /// 測試用：命令列 <c>-gng-join 127.0.0.1</c> 開起來就用 IP 加入，<c>-gng-code ABC123</c> 用房間碼加入（可加 <c>-gng-name 名字</c>）；
+        /// <c>-gng-host</c> 直接用 IP 當房主。
         /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void CommandLineJoin()
@@ -82,29 +82,6 @@ namespace GoNoGo.Net
             });
         }
 
-        sealed class Delay : MonoBehaviour
-        {
-            float _t;
-            Action _a;
-
-            public static void After(float seconds, Action a)
-            {
-                var go = new GameObject("[NetDelay]");
-                DontDestroyOnLoad(go);
-                var d = go.AddComponent<Delay>();
-                d._t = seconds;
-                d._a = a;
-            }
-
-            void Update()
-            {
-                _t -= Time.unscaledDeltaTime;
-                if (_t > 0) return;
-                Destroy(gameObject);
-                _a?.Invoke();
-            }
-        }
-
         /// <summary>跑一個連線流程；回呼一定在主執行緒、一定只呼叫一次。</summary>
         static async void Run(Action<string> done, Func<Task<string>> flow)
         {
@@ -121,7 +98,7 @@ namespace GoNoGo.Net
                 err = "ui.net.err.connect";
             }
             _busy = false;
-            // 成功的客戶端由 NetLink 收到第一包狀態時回呼；這裡只回報失敗或房主成功
+            // 空字串 = 成功（客戶端的流程會等到收到第一包狀態才結束，見 WaitForState），其他是錯誤的字串鍵
             if (err != null) done?.Invoke(err);
         }
 
@@ -203,7 +180,8 @@ namespace GoNoGo.Net
                 Debug.LogWarning("[Net] join: " + e.Error + " " + e.Message);
                 return e.Error == SessionError.SessionNotFound || e.Message.Contains("404") ? "ui.net.err.code" : "ui.net.err.connect";
             }
-            err = await WaitForState(NetLinkClient(nm, session, session.Code));
+            NetLinkClient(nm, session, session.Code);
+            err = await WaitForState();
             if (string.IsNullOrEmpty(err)) VoiceChat.Join(session.Code);
             return err;
         }
@@ -230,7 +208,8 @@ namespace GoNoGo.Net
             var nm = Manager(true);
             Transport(nm).SetConnectionData(ip, DirectPort);
             if (!nm.StartClient()) return Task.FromResult("ui.net.err.connect");
-            return WaitForState(NetLinkClient(nm, null, ip));
+            NetLinkClient(nm, null, ip);
+            return WaitForState();
         }
 
         // ---------------------------------------------------------------- 共用
@@ -247,17 +226,17 @@ namespace GoNoGo.Net
 
         static TaskCompletionSource<string> _clientResult;
 
-        static NetLink NetLinkClient(NetworkManager nm, ISession session, string code)
+        /// <summary>建立客戶端的連線；結果（空字串 = 收到第一包狀態，否則是錯誤的字串鍵）用 <see cref="WaitForState"/> 等。</summary>
+        static void NetLinkClient(NetworkManager nm, ISession session, string code)
         {
             _clientResult = new TaskCompletionSource<string>();
             var tcs = _clientResult;
             var link = NetLink.Client(nm, session, code, err => tcs.TrySetResult(err));
             // 收到第一包狀態之前，GameSession 還沒有這個 link，要自己推它的 Tick
             Pump.Run(link, tcs.Task);
-            return link;
         }
 
-        static async Task<string> WaitForState(NetLink link)
+        static async Task<string> WaitForState()
         {
             var err = await _clientResult.Task;
             // 成功時 NetLink 已經開局、換場景；主選單的回呼也要清掉「連線中」

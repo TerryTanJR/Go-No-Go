@@ -23,8 +23,10 @@ namespace GoNoGo.Launch
         const float Km = 0.01f, EarthScale = 3f, MoonScale = 5f;
         // 放在其他場景遠處（發射台在原點、近地太空在 y = 20000）
         static readonly Vector3 Origin = new Vector3(0f, 60000f, 0f);
-        // 近景的月球：和近地太空場景的地球同一套比例（半徑 6000 單位 = 6371 km）
-        const float CloseScale = 6000f / 6371f, CloseAlt = 120f, CapDeg = 40f;
+        // 近景的月球：和近地太空場景的地球同一套比例（半徑 6000 單位 = 6371 km，見 ShowArrival）；衛星離月面的高度、球冠的半角
+        const float CloseAlt = 120f, CapDeg = 40f;
+        // 已飛路徑的取樣段數（點數 = 段數 + 1）
+        const int FlownSegs = 90;
 
         readonly LunarTransfer _tr;
         readonly Transform _root, _earth, _moon;
@@ -35,9 +37,11 @@ namespace GoNoGo.Launch
         public CinemachineCamera Wide { get; }
         public CinemachineCamera Approach { get; }
 
+        readonly Vector3[] _flownPts = new Vector3[FlownSegs + 1];
+
         // 近景
         Renderer _closeMoon;
-        MaterialPropertyBlock _closeMpb;
+        MaterialPropertyBlock _closeMpb, _plumeMpb;
         Transform _payload;
         Renderer _plume;
         Vector3 _travel;
@@ -146,14 +150,15 @@ namespace GoNoGo.Launch
             _tr.AtEccentricAnomaly(eNow, out var rNow, out var nuNow);
             var sat = P(nuNow, R(rNow));
 
-            // 已經飛過的路徑
-            const int n = 90;
+            // 已經飛過的路徑（先算進陣列，再一次交給 LineRenderer）
+            const int n = FlownSegs;
             _flown.positionCount = n + 1;
             for (int i = 0; i <= n; i++)
             {
                 _tr.AtEccentricAnomaly(eNow * i / n, out var r, out var nu);
-                _flown.SetPosition(i, P(nu, R(r)));
+                _flownPts[i] = P(nu, R(r));
             }
+            _flown.SetPositions(_flownPts);
             // 光點：一段跟寬度一樣長的線，柔和圓點貼圖剛好貼滿成一個發光的點
             _tr.AtEccentricAnomaly(Math.Max(0, eNow - 0.002), out var rb, out var nub);
             var dir = (sat - P(nub, R(rb))).normalized;
@@ -280,10 +285,10 @@ namespace GoNoGo.Launch
                 float flicker = 0.85f + 0.15f * Mathf.PerlinNoise(Time.time * 18f, 0.7f);
                 var sc = _plume.transform.localScale;
                 _plume.transform.localScale = new Vector3(sc.x, sc.x * 6f * flicker, sc.z);
-                var mpb = new MaterialPropertyBlock();
-                _plume.GetPropertyBlock(mpb);
-                mpb.SetFloat(ThrottleId, 1f);
-                _plume.SetPropertyBlock(mpb);
+                _plumeMpb ??= new MaterialPropertyBlock();
+                _plume.GetPropertyBlock(_plumeMpb);
+                _plumeMpb.SetFloat(ThrottleId, 1f);
+                _plume.SetPropertyBlock(_plumeMpb);
             }
         }
 

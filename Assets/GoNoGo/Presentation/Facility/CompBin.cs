@@ -7,7 +7,7 @@ namespace GoNoGo.Presentation
 {
     /// <summary>
     /// 小零件架上的一格：一格一種小零件，不限數量，拿走會補。所有配方會用到的小零件都在架上，
-    /// 包括這次設計用不到的；架子只標名稱，不提示該拿什麼（要看中控室大屏幕或組裝區儀表板）。
+    /// 包括這次設計用不到的；架子只標名稱，不提示該拿什麼（要看中控室的設計主螢幕或組裝區儀表板）。
     /// 按 C 拿；單人有籃子（一次最多 4 個），兩人以上一次拿一個。手上已經有這一種：按 C 放回去。
     /// 擺哪一種由 <see cref="GameData.ShelfComponents"/> 決定（第幾格 = <see cref="index"/>）。
     /// </summary>
@@ -26,12 +26,12 @@ namespace GoNoGo.Presentation
         GameObject _model;
         SatPart _glowPart;
         WorldLabel _label;
-        string _lang;
         MaterialPropertyBlock _mpb;
 
         void Awake()
         {
             Bins.Add(this);
+            Loc.Changed += OnLanguage;
             _label = gameObject.AddComponent<WorldLabel>();
             _label.style = "comp";
             _label.maxDistance = 7f;
@@ -39,7 +39,11 @@ namespace GoNoGo.Presentation
             _label.enabled = false;
         }
 
-        void OnDestroy() => Bins.Remove(this);
+        void OnDestroy()
+        {
+            Bins.Remove(this);
+            Loc.Changed -= OnLanguage;
+        }
 
         static MissionSession M => GameSession.Mission;
 
@@ -55,18 +59,13 @@ namespace GoNoGo.Presentation
             _glowPart = _model.GetComponent<SatPart>();
             _label.text = Loc.T(_comp.Name);
             _label.enabled = true;
-            _lang = Loc.Lang;
             InvalidateColliders();
         }
 
-        void Update()
+        /// <summary>換語言：標籤跟著換（聽 <see cref="Loc.Changed"/>，架上幾十格不必每幀各自檢查）。</summary>
+        void OnLanguage()
         {
-            // 換語言：標籤跟著換
-            if (_comp != null && _lang != Loc.Lang)
-            {
-                _lang = Loc.Lang;
-                _label.text = Loc.T(_comp.Name);
-            }
+            if (_comp != null) _label.text = Loc.T(_comp.Name);
         }
 
         public override HudTarget Describe(Interactor who)

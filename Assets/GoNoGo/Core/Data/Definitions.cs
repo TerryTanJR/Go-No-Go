@@ -58,7 +58,7 @@ namespace GoNoGo.Core
 
     /// <summary>
     /// 一個零件。不同類別用到的欄位不同，沒用到的保持 0。
-    /// 單位：kg、W、百萬美元、月、GB/天、Mbps。
+    /// 單位：kg、W、百萬美元、GB/天、Mbps。
     /// </summary>
     public sealed class PartDef
     {
@@ -138,13 +138,12 @@ namespace GoNoGo.Core
         public double PointingArcsec { get; set; }
 
         // 畫面
-        public string Model { get; set; } = "";
         public string Mount { get; set; } = "";
         public string Color { get; set; } = "";
 
         public SourceRef Source { get; set; } = new SourceRef();
 
-        /// <summary>複本（改數值不會動到原本的資料）。大屏幕的儀表板用玩家填的數值算，就是改這份複本。</summary>
+        /// <summary>複本（改數值不會動到原本的資料）。設計主螢幕的儀表板用玩家填的數值算，就是改這份複本。</summary>
         public PartDef Clone() => (PartDef)MemberwiseClone();
     }
 
@@ -193,8 +192,7 @@ namespace GoNoGo.Core
         /// <summary>歷史火箭只在歷史任務關卡出現。</summary>
         public bool Historical { get; set; }
         public string FlightRecord { get; set; } = "";
-        public string Model { get; set; } = "";
-        /// <summary>共乘：只能去主酬載的這條軌道（空白 = 沒有限制）。大屏幕上選不到別的軌道。</summary>
+        /// <summary>共乘：只能去主酬載的這條軌道（空白 = 沒有限制）。設計主螢幕上選不到別的軌道。</summary>
         public string OrbitLock { get; set; } = "";
         public SourceRef Source { get; set; } = new SourceRef();
         /// <summary>真實的飛行時間表（發射演出用）。</summary>
@@ -253,7 +251,6 @@ namespace GoNoGo.Core
         /// <summary>只有用這支火箭時才會觸發歷史事件。</summary>
         public string ScriptedLauncherId { get; set; } = "";
         public double BudgetCap { get; set; } = 1.1;
-        public string Cinematic { get; set; } = "";
         public LocalizedText Background { get; set; } = new LocalizedText();
         public LocalizedText Reveal { get; set; } = new LocalizedText();
         public LocalizedText RealFix { get; set; } = new LocalizedText();
@@ -274,7 +271,7 @@ namespace GoNoGo.Core
         public List<string> AllowedLaunchers { get; set; } = new List<string>();
         /// <summary>科學分數 100 分對應的科學點數。</summary>
         public double ScienceReference { get; set; } = 100;
-        /// <summary>需求的分類（mission_lead、budget_office、science、engineering、comms）→ 這一類的任務需求。全部直接列在大屏幕上。</summary>
+        /// <summary>需求的分類（mission_lead、budget_office、science、engineering、comms）→ 這一類的任務需求。全部直接列在設計主螢幕上。</summary>
         public Dictionary<string, List<RequirementDef>> Requirements { get; set; } = new Dictionary<string, List<RequirementDef>>();
         public Design DefaultDesign { get; set; } = new Design();
         public List<string> ComparisonMissions { get; set; } = new List<string>();
@@ -338,7 +335,7 @@ namespace GoNoGo.Core
         /// <summary>
         /// 這個配方的代號（類別，指定零件的再加上第一個零件 id）。組過的構造記在 <see cref="SessionState.Learned"/>。
         /// </summary>
-        [Newtonsoft.Json.JsonIgnore]
+        [JsonIgnore]
         public string Key => PartIds.Count > 0 ? Category + ":" + PartIds[0] : Category;
     }
 
@@ -379,7 +376,7 @@ namespace GoNoGo.Core
         public bool NextStepGuide { get; set; }
         /// <summary>
         /// 開局時挖空的比例（0–1）：零件的質量、功率、電池容量、解析度、資料量、下傳速率這六種數值，
-        /// 有這麼大比例先不顯示，要找線索自己填回大屏幕。學員少，越難越多。
+        /// 有這麼大比例先不顯示，要找線索自己填回設計主螢幕。學員少，越難越多。
         /// </summary>
         public double BlankRatio { get; set; }
         /// <summary>單人時的挖空比例（比照學員減少）。</summary>
@@ -441,8 +438,8 @@ namespace GoNoGo.Core
     }
 
     /// <summary>
-    /// 取捨說明（tradeoffs.json，或關卡自己的）：大屏幕「任務需求」頁列出的提示——為什麼有這條需求、
-    /// 兩條需求怎麼互相拉扯、哪裡最花錢。原本要打電話問各部門，現在直接列出來，不用部門的名義。
+    /// 取捨說明（tradeoffs.json，或關卡自己的）：設計主螢幕「任務需求」頁列出的提示——為什麼有這條需求、
+    /// 兩條需求怎麼互相拉扯、哪裡最花錢。直接列出來，不用部門的名義。
     /// 內文可以用 {budget}、{years}、{eclipse_min}… 這類參數（<see cref="Tradeoffs.Fill"/> 代入）。
     /// </summary>
     public sealed class TradeoffNote

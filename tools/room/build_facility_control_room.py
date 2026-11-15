@@ -6,22 +6,22 @@ Facility 中控室模型（Blender → GLB）。
 會重建 tools/room/FacilityControlRoom.blend，並匯出 Assets/GoNoGo/Art/Models/Room/FacilityControlRoom.glb。
 加 -- --render 會再存預覽圖 tools/room/FacilityControlRoom_preview*.png。
 
-座標：原點 = 中控室中心（Unity 世界 (23, 0, 0)）。Blender +X = Unity +X（東、影像牆），
+座標：原點 = 中控室中心（Unity 端整個模型放大 1.3 倍，原點在 Unity 世界 (30.3, 0, 0)，見 FacilityBuilder 的 CtrlOrigin、CtrlS）。Blender +X = Unity +X（東、影像牆），
 Blender +Y = Unity +Z（北），Blender +Z = 上。SceneBuilder 會把模型轉 180° 抵銷 glTFast 的軸向翻轉。
 房間 x -11…11、y -9…9；西牆（x -11 以西）是 SceneBuilder 的隔牆和門，模型只補 6 m 以上那一段。
 
-流程改版後的中控室：只留營運用得到的東西——前方的大屏幕（影像牆）、發射台、四台營運席和飛行總監台。
+中控室裡有：前方的設計主螢幕（影像牆）、發射台、四台營運席和飛行總監台。
 中控台分三座、左右對稱：北邊營運席（酬載、電力，綠）、中央飛行總監（琥珀，站在升起的平台上）、
-南邊營運席（姿態、通訊，綠），中間留縫。原本設計組的席位（電話、筆記、手冊目錄、任務控制台、任務目標與預算）
-和後排的手冊席都拿掉了：房間西半邊空出來，由 Unity 的 FacilityBuilder 擺線索區（研究牆、白板、黑板、書堆）。
+南邊營運席（姿態、通訊，綠），中間留縫。
+房間西半邊空著，由 Unity 的 FacilityBuilder 擺線索區（研究牆、白板、黑板、書堆）。
 
 Unity 依物件名稱掛元件：
   Screen_<panel>  中控台螢幕（panel 的 ':' 寫成 '-'），掛 ConsoleTarget
   Glow_<panel>    該席位的桌緣發光條（準星對到時變亮）
   Anchor_launch   發射台頂面中心
-  Wall_Main       影像牆中央的大屏幕：選件、組裝時畫選件的畫面，營運時是地球（RT_OpsScreen）
-  Wall_reqs       大屏幕左邊：任務需求（營運時是酬載、電力的遙測）
-  Wall_asm        大屏幕右邊：流程說明／失敗原因（營運時是姿態、通訊的遙測）
+  Wall_Main       影像牆中央的設計主螢幕：選件、組裝時畫選件的畫面，營運時是地球（RT_OpsScreen）
+  Wall_reqs       設計主螢幕左邊：任務需求（營運時是酬載、電力的遙測）
+  Wall_asm        設計主螢幕右邊：流程說明／失敗原因（營運時是姿態、通訊的遙測）
   Deco_<組>_*     裝飾螢幕（程序貼圖）；組 = F 總監、O／P 營運、W 影像牆
   Deco_<組>_Top_<panel>  席位上方的第二台螢幕（標籤放在它上面）
 其他物件依材質名稱換成專案材質：M_Floor、M_Dark、M_Trim、M_Console、M_Panel、M_Paper、M_Glow、M_GlowAmber、M_GlowGreen、M_GlowRed。
@@ -357,7 +357,7 @@ def video_wall():
     g = 0.25  # 螢幕之間的縫（度）
     r = RW - 0.03
     lo, hi = 1.55, 5.40
-    # 中央：大屏幕（16:9）。選件、組裝時是選件的畫面，營運時是地球
+    # 中央：設計主螢幕（16:9）。選件、組裝時是選件的畫面，營運時是地球
     arc_screen("Wall_Main", V, r, 13.5, -13.5, lo, hi, "M_Earth", viewer, segs=36)
     # 兩側各一整塊：左（北）任務需求、右（南）流程說明／失敗原因；營運時改投各子系統的遙測
     arc_screen("Wall_reqs", V, r, 27.5, 13.5 + g, lo, hi, "M_Screen", viewer)

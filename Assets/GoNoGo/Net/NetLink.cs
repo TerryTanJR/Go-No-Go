@@ -36,11 +36,8 @@ namespace GoNoGo.Net
         bool _joinSent, _closed;
 
         public bool IsHost { get; }
-        public bool IsOnline => true;
         public int LocalPlayer => IsHost ? 1 : (int)_nm.LocalClientId + 1;
         public string RoomCode { get; }
-
-        public static NetLink Current { get; private set; }
 
         /// <summary>房主：狀態已經在本機建好。</summary>
         public static NetLink Host(NetworkManager nm, ISession session, string roomCode, MissionSession m) =>
@@ -58,7 +55,6 @@ namespace GoNoGo.Net
             IsHost = host;
             _m = m;
             _connected = connected;
-            Current = this;
 
             var cm = _nm.CustomMessagingManager;
             if (host)
@@ -263,7 +259,6 @@ namespace GoNoGo.Net
             w.WriteValueSafe(p.Yaw);
             w.WriteValueSafe(p.Speed);
             w.WriteValueSafe(p.Installing);
-            w.WriteValueSafe(p.Held ?? "", true);
         }
 
         static bool ReadPose(FastBufferReader r, out PoseFeed.Pose p)
@@ -275,8 +270,7 @@ namespace GoNoGo.Net
                 r.ReadValueSafe(out float yaw);
                 r.ReadValueSafe(out float speed);
                 r.ReadValueSafe(out bool installing);
-                r.ReadValueSafe(out string held, true);
-                p = new PoseFeed.Pose { Position = pos, Yaw = yaw, Speed = speed, Installing = installing, Held = string.IsNullOrEmpty(held) ? null : held };
+                p = new PoseFeed.Pose { Position = pos, Yaw = yaw, Speed = speed, Installing = installing };
                 return true;
             }
             catch (Exception)
@@ -342,7 +336,6 @@ namespace GoNoGo.Net
         {
             if (_closed) return;
             _closed = true;
-            if (Current == this) Current = null;
             PoseFeed.Remote.Clear();
             if (_nm != null)
             {

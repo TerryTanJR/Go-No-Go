@@ -49,7 +49,6 @@ namespace GoNoGo.Game
         public static bool IsMaster(string partId) => partId != null && Masters.Contains(partId);
 
         public static int Count(GameData data) => Cards(data).Count(p => Have.Contains(p.Id));
-        public static int MasterCount(GameData data) => Cards(data).Count(p => Masters.Contains(p.Id));
         public static int Total(GameData data) => Cards(data).Count();
 
         /// <summary>這一局新收的卡、新升級成精通的卡（開新的一局時歸零）。</summary>
@@ -83,18 +82,6 @@ namespace GoNoGo.Game
             _newMaster.Add(partId);
             Store(MasterKey, Masters);
             return true;
-        }
-
-        /// <summary>清空圖鑑（設定頁的「重設」和測試用）。</summary>
-        public static void Reset()
-        {
-            Have.Clear();
-            Masters.Clear();
-            _new.Clear();
-            _newMaster.Clear();
-            PlayerPrefs.DeleteKey(Key);
-            PlayerPrefs.DeleteKey(MasterKey);
-            PlayerPrefs.Save();
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]

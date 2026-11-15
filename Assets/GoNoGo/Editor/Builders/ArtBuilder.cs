@@ -253,9 +253,7 @@ namespace GoNoGo.EditorTools
             bank.padRoar = AssetDatabase.LoadAssetAtPath<AudioClip>(A + "NASA_IM2_PadMics_LiftoffRoar.wav");
             bank.distantRumble = AssetDatabase.LoadAssetAtPath<AudioClip>(A + "NASA_IM2_Beach_DistantLaunchRumble.wav");
             bank.spaceAmbience = AssetDatabase.LoadAssetAtPath<AudioClip>(A + "NASA_Juno_GanymedeFlyby_RadioWaves.wav");
-            // Artemis I 的播報提到 Artemis 和 SLS，和玩家的任務對不上，所以不放進遊戲（檔案保留在專案裡）
-            bank.liftoffCommentary = null;
-            bank.weRiseTogether = null;
+            // Artemis I 的播報（liftoffCommentary、weRiseTogether）提到 Artemis 和 SLS，和玩家的任務對不上，所以不指定音檔
             EditorUtility.SetDirty(bank);
 
             foreach (var f in new[] { "NASA_IM2_CountdownNet_TerminalCount.wav", "NASA_IM2_PadMics_LiftoffRoar.wav", "NASA_IM2_Beach_DistantLaunchRumble.wav", "NASA_Juno_GanymedeFlyby_RadioWaves.wav" })

@@ -67,24 +67,17 @@
     border-bottom-width: 1px;
     border-color: var(--c-line);
 }
-.corner-tick {
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    border-color: var(--c-accent);
-}
 .row { flex-direction: row; align-items: center; }
 /* 一列裡的文字：Label 預設不會縮，列太長時會把旁邊的東西擠出框外。讓文字可以縮（自動換行），
    只有在放不下時才會發生，平常版面不變。數字（.mono）和不換行的標籤維持原寬。 */
 .row > .unity-label { flex-shrink: 1; }
 .row > .mono, .row > .eyebrow { flex-shrink: 0; }
 .spacer { flex-grow: 1; }
-.divider { height: 1px; background-color: var(--c-line); margin: 10px 0; }
 
 /* ---------- 按鈕 ---------- */
 /* 用 .unity-button 而不是 Button 型別選擇器：預設主題的 .unity-button（含 :hover:enabled 等）優先權較高，
    型別選擇器會被蓋掉，按鈕就變回 Unity 預設的灰底。hover/active 也同時寫 :enabled 版本，優先權才追得上。 */
-.unity-button, .btn {
+.unity-button {
     background-color: rgba(57, 198, 244, 0.08);
     border-width: 1px;
     border-color: var(--c-line-hi);
@@ -97,7 +90,7 @@
     letter-spacing: 1px;
     transition-duration: 0.15s;
 }
-.unity-button:hover, .unity-button:hover:enabled, .btn:hover {
+.unity-button:hover, .unity-button:hover:enabled {
     background-color: rgba(57, 198, 244, 0.22);
     border-color: var(--c-accent);
     scale: 1.02 1.02;
@@ -148,107 +141,12 @@
 }
 .topbar .brand { font-size: var(--fs-20); -unity-font-style: bold; letter-spacing: 4px; color: var(--c-text); margin-right: 18px; }
 .topbar .mission { color: var(--c-dim); font-size: var(--fs-14); }
-.stat-pill {
-    flex-direction: row;
-    align-items: center;
-    padding: 4px 12px;
-    margin-left: 10px;
-    border-radius: 4px;
-    background-color: rgba(255, 255, 255, 0.04);
-    border-width: 1px;
-    border-color: var(--c-line);
-}
-.stat-pill Label { font-size: var(--fs-13); }
-.stat-pill .k { color: var(--c-dim); margin-right: 6px; }
 
-/* ---------- 資源條 ---------- */
-.res {
-    margin-bottom: 12px;
-    padding: 8px 10px;
-    border-radius: 4px;
-    border-width: 1px;
-    border-color: rgba(0, 0, 0, 0);
-    transition-duration: 0.2s;
-}
-.res--flash { background-color: rgba(57, 198, 244, 0.16); border-color: var(--c-accent); }
-.res-head { flex-direction: row; align-items: center; margin-bottom: 6px; }
-.res-icon { width: 8px; height: 8px; border-radius: 4px; margin-right: 8px; background-color: var(--c-go); }
-.res-name { font-size: var(--fs-14); -unity-font-style: bold; letter-spacing: 1px; }
-.res-value { font-size: var(--fs-13); color: var(--c-dim); }
-.res-why { margin-left: 6px; padding: 0 6px; font-size: var(--fs-11); border-radius: 8px; }
-.res-track {
-    height: 10px;
-    border-radius: 5px;
-    background-color: rgba(255, 255, 255, 0.06);
-    overflow: hidden;
-}
-.res-fill {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    border-radius: 5px;
-    background-color: var(--c-go);
-    transition-duration: 0.35s;
-    transition-timing-function: ease-out-cubic;
-}
-.res-ghost {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background-color: #FFFFFF;
-    opacity: 0;
-    transition-duration: 0.15s;
-}
-.res-ghost--on { opacity: 0.9; }
-.res-delta { font-size: var(--fs-12); margin-left: 8px; }
-.res--tight .res-fill, .res--tight .res-icon { background-color: var(--c-tight); }
-.res--over .res-fill, .res--over .res-icon { background-color: var(--c-over); }
-.res--tight .res-name { color: var(--c-tight); }
-.res--over .res-name { color: var(--c-over); }
-.res--hidden { display: none; }
-
-/* ---------- 零件卡 ---------- */
-.part {
-    flex-direction: row;
-    padding: 10px 12px;
-    margin-bottom: 6px;
-    border-radius: 5px;
-    border-width: 1px;
-    border-color: var(--c-line);
-    background-color: rgba(255, 255, 255, 0.02);
-    transition-duration: 0.12s;
-}
-.part:hover, .part:hover:enabled { border-color: var(--c-accent); background-color: rgba(57, 198, 244, 0.08); }
-.part--on { border-color: var(--c-accent); background-color: rgba(57, 198, 244, 0.16); }
-.part--on .part-name { color: #8BE3FF; }
-.part-swatch { width: 4px; border-radius: 2px; margin-right: 10px; background-color: var(--c-accent); }
-.part-body { flex-grow: 1; flex-shrink: 1; }
-.part-name { font-size: var(--fs-15); -unity-font-style: bold; }
+/* ---------- 規格列（報告的真實任務卡） ---------- */
 .part-stats { flex-direction: row; flex-wrap: wrap; margin-top: 4px; }
 .part-stat { font-size: var(--fs-12); color: var(--c-dim); margin-right: 10px; }
-.part-tier { font-size: var(--fs-11); color: var(--c-faint); }
-.part-check { width: 18px; height: 18px; border-radius: 9px; border-width: 1px; border-color: var(--c-line-hi); margin-left: 8px; align-self: center; }
-.part--on .part-check { background-color: var(--c-accent); border-color: var(--c-accent); }
 
-.section-title { font-size: var(--fs-12); letter-spacing: 2px; color: var(--c-accent); -unity-font-style: bold; margin: 12px 0 6px 0; }
-
-/* ---------- 角色分頁 ---------- */
-.role-tabs { flex-direction: row; margin-bottom: 10px; }
-.role-tab {
-    flex-grow: 1;
-    padding: 8px 4px;
-    margin-right: 4px;
-    border-radius: 4px;
-    border-width: 1px;
-    border-color: var(--c-line);
-    background-color: rgba(255, 255, 255, 0.02);
-    -unity-text-align: middle-center;
-    font-size: var(--fs-13);
-}
-.role-tab--on { background-color: var(--c-accent-dim); border-color: var(--c-accent); color: var(--c-text); }
-
+/* ---------- 任務需求卡（報告） ---------- */
 .req-card {
     padding: 10px 12px;
     border-radius: 5px;
@@ -258,50 +156,6 @@
     margin-bottom: 8px;
 }
 .req-card--met { border-color: var(--c-go); background-color: rgba(61, 220, 132, 0.08); }
-
-/* ---------- 警告 ---------- */
-.warn {
-    padding: 10px 12px;
-    margin-bottom: 8px;
-    border-radius: 5px;
-    border-left-width: 3px;
-    border-color: var(--c-over);
-    background-color: rgba(255, 77, 94, 0.10);
-}
-.warn--tight { border-color: var(--c-tight); background-color: rgba(255, 181, 71, 0.08); }
-.warn-text { font-size: var(--fs-14); white-space: normal; }
-.fix-row { flex-direction: row; flex-wrap: wrap; margin-top: 8px; }
-.fix { font-size: var(--fs-12); padding: 5px 10px; margin-right: 6px; margin-bottom: 4px; -unity-font-style: normal; }
-
-/* ---------- 點名 ---------- */
-.console {
-    flex-grow: 1;
-    margin: 0 8px;
-    padding: 18px;
-    border-radius: 8px;
-    border-width: 1px;
-    border-color: var(--c-line);
-    background-color: var(--c-panel);
-    align-items: center;
-    transition-duration: 0.3s;
-}
-.console--go { border-color: var(--c-go); background-color: rgba(8, 30, 22, 0.9); }
-.console--nogo { border-color: var(--c-over); background-color: rgba(36, 10, 16, 0.9); }
-.console--calling { border-color: var(--c-accent); }
-.lamp {
-    width: 64px;
-    height: 64px;
-    border-radius: 32px;
-    margin: 14px 0;
-    background-color: #16202E;
-    border-width: 2px;
-    border-color: #26384F;
-    transition-duration: 0.25s;
-}
-.lamp--go { background-color: var(--c-go); border-color: #A6FFD0; }
-.lamp--nogo { background-color: var(--c-over); border-color: #FFB0B8; }
-.lamp--calling { background-color: rgba(57, 198, 244, 0.5); border-color: var(--c-accent); }
-.verdict { font-size: var(--fs-30); -unity-font-style: bold; letter-spacing: 3px; }
 
 /* ---------- 報告 ---------- */
 .stamp {
@@ -340,26 +194,8 @@
     border-left-width: 3px;
     border-color: var(--c-over);
 }
-.chain--good { border-color: var(--c-go); }
 .chain-step { font-size: var(--fs-14); white-space: normal; max-width: 300px; }
 .chain-arrow { color: var(--c-accent); margin: 0 8px; font-size: var(--fs-16); }
-
-/* ---------- 營運 ---------- */
-.chart { height: 70px; margin-top: 4px; }
-.chart-card { margin-bottom: 10px; }
-.chart-head { flex-direction: row; justify-content: space-between; }
-.event-modal {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    align-items: center;
-    justify-content: center;
-    background-color: rgba(2, 5, 10, 0.55);
-}
-.event-card { width: 560px; padding: 24px 28px; border-color: var(--c-tight); }
-.modal-hidden { display: none; }
 
 /* ---------- 共用 ---------- */
 .fader { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: #000000; opacity: 0; transition-duration: 0.45s; }
@@ -415,15 +251,6 @@
 /* 長的提示（裝錯小零件…）換行，不要橫跨到左上的引導卡和右上的組裝單 */
 .toast { max-width: 44%; }
 .toast > .small { white-space: normal; -unity-text-align: middle-center; }
-.tooltip {
-    position: absolute;
-    max-width: 360px;
-    padding: 10px 12px;
-    border-radius: 5px;
-    background-color: rgba(8, 14, 26, 0.97);
-    border-width: 1px;
-    border-color: var(--c-line-hi);
-}
 .fade-in { opacity: 0; translate: 0 12px; transition-duration: 0.5s; transition-timing-function: ease-out-cubic; }
 .fade-in--on { opacity: 1; translate: 0 0; }
 
@@ -439,13 +266,11 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .app { flex-grow: 1; font-size: var(--fs-15); }
 .panel-body { flex-grow: 1; flex-shrink: 1; }
 .topbar--clear { background-color: rgba(0, 0, 0, 0); border-bottom-width: 0; }
-.coach-focus { border-color: var(--c-accent); border-width: 2px; }
 
 /* ---------- 標題 ---------- */
 .title-col { position: absolute; left: 120px; top: 120px; width: 900px; }
 .title-logo { font-size: 128px; letter-spacing: 12px; margin: 4px 0 6px 0; }
 .title-tagline { font-size: var(--fs-20); margin-bottom: 18px; max-width: 760px; color: var(--c-dim); }
-.scn-row { align-items: stretch; margin-bottom: 8px; }
 .scn-card {
     width: 280px;
     margin-right: 14px;
@@ -457,92 +282,23 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     transition-duration: 0.15s;
 }
 .scn-card:hover, .scn-card:hover:enabled { border-color: var(--c-line-hi); background-color: rgba(20, 34, 58, 0.86); translate: 0 -2px; }
-.scn-card--on { border-color: var(--c-accent); background-color: rgba(57, 198, 244, 0.14); }
 .scn-badge { font-size: var(--fs-11); letter-spacing: 2px; color: var(--c-tight); -unity-font-style: bold; margin-bottom: 6px; }
 .scn-badge--plain { color: var(--c-accent); }
 .scn-name { margin-bottom: 6px; }
 .scn-desc { flex-grow: 1; margin-bottom: 10px; }
 .scn-stats { color: var(--c-dim); }
 .scn-dot { margin: 0 6px; }
-.diff-desc { margin-top: 8px; max-width: 760px; }
-.train-row { margin-top: 18px; }
-.train-row .chip { margin-right: 12px; }
-.start-row { margin-top: 30px; }
 .title-foot { position: absolute; left: 120px; right: 120px; bottom: 20px; }
 
-/* ---------- 任務控制：簡報 ---------- */
-.mc-wrap { position: absolute; top: 76px; left: 48px; right: 48px; bottom: 112px; flex-direction: row; }
-.mc-col { flex-grow: 1.5; flex-basis: 0; margin-right: 18px; }
-.mc-col--narrow { flex-grow: 1; margin-right: 0; }
-.mc-col .panel { margin-bottom: 14px; }
-.brief-text { font-size: var(--fs-17); margin: 8px 0 16px 0; color: var(--c-text); }
-.brief-stats { flex-wrap: wrap; }
-.brief-stat {
-    margin-right: 26px;
-    margin-bottom: 8px;
-    padding-left: 10px;
-    border-left-width: 2px;
-    border-color: var(--c-line-hi);
-}
-.req-intro { margin-bottom: 10px; }
+/* ---------- 歷史關卡的揭曉（報告） ---------- */
 .history-card { border-color: var(--c-tight); }
-.history-note { margin-top: 10px; }
 .history-sub { margin-top: 12px; margin-bottom: 4px; color: var(--c-tight); }
 .history-verdict { margin-top: 12px; }
 .history-sources { margin-top: 12px; }
-.training-card { border-color: var(--c-accent); }
-.mc-actions { position: absolute; left: 48px; right: 48px; bottom: 28px; }
 
-/* ---------- 任務控制：點名 ---------- */
-.rc-head { position: absolute; top: 84px; left: 520px; right: 520px; align-items: center; padding: 12px 20px 16px 20px; background-color: rgba(4, 8, 16, 0.75); border-radius: 6px; }
-.rc-head .body { -unity-text-align: middle-center; max-width: 900px; }
-.rc-title { font-size: 44px; letter-spacing: 6px; margin: 6px 0; }
-.rc-row { position: absolute; top: 270px; left: 90px; right: 90px; height: 380px; align-items: stretch; }
-.rc-reason { -unity-text-align: middle-center; margin-top: 10px; min-height: 40px; color: var(--c-dim); }
-/* 結果區有自己的深色底板：背後是一排發光的控制台，直接壓字會看不清楚 */
-.rc-after { display: none; position: absolute; top: 676px; left: 560px; right: 560px; align-items: center; padding: 16px 24px 20px 24px; background-color: rgba(4, 8, 16, 0.88); border-width: 1px; border-color: var(--c-line); border-radius: 6px; }
-.rc-after--on { display: flex; }
-.rc-outcome { align-items: center; }
-.rc-outcome .small { margin-top: 6px; -unity-text-align: middle-center; }
-.rc-actions { margin-top: 22px; }
-.rc-actions Button { margin: 0 8px; }
-
-/* ---------- 設計室 ---------- */
-.design-left { position: absolute; left: 20px; top: 72px; bottom: 96px; width: 450px; padding: 12px; }
-.design-scroll { flex-grow: 1; }
-.design-right { position: absolute; right: 20px; top: 72px; bottom: 96px; width: 450px; }
-.design-right .panel { margin-bottom: 12px; }
-.warn-panel { flex-grow: 1; flex-shrink: 1; min-height: 120px; }
-.warn-scroll { flex-grow: 1; }
-.warn--ok { border-color: var(--c-go); background-color: rgba(61, 220, 132, 0.08); }
-.design-bottom { position: absolute; left: 20px; right: 20px; bottom: 20px; height: 62px; }
-.locked-banner {
-    position: absolute;
-    top: 72px;
-    left: 490px;
-    right: 490px;
-    justify-content: center;
-    padding: 10px 16px;
-    border-radius: 6px;
-    border-width: 1px;
-    border-color: var(--c-tight);
-    background-color: rgba(40, 26, 6, 0.85);
-}
-.locked-banner .small { margin-left: 12px; flex-shrink: 1; }
-.locked-banner--rewrite { border-color: var(--c-accent); background-color: rgba(6, 26, 40, 0.85); }
+/* ---------- 任務年數（選件面板的任務設定） ---------- */
 .years-row { padding: 6px 0 10px 0; }
 .years-value { min-width: 130px; -unity-text-align: middle-center; }
-.years-hint { margin-left: 12px; flex-shrink: 1; }
-.training-coach {
-    position: absolute;
-    bottom: 100px;
-    left: 50%;
-    width: 560px;
-    translate: -50% 0;
-    border-color: var(--c-accent);
-    border-width: 2px;
-}
-.training-text { color: var(--c-text); margin: 8px 0 12px 0; }
 
 /* ---------- 發射 ---------- */
 .launch-head { position: absolute; top: 70px; left: 0; right: 0; align-items: center; }
@@ -604,25 +360,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .outcome-card .h2 { font-size: 40px; margin: 8px 0 12px 0; }
 .outcome-actions { margin-top: 22px; }
 
-/* ---------- 營運 ---------- */
-.ops-clock { position: absolute; left: 20px; top: 72px; width: 360px; }
-.ops-day { font-size: 48px; letter-spacing: 2px; margin-top: 4px; }
-.ops-mode { margin-top: 8px; font-size: var(--fs-15); letter-spacing: 2px; -unity-font-style: bold; }
-.ops-speed { margin-top: 12px; }
-.ops-speed Button { margin-right: 6px; }
-.ops-dash { position: absolute; right: 20px; top: 72px; bottom: 90px; width: 470px; }
-.ops-nums { margin: 10px 0 8px 0; }
-.ops-num { flex-grow: 1; flex-basis: 0; }
-.ops-log { position: absolute; left: 20px; bottom: 90px; width: 440px; height: 320px; }
-.log-row { padding: 6px 0; border-bottom-width: 1px; border-color: var(--c-line); }
-.ops-bottom { position: absolute; left: 20px; right: 20px; bottom: 22px; }
-.event-title { margin: 6px 0 10px 0; }
-.event-prompt { font-size: var(--fs-17); color: var(--c-text); }
-.event-fact { margin-top: 10px; }
-.event-choices { margin-top: 20px; }
-.event-choices Button { margin-left: 10px; }
-.end-card { border-color: var(--c-accent); }
-
 /* ---------- 報告 ---------- */
 .report-wrap { position: absolute; top: 72px; left: 20px; right: 20px; bottom: 96px; flex-direction: row; }
 .report-col .panel { margin-bottom: 12px; }
@@ -639,14 +376,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .grade-desc { margin-bottom: 14px; }
 .first-call { margin-top: 6px; }
 .why-scroll { flex-grow: 1; }
-.suggest {
-    margin-top: 12px;
-    padding: 12px 14px;
-    border-radius: 5px;
-    background-color: rgba(57, 198, 244, 0.08);
-    border-left-width: 3px;
-    border-color: var(--c-accent);
-}
 .fact-row { margin-bottom: 6px; align-items: flex-start; }
 .fact-k { width: 130px; flex-shrink: 0; }
 .fact-v { flex-shrink: 1; }
@@ -654,8 +383,8 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .report-actions { position: absolute; left: 20px; right: 20px; bottom: 22px; }
 
 /* ---------- 不換行的大數字 ----------
-   .unity-label 預設改成可換行之後，固定寬度欄位裡的大數字（第 1,096 天、倒數時鐘）會被折成兩行，這些要明確設成不換行 */
-.ops-day, .launch-clock, .total-num, .title-logo, .tele-v, .rc-title, .verdict, .stat-pill .unity-label, .eyebrow, .chip, .role-tab { white-space: nowrap; }
+   .unity-label 預設改成可換行之後，固定寬度欄位裡的大數字（倒數時鐘、總分）會被折成兩行，這些要明確設成不換行 */
+.launch-clock, .total-num, .title-logo, .tele-v, .eyebrow, .chip { white-space: nowrap; }
 
 /* =====================================================================
    3D 版：主選單、Facility HUD、面板、世界螢幕
@@ -740,7 +469,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .menu-item > .unity-label { margin-top: 2px; }
 .menu-back { align-self: flex-start; margin: 0 0 14px -10px; }
 .menu-sub { margin-top: 18px; }
-.menu-tag { margin-left: 10px; }
 .menu-error { margin-top: 10px; }
 .menu-card { width: auto; margin-right: 0; margin-bottom: 10px; }
 .menu-btn-gap { margin-right: 10px; }
@@ -913,7 +641,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     border-bottom-width: 2px;
     border-color: var(--c-accent);
 }
-/* 大廳的組別名稱（拱門、選組按鈕）：比一般看板大，從大廳另一頭也看得清楚 */
+/* 大廳拱門上的名稱：比一般看板大，從大廳另一頭也看得清楚 */
 .world-label--team {
     font-size: var(--fs-26);
     letter-spacing: 4px;
@@ -925,15 +653,8 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     border-color: var(--c-accent);
 }
 .world-label--tag { font-size: var(--fs-11); letter-spacing: 2px; color: var(--c-accent); background-color: rgba(6, 12, 22, 0.6); }
-.world-label--code {
-    font-size: var(--fs-11);
-    color: #0B1424;
-    background-color: rgba(230, 238, 248, 0.92);
-    -unity-font-definition: url("project://database/Assets/GoNoGo/UI/Resources/UI/Fonts/Mono.asset");
-    padding: 1px 5px;
-}
 
-/* 零件盤上小零件的名稱：中文字，要看得清楚（code 那種是等寬字型，只有英數字） */
+/* 小零件的名稱（零件架、組裝台）：中文字，要看得清楚（code 那種是等寬字型，只有英數字） */
 .world-label--comp {
     font-size: var(--fs-13);
     -unity-font-style: bold;
@@ -971,7 +692,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .modal--narrow { width: 420px; }
 .modal-head { flex-direction: row; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom-width: 1px; border-color: var(--c-line); }
 .modal-head .eyebrow { font-size: var(--fs-15); }
-.notes-sub { margin-top: 16px; margin-bottom: 4px; }
 .modal-close {
     padding: 4px 12px;
     font-size: var(--fs-15);
@@ -1011,7 +731,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     font-size: var(--fs-12);
     color: var(--c-text);
 }
-.brief-how { margin-top: 14px; padding: 10px 12px; border-radius: 4px; background-color: rgba(57, 198, 244, 0.07); border-left-width: 3px; border-color: var(--c-accent); }
 
 /* ---------- 任務簡報（BriefingPanel）：主任視訊交代任務 ---------- */
 .modal--brief { width: 1500px; max-width: 96%; max-height: 94%; padding: 20px 26px; }
@@ -1167,7 +886,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .prog-link { width: 14px; height: 2px; margin-top: 18px; background-color: var(--c-line); flex-shrink: 0; }
 .prog-link--done { background-color: var(--c-go); }
 .prog-goals-head { flex-direction: row; align-items: center; margin-bottom: 6px; }
-.prog-empty { margin: 4px 0; }
 .prog-goals { flex-direction: row; flex-wrap: wrap; }
 .prog-goal {
     width: 49%;
@@ -1187,9 +905,8 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .prog-goal-val > * { flex-shrink: 0; white-space: nowrap; }
 .prog-dept { width: 10px; height: 10px; border-radius: 5px; margin-right: 8px; background-color: var(--c-accent); flex-shrink: 0; }
 .prog-goal-name { font-size: var(--fs-15); -unity-font-style: bold; flex-shrink: 1; white-space: normal; }
-.prog-goal-dept { margin-left: 8px; }
 .prog-goal-now { font-size: var(--fs-17); -unity-font-style: bold; color: var(--c-text); }
-.prog-goal-target { font-size: var(--fs-13); color: var(--c-dim); }
+.prog-goal-target { margin-left: 5px; font-size: var(--fs-13); color: var(--c-dim); }
 .prog-goal-mark { margin-left: 8px; font-size: var(--fs-16); -unity-font-style: bold; }
 .prog-track { height: 8px; margin-top: 6px; border-radius: 4px; background-color: rgba(255, 255, 255, 0.07); overflow: hidden; }
 .prog-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background-color: var(--c-accent); }
@@ -1211,86 +928,28 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .wscreen .prog-stage-top { flex-direction: column; align-items: center; }
 .wscreen .prog-stage-name { margin: 4px 0 0 0; white-space: nowrap; font-size: var(--fs-14); -unity-text-align: middle-center; }
 .wscreen .prog-link { width: 6px; }
-.wscreen .prog > *, .wscreen .prog-goals > *, .wscreen .dash-grid > *, .dash-wall-right > * { flex-shrink: 0; }
-.wscreen .dash-k { width: 120px; }
-.wscreen .dash-row { padding: 3px 0; }
-
-/* 儀表板面板（modal--dash）：和手冊一樣用較大的字 */
-.modal--dash .dash-k { font-size: var(--fs-18); width: 180px; }
-.modal--dash .dash-v { font-size: var(--fs-20); min-width: 220px; }
-.modal--dash .dash-row { padding: 7px 0; }
-.modal--dash .dash-lamp { width: 12px; height: 12px; border-radius: 6px; }
-.modal--dash .prog-dot { width: 30px; height: 30px; border-radius: 15px; font-size: var(--fs-16); }
-.modal--dash .prog-stage-name { font-size: var(--fs-19); margin-left: 10px; }
-.modal--dash .prog-stage-sub { font-size: var(--fs-15); margin-left: 40px; }
-.modal--dash .prog-link { margin-top: 21px; }
-.modal--dash .prog-goal { padding: 12px 14px; }
-.modal--dash .prog-goal-name { font-size: var(--fs-19); }
-.modal--dash .prog-goal-now { font-size: var(--fs-22); }
-.modal--dash .prog-goal-target { font-size: var(--fs-16); }
-.modal--dash .prog-goal-mark { font-size: var(--fs-20); }
-.modal--dash .prog-track { height: 10px; border-radius: 5px; margin-top: 8px; }
-.modal--dash .code-chip { font-size: var(--fs-15); }
+.wscreen .prog > *, .wscreen .prog-goals > *, .dash-wall-right > * { flex-shrink: 0; }
 
 /* 儀表板 */
 .dash-head { flex-direction: row; align-items: center; margin-bottom: 8px; }
-.dash-grid { flex-direction: column; }
-.dash-row { flex-direction: row; align-items: center; padding: 5px 0; border-bottom-width: 1px; border-color: rgba(31, 53, 80, 0.6); }
 .dash-lamp { width: 10px; height: 10px; border-radius: 5px; margin-right: 10px; background-color: var(--c-faint); }
 .dash-lamp--go { background-color: var(--c-go); }
 .dash-lamp--tight { background-color: var(--c-tight); }
 .dash-lamp--over { background-color: var(--c-over); }
 .dash-lamp--none { background-color: rgba(0, 0, 0, 0); }
-.dash-k { width: 180px; color: var(--c-dim); font-size: var(--fs-15); }
-.dash-v { font-size: var(--fs-16); color: var(--c-text); width: 300px; flex-shrink: 0; }
-.dash-x { flex-grow: 1; -unity-text-align: middle-right; }
-/* 有燈號時（學員）：正常的列變淡，吃緊、超出的列加底色，一眼看得出要處理哪一項 */
-.dash-row--ok { opacity: 0.45; }
-.dash-row--tight { background-color: rgba(255, 181, 71, 0.10); }
-.dash-row--over { background-color: rgba(255, 77, 94, 0.14); }
-.dash-parts { margin-top: 10px; }
-.dash-part-row { flex-direction: row; flex-wrap: wrap; margin-top: 4px; }
 
-/* 手冊（ManualPanels.cs）：章節標題列、零件卡、規則卡、症狀表、步驟鏈。
+/* 手冊（ManualPanels.cs）：章節標題列、規則卡、症狀表、步驟鏈。
    參考解析度 1920×1080；手冊字多，用自己的寬面板（modal--manual）和較大的字級。 */
-.rule { margin-bottom: 12px; padding: 8px 10px; border-left-width: 2px; border-color: var(--c-line-hi); }
-.modal--dash, .modal--manual { width: 1560px; max-width: 96%; max-height: 94%; padding: 20px 26px; }
-.modal--dash .modal-head .unity-label, .modal--manual .modal-head .unity-label { font-size: var(--fs-16); }
-.modal--dash .small, .modal--manual .small { font-size: var(--fs-16); }
-.modal--dash .body, .modal--manual .body { font-size: var(--fs-19); color: #B9C9DC; }
-.modal--dash .h3, .modal--manual .h3 { font-size: var(--fs-22); }
-.modal--dash .h2, .modal--manual .h2 { font-size: var(--fs-34); letter-spacing: 3px; }
-.modal--dash .eyebrow, .modal--manual .eyebrow { font-size: var(--fs-15); }
-.modal--dash .faint, .modal--manual .faint { color: #7890AC; }
-.man-scroll { flex-grow: 1; flex-shrink: 1; min-height: 240px; }
-.man-scroll .unity-scroll-view__content-container { padding-right: 12px; }
+.modal--manual { width: 1560px; max-width: 96%; max-height: 94%; padding: 20px 26px; }
+.modal--manual .modal-head .unity-label { font-size: var(--fs-16); }
+.modal--manual .small { font-size: var(--fs-16); }
+.modal--manual .body { font-size: var(--fs-19); color: #B9C9DC; }
+.modal--manual .h3 { font-size: var(--fs-22); }
+.modal--manual .h2 { font-size: var(--fs-34); letter-spacing: 3px; }
+.modal--manual .eyebrow { font-size: var(--fs-15); }
+.modal--manual .faint { color: #7890AC; }
 
 /* 章節標題列 */
-.man-head { flex-direction: row; align-items: center; margin-bottom: 10px; }
-.man-head-text { margin-left: 18px; flex-shrink: 1; }
-.man-num {
-    min-width: 44px;
-    padding: 4px 10px;
-    border-radius: 6px;
-    border-width: 1px;
-    border-color: var(--c-accent);
-    background-color: var(--c-accent-dim);
-    color: var(--c-accent);
-    font-size: var(--fs-24);
-    -unity-font-style: bold;
-    -unity-text-align: middle-center;
-    flex-shrink: 0;
-}
-.man-num--big { min-width: 76px; padding: 10px 14px; font-size: var(--fs-38); border-width: 2px; }
-.man-head-seat {
-    padding: 6px 12px;
-    border-radius: 14px;
-    border-width: 1px;
-    border-color: var(--c-line-hi);
-    color: var(--c-dim);
-    font-size: var(--fs-15);
-    flex-shrink: 0;
-}
 .man-intro {
     margin: 4px 0 16px 0;
     padding: 12px 16px;
@@ -1304,55 +963,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .man-sec { margin-top: 18px; margin-bottom: 10px; }
 .man-legend { margin-top: 8px; margin-bottom: 6px; }
 
-/* 導覽（組裝區的完整手冊） */
-.man-wrap { flex-direction: row; align-items: stretch; flex-grow: 1; flex-shrink: 1; }
-.man-nav { width: 250px; flex-shrink: 0; margin-right: 20px; padding-right: 14px; border-right-width: 1px; border-color: var(--c-line); }
-.man-nav-group { margin: 12px 0 8px 0; }
-.man-nav-item {
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start;
-    margin-bottom: 6px;
-    padding: 10px 12px;
-    background-color: rgba(255, 255, 255, 0.02);
-    border-color: rgba(0, 0, 0, 0);
-    -unity-font-style: normal;
-}
-.man-nav-item--on, .man-nav-item--on:hover:enabled { background-color: var(--c-accent-dim); border-color: var(--c-accent); }
-.man-nav-num { width: 30px; color: var(--c-accent); font-size: var(--fs-18); -unity-font-style: bold; flex-shrink: 0; }
-.man-nav-name { font-size: var(--fs-18); }
-.man-main { flex-grow: 1; flex-shrink: 1; }
-
 /* 一類零件 */
-.man-section { margin-bottom: 20px; }
-.man-sec-head {
-    flex-direction: row;
-    align-items: center;
-    flex-wrap: wrap;
-    padding: 8px 14px;
-    margin-bottom: 12px;
-    border-radius: 6px;
-    border-left-width: 4px;
-    border-color: var(--c-accent);
-    background-color: rgba(57, 198, 244, 0.05);
-}
-.man-sec-head .eyebrow { font-size: var(--fs-18); letter-spacing: 4px; }
-.man-sec-why { margin-left: 16px; font-size: var(--fs-17); }
-.man-cards { flex-direction: row; flex-wrap: wrap; }
-.man-card {
-    width: 32%;
-    margin: 0 1.3% 14px 0;
-    padding: 14px 16px;
-    border-radius: 8px;
-    border-width: 1px;
-    border-color: var(--c-line);
-    border-top-width: 3px;
-    border-top-color: var(--c-line-hi);
-    background-color: rgba(255, 255, 255, 0.03);
-}
-.man-card--on { border-color: rgba(61, 220, 132, 0.6); border-top-color: var(--c-go); background-color: rgba(61, 220, 132, 0.07); }
-.man-card-top { flex-direction: row; align-items: center; }
-.man-card-name { margin-left: 10px; font-size: var(--fs-20); -unity-font-style: bold; flex-shrink: 1; }
 .man-code {
     padding: 3px 10px;
     border-radius: 4px;
@@ -1362,7 +973,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     -unity-font-style: bold;
     flex-shrink: 0;
 }
-.man-badges { flex-direction: row; flex-wrap: wrap; margin-top: 6px; }
 .man-badge {
     margin: 0 6px 4px 0;
     padding: 2px 8px;
@@ -1372,21 +982,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     font-size: var(--fs-14);
     color: var(--c-dim);
 }
-.man-badge--on { border-color: var(--c-go); color: var(--c-go); background-color: rgba(61, 220, 132, 0.1); }
 .man-badge--warn { border-color: var(--c-tight); color: var(--c-tight); background-color: rgba(255, 181, 71, 0.1); }
-.modal--manual .man-func { margin-top: 4px; min-height: 44px; font-size: var(--fs-17); color: #A9BBD0; }
-.man-key { flex-direction: row; align-items: flex-end; margin-top: 10px; }
-.man-key-v { font-size: var(--fs-36); -unity-font-style: bold; color: var(--c-accent); }
-.modal--manual .man-key-k { margin-left: 10px; margin-bottom: 6px; font-size: var(--fs-16); }
-.man-stats { margin-top: 10px; padding-top: 8px; border-top-width: 1px; border-color: rgba(31, 53, 80, 0.7); }
-.man-stat { flex-direction: row; align-items: center; margin-top: 6px; }
-.man-stat-k { font-size: var(--fs-17); color: var(--c-dim); }
-.man-stat-v { font-size: var(--fs-18); color: var(--c-text); }
-.man-bar { height: 6px; margin-top: 4px; border-radius: 3px; background-color: rgba(255, 255, 255, 0.07); overflow: hidden; }
-.man-bar--key { height: 8px; margin-top: 6px; border-radius: 4px; }
-.man-bar-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; }
-.man-bar-fill--good { background-color: var(--c-accent); }
-.man-bar-fill--cost { background-color: #6A7E96; }
 
 /* 規則卡、事件卡、太空天氣卡（兩欄） */
 .man-rules { flex-direction: row; flex-wrap: wrap; }
@@ -1418,33 +1014,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .man-chip--power { border-color: var(--c-tight); background-color: rgba(255, 181, 71, 0.16); }
 .man-chip--attitude { border-color: var(--c-accent); background-color: rgba(57, 198, 244, 0.16); }
 .man-chip--comms { border-color: var(--c-go); background-color: rgba(61, 220, 132, 0.16); }
-
-/* 首頁目錄 */
-.man-index { flex-direction: row; }
-.man-index-col { flex-grow: 1; flex-basis: 0; margin-right: 16px; }
-.man-index-card {
-    flex-direction: row;
-    align-items: center;
-    margin-top: 8px;
-    padding: 12px 14px;
-    border-radius: 8px;
-    border-width: 1px;
-    border-color: var(--c-line);
-    background-color: rgba(255, 255, 255, 0.03);
-}
-.man-index-text { margin-left: 14px; flex-shrink: 1; }
-.man-index-seat { margin-left: 10px; flex-shrink: 0; }
-.man-lookup { flex-direction: row; flex-wrap: wrap; margin-top: 8px; }
-.man-lookup-row {
-    flex-direction: row;
-    align-items: center;
-    width: 32%;
-    margin: 0 1.3% 8px 0;
-    padding: 8px 10px;
-    border-radius: 6px;
-    background-color: rgba(255, 255, 255, 0.035);
-}
-.man-lookup-name { margin-left: 10px; font-size: var(--fs-17); flex-shrink: 1; }
 
 /* 症狀對照表 */
 .man-matrix { border-width: 1px; border-color: var(--c-line); border-radius: 8px; overflow: hidden; }
@@ -1503,76 +1072,10 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .man-storm-meta > * { margin-right: 12px; }
 .man-storm-meta .man-chip { margin-left: 0; }
 
-/* 電話 */
-/* 電話上方：問需求要花時程（每題多少、已花多少、時程剩多少） */
-.phone-cost { margin-bottom: 12px; padding: 8px 14px; border-left-width: 3px; border-color: var(--c-tight); background-color: rgba(255, 181, 71, 0.10); border-radius: 4px; }
-.phone-cost--late { border-color: var(--c-over); background-color: rgba(255, 77, 94, 0.12); }
-.phone-cost-rule { font-size: var(--fs-16); color: var(--c-tight); -unity-font-style: bold; white-space: normal; }
-.phone-wrap { flex-direction: row; align-items: stretch; min-height: 380px; }
-.phone-list { width: 260px; margin-right: 16px; }
-.phone-dept {
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start;
-    margin-bottom: 6px;
-    padding: 10px 12px;
-    background-color: rgba(255, 255, 255, 0.03);
-    border-color: var(--c-line);
-    -unity-text-align: middle-left;
-}
-.phone-dept--on, .phone-dept--on:hover:enabled { background-color: var(--c-accent-dim); border-color: var(--c-accent); }
-.phone-dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 10px; background-color: var(--c-accent); }
-.phone-foot { flex-direction: row; align-items: center; margin-top: 12px; }
-.phone-call { flex-grow: 1; padding: 4px 4px 4px 16px; border-left-width: 1px; border-color: var(--c-line); }
-.phone-greet { font-size: var(--fs-16); color: var(--c-text); margin: 6px 0 12px 0; -unity-font-style: italic; }
-.phone-qs { margin-bottom: 12px; }
-.phone-q {
-    -unity-text-align: middle-left;
-    margin-bottom: 6px;
-    padding: 8px 12px;
-    background-color: rgba(255, 255, 255, 0.03);
-    border-color: var(--c-line);
-    white-space: normal;
-}
-.phone-q--asked { color: var(--c-dim); }
-.phone-q-row { flex-direction: row; align-items: center; flex-grow: 1; }
-.phone-q-text { white-space: normal; flex-shrink: 1; }
-/* 題目分組：需求（黃色左框，在上）、建議（淡，在下） */
-.phone-group { margin-bottom: 10px; padding-left: 10px; border-left-width: 3px; border-color: rgba(0, 0, 0, 0); }
-.phone-group--req { border-color: var(--c-tight); }
-.phone-group--tips { border-color: var(--c-line); opacity: 0.8; }
-.phone-group-title { font-size: var(--fs-13); -unity-font-style: bold; letter-spacing: 1px; margin-bottom: 6px; color: var(--c-dim); }
-.phone-group--req .phone-group-title { color: var(--c-tight); }
-.phone-q-done { font-size: var(--fs-13); color: var(--c-dim); margin-left: 8px; }
-.phone-q-cost { font-size: var(--fs-13); color: var(--c-tight); margin-left: 8px; }
-/* 處室列表：還有需求沒問到 */
-.phone-pending { margin-top: 2px; font-size: var(--fs-12); color: var(--c-tight); -unity-font-style: bold; }
-.phone-q--on, .phone-q--on:hover:enabled { border-color: var(--c-accent); background-color: var(--c-accent-dim); color: var(--c-text); }
-.phone-answer {
-    min-height: 90px;
-    padding: 12px 14px;
-    border-radius: 4px;
-    background-color: rgba(0, 0, 0, 0.35);
-    font-size: var(--fs-16);
-    color: var(--c-text);
-    white-space: normal;
-}
-
 /* 筆記 */
-.notes-field { flex-grow: 1; min-height: 300px; }
-.notes-field > .unity-text-field__input, .notes-field .unity-base-text-field__input {
-    background-color: rgba(4, 10, 20, 0.9);
-    border-color: var(--c-line-hi);
-    color: var(--c-text);
-    font-size: var(--fs-15);
-    -unity-text-align: upper-left;
-    white-space: normal;
-}
-.check-row { flex-direction: row; align-items: flex-start; padding: 5px 0; border-bottom-width: 1px; border-color: rgba(31, 53, 80, 0.5); }
-.check-box { min-width: 26px; flex-shrink: 0; font-size: var(--fs-16); }
 .note { margin-bottom: 10px; padding: 8px 10px; border-left-width: 2px; border-color: var(--c-line-hi); background-color: rgba(255, 255, 255, 0.02); }
 
-/* 任務控制台 */
+/* 任務設定（選件面板）：軌道、火箭、地面站的選項 */
 .mc-cols { flex-direction: row; align-items: flex-start; }
 .mc-colx { flex-grow: 1; flex-basis: 0; margin-right: 16px; }
 .mc-sub { margin-top: 14px; margin-bottom: 6px; }
@@ -1634,7 +1137,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 /* 大廳 */
 .lobby-head { flex-direction: row; align-items: center; margin-bottom: 10px; }
 .lobby-code { margin-left: 12px; color: var(--c-accent); letter-spacing: 6px; }
-.lobby-list { margin: 8px 0; }
 .lobby-player { flex-direction: row; align-items: center; padding: 6px 0; border-bottom-width: 1px; border-color: rgba(31, 53, 80, 0.5); }
 .lobby-player > * { margin-right: 10px; }
 
@@ -1653,8 +1155,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .wscreen { background-color: #091320; }
 .wscreen-body { flex-grow: 1; padding: 22px 28px; }
 .wscreen-title { font-size: var(--fs-18); margin-bottom: 12px; }
-.wscreen .dash-k { font-size: var(--fs-18); width: 200px; }
-.wscreen .dash-v { font-size: var(--fs-22); }
 .wscreen .body { font-size: var(--fs-18); }
 .coach-head { flex-direction: row; align-items: center; }
 .coach-count { font-size: var(--fs-12); color: var(--c-accent); margin-right: 8px; flex-shrink: 0; }
@@ -1682,7 +1182,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 }
 .coach-marker--edge { translate: -50% -50%; opacity: 0.85; }
 
-/* ---------- Go/No-Go 點名、環境測試、嚴格分工 ---------- */
+/* ---------- Go/No-Go 點名、發射條件 ---------- */
 .poll {
     position: absolute;
     left: 50%;
@@ -1711,25 +1211,9 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 }
 .poll-actions { flex-direction: row; align-items: center; margin-bottom: 6px; }
 .poll-actions > .unity-button { margin-left: 8px; }
-.test-head { flex-direction: row; align-items: center; margin: 10px 0 6px 0; }
-.test-card {
-    margin: 6px 0;
-    padding: 10px 12px;
-    border-radius: 4px;
-    border-width: 1px;
-    border-left-width: 4px;
-    border-color: var(--c-line);
-}
-.test-card--go { border-left-color: var(--c-go); }
-.test-card--tight { border-left-color: var(--c-tight); background-color: rgba(255, 181, 71, 0.05); }
-.test-card--over { border-left-color: var(--c-over); background-color: rgba(255, 77, 94, 0.06); }
-.test-chip { margin-left: 10px; }
 .launch-gate { margin: 10px 0 4px 0; }
 .gate-row { flex-direction: row; align-items: center; margin: 3px 0; }
 .gate-row > .body { flex-shrink: 1; }
-.launch-why { flex-shrink: 1; margin-right: 12px; white-space: normal; max-width: 300px; }
-.lobby-strict { flex-direction: row; align-items: center; margin-top: 12px; padding: 10px 0; border-top-width: 1px; border-color: var(--c-line); }
-.lobby-strict > .chip { margin-left: 6px; }
 .launch-next { font-size: var(--fs-18); color: var(--c-dim); margin-top: 8px; letter-spacing: 1px; }
 
 /* 野火關卡：異常判讀的長波熱紅外線欄 */
@@ -1740,57 +1224,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .man-qt { border-width: 1px; border-color: var(--c-line); border-radius: 8px; overflow: hidden; margin: 10px 0 16px 0; }
 .man-qt > .h3 { padding: 10px 16px 6px 16px; }
 
-/* 採購終端（組裝區）：左清單、中模型、右說明 */
-.proc-head { flex-direction: row; align-items: center; margin-bottom: 8px; }
-.proc-head-note { margin-left: 14px; flex-shrink: 1; }
-/* 固定高度（= 預覽的高度）並裁掉超出的部分：內容太多時在欄內捲動，不會蓋到下面的購物車列 */
-.proc-wrap { flex-direction: row; height: 500px; flex-shrink: 0; overflow: hidden; margin-top: 8px; }
-/* .row 會垂直置中（align-items: center），左右兩欄要撐滿整排高度，內容太長才會在欄內捲動 */
-.proc-list { width: 26%; flex-shrink: 0; margin-right: 14px; align-self: stretch; }
-.proc-item {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 10px 12px;
-    margin: 0 0 8px 0;
-    border-radius: 8px;
-    border-width: 1px;
-    border-color: var(--c-line);
-    background-color: rgba(0, 0, 0, 0);
-    -unity-text-align: middle-left;
-}
-.proc-item:hover:enabled { border-color: var(--c-accent); background-color: rgba(57, 198, 244, 0.08); scale: 1 1; }
-.proc-item--on, .proc-item--on:hover:enabled { border-color: var(--c-accent); background-color: var(--c-accent-dim); }
-.proc-item-top { flex-direction: row; align-items: center; }
-.proc-item-name { margin-left: 10px; font-size: var(--fs-18); -unity-font-style: bold; flex-shrink: 1; }
-.proc-item-state { margin-top: 6px; }
-.proc-preview {
-    width: 420px;
-    height: 420px;
-    flex-shrink: 0;
-    align-self: flex-start;
-    margin-right: 18px;
-    border-radius: 10px;
-    border-width: 1px;
-    border-color: var(--c-line-hi);
-    background-color: #090D13;
-    -unity-background-scale-mode: scale-and-crop;
-    align-items: center;
-    justify-content: center;
-}
-.proc-info { flex-grow: 1; flex-shrink: 1; flex-direction: column; align-self: stretch; overflow: hidden; }
-.proc-info-text { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-height: 0; }
-.proc-info-top { flex-direction: row; align-items: center; }
-.proc-info-name { margin-left: 12px; flex-shrink: 1; }
-.modal--manual .proc-info-name { font-size: var(--fs-24); letter-spacing: 1px; }
-.proc-info-cat { margin-top: 8px; }
-.modal--manual .proc-func { margin-top: 10px; color: var(--c-text); font-size: var(--fs-20); }
-.modal--manual .proc-explainer { margin-top: 12px; font-size: var(--fs-19); color: #B9C9DC; }
-.proc-info-actions { flex-direction: row; align-items: center; margin-top: 12px; }
-.proc-cart { flex-direction: row; align-items: center; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top-width: 1px; border-color: var(--c-line); }
-.proc-cart > .eyebrow { margin-right: 12px; }
-.proc-cart-empty { margin-right: 12px; }
-.proc-hist { flex-direction: row; flex-wrap: wrap; margin-top: 8px; }
-.proc-hist-item { margin-right: 18px; }
 .man-qt .man-mx-cell { font-size: var(--fs-19); color: var(--c-text); }
 
 /* ---------- 手冊：翻頁的書（ManualPanel）與手冊圖表（ManualCharts.cs） ---------- */
@@ -1806,23 +1239,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 
 .modal--book { height: 92%; }
 .book { flex-grow: 1; flex-shrink: 1; overflow: hidden; }
-.book-tabs { flex-shrink: 0; flex-direction: row; flex-wrap: wrap; margin-bottom: 0; padding-left: 40px; }
-.book-tab {
-    flex-direction: row;
-    align-items: center;
-    margin: 0 6px 0 0;
-    padding: 8px 14px 10px 14px;
-    border-radius: 8px 8px 0 0;
-    border-width: 0;
-    border-top-width: 4px;
-    border-color: var(--ch);
-    background-color: rgba(255, 255, 255, 0.04);
-    -unity-font-style: normal;
-}
-.book-tab:hover, .book-tab:hover:enabled { background-color: var(--ch-dim); border-color: var(--ch); scale: 1 1; }
-.book-tab--on, .book-tab--on:hover:enabled { background-color: #101C30; translate: 0 2px; }
-.book-tab-num { color: var(--ch); font-size: var(--fs-18); -unity-font-style: bold; margin-right: 8px; }
-.book-tab-name { font-size: var(--fs-16); color: var(--c-text); }
 
 .book-spread { flex-direction: row; align-items: stretch; flex-grow: 1; flex-shrink: 1; }
 .book-spine {
@@ -1849,8 +1265,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .book-head-ch { color: var(--ch); margin-right: 14px; }
 .book-head-name { font-size: var(--fs-26); -unity-font-style: bold; color: var(--c-text); letter-spacing: 2px; }
 .book .man-intro { border-color: var(--ch); background-color: var(--ch-dim); }
-.book .man-sec-head { border-color: var(--ch); background-color: var(--ch-dim); }
-.book .man-num, .book .man-rule-n { color: var(--ch); border-color: var(--ch); }
+.book .man-rule-n { color: var(--ch); border-color: var(--ch); }
 
 .book-page { flex-grow: 1; flex-shrink: 1; overflow: hidden; }
 .book-scroll { flex-grow: 1; flex-shrink: 1; }
@@ -1911,15 +1326,9 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .book-cover-num { font-size: 160px; color: #08111F; -unity-font-style: bold; margin: 0; }
 .book-cover-name { font-size: 64px; color: #08111F; -unity-font-style: bold; letter-spacing: 6px; }
 
-/* 散布圖 */
-.mchart-row { flex-direction: row; flex-wrap: wrap; }
-.mchart-box { flex-grow: 1; flex-basis: 0; min-width: 420px; margin: 0 16px 16px 0; padding: 12px 14px; border-radius: 8px; background-color: rgba(255, 255, 255, 0.03); border-width: 1px; border-color: rgba(255, 255, 255, 0.06); }
-.mchart { height: 340px; margin: 8px 0; }
+/* 疊在圖表上的文字（刻度） */
 .mchart-text { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
 .mchart-tick { font-size: var(--fs-16); color: #7890AC; }
-.mchart-pt { font-size: var(--fs-17); color: var(--c-text); -unity-font-style: bold; }
-.mchart-pt--on { color: var(--c-go); }
-.mchart-axis { font-size: var(--fs-17); color: var(--c-dim); -unity-font-style: bold; }
 
 /* 軌道圓環 */
 .mring-row { flex-direction: row; flex-wrap: wrap; margin: 12px 0 6px 0; }
@@ -1942,11 +1351,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .named { flex-direction: column; flex-shrink: 1; }
 .named-main { white-space: normal; }
 .named-sub { margin-top: 2px; font-size: var(--fs-15); color: var(--c-dim); -unity-font-style: normal; }
-.mlegend { flex-wrap: wrap; }
-.mlegend-item { margin-right: 28px; white-space: nowrap; }
-.mlegend.faint .mlegend-item { color: #7890AC; }
-.mlegend.dim .mlegend-item { color: var(--c-dim); }
-.mchart-corner { margin-top: 2px; color: var(--ch); -unity-font-style: bold; }
 
 /* 大廳牆上的隊伍名單螢幕 */
 .team-board { flex-grow: 1; align-items: stretch; padding: 14px 18px; }
@@ -1954,15 +1358,11 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .team-board-role { font-size: var(--fs-16); white-space: normal; color: var(--c-dim); margin: 6px 0 14px 0; }
 .team-board-name { font-size: var(--fs-24); margin-top: 4px; padding: 6px 12px; border-radius: 4px; background-color: rgba(255, 255, 255, 0.06); color: var(--c-text); }
 .team-board-name--me { background-color: var(--c-accent-dim); border-width: 1px; border-color: var(--c-accent); }
-.team-board-empty { font-size: var(--fs-18); color: var(--c-faint); margin-top: 10px; }
 
-/* 大廳：兩組名單、全員就緒視窗 */
+/* 大廳：名單、全員就緒視窗 */
 .lobby-code { font-size: var(--fs-30); letter-spacing: 4px; color: var(--c-accent); -unity-font-style: bold; }
 .lobby-mission { align-items: flex-end; }
-.lobby-teams { flex-direction: row; margin-top: 14px; }
 .lobby-team { flex-grow: 1; flex-basis: 0; margin: 0 6px; padding: 10px 12px; border-radius: 6px; border-width: 1px; border-top-width: 4px; background-color: rgba(255, 255, 255, 0.04); }
-.lobby-team--assembly { border-color: #38C6F4; }
-.lobby-team--control { border-color: #FFA826; }
 .lobby-team-title { font-size: var(--fs-18); -unity-font-style: bold; letter-spacing: 2px; color: var(--c-text); margin-bottom: 6px; }
 .lobby-player { padding: 4px 8px; margin-top: 3px; border-radius: 4px; background-color: rgba(255, 255, 255, 0.05); }
 .lobby-player--me { background-color: var(--c-accent-dim); }
@@ -2025,7 +1425,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .ord-hud .ord-now { margin-top: 6px; padding: 5px 9px; }
 .ord-hud .ord-role { font-size: var(--fs-15); }
 .ord-hud .ord-how { margin-top: 6px; font-size: var(--fs-11); }
-.ord-hud .ord-rework { font-size: var(--fs-12); }
 .ord-hud .ord-take { font-size: var(--fs-15); }
 .ord-hud .ord-idle { margin-top: 4px; font-size: var(--fs-14); }
 .ord-head { flex-direction: row; align-items: center; }
@@ -2057,8 +1456,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .ord-now .eyebrow { color: var(--c-accent); margin-bottom: 2px; }
 .ord-role { font-size: var(--fs-20); -unity-font-style: bold; color: var(--c-text); white-space: normal; }
 .ord-how { margin-top: 10px; font-size: var(--fs-14); color: var(--c-dim); white-space: normal; }
-.ord-rework { margin-top: 4px; font-size: var(--fs-14); color: var(--c-dim); white-space: normal; }
-.ord-rework--bad { color: var(--c-tight); -unity-font-style: bold; }
 .ord-take { margin-top: 6px; font-size: var(--fs-20); -unity-font-style: bold; color: var(--c-go); white-space: normal; }
 .ord-idle { margin-top: 10px; font-size: var(--fs-20); color: var(--c-dim); white-space: normal; }
 /* 工作台的螢幕：要從幾步外看得到，字放得很大（固定大小，不跟字體設定：螢幕就這麼大） */
@@ -2074,7 +1471,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .ord--screen .ord-now { margin-top: 12px; padding: 12px 18px; border-width: 3px; }
 .ord--screen .ord-role { font-size: 52px; }
 .ord--screen .ord-how { display: none; }
-.ord--screen .ord-rework { font-size: 28px; margin-top: 12px; }
 .ord--screen .ord-take { font-size: 56px; margin-top: 30px; }
 .ord--screen .ord-idle { font-size: 52px; margin-top: 30px; }
 
@@ -2092,7 +1488,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .brief-chip-label { font-size: var(--fs-12); color: var(--c-text); }
 .brief-again { margin-top: 10px; font-size: var(--fs-16); color: var(--c-dim); white-space: normal; }
 
-/* ---------- 知識卡（採購終端的翻牌、組裝完成的獎勵、圖鑑） ---------- */
+/* ---------- 知識卡圖鑑（CodexView） ---------- */
 .codex-card {
     margin-top: 14px;
     padding: 8px 12px;
@@ -2103,22 +1499,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     border-left-color: #B58CFF;
     background-color: rgba(181, 140, 255, 0.06);
 }
-.codex-card--open { background-color: rgba(181, 140, 255, 0.10); }
-.codex-card--big { padding: 14px 16px; }
-.codex-flip {
-    align-self: stretch;
-    white-space: normal;
-    margin: 0;
-    padding: 4px 6px;
-    border-width: 0;
-    background-color: rgba(0, 0, 0, 0);
-    color: #CDB4FF;
-    font-size: var(--fs-17);
-    -unity-font-style: bold;
-    -unity-text-align: middle-left;
-}
-.codex-flip:hover:enabled { color: var(--c-text); background-color: rgba(181, 140, 255, 0.14); scale: 1 1; }
-.codex-flip--new { color: var(--c-tight); }
 .codex-fact { font-size: var(--fs-18); color: var(--c-text); white-space: normal; margin: 8px 0 6px 0; -unity-font-style: bold; }
 .modal--manual .codex-text, .codex-text { font-size: var(--fs-16); color: #B9C9DC; white-space: normal; margin-bottom: 8px; }
 .codex-head { flex-direction: row; align-items: center; margin-bottom: 4px; }
@@ -2154,7 +1534,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .codex-comp { flex-direction: row; align-items: flex-start; margin-top: 6px; padding-top: 6px; border-top-width: 1px; border-color: rgba(31, 53, 80, 0.5); }
 .codex-comp-name { width: 38%; flex-shrink: 0; padding-right: 10px; font-size: var(--fs-15); color: var(--c-text); -unity-font-style: bold; white-space: normal; }
 .codex-comp-role { flex-grow: 1; flex-shrink: 1; flex-basis: 0; min-width: 0; font-size: var(--fs-14); color: var(--c-dim); white-space: normal; }
-.proc-kit-title { margin-top: 14px; }
 
 /* ---------- 設計圖庫（DesignsView）：上方儲存與匯入、左清單、右比較表 ---------- */
 .dsg-top { flex-direction: row; align-items: stretch; margin-bottom: 6px; }
@@ -2216,20 +1595,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .menu-col--full .body { font-size: var(--fs-17); }
 .report-save { margin-left: 14px; }
 
-/* 採購終端：翻開的知識卡蓋在中間預覽圖的下半部（右欄太窄，長文字放這裡才不用一直捲） */
-.codex-overlay {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    padding: 12px 16px 14px 16px;
-    border-top-width: 2px;
-    border-color: #B58CFF;
-    border-radius: 0 0 10px 10px;
-    background-color: rgba(18, 12, 34, 0.94);
-}
-.codex-overlay .codex-text { margin: 6px 0 0 0; }
-
 /* 知識卡精通（組裝時一次都沒裝錯） */
 .codex-master-count { margin-left: 14px; font-size: var(--fs-17); -unity-font-style: bold; color: #FFC94A; }
 .codex-tile-code--master { color: #FFC94A; }
@@ -2238,10 +1603,10 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .brief-chip .keycap { min-width: 20px; font-size: var(--fs-12); -unity-text-align: middle-center; }
 
 /* ====================================================================
-   流程改版：選件（大屏幕）、挖空的數值、線索、組裝清單、流程說明
+   選件（設計主螢幕）、挖空的數值、線索、組裝清單、流程說明
    ==================================================================== */
 
-/* ---------- 選件面板（中控室的大屏幕按 E） ---------- */
+/* ---------- 選件面板（中控室的設計主螢幕按 E） ---------- */
 .modal--select { width: 1640px; max-width: 97%; height: 94%; max-height: 94%; padding: 18px 24px; }
 .modal--select .small { font-size: var(--fs-14); }
 .modal--select .eyebrow { font-size: var(--fs-14); }
@@ -2284,7 +1649,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     scale: 1 1;
 }
 .sel-tick:hover:enabled { border-color: var(--c-accent); background-color: rgba(57, 198, 244, 0.22); }
-.sel-tick--radio, .sel-tick--radio:hover:enabled { border-radius: 15px; }
 /* 單選的那一類：選中的那顆不能再點（只能換），但不要跟著變淡 */
 .sel-tick--on, .sel-tick--on:hover:enabled, .sel-tick--on:disabled { background-color: var(--c-accent); border-color: #8BE3FF; opacity: 1; }
 .sel-part-name { margin-left: 10px; font-size: var(--fs-17); -unity-font-style: bold; color: var(--c-text); flex-shrink: 1; white-space: normal; }
@@ -2360,7 +1724,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .sd-fill--tight { background-color: var(--c-tight); }
 .sd-fill--over { background-color: var(--c-over); }
 .sd-foot { margin-top: 4px; white-space: normal; }
-/* 牆上的大屏幕：一列一行，不放說明，才排得下 */
+/* 牆上的設計主螢幕：一列一行，不放說明，才排得下 */
 .wscreen .sd-row { margin: 0 0 4px 0; padding: 3px 9px; }
 .wscreen .sd-k { font-size: var(--fs-16); }
 .wscreen .sd-v { font-size: var(--fs-17); }
@@ -2395,7 +1759,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .req-dot--comms { background-color: #FF8AC2; }
 .wscreen .req-tag { font-size: var(--fs-13); }
 
-/* ---------- 目前的設計（大屏幕左半） ---------- */
+/* ---------- 目前的設計（設計主螢幕左半） ---------- */
 .pick-row { flex-direction: row; flex-wrap: wrap; align-items: flex-start; padding: 3px 0; border-bottom-width: 1px; border-color: rgba(31, 53, 80, 0.5); }
 .pick-k { width: 108px; flex-shrink: 0; font-size: var(--fs-13); color: var(--c-dim); }
 .pick-v { margin-right: 12px; font-size: var(--fs-15); color: var(--c-text); flex-shrink: 1; white-space: normal; }
@@ -2443,7 +1807,6 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .bay-wait { flex-grow: 1; align-items: center; justify-content: center; padding: 40px 20px; }
 .bay-wait .h2, .bay-wait.h3 { white-space: normal; -unity-text-align: middle-center; }
 .bay-wait .body { margin-top: 12px; -unity-text-align: middle-center; }
-.bay-how { margin-top: 8px; white-space: normal; }
 .wscreen .bay-wait .h2 { font-size: 44px; letter-spacing: 3px; }
 .wscreen .bay-wait .body { font-size: var(--fs-24); }
 
@@ -2453,7 +1816,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .ord-status--wait { color: var(--c-tight); }
 .ord--screen .ord-status { margin-top: 26px; font-size: 46px; }
 
-/* ---------- 流程說明（大屏幕右側） ---------- */
+/* ---------- 流程說明（設計主螢幕右側） ---------- */
 .howto-row {
     flex-direction: row;
     align-items: center;
@@ -2470,7 +1833,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .howto-row--done .howto-n { color: var(--c-go); }
 .howto-text { margin-left: 10px; font-size: var(--fs-24); color: var(--c-text); flex-shrink: 1; white-space: normal; }
 
-/* ---------- 大廳：不分組，一張名單 ---------- */
+/* ---------- 大廳：所有人一張名單 ---------- */
 .lobby-team--roster { flex-grow: 0; flex-shrink: 0; flex-basis: auto; margin: 12px 0 8px 0; border-color: var(--c-accent); }
 
 /* ---------- 線索（放大看；只有自己看得到） ---------- */
@@ -2540,14 +1903,14 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .clue-call-v { font-size: var(--fs-22); -unity-font-style: bold; }
 
 /* ---------- 牆上的螢幕：字要夠大，站在十公尺外也看得清楚（每一面的 class 是 ws-<id>） ---------- */
-/* 組裝區儀表板（6.6 × 4.1 公尺）和大屏幕上的組裝清單 */
+/* 組裝區儀表板（6.6 × 4.1 公尺）和設計主螢幕上的組裝清單 */
 .wscreen .asm-card { margin-bottom: 7px; padding: 6px 10px; }
 .wscreen .asm-card .man-code { font-size: var(--fs-17); }
 .wscreen .asm-card-name { font-size: var(--fs-20); }
 .wscreen .asm-state { font-size: var(--fs-14); }
 .wscreen .asm-comp { padding: 2px 9px; font-size: var(--fs-17); }
 .wscreen .dash-head .eyebrow, .wscreen .dash-head .small { font-size: var(--fs-18); }
-/* 前方的大屏幕（8.8 × 5 公尺，1024 × 576） */
+/* 前方的設計主螢幕（8.8 × 5 公尺，1024 × 576） */
 .ws-bigscreen .wscreen-title { display: none; }
 .ws-bigscreen .eyebrow { font-size: var(--fs-16); }
 .ws-bigscreen .small { font-size: var(--fs-16); }
@@ -2557,7 +1920,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .ws-bigscreen .sd-v--unknown { font-size: var(--fs-17); }
 .ws-bigscreen .sd-track { display: none; }
 .ws-bigscreen .pick-row { padding: 4px 0; }
-.ws-bigscreen .pick-k { width: 128px; font-size: var(--fs-16); }
+.ws-bigscreen .pick-k { width: 176px; font-size: var(--fs-16); }
 .ws-bigscreen .pick-v { font-size: var(--fs-19); }
 .ws-bigscreen .asm-card { width: 32.3%; margin-bottom: 5px; padding: 4px 8px; }
 .ws-bigscreen .asm-card-name { font-size: var(--fs-18); }
@@ -2578,7 +1941,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .ws-bay .asm-list--many .asm-card-name { font-size: var(--fs-20); }
 .ws-bay .asm-list--many .asm-card .man-code { font-size: var(--fs-17); }
 .ws-bay .asm-list--many .asm-comp { font-size: var(--fs-17); }
-/* 大屏幕兩側（4.5 × 5 公尺的直式螢幕，1024 × 1136）：任務需求、流程說明／失敗原因；營運時是遙測 */
+/* 設計主螢幕兩側（4.5 × 5 公尺的直式螢幕，1024 × 1136）：任務需求、流程說明／失敗原因；營運時是遙測 */
 .ws-wall_reqs .eyebrow, .ws-wall_asm .eyebrow, .ws-wall_reqs .wscreen-title, .ws-wall_asm .wscreen-title { font-size: var(--fs-26); }
 .ws-wall_reqs .small, .ws-wall_asm .small { font-size: var(--fs-20); }
 .ws-wall_reqs .prog-goals-head { margin-bottom: 14px; }

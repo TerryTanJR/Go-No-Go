@@ -37,7 +37,7 @@ namespace GoNoGo.Core
     public static class Scoring
     {
         public const double WScience = 0.35, WLifetime = 0.20, WEfficiency = 0.15, WNeeds = 0.15, WOps = 0.15;
-        /// <summary>關卡（或這個難度）沒有科學門檻需求時用的門檻。一半（15）以下 FAIL，和以前的 FAIL 線一樣。</summary>
+        /// <summary>關卡（或這個難度）沒有科學門檻需求時用的門檻。一半（15）以下 FAIL。</summary>
         public const double DefaultScienceThreshold = 30;
 
         /// <summary>這一局的科學門檻：生效的 science_threshold 需求值，沒有就用預設值。</summary>
@@ -54,7 +54,7 @@ namespace GoNoGo.Core
             var diff = data.Difficulty(ctx.DifficultyId) ?? data.DefaultDifficulty ?? new DifficultyDef();
             var s = new Score();
 
-            s.Science = scenario != null && scenario.FireAlert ? FireScience(ev, r, scenario) : ScienceScore(r.ScienceTotal, scenario, design.MissionYears);
+            s.Science = scenario != null && scenario.FireAlert ? FireScience(ev, r) : ScienceScore(r.ScienceTotal, scenario, design.MissionYears);
             s.Efficiency = EfficiencyScore(ev);
             s.Lifetime = r.ReachedOrbit ? Clamp(100.0 * Math.Min(1.0, r.ActualYears / Math.Max(1e-6, r.TargetYears))) : 0;
 
@@ -96,11 +96,9 @@ namespace GoNoGo.Core
             return s;
         }
 
-        /// <summary>營運處置分數；沒有遇到任何事件（任務提早結束）時，入軌就算滿分。</summary>
-        public static double OpsScore(MissionResult r) => OpsScore(r, 0);
-
         /// <summary>
-        /// 每回合：判斷對 50 + 50 × 步驟完成比例 − 每個多餘操作 penalty，下限 0；誤報的回合 0。各回合平均。
+        /// 營運處置分數。每回合：判斷對 50 + 50 × 步驟完成比例 − 每個多餘操作 penalty，下限 0；誤報的回合 0。各回合平均。
+        /// 沒有遇到任何事件（任務提早結束）時，入軌就算滿分。
         /// </summary>
         public static double OpsScore(MissionResult r, double penalty)
         {
@@ -118,7 +116,7 @@ namespace GoNoGo.Core
         /// 及時通報比例 = min(1, 時限 ÷ 通報延遲)，再乘上營運事件的影響（每個沒處置好的大火爆發，那一回合打折）。
         /// 工作比例 = 儀器平均開機比例 × 實際運作年數 ÷ 目標年數。
         /// </summary>
-        public static double FireScience(Evaluation ev, MissionResult r, ScenarioDef scenario)
+        public static double FireScience(Evaluation ev, MissionResult r)
         {
             if (!r.ReachedOrbit) return 0;
             int turns = Math.Max(1, r.Events.Count);

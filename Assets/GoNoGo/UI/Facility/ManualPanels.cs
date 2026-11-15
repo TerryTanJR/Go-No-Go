@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using GoNoGo.Core;
 using GoNoGo.Game;
-using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
@@ -11,61 +10,41 @@ namespace GoNoGo.UI
 {
     // ======================================================================== 參考書（原本的工程手冊）
     //
-    // 中控室書堆裡的四本參考書：1 設計規則、2 異常判讀、3 處置程序、4 太空天氣。
+    // 中控室牆上書架的四本參考書：1 設計規則、2 異常判讀、3 處置程序、4 太空天氣。
     // 原本手冊的零件規格章（酬載、電力、通訊、航電）不在這裡：零件的數值開局是挖空的，
-    // 要靠散在兩個房間的線索（草稿紙、白板、黑板、書、設計圖）找出來，自己填回大屏幕。
+    // 要靠散在兩個房間的線索（紙條、白板、黑板、書、設計圖）找出來，自己填回設計主螢幕。
 
     /// <summary>
     /// 一本書 = 一章：一頁一個主題，← → 或下方按鈕翻頁，翻頁時舊的那頁折向書脊。
     /// 第一次打開時封面翻開。每本有自己的顏色（書脊、封面、標題、圖表），看一眼就知道翻的是哪一本。
-    /// chapter 為 null 時（個人模式的平板）上方有每章的書籤，可以翻全部，翻到一章最後一頁再往後就到下一章。
     /// </summary>
     public sealed class ManualPanel : FacPanel
     {
         const long FlipMs = 420;
 
-        readonly string _fixed;
-        static string _browse = ManualView.Chapters[0];
+        readonly string _ch;
         /// <summary>每章翻到第幾頁（關掉再打開還在同一頁）。</summary>
         static readonly Dictionary<string, int> PageOf = new Dictionary<string, int>();
 
         bool _opened;
-        // 等著播的翻頁：從哪一章第幾頁翻過來、方向（+1 往後、-1 往前）
-        string _fromCh;
+        // 等著播的翻頁：從第幾頁翻過來、方向（+1 往後、-1 往前）
         int _fromPage = -1, _dir;
 
-        public ManualPanel(string chapter = null) { _fixed = chapter; }
+        public ManualPanel(string chapter) { _ch = chapter; }
 
-        public override string Title => _fixed != null ? Loc.T("ui.manual.ch." + _fixed) : Loc.T("ui.manual.title");
+        public override string Title => Loc.T("ui.manual.ch." + _ch);
         public override string WideClass => "modal--manual";
 
-        string Ch => _fixed ?? _browse;
         static int PageIn(string ch) => PageOf.TryGetValue(ch, out var p) ? p : 0;
-        /// <summary>瀏覽模式翻得到的章：營運才用的章節到營運階段才出現（Reveal）。</summary>
-        static string[] Open => ManualView.Chapters.Where(Reveal.Chapter).ToArray();
 
         protected override void Build(VisualElement body)
         {
             body.parent?.AddToClassList("modal--book");
-            if (_fixed == null && !Reveal.Chapter(_browse)) _browse = Open[0];
-            string ch = Ch;
+            string ch = _ch;
             int count = ManualView.Pages(ch).Count;
             int page = PageOf[ch] = Math.Clamp(PageIn(ch), 0, count - 1);
 
             var book = Ui.El("book", "book--" + ch).AddTo(body);
-            if (_fixed == null)
-            {
-                var tabs = Ui.Row("book-tabs").AddTo(book);
-                foreach (var c in Open)
-                {
-                    var cc = c;
-                    var t = Ui.Btn("", () => GoChapter(cc), "book-tab", "book--" + c).Cls("book-tab--on", c == ch).AddTo(tabs);
-                    t.Clear();
-                    Ui.Text(ManualView.Number(c).ToString(), "book-tab-num", "mono").AddTo(t);
-                    Ui.Text(Loc.T("ui.manual.name." + c), "book-tab-name").AddTo(t);
-                }
-            }
-
             var spread = Ui.Row("book-spread").AddTo(book);
             var spine = Ui.El("book-spine").AddTo(spread);
             Ui.Text(ManualView.Number(ch).ToString(), "book-spine-num", "mono").AddTo(spine);
@@ -78,21 +57,20 @@ namespace GoNoGo.UI
             bool back = flip && _dir < 0;
             var under = Scroll(host, "book-scroll");
             under.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
-            if (back) ManualView.RenderPage(under, _fromCh, _fromPage);
-            else ManualView.RenderPage(under, ch, page);
-            if (flip) Leaf(host, back ? ch : _fromCh, back ? page : _fromPage, back);
+            ManualView.RenderPage(under, ch, back ? _fromPage : page);
+            if (flip) Leaf(host, ch, back ? page : _fromPage, back);
             _fromPage = -1;
 
             var foot = Ui.Row("book-foot").AddTo(sheet);
             var prev = Ui.Btn("‹  " + Loc.T("ui.manual.prev"), () => Flip(-1), "book-turn").AddTo(foot);
-            prev.SetEnabled(page > 0 || (_fixed == null && Array.IndexOf(Open, ch) > 0));
+            prev.SetEnabled(page > 0);
             Ui.Spacer().AddTo(foot);
             var dots = Ui.Row("book-dots").AddTo(foot);
             for (int i = 0; i < count; i++) Ui.El("book-dot").Cls("book-dot--on", i == page).AddTo(dots);
             Ui.Text(Loc.T("ui.manual.page", ("n", page + 1), ("total", count)), "book-pageno", "mono").AddTo(foot);
             Ui.Spacer().AddTo(foot);
             var next = Ui.Btn(Loc.T("ui.manual.next") + "  ›", () => Flip(1), "book-turn").AddTo(foot);
-            next.SetEnabled(page < count - 1 || (_fixed == null && Array.IndexOf(Open, ch) < Open.Length - 1));
+            next.SetEnabled(page < count - 1);
 
             if (!_opened)
             {
@@ -138,43 +116,14 @@ namespace GoNoGo.UI
 
         void Flip(int dir)
         {
-            string ch = Ch;
-            int count = ManualView.Pages(ch).Count;
-            int page = PageIn(ch), to = page + dir;
-            if (to >= 0 && to < count)
-            {
-                Turn(ch, page, dir);
-                PageOf[ch] = to;
-                Refresh();
-                return;
-            }
-            // 翻過頭：瀏覽模式接到上一章的最後一頁／下一章的第一頁
-            if (_fixed != null) return;
-            var open = Open;
-            int ci = Array.IndexOf(open, ch) + dir;
-            if (ci < 0 || ci >= open.Length) return;
-            var next = open[ci];
-            Turn(ch, page, dir);
-            PageOf[next] = dir > 0 ? 0 : ManualView.Pages(next).Count - 1;
-            _browse = next;
-            Refresh();
-        }
-
-        void GoChapter(string c)
-        {
-            if (c == _browse) return;
-            int dir = Array.IndexOf(ManualView.Chapters, c) > Array.IndexOf(ManualView.Chapters, _browse) ? 1 : -1;
-            Turn(_browse, PageIn(_browse), dir);
-            _browse = c;
-            Refresh();
-        }
-
-        void Turn(string ch, int page, int dir)
-        {
-            _fromCh = ch;
+            int count = ManualView.Pages(_ch).Count;
+            int page = PageIn(_ch), to = page + dir;
+            if (to < 0 || to >= count) return;
             _fromPage = page;
             _dir = dir;
             Sfx.Page();
+            PageOf[_ch] = to;
+            Refresh();
         }
 
         public override void Tick(float dt)
@@ -186,21 +135,12 @@ namespace GoNoGo.UI
         }
     }
 
-    /// <summary>參考書各章的內容（書堆裡的書、個人模式的平板共用）。</summary>
+    /// <summary>參考書各章的內容（書架上的參考書、個人模式的平板共用）。</summary>
     public static class ManualView
     {
         public static readonly string[] Chapters = { "rules", "diagnose", "procedures", "donki" };
 
         public static int Number(string ch) => Array.IndexOf(Chapters, ch) + 1;
-
-        /// <summary>每章的顏色（書脊、封面、圖表），和 Theme.uss 的 .book--章 一致。</summary>
-        public static Color ChapterColor(string ch) => ch switch
-        {
-            "rules" => new Color(0.42f, 0.62f, 1f),
-            "diagnose" => new Color(1f, 0.42f, 0.45f),
-            "procedures" => new Color(1f, 0.62f, 0.26f),
-            _ => new Color(0.95f, 0.41f, 0.88f),
-        };
 
         /// <summary>書頁上方的一行：第幾本、書名。</summary>
         public static void PageHead(VisualElement parent, string ch)

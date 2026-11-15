@@ -199,7 +199,7 @@ def vab():
     for k in range(9):                                                              # 門板分段
         box("M_VabGray", (cx + 20.0, y_front - 0.3, 5.0 + k * 5.4), (4.8, 0.3, 0.35))
     box("M_VabGray", (cx + 20.0, y_front - 0.3, 26), (0.3, 0.3, 48))
-    # 主樓正面：淺色壁板框（隊徽放在這一塊上，Unity 端貼）
+    # 主樓正面：淺色壁板框（遊戲徽章貼在這一塊上，Unity 端貼）
     box("M_VabGray", (cx - 4.0, y_front - 0.1, 40), (11.6, 0.25, 54))
     box("M_VabWhite", (cx - 4.0, y_front - 0.25, 40), (10.6, 0.25, 52))
     box("M_VabGray", (cx + 7.0, y_front - 0.1, 30), (3.0, 0.25, 36))

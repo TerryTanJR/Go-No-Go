@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using GoNoGo.Core;
 using GoNoGo.Game;
 using UnityEngine;
@@ -8,9 +9,9 @@ using UnityEngine.UIElements;
 namespace GoNoGo.UI
 {
     /// <summary>
-    /// 把場景裡的 <see cref="WorldScreen"/>（中控室前方的大屏幕、組裝區儀表板、失敗原因看板、組裝台螢幕、大廳螢幕）
+    /// 把場景裡的 <see cref="WorldScreen"/>（中控室前方的設計主螢幕、組裝區儀表板、失敗原因看板、組裝台螢幕、大廳螢幕）
     /// 畫成 UI Toolkit 面板：每塊螢幕一個 RenderTexture＋PanelSettings＋UIDocument，狀態或語言改變時重畫。
-    /// 由 FacilityScreen 建立與釋放。前方大屏在選件、組裝階段畫的是選件的畫面，營運時換成地球縮景（opsMaterial）、
+    /// 由 FacilityScreen 建立與釋放。設計主螢幕在選件、組裝階段畫的是選件的畫面，營運時換成地球縮景（opsMaterial）、
     /// 兩側的螢幕改投各子系統的遙測。
     /// </summary>
     public sealed class WorldScreens
@@ -22,6 +23,8 @@ namespace GoNoGo.UI
             public PanelSettings Panel;
             public UIDocument Doc;
             public Material Mat, Original;
+            /// <summary>上一次畫的內容的簽名（見 <see cref="Signature"/>；沒有簽名的螢幕是 null）。一樣就不用清掉重畫。</summary>
+            public string Sig;
         }
 
         readonly List<Entry> _entries = new List<Entry>();
@@ -70,7 +73,7 @@ namespace GoNoGo.UI
 
         public void MarkDirty() => _dirtyAt = 0;
 
-        /// <summary>每幀呼叫；狀態改變後最多每 0.25 秒重畫一次。</summary>
+        /// <summary>每幀呼叫；狀態或語言改變後的下一次呼叫把螢幕重畫一遍（同一幀裡變了好幾次也只畫一次）。</summary>
         public void Tick()
         {
             if (_dirtyAt < 0 || Time.unscaledTime < _dirtyAt) return;
@@ -82,13 +85,17 @@ namespace GoNoGo.UI
         {
             var root = e.Doc.rootVisualElement;
             if (root == null) return;
+            // 內容和上一次畫的一樣（大廳的螢幕、失敗原因看板：選件、組裝時的操作都動不到它們）就留著，不重畫
+            string sig = GameSession.HasMission ? Signature(e) : null;
+            if (sig != null && sig == e.Sig && root.childCount > 0) return;
+            e.Sig = sig;
             root.Clear();
             root.AddToClassList("app");
             root.AddToClassList("wscreen");
             if (!GameSession.HasMission) return;
             var m = GameSession.Mission;
             bool ops = m.S.Phase == SessionPhase.Ops || m.S.Phase == SessionPhase.Report;
-            // 營運時換貼圖的螢幕（前方大屏 → 地球縮景）：不畫介面
+            // 營運時換貼圖的螢幕（設計主螢幕 → 地球縮景）：不畫介面
             if (e.Screen.opsMaterial != null && e.Screen.target != null)
             {
                 var want = ops ? e.Screen.opsMaterial : e.Mat;
@@ -114,17 +121,17 @@ namespace GoNoGo.UI
                     FailureBoardView.Build(body);
                     break;
                 case "bigscreen":
-                    // 中控室前方的大屏幕：現在選了什麼、儀表板（操作按 E 打開）
+                    // 中控室前方的設計主螢幕：現在選了什麼、儀表板（操作按 E 打開）
                     Ui.Text(Loc.T("ui.sel.title"), "eyebrow", "wscreen-title").AddTo(body);
                     SelectView.WallMain(body);
                     break;
                 case "wall_reqs":
-                    // 大屏左側：選件、組裝時是任務需求；營運時是酬載、電力的遙測
+                    // 設計主螢幕左側：選件、組裝時是任務需求；營運時是酬載、電力的遙測
                     if (ops) OpsWall(body, "payload", "power");
                     else SelectView.Requirements(body, true, false);
                     break;
                 case "wall_asm":
-                    // 大屏右側：選件、組裝時是失敗原因（有的話）或流程說明；營運時是姿態、通訊的遙測
+                    // 設計主螢幕右側：選件、組裝時是失敗原因（有的話）或流程說明；營運時是姿態、通訊的遙測
                     if (ops) OpsWall(body, "attitude", "comms");
                     else if (Reveal.Failures && m.S.FailedLaunches > 0)
                     {
@@ -150,15 +157,72 @@ namespace GoNoGo.UI
             }
         }
 
-        /// <summary>流程說明（大屏右側）：找線索 → 填數值 → 選件 → 確定設計 → 組裝 → 發射。現在做到哪一步會標出來。</summary>
+        /// <summary>
+        /// 這面螢幕現在該畫的內容的簽名：畫面用到的每一項輸入都寫進去，所以簽名一樣 = 畫出來一樣。
+        /// 只給輸入列得完的螢幕用（大廳的三面：語言、房間碼、關卡、難度、名單；失敗原因：語言、關卡、難度、每一次發射）；
+        /// 其他螢幕回傳 null = 每次都重畫。
+        /// </summary>
+        static string Signature(Entry e)
+        {
+            // 營運時要換材質的螢幕每次都要走完 Draw
+            if (e.Screen.opsMaterial != null) return null;
+            var s = GameSession.Mission.S;
+            switch (e.Screen.id ?? "")
+            {
+                case "lobby":
+                    return Loc.Lang + "|" + GameSession.Link?.RoomCode + "|" + s.ScenarioId + "|" + s.DifficultyId + "|" + RosterSig(s);
+                case "lobby_select":
+                case "lobby_assemble":
+                    return Loc.Lang + "|" + RosterSig(s);
+                case "failures":
+                    return Loc.Lang + "|" + LaunchesSig(s);
+                case "wall_asm":
+                    // 只有畫失敗原因的時候（條件和 Draw 裡一樣）；流程說明、營運的遙測每次重畫
+                    bool ops = s.Phase == SessionPhase.Ops || s.Phase == SessionPhase.Report;
+                    return !ops && Reveal.Failures && s.FailedLaunches > 0 ? Loc.Lang + "|" + LaunchesSig(s) : null;
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>名單：自己是誰、每個人的編號、名字、準備了沒（名字前面寫長度，名字裡有什麼符號都不會混在一起）。</summary>
+        static string RosterSig(SessionState s)
+        {
+            var sb = new StringBuilder();
+            sb.Append(GameSession.LocalPlayer);
+            foreach (var p in s.Players)
+            {
+                string name = p.Look?.Name ?? "";
+                sb.Append(';').Append(p.Id).Append(p.Ready ? '+' : '-').Append(name.Length).Append(':').Append(name);
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>失敗原因看板用到的：關卡、難度、每一次發射的結果，和重算原因要用的種子、設計。</summary>
+        static string LaunchesSig(SessionState s)
+        {
+            var sb = new StringBuilder();
+            sb.Append(s.ScenarioId).Append('|').Append(s.DifficultyId);
+            foreach (var l in s.Launches)
+                sb.Append(';').Append(l.Attempt).Append(',').Append((int)l.Outcome).Append(l.Reached ? '+' : '-').Append(l.ReasonCode)
+                    .Append(',').Append(l.Seed).Append(',').Append(l.FailedBefore).Append(',').Append(l.Design?.StableHash() ?? 0);
+            return sb.ToString();
+        }
+
+        /// <summary>流程說明（設計主螢幕右側）：找線索 → 填數值 → 選件 → 確定設計 → 組裝 → 發射。現在做到哪一步會標出來。</summary>
         static void HowTo(VisualElement body)
         {
             var s = GameSession.Mission.S;
             var d = GameSession.Data;
             Ui.Text(Loc.T("ui.wall.howto"), "eyebrow", "wscreen-title").AddTo(body);
-            int left = SessionRules.NotInstalled(s, d).Count;
-            int now = !s.Confirmed ? (Blanks.Cells(d, s).Count > 0 ? 0 : 2) : left > 0 ? 4 : 5;
-            if (!s.Confirmed && Blanks.Cells(d, s).Any(c => Blanks.Filled(s, c.part, c.field) != null)) now = 1;
+            int now;
+            if (s.Confirmed) now = SessionRules.NotInstalled(s, d).Count > 0 ? 4 : 5;
+            else
+            {
+                // 還沒確定設計：有挖空的格子就從找線索開始（填了任何一格就算在填數值），沒有挖空就直接選件
+                var cells = Blanks.Cells(d, s);
+                now = cells.Any(c => Blanks.Filled(s, c.part, c.field) != null) ? 1 : cells.Count > 0 ? 0 : 2;
+            }
             for (int i = 0; i < 6; i++)
             {
                 var row = Ui.Row("howto-row").Cls("howto-row--now", i == now).Cls("howto-row--done", i < now).AddTo(body);
@@ -167,7 +231,7 @@ namespace GoNoGo.UI
             }
         }
 
-        /// <summary>營運時投在大屏兩側的遙測：指定的幾個子系統，讀數和營運席上看到的一樣，不用走到席位前也看得到。</summary>
+        /// <summary>營運時投在設計主螢幕兩側的遙測：指定的幾個子系統，讀數和營運席上看到的一樣，不用走到席位前也看得到。</summary>
         static void OpsWall(VisualElement body, params string[] consoles)
         {
             var m = GameSession.Mission;

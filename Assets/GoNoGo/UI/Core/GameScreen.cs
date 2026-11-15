@@ -13,15 +13,13 @@ namespace GoNoGo.UI
     public abstract class GameScreen
     {
         protected VisualElement Root { get; private set; }
-        protected UIRoot Host { get; private set; }
         /// <summary>這一局（直接開場景測試時自動建立）。</summary>
         protected static MissionSession M => GameSession.Mission;
         protected static GameData D => GameSession.Data;
         readonly List<Action> _unsubscribe = new List<Action>();
 
-        public void Attach(UIRoot host, VisualElement root)
+        public void Attach(VisualElement root)
         {
-            Host = host;
             Root = root;
             Build();
         }
@@ -65,29 +63,12 @@ namespace GoNoGo.UI
             _unsubscribe.Clear();
         }
 
-        /// <summary>每個畫面共用的頂部列：品牌、任務名、預算、語言切換。</summary>
-        protected VisualElement TopBar(string missionLabel, bool showLang = true)
+        /// <summary>頂部列：品牌、任務名。</summary>
+        protected void TopBar(string missionLabel)
         {
             var bar = Ui.El("topbar").AddTo(Root);
             Ui.Text("GO / NO-GO", "brand").AddTo(bar);
             if (!string.IsNullOrEmpty(missionLabel)) Ui.Text(missionLabel, "mission").AddTo(bar);
-            Ui.Spacer().AddTo(bar);
-            var right = Ui.Row().AddTo(bar).Named("topRight");
-            if (showLang)
-            {
-                var lang = Ui.Btn(Loc.IsZh ? "EN" : "中文", () => Loc.Toggle(), "btn-small", "btn-ghost");
-                lang.tooltip = Loc.T("ui.lang");
-                lang.AddTo(bar);
-            }
-            return right;
-        }
-
-        protected static VisualElement StatPill(VisualElement parent, string key, string value, string valueClass = null)
-        {
-            var p = Ui.Row("stat-pill").AddTo(parent);
-            Ui.Text(key, "k").AddTo(p);
-            Ui.Text(value, "mono", valueClass).AddTo(p);
-            return p;
         }
     }
 }

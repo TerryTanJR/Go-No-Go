@@ -1,12 +1,13 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using GoNoGo.Core;
 using GoNoGo.Game;
 using UnityEngine.UIElements;
 
 namespace GoNoGo.UI
 {
-    // 任務簡報（BriefingPanel）在 BriefingPanel.cs；大屏幕選件（SelectPanel）和組裝區儀表板（BayPanel）在 SelectPanels.cs；
+    // 任務簡報（BriefingPanel）在 BriefingPanel.cs；設計主螢幕選件（SelectPanel）和組裝區儀表板（BayPanel）在 SelectPanels.cs；
     // 線索（CluePanel）在 CluePanels.cs；參考書（ManualPanel）在 ManualPanels.cs
 
     // ======================================================================== 發射
@@ -56,7 +57,7 @@ namespace GoNoGo.UI
             if (blockers.Count == 0) Gate(gate, "dim", Loc.T("ui.launchp.ready"));
 
             // 營運經費撐得了幾年（預算 − 開發 − 火箭，除以每年營運費）
-            double funded = SessionRules.FundedYears(s, D);
+            double funded = Simulator.FundedYears(M.BenchEval);
             int years = s.Bench.MissionYears;
             if (funded < years && !blockers.Contains("err.over_budget"))
                 Gate(gate, funded <= 0 ? "over" : "tight", Loc.T("ui.launchp.funds_short", ("funded", Fmt.N(funded, 1)), ("years", years)));
@@ -99,10 +100,41 @@ namespace GoNoGo.UI
 
     /// <summary>
     /// 每一次發射的結果與原因，最新的在最上面。詳細程度依難度。
-    /// 原因用零件的真實數值說明（例如「電池只有 80 Wh」）：玩家在大屏幕上填錯了數字，從失敗裡得到正確的數值也算一種找數值的方式。
+    /// 原因用零件的真實數值說明（例如「電池只有 80 Wh」）：玩家在設計主螢幕上填錯了數字，從失敗裡得到正確的數值也算一種找數值的方式。
     /// </summary>
     public static class FailureBoardView
     {
+        /// <summary>
+        /// 一次失敗的原因要把那一趟任務重新模擬一遍才知道，而看板每次狀態改變都會重畫（牆上兩面螢幕、面板、平板），
+        /// 所以算過的結果記在那筆發射紀錄上。模擬的種子固定：同一筆紀錄、同一份資料、同一個關卡和難度，結果一定一樣；
+        /// 紀錄上的設計、種子事後被改掉（開發選單）就重算。紀錄不再被任何狀態引用時，這一筆也跟著被回收。
+        /// </summary>
+        sealed class Cached
+        {
+            public GameData Data;
+            public string Scenario, Difficulty;
+            public int Seed, FailedBefore, DesignHash;
+            public MissionResult Result;
+        }
+
+        static readonly ConditionalWeakTable<LaunchRecord, Cached> Results = new ConditionalWeakTable<LaunchRecord, Cached>();
+
+        static MissionResult ResultOf(LaunchRecord l, SessionState s, GameData data)
+        {
+            int design = l.Design?.StableHash() ?? 0;
+            if (Results.TryGetValue(l, out var c) && ReferenceEquals(c.Data, data) && c.Scenario == s.ScenarioId && c.Difficulty == s.DifficultyId
+                && c.Seed == l.Seed && c.FailedBefore == l.FailedBefore && c.DesignHash == design)
+                return c.Result;
+            Results.Remove(l);
+            c = new Cached
+            {
+                Data = data, Scenario = s.ScenarioId, Difficulty = s.DifficultyId, Seed = l.Seed, FailedBefore = l.FailedBefore, DesignHash = design,
+                Result = SessionRules.ResultOf(l, s, data),
+            };
+            Results.Add(l, c);
+            return c.Result;
+        }
+
         public static void Build(VisualElement parent)
         {
             var m = GameSession.Mission;
@@ -123,7 +155,7 @@ namespace GoNoGo.UI
                     continue;
                 }
                 Ui.Text(Loc.T(l.ReasonCode), "body").AddTo(card);
-                var r = SessionRules.ResultOf(l, m.S, GameSession.Data);
+                var r = ResultOf(l, m.S, GameSession.Data);
                 var chain = r.Causes.FirstOrDefault(c => !c.Positive);
                 if (chain != null)
                 {

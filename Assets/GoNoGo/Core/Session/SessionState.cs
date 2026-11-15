@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
@@ -55,7 +54,7 @@ namespace GoNoGo.Core
 
     /// <summary>
     /// 多人的 Go/No-Go 點名：有人按發射就開始，每個人各喊 GO 或 NO-GO，全員 GO 才真的發射。
-    /// 有人喊 NO-GO 就 HOLD（回到設計）。點名中大屏幕和整合台都鎖住。
+    /// 有人喊 NO-GO 就 HOLD（回到設計）。點名中設計主螢幕和整合台都鎖住。
     /// </summary>
     public sealed class GoPoll
     {
@@ -103,7 +102,7 @@ namespace GoNoGo.Core
         Unknown,
         /// <summary>對得上某個配方，但設計裡沒有零件用它，或用它的零件都組好了：這不是這次設計選的零件。</summary>
         NotInDesign,
-        /// <summary>對得上配方，也是設計選的零件，但設計還沒在大屏幕上確定。</summary>
+        /// <summary>對得上配方，也是設計選的零件，但設計還沒在設計主螢幕上確定。</summary>
         Waiting,
         /// <summary>認出配方了：照提示的順序在右側組裝。</summary>
         Active,
@@ -151,15 +150,15 @@ namespace GoNoGo.Core
         public int ClueSeed { get; set; }
 
         /// <summary>
-        /// 大屏幕上選的設計：零件、軌道、火箭、地面站、年數。發射的就是它
+        /// 設計主螢幕上選的設計：零件、軌道、火箭、地面站、年數。發射的就是它
         /// （發射條件：選的每個零件都組好、裝上衛星）。
         /// </summary>
         public Design Bench { get; set; } = new Design();
-        /// <summary>設計確定了：大屏幕和組裝區儀表板改成顯示每個零件要用哪些小零件，組裝台開始認配方。</summary>
+        /// <summary>設計確定了：設計主螢幕和組裝區儀表板改成顯示每個零件要用哪些小零件，組裝台開始認配方。</summary>
         public bool Confirmed { get; set; }
         /// <summary>確定過幾次（畫面用來跳「設計確定了」的提示）。</summary>
         public int Confirms { get; set; }
-        /// <summary>玩家在大屏幕上填的數值（"零件 id/欄位" → 數值和誰填的）。兩個人填同一格，後填的蓋掉先填的。發射失敗重做也保留。</summary>
+        /// <summary>玩家在設計主螢幕上填的數值（"零件 id/欄位" → 數值和誰填的）。兩個人填同一格，後填的蓋掉先填的。發射失敗重做也保留。</summary>
         public Dictionary<string, FilledValue> Filled { get; set; } = new Dictionary<string, FilledValue>();
 
         /// <summary>
@@ -181,7 +180,7 @@ namespace GoNoGo.Core
         public List<string> Learned { get; set; } = new List<string>();
         /// <summary>一次都沒裝錯就組好的構造（<see cref="AssemblyRecipe.Key"/>）：知識卡升級成「精通」。</summary>
         public List<string> Flawless { get; set; } = new List<string>();
-        /// <summary>這一局總共裝錯了幾次小零件。沒有懲罰（不加時程、不扣分），只是紀錄；所有人照樣看得到誰裝錯。</summary>
+        /// <summary>這一局總共裝錯了幾次小零件。沒有懲罰（不扣分），只是紀錄；所有人照樣看得到誰裝錯。</summary>
         public int Mistakes { get; set; }
         /// <summary>發射失敗後整局重來的次數（畫面用來跳出「任務重來」的提示）。</summary>
         public int Restarts { get; set; }
@@ -204,7 +203,6 @@ namespace GoNoGo.Core
 
         public PlayerInfo Player(int id) => Players.FirstOrDefault(p => p.Id == id);
         public string HeldBy(int player) => Held.TryGetValue(player, out var id) ? id : null;
-        public int? HolderOf(string partId) => Held.Where(kv => kv.Value == partId).Select(kv => (int?)kv.Key).FirstOrDefault();
 
         static readonly List<string> NoComps = new List<string>();
         /// <summary>這個玩家手上的小零件（沒有 = 空清單；不要改回傳的清單）。</summary>

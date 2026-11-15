@@ -7,7 +7,7 @@ namespace GoNoGo.Presentation
 {
     /// <summary>
     /// 展示用的太空船：給它一個設計就重組模型，新裝上的零件「彈」進來（0.45 秒）。
-    /// 每個零件都有網格碰撞體，準星可以對到船上的某個零件（拆下用）。
+    /// 可以加上網格碰撞體（<see cref="pickable"/>），讓準星對得到船上的某個零件、看它是什麼。
     /// </summary>
     public sealed class SatelliteRig : MonoBehaviour
     {
@@ -27,17 +27,16 @@ namespace GoNoGo.Presentation
         int _shownHash;
         bool _hasShown;
 
-        public Bounds ModelBounds { get; private set; }
-        public Transform Model => _model != null ? _model.transform : null;
         public IReadOnlyList<SatPart> Parts => _parts;
 
         /// <summary>新裝上的零件（世界座標中心），安裝特效用。</summary>
         public event Action<SatPart> PartAdded;
 
-        public void Show(Design design, GameData data, Evaluation ev, bool animate)
+        /// <summary>顯示這個設計。和現在顯示的一樣就什麼都不做，回傳 false；重組了模型回傳 true。</summary>
+        public bool Show(Design design, GameData data, Evaluation ev, bool animate)
         {
             int h = design.StableHash();
-            if (_hasShown && h == _shownHash) return;
+            if (_hasShown && h == _shownHash) return false;
             _shownHash = h;
             bool first = !_hasShown;
             _hasShown = true;
@@ -47,7 +46,6 @@ namespace GoNoGo.Presentation
             _parts = _model.GetComponentsInChildren<SatPart>(true);
 
             FitModel(_model);
-            ModelBounds = ComputeBounds(_model);
 
             if (pickable)
                 foreach (var p in _parts)
@@ -77,6 +75,7 @@ namespace GoNoGo.Presentation
             }
             _lastParts.Clear();
             _lastParts.UnionWith(now);
+            return true;
         }
 
         /// <summary>準星對得到的最小尺寸（公尺）：比這個小的零件另外加一個放大的感應框。</summary>
@@ -146,11 +145,6 @@ namespace GoNoGo.Presentation
         }
 
         public SatPart PartOf(Collider c) => c != null ? c.GetComponentInParent<SatPart>() : null;
-
-        public void Glow(string category, string partId, float g)
-        {
-            foreach (var p in _parts) p.SetGlow(p.category == category && (partId == null || p.partId == partId) ? g : 0f);
-        }
 
         void Update()
         {

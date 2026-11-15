@@ -20,7 +20,6 @@
     "resolution_m": 6.65,
     "sunlit_only": true,
     "objective_match": { "earth_observation": 0.8, "carbon_monitoring": 0.2, "lunar_mapping": 0.9 },
-    "model": "inst_visible",
     "mount": "nadir",
     "color": "#90CAF9",
     "source": {
@@ -50,7 +49,6 @@
     "resolution_m": 2.1,
     "sunlit_only": true,
     "objective_match": { "earth_observation": 1.0, "carbon_monitoring": 0.4, "lunar_mapping": 0.8 },
-    "model": "inst_multispectral",
     "mount": "nadir",
     "color": "#80CBC4",
     "source": {
@@ -81,7 +79,6 @@
     "sunlit_only": false,
     "objective_match": { "earth_observation": 0.9, "carbon_monitoring": 0.3, "lunar_mapping": 0.6, "wildfire": 0.3 },
     "fire_detection": 0.05,
-    "model": "inst_thermal",
     "mount": "nadir",
     "color": "#FFAB91",
     "source": {
@@ -111,7 +108,6 @@
     "resolution_m": 34,
     "sunlit_only": true,
     "objective_match": { "earth_observation": 1.0, "carbon_monitoring": 0.7, "lunar_mapping": 0.7 },
-    "model": "inst_hyperspectral",
     "mount": "nadir",
     "color": "#CE93D8",
     "source": {
@@ -141,7 +137,6 @@
     "resolution_m": 3,
     "sunlit_only": false,
     "objective_match": { "earth_observation": 0.9, "carbon_monitoring": 0, "lunar_mapping": 0.5 },
-    "model": "inst_sar",
     "mount": "side",
     "color": "#FFE082",
     "source": {
@@ -171,7 +166,6 @@
     "resolution_m": 2250,
     "sunlit_only": true,
     "objective_match": { "earth_observation": 0.3, "carbon_monitoring": 1.0, "lunar_mapping": 0 },
-    "model": "inst_co2",
     "mount": "nadir",
     "color": "#A5D6A7",
     "source": {
@@ -194,7 +188,6 @@
     "cost_musd": 0.05,
     "reliability_per_year": 0.995,
     "area_m2": 0.4,
-    "model": "solar_body",
     "mount": "body",
     "color": "#3949AB",
     "source": { "title": "NASA SST State-of-the-Art, ch. 3 Power", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/power-subsystems/", "note": "estimate: ~3 kg/m2 for body-mounted panels; cost ~400 USD/W" }
@@ -212,7 +205,6 @@
     "cost_musd": 0.15,
     "reliability_per_year": 0.99,
     "area_m2": 1.2,
-    "model": "solar_wing",
     "mount": "wing",
     "color": "#283593",
     "source": { "title": "NASA SST State-of-the-Art, ch. 3 Power, Table 3-2", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/power-subsystems/", "note": "derived: 6 kg/m2 = 340 W/m2 / 53.6-60 W/kg (Lockheed Martin SmallSat Array, GomSpace TSP). estimate: cost ~400 USD/W" }
@@ -230,7 +222,6 @@
     "cost_musd": 0.4,
     "reliability_per_year": 0.99,
     "area_m2": 3.9,
-    "model": "solar_wing_large",
     "mount": "wing",
     "color": "#1A237E",
     "source": { "title": "OCO launch press kit (NASA/JPL 2009); NASA SST-SoA Table 3-2", "url": "https://www.jpl.nasa.gov/news/press_kits/oco-launch.pdf", "note": "sourced: OCO array 'total surface area of 3.88 square meters'. derived: 6 kg/m2. estimate: cost ~400 USD/W" }
@@ -248,7 +239,6 @@
     "mass_kg": 0.55,
     "cost_musd": 0.02,
     "capacity_wh": 80,
-    "model": "battery_small",
     "mount": "internal",
     "color": "#66BB6A",
     "source": { "title": "NASA SST State-of-the-Art, ch. 3 Power, Table 3-5", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/power-subsystems/", "note": "sourced: packs 141.8-178.1 Wh/kg (game 145). estimate: flight-qualified cost ~200 USD/Wh" }
@@ -265,7 +255,6 @@
     "mass_kg": 2.7,
     "cost_musd": 0.08,
     "capacity_wh": 400,
-    "model": "battery_medium",
     "mount": "internal",
     "color": "#43A047",
     "source": { "title": "NASA SST State-of-the-Art, ch. 3 Power, Table 3-5", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/power-subsystems/", "note": "derived: 400 Wh / ~148 Wh/kg. estimate: cost ~200 USD/Wh" }
@@ -282,7 +271,6 @@
     "mass_kg": 10,
     "cost_musd": 0.3,
     "capacity_wh": 1500,
-    "model": "battery_large",
     "mount": "internal",
     "color": "#2E7D32",
     "source": { "title": "NASA SST State-of-the-Art, ch. 3 Power, Table 3-5", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/power-subsystems/", "note": "derived: 1,500 Wh / 150 Wh/kg. estimate: cost ~200 USD/Wh" }
@@ -303,7 +291,6 @@
     "reliability_per_year": 0.99,
     "downlink_mbps": 10,
     "tx_power_w": 8,
-    "model": "antenna_patch",
     "mount": "zenith",
     "color": "#B0BEC5",
     "source": { "title": "NASA SST State-of-the-Art, ch. 9 Communications, Table 9-3", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/soa-communications/", "note": "sourced: S-band transmitters 1,000-20,000 kbps, 27-33 dBm, 70-250 g. estimate: 10 Mbit/s closed link, 8 W DC while transmitting (~25% PA efficiency), cost" }
@@ -323,7 +310,6 @@
     "reliability_per_year": 0.985,
     "downlink_mbps": 150,
     "tx_power_w": 25,
-    "model": "antenna_xband",
     "mount": "nadir_side",
     "color": "#78909C",
     "source": { "title": "OCO launch press kit (NASA/JPL 2009); NASA SST-SoA Table 9-3", "url": "https://www.jpl.nasa.gov/news/press_kits/oco-launch.pdf", "note": "sourced: 'downlinked at a rate of 150 megabits per second through the X-band transmitter and a body-mounted X-band patch antenna'; X-band transmitters 0.27-2.4 kg. estimate: 25 W DC, cost" }
@@ -343,7 +329,6 @@
     "reliability_per_year": 0.98,
     "downlink_mbps": 1000,
     "tx_power_w": 50,
-    "model": "antenna_hga",
     "mount": "nadir_side",
     "color": "#546E7A",
     "source": { "title": "eoPortal: Planet (HSD2 radio)", "url": "https://www.eoportal.org/satellite-missions/planet", "note": "sourced: 1,674 Mbit/s maximum achieved on orbit, 50 W during downlink. estimate: 1 Gbit/s sustained average, mass, cost" }
@@ -357,7 +342,6 @@
     "description": { "en": "One high-latitude antenna rented by the minute. Long gaps between contacts mean data waits on board.", "zh-TW": "按分鐘租用一座高緯度天線。兩次通聯間隔很長，資料要在衛星上排隊等。" },
     "stations": 1,
     "ops_cost_musd_per_year": 0.71,
-    "model": "",
     "mount": "",
     "source": { "title": "AWS Ground Station pricing (AWS Price List API, 2026-09-11)", "url": "https://aws.amazon.com/ground-station/pricing/", "note": "sourced: wideband on-demand $22/min (Ohio, Oregon). derived: 11 passes x 8 min x 365 days x $22 = $0.71M/yr (11 passes/day: the same high-latitude station assumption as orbits.json)" }
   },
@@ -369,7 +353,6 @@
     "description": { "en": "Three stations spread in longitude: three times the contact time and much shorter waits.", "zh-TW": "經度分散的三座站：通聯時間三倍，等待時間短很多。" },
     "stations": 3,
     "ops_cost_musd_per_year": 2.1,
-    "model": "",
     "mount": "",
     "source": { "title": "AWS Ground Station pricing (AWS Price List API, 2026-09-11)", "url": "https://aws.amazon.com/ground-station/pricing/", "note": "derived: 3 x $0.71M/yr" }
   },
@@ -381,7 +364,6 @@
     "description": { "en": "A global network including a polar site that sees a polar orbiter on nearly every revolution.", "zh-TW": "包含極區站的全球網路，極軌衛星幾乎每一圈都看得到。" },
     "stations": 6,
     "ops_cost_musd_per_year": 4.2,
-    "model": "",
     "mount": "",
     "source": { "title": "AWS Ground Station pricing; Wikipedia: Svalbard Satellite Station", "url": "https://en.wikipedia.org/wiki/Svalbard_Satellite_Station", "note": "sourced: SvalSat sees low polar orbiters on every revolution. derived: 6 x $0.71M/yr" }
   },
@@ -401,7 +383,6 @@
     "reliability_per_year": 0.97,
     "storage_gb": 8,
     "rad_tolerance_krad": 20,
-    "model": "computer",
     "mount": "internal",
     "color": "#26A69A",
     "source": { "title": "NASA SST State-of-the-Art, ch. 8 Avionics, Table 8-4", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/small-spacecraft-avionics", "note": "sourced: EnduroSat OBC 1.5 W peak; Kryten-M3 20 krad; onboard memory 'hundreds of KB to several GB'. estimate: mass, 8 GB" }
@@ -421,7 +402,6 @@
     "reliability_per_year": 0.98,
     "storage_gb": 128,
     "rad_tolerance_krad": 30,
-    "model": "computer",
     "mount": "internal",
     "color": "#00897B",
     "source": { "title": "NASA SST-SoA Table 8-4 (Aerospacelab OBC); SatCatalog MultiScape200", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/small-spacecraft-avionics", "note": "sourced: < 4 W, 1.325 kg; 128 GB internal storage (MultiScape200); COTS 20-40 krad (Bradford 30 krad). estimate: cost" }
@@ -442,7 +422,6 @@
     "redundant": true,
     "storage_gb": 64,
     "rad_tolerance_krad": 100,
-    "model": "computer_radhard",
     "mount": "internal",
     "color": "#00695C",
     "source": { "title": "NASA SST-SoA Table 8-4 (Aitech SP0-S); OCO launch press kit", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/small-spacecraft-avionics", "note": "sourced: 100 krad TID, 12 W; OCO used a RAD6000 with a 96-gigabit recorder. estimate: dual-string mass, 64 GB, cost" }
@@ -462,7 +441,6 @@
     "cost_musd": 0.3,
     "reliability_per_year": 0.97,
     "pointing_arcsec": 25,
-    "model": "adcs_compact",
     "mount": "internal",
     "color": "#FFCA28",
     "source": { "title": "NASA SST State-of-the-Art, ch. 5 GNC, Table 5-2 (BCT XACT-50)", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/guidance-navigation-and-control", "note": "sourced: 1.230 kg, 0.003/0.007 deg. estimate: 4 W, cost, reliability" }
@@ -482,7 +460,6 @@
     "reliability_per_year": 0.99,
     "redundant": true,
     "pointing_arcsec": 10,
-    "model": "adcs_wheels",
     "mount": "internal",
     "color": "#FFB300",
     "source": { "title": "NASA SST State-of-the-Art, ch. 5 GNC, Table 5-3 (BCT RW8)", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/guidance-navigation-and-control", "note": "sourced: RW8 4.4 kg, 8 Nms. derived: 4 x 4.4 kg + ~2 kg of sensors. estimate: 30 W average, cost" }
@@ -502,7 +479,6 @@
     "reliability_per_year": 0.995,
     "redundant": true,
     "pointing_arcsec": 7,
-    "model": "adcs_precision",
     "mount": "internal",
     "color": "#FF8F00",
     "source": { "title": "NASA SST State-of-the-Art, ch. 5 GNC (BCT RW16, Flexcore)", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/guidance-navigation-and-control", "note": "sourced: RW16 7.5 kg, 16 Nms; Flexcore 0.002 deg. derived: 4 x 7.5 kg + sensors. estimate: 50 W average, cost" }
@@ -520,7 +496,6 @@
     "mass_kg": 0,
     "cost_musd": 0,
     "reliability_per_year": 1,
-    "model": "",
     "mount": "",
     "source": { "title": "Design option", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/in-space_propulsion", "note": "no propulsion: lifetime limited by natural orbit decay" }
   },
@@ -538,7 +513,6 @@
     "cost_musd": 1.5,
     "propellant_kg": 9.7,
     "isp_s": 220,
-    "model": "prop_tank_small",
     "mount": "internal",
     "color": "#EF5350",
     "source": { "title": "NASA SST State-of-the-Art, ch. 4 Propulsion, Table 4-3 (ECAPS SkySat 1N HPGP)", "url": "https://www.nasa.gov/smallsat-institute/sst-soa/in-space_propulsion", "note": "sourced: 22 kg wet, 21 kN*s total impulse, > 200 s; green monoprop 231-255 s. derived: propellant 21,000/(220 x 9.81) = 9.7 kg so the game's Isp reproduces the sourced total impulse; dry 11.3 kg (game wet mass 21.0 kg; the remaining ~1 kg of the sourced 22 kg is unusable residual propellant, not modelled). estimate: Isp 220 s average, 3 W heaters, cost" }
@@ -557,7 +531,6 @@
     "cost_musd": 3,
     "propellant_kg": 45,
     "isp_s": 220,
-    "model": "prop_tank_large",
     "mount": "internal",
     "color": "#C62828",
     "source": { "title": "OCO launch press kit (NASA/JPL 2009); NASA SST-SoA ch. 4", "url": "https://www.jpl.nasa.gov/news/press_kits/oco-launch.pdf", "note": "sourced: 'the 45 kilograms of propellant that it carries'; hydrazine thrusters 200-235 s (MR-111 219-229 s). estimate: 15 kg dry, 5 W heaters, cost" }
@@ -577,7 +550,6 @@
     "reliability_per_year": 1,
     "shielding_mm": 2.5,
     "dose_factor": 1.0,
-    "model": "",
     "mount": "",
     "source": { "title": "Adell (NASA-JPL), Dose and Dose-Rate Effects in Micro-Electronics", "url": "https://na.eventscloud.com/file_uploads/d0c2fd61b187fd38d82bd78365ff2f68_01TotalDoseEffectsinMicro-ElectronicsPushingtheLimitstoExtremeConditions.pdf", "note": "sourced: mission doses are tabulated behind 100 mils (2.54 mm) of aluminium" }
   },
@@ -595,7 +567,6 @@
     "reliability_per_year": 1,
     "shielding_mm": 5,
     "dose_factor": 0.5,
-    "model": "shield_vault",
     "mount": "internal",
     "color": "#9E9E9E",
     "source": { "title": "NASA NTRS: Shields-1 PLEO Dosimetry Measurements (2022)", "url": "https://ntrs.nasa.gov/api/citations/20220013680/downloads/Shields-1_PLEO_Dosimetry_Measurements_09062022_final_rev2.pdf", "note": "estimate: x0.5 per doubling of Al in LEO (penetrating protons); GEO falls faster (x0.2-0.3), simplified to one factor" }
@@ -614,7 +585,6 @@
     "reliability_per_year": 1,
     "shielding_mm": 10,
     "dose_factor": 0.25,
-    "model": "shield_heavy",
     "mount": "internal",
     "color": "#757575",
     "source": { "title": "NASA NTRS: Shields-1 PLEO Dosimetry Measurements (2022)", "url": "https://ntrs.nasa.gov/api/citations/20220013680/downloads/Shields-1_PLEO_Dosimetry_Measurements_09062022_final_rev2.pdf", "note": "estimate: two doublings of shielding = x0.25" }
@@ -639,7 +609,6 @@
     "objective_match": { "wildfire": 1.0, "earth_observation": 0.4, "carbon_monitoring": 0, "lunar_mapping": 0 },
     "fire_detection": 0.6,
     "scenarios": ["wildfire"],
-    "model": "inst_fire",
     "mount": "nadir",
     "color": "#FF7043",
     "source": {
@@ -661,7 +630,6 @@
     "cost_musd": 0.01,
     "capacity_wh": 43,
     "scenarios": ["wildfire"],
-    "model": "battery_cubesat",
     "mount": "internal",
     "color": "#81C784",
     "source": { "title": "GomSpace NanoPower BP4 datasheet (Rev 3.1, 2023)", "url": "https://gomspace.com/UserFiles/Subsystems/datasheet/gs-ds-nanopower-bp4_(DS_-_1013024_-_1_-_31)_-_1.pdf", "note": "sourced: 43 Wh nominal (four 3,000 mAh cells, 2P-2S or 1P-4S), 258 g. estimate: flight-ready cost" }
@@ -686,7 +654,6 @@
     "data_gb_per_day": 0.05,
     "science_value": 15,
     "objective_match": { "earth_observation": 0, "carbon_monitoring": 0, "lunar_mapping": 0.1, "wildfire": 0 },
-    "model": "inst_magnetometer",
     "mount": "boom",
     "color": "#B39DDB",
     "source": { "title": "Wikipedia: Magnetometer (fluxgate magnetometers in spacecraft)", "url": "https://en.wikipedia.org/wiki/Magnetometer", "note": "estimate: typical CubeSat fluxgate (0.1-0.5 kg, under 1 W, a few kbit/s), cost" }
@@ -712,7 +679,6 @@
     "science_value": 25,
     "resolution_m": 4000,
     "objective_match": { "earth_observation": 0.1, "carbon_monitoring": 0, "lunar_mapping": 0, "wildfire": 0.1 },
-    "model": "inst_lightning",
     "mount": "nadir",
     "color": "#FFF59D",
     "source": { "title": "Wikipedia: Tropical Rainfall Measuring Mission, Lightning Imaging Sensor", "url": "https://en.wikipedia.org/wiki/Tropical_Rainfall_Measuring_Mission", "note": "sourced: LIS detects total lightning day and night from low orbit. estimate: mass, power, ~6 kbit/s, 4 km footprint, cost" }
@@ -738,7 +704,6 @@
     "science_value": 35,
     "resolution_m": 5,
     "objective_match": { "earth_observation": 0.3, "carbon_monitoring": 0, "lunar_mapping": 0.9, "wildfire": 0 },
-    "model": "inst_laser_altimeter",
     "mount": "nadir",
     "color": "#A5D6A7",
     "source": { "title": "NASA GSFC: Lunar Orbiter Laser Altimeter (LOLA); Smith et al., The Lunar Orbiter Laser Altimeter Investigation on the LRO Mission, Space Sci. Rev. 150 (2010)", "url": "https://lola.gsfc.nasa.gov/", "note": "sourced: LOLA instrument 12.6 kg, 34 W, 5 m laser spots from the 50 km mapping orbit. estimate: data volume, cost" }
@@ -761,7 +726,6 @@
     "reliability_per_year": 0.98,
     "area_m2": 1.5,
     "cell_factor": 0.6,
-    "model": "solar_wing",
     "mount": "wing",
     "color": "#37474F",
     "source": { "title": "Wikipedia: Multi-junction solar cell (space vs terrestrial efficiency)", "url": "https://en.wikipedia.org/wiki/Multi-junction_solar_cell", "note": "derived: 0.6 = ~18-20 % silicon / ~30 % space triple-junction. estimate: mass (cover glass), cost" }
@@ -783,7 +747,6 @@
     "cost_musd": 0.04,
     "reliability_per_year": 0.995,
     "capacity_wh": 8,
-    "model": "battery_supercap",
     "mount": "internal",
     "color": "#FFB74D",
     "source": { "title": "Wikipedia: Supercapacitor (energy density)", "url": "https://en.wikipedia.org/wiki/Supercapacitor", "note": "derived: ~7 Wh/kg packaged (cells 5-10 Wh/kg). estimate: cost" }
@@ -808,7 +771,6 @@
     "downlink_mbps": 10000,
     "tx_power_w": 30,
     "link_availability": 0.03,
-    "model": "antenna_optical",
     "mount": "nadir_side",
     "color": "#4DD0E1",
     "source": { "title": "Wikipedia: Laser communication in space", "url": "https://en.wikipedia.org/wiki/Laser_communication_in_space", "note": "estimate: 10 Gbit/s-class small terminal; 3 % availability = few optical ground stations x cloud-free probability; mass, power, cost" }
@@ -832,7 +794,6 @@
     "reliability_per_year": 0.92,
     "storage_gb": 256,
     "rad_tolerance_krad": 8,
-    "model": "computer_ai",
     "mount": "internal",
     "color": "#81C784",
     "source": { "title": "Wikipedia: Radiation hardening", "url": "https://en.wikipedia.org/wiki/Radiation_hardening", "note": "estimate: commercial edge-AI module total-dose tolerance (~5-20 krad in tests), power, reliability, cost" }
@@ -856,7 +817,6 @@
     "reliability_per_year": 0.99,
     "redundant": true,
     "pointing_arcsec": 7,
-    "model": "adcs_cmg",
     "mount": "internal",
     "color": "#FFCC80",
     "source": { "title": "Wikipedia: Control moment gyroscope", "url": "https://en.wikipedia.org/wiki/Control_moment_gyroscope", "note": "estimate: small-satellite CMG cluster mass, power, cost; pointing set equal to G-3" }
@@ -880,7 +840,6 @@
     "reliability_per_year": 0.97,
     "propellant_kg": 1.5,
     "isp_s": 2100,
-    "model": "prop_ion",
     "mount": "internal",
     "color": "#64B5F6",
     "source": { "title": "Busek BIT-3 RF ion thruster", "url": "https://www.busek.com/bit3", "note": "sourced: iodine RF ion thruster, ~2,100 s Isp class, ~75 W input. estimate: propellant load, dry mass, cost" }
@@ -903,7 +862,6 @@
     "reliability_per_year": 1,
     "shielding_mm": 2,
     "dose_factor": 0.6,
-    "model": "shield_vault",
     "mount": "internal",
     "color": "#616161",
     "source": { "title": "Wikipedia: Bremsstrahlung", "url": "https://en.wikipedia.org/wiki/Bremsstrahlung", "note": "estimate: x0.6 dose for 2 mm Pb (vs x0.5 for 3 kg of extra Al), bremsstrahlung from trapped electrons" }

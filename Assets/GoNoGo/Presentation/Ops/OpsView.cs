@@ -22,7 +22,6 @@ namespace GoNoGo.Presentation
         public Transform stationRoot;
         public GameObject stationMarkerPrefab;
         public ParticleSystem stormParticles;
-        public Light sun;
         public Transform cameraPivot;
         public Camera cam;
 
@@ -33,11 +32,16 @@ namespace GoNoGo.Presentation
         float _radius;          // 軌道半徑（行星半徑 = 1）
         float _phase;
         Vector3 _orbitNormal;
+        Vector3 _orbitStart;    // 軌道面上角度 0 的方向（只跟軌道面有關，Setup 時算一次）
         readonly List<Transform> _stations = new List<Transform>();
         float _flash;
         GameObject _sat;
         Renderer[] _satRenderers;
         MaterialPropertyBlock _mpb;
+        Color _lightColor;
+        bool _lightSet;
+
+        static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
 
         // 地面站位置（緯度、經度）：極區站對極軌道最重要
         static readonly Vector2[] StationSites =
@@ -50,23 +54,20 @@ namespace GoNoGo.Presentation
             new Vector2(-33.15f, -70.67f),  // 聖地牙哥（智利）
         };
 
-        bool _setup;
-
         void Start()
         {
             OpsClock.EventTriggered += OnEvent;
-            if (_setup) return;
-            // 單獨的營運場景（或沒有人呼叫 Setup）：用目前這一局最後一次發射的設計
+            // 用目前這一局最後一次發射的設計（還沒發射過就是現在的設計）。
+            // 發射在另一個場景，回到 Facility 時這裡會重新執行，所以進場時建一次就夠
             GameSession.EnsureMission();
             var m = GameSession.Mission;
             var l = m.S.LastLaunch;
             Setup(l?.Design ?? m.S.Bench, m.Data, l != null && l.Outcome == LaunchOutcome.LowerOrbit);
         }
 
-        /// <summary>依設計重建行星、軌道、地面站和太空船（中控室主螢幕在發射後呼叫）。</summary>
+        /// <summary>依設計重建行星、軌道、地面站和太空船（<see cref="Start"/> 時呼叫）。</summary>
         public void Setup(Design design, GameData data, bool lowerOrbit)
         {
-            _setup = true;
             foreach (var st in _stations) if (st != null) Destroy(st.gameObject);
             _stations.Clear();
             if (_sat != null) Destroy(_sat);
@@ -84,6 +85,8 @@ namespace GoNoGo.Presentation
             if (lowerOrbit) _radius = 1f + (_radius - 1f) * 0.7f;
             float incl = orbit != null && orbit.Id.StartsWith("sso") ? 98f : orbit != null && orbit.Id == "geo" ? 0f : orbit != null && orbit.Body == "moon" ? 90f : 51.6f;
             _orbitNormal = Quaternion.Euler(0, 0, incl) * Vector3.up;
+            _orbitStart = Vector3.Cross(_orbitNormal, Vector3.forward).normalized;
+            if (_orbitStart.sqrMagnitude < 1e-4f) _orbitStart = Vector3.right;
 
             secondsPerOrbit = geo ? 40f : 14f;
             float scale = satelliteScale * (geo ? 3.5f : 1f);
@@ -92,10 +95,11 @@ namespace GoNoGo.Presentation
             BuildOrbitLine();
             BuildStations(moon ? 0 : StationCount(design.Get(PartCategory.GroundStation)), moon);
 
-            _sat = SatelliteBuilder.Build(design, data, Evaluator.EvaluateDesign(design, data), satelliteAnchor);
+            _sat = SatelliteBuilder.Build(design, data, Evaluator.EvaluateDesign(design, data, null, false), satelliteAnchor);
             _sat.transform.localScale = Vector3.one * scale;
             _satRenderers = _sat.GetComponentsInChildren<Renderer>();
             _mpb = new MaterialPropertyBlock();
+            _lightSet = false;
         }
 
         void OnDestroy() => OpsClock.EventTriggered -= OnEvent;
@@ -114,13 +118,8 @@ namespace GoNoGo.Presentation
             for (int i = 0; i < n; i++) orbitLine.SetPosition(i, OrbitPoint(i / (float)n * 360f));
         }
 
-        Vector3 OrbitPoint(float deg)
-        {
-            var axis = _orbitNormal;
-            var start = Vector3.Cross(axis, Vector3.forward).normalized;
-            if (start.sqrMagnitude < 1e-4f) start = Vector3.right;
-            return planet.position + Quaternion.AngleAxis(deg, axis) * start * _radius * PlanetRadius;
-        }
+        Vector3 OrbitPoint(float deg) =>
+            planet.position + Quaternion.AngleAxis(deg, _orbitNormal) * _orbitStart * _radius * PlanetRadius;
 
         void BuildStations(int count, bool moon)
         {
@@ -154,12 +153,10 @@ namespace GoNoGo.Presentation
         void Update()
         {
             float dt = Time.deltaTime;
-            bool paused = OpsClock.Paused;
-            // 大螢幕的模型只有營運時每幀畫；其他階段當背景，每 4 幀畫一次省效能（WebGL）
+            // 設計主螢幕上的地球縮景只有營運時每幀畫；其他階段當背景，每 4 幀畫一次省效能（WebGL）
             if (cam != null)
                 cam.enabled = (GameSession.HasMission && GameSession.Mission.S.Phase == SessionPhase.Ops) || Time.frameCount % 4 == 0;
-            // 暫停時（事件視窗）放慢但不完全停，畫面才不會死掉
-            _phase += 360f / secondsPerOrbit * dt * (paused ? 0.15f : 1f);
+            _phase += 360f / secondsPerOrbit * dt;
             var pos = OrbitPoint(_phase);
             var next = OrbitPoint(_phase + 1f);
             if (satelliteAnchor != null)
@@ -211,11 +208,15 @@ namespace GoNoGo.Presentation
             Color c = Color.black;
             if (safe) c = new Color(1f, 0.6f, 0.1f) * (0.6f + 0.6f * Mathf.Sin(Time.time * 3f));
             if (_flash > 0) c += new Color(1f, 0.2f, 0.25f) * _flash * 2f;
+            // 顏色和上一幀一樣（平常都是不亮）：每個 Renderer 上已經是這個顏色，不用再設一次
+            if (_lightSet && c.Equals(_lightColor)) return;
+            _lightSet = true;
+            _lightColor = c;
             foreach (var r in _satRenderers)
             {
                 if (r == null) continue;
                 r.GetPropertyBlock(_mpb);
-                _mpb.SetColor("_EmissionColor", c);
+                _mpb.SetColor(EmissionColorId, c);
                 r.SetPropertyBlock(_mpb);
             }
         }

@@ -20,8 +20,6 @@ namespace GoNoGo.Net
         // Vivox 是常駐的單例，InitializeAsync 重複呼叫會丟例外；不在 Reset 清掉，和它一樣跨過進出 Play Mode
         static bool _initialized;
 
-        public static bool InChannel => _channel != null;
-
 #if UNITY_WEBGL && !UNITY_EDITOR
         [System.Runtime.InteropServices.DllImport("__Internal")]
         static extern void GoNoGoSetVoiceVolume(float volume);

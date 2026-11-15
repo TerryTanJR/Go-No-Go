@@ -5,14 +5,14 @@ using NUnit.Framework;
 namespace GoNoGo.Core.Tests
 {
     /// <summary>
-    /// 測試用：照玩家實際的步驟走一遍流程（大屏幕選件 → 確定設計 → 架子拿小零件 → 組裝台左側認配方、右側照順序組 → 裝上衛星）。
+    /// 測試用：照玩家實際的步驟走一遍流程（設計主螢幕選件 → 確定設計 → 架子拿小零件 → 組裝台左側認配方、右側照順序組 → 裝上衛星）。
     /// </summary>
     public static class Flow
     {
         public static void Do(SessionState s, GameData data, Command c) =>
             Assert.That(SessionRules.Apply(s, data, c), Is.EqualTo(SessionRules.Ok), c.Type + " " + c.A + " " + c.N);
 
-        /// <summary>大屏幕上勾選（設計確定著的話先按「改選」）。</summary>
+        /// <summary>設計主螢幕上勾選（設計確定著的話先按「改選」）。</summary>
         public static void Select(SessionState s, GameData data, string partId, int player = 1)
         {
             if (s.Confirmed) Do(s, data, Command.Of(CommandType.Confirm, player, "", 0));
@@ -183,14 +183,14 @@ namespace GoNoGo.Core.Tests
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design), "多人：簡報各自看，直接進設計階段");
             Assert.That(s.Solo, Is.False, "兩人以上：挖空照所選難度");
             Assert.That(Try(s, CommandType.SetReady, 1, "", 0), Is.EqualTo("err.phase"));
-            // 不分組：誰都可以操作大屏幕，也都可以去組裝
+            // 不分組：誰都可以操作設計主螢幕，也都可以去組裝
             Ok(s, Command.Of(CommandType.SelectPart, 2, "batt_medium", 1));
             Ok(s, Command.Of(CommandType.SelectPart, 1, "ant_sband", 1));
             Ok(s, Command.Of(CommandType.CompPick, 2, "cells"));
             Ok(s, Command.Of(CommandType.CompPick, 1, "optics"));
         }
 
-        // ---------------------------------------------------------------- 選件（大屏幕）
+        // ---------------------------------------------------------------- 選件（設計主螢幕）
 
         [Test]
         public void TheBigScreenTicksOnePartPerCategoryAndSeveralInstruments()
@@ -515,7 +515,7 @@ namespace GoNoGo.Core.Tests
             Assert.That(s.Bench.OrbitId, Is.EqualTo(start.OrbitId));
             Assert.That(s.Bench.LauncherId, Is.EqualTo(start.LauncherId));
             Assert.That(s.Bench.MissionYears, Is.EqualTo(start.MissionYears));
-            Assert.That(s.Confirmed, Is.False, "回大屏幕重選");
+            Assert.That(s.Confirmed, Is.False, "回設計主螢幕重選");
             Assert.That(s.Installed, Is.Empty, "衛星回到開局：重新組裝");
             Assert.That(s.Built, Is.Empty);
             Assert.That(s.Held, Is.Empty);
@@ -598,7 +598,7 @@ namespace GoNoGo.Core.Tests
             Ok(s, Command.Of(CommandType.FinishLaunch, 1));
             Assert.That(s.Phase, Is.EqualTo(SessionPhase.Design));
             Assert.That(s.Restarts, Is.Zero, "歷史關卡失敗不重來，保留設計接著改");
-            Assert.That(s.Confirmed, Is.False, "回大屏幕接著改");
+            Assert.That(s.Confirmed, Is.False, "回設計主螢幕接著改");
             Assert.That(SessionRules.NotInstalled(s, _data), Is.Empty, "衛星還在");
             Ok(s, Command.Of(CommandType.SetLauncher, 1, "delta_ii"));
             Fly(s);
@@ -671,7 +671,7 @@ namespace GoNoGo.Core.Tests
             Assert.That(SessionRules.FundedYears(s, _data), Is.LessThan(before), "火箭越貴，剩下的營運經費撐越短");
         }
 
-        // ---------------------------------------------------------------- 取捨說明（取代電話）
+        // ---------------------------------------------------------------- 取捨說明
 
         [Test]
         public void TradeoffNotesAreListedWithThisMissionsNumbers()
@@ -703,7 +703,7 @@ namespace GoNoGo.Core.Tests
         [Test]
         public void EveryRequirementIsListedWithoutAsking()
         {
-            // 需求直接列在大屏幕上：每個關卡、每個難度都拿得到完整清單，互相拉扯的那幾條照難度開放
+            // 需求直接列在設計主螢幕上：每個關卡、每個難度都拿得到完整清單，互相拉扯的那幾條照難度開放
             var eo = _data.Scenario("earth_observation");
             Assert.That(Departments.Active(eo, _data.Difficulty("cadet")).Select(a => a.Requirement.Id), Has.No.Member("eo_thermal"));
             Assert.That(Departments.Active(eo, _data.Difficulty("engineer")).Select(a => a.Requirement.Id), Has.Member("eo_thermal").And.No.Member("eo_return_high"));

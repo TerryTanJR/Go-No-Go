@@ -8,12 +8,11 @@ namespace GoNoGo.Presentation
     /// <summary>
     /// Q 版太空人：用 Blender 做的部件（Resources/Avatar/AvatarParts.glb，原始碼在 tools/avatar_blender）組裝，
     /// 顏色在這裡依 <see cref="AvatarLook"/> 動態上色，不用骨架（動畫見 <see cref="AvatarRig"/>）。
-    /// 腳底在原點，身高約 1.3 m，面向 +Z。
+    /// 腳底在原點，身高約 1.3 m，面向 +Z。設施裡再放大（<see cref="WorldScale"/>）。
     /// </summary>
     public static class AvatarBuilder
     {
-        public const float Height = 1.3f;
-        /// <summary>glb 部件的尺寸（頭頂約 1.46 m）縮到 <see cref="Height"/>。</summary>
+        /// <summary>glb 部件的尺寸（頭頂約 1.46 m）縮到約 1.3 m。</summary>
         public const float ModelScale = 0.89f;
 
         public static readonly Color[] SuitColors =

@@ -28,6 +28,23 @@ namespace GoNoGo.UI
         }
 
         /// <summary>
+        /// 切換語言時整個畫面重建：同一個面板接到新的容器上重畫，面板自己的狀態（翻到第幾頁、玩到一半的小遊戲）留著。
+        /// </summary>
+        public void Reattach(VisualElement body, Action close)
+        {
+            Body = body;
+            Close = close;
+            _scrollKey = null;
+            OnReattach();
+        }
+
+        /// <summary>
+        /// 接到新容器後的重畫。預設就是 <see cref="Refresh"/>；會擋掉 Refresh 的面板（玩到一半的小遊戲）、
+        /// 把翻譯好的文字存在欄位裡的面板（簡報的台詞）要覆寫。
+        /// </summary>
+        protected virtual void OnReattach() => Refresh();
+
+        /// <summary>
         /// 重畫之後要不要留住捲動位置：回傳 null = 不留（每次重畫回到最上面）；回傳字串 = 和上一次一樣才留
         /// （例如同一個分頁、同一類零件：填了一格數值、勾了一個零件，清單不會跳回最上面；換分頁就從頭開始）。
         /// </summary>

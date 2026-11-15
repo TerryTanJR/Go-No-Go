@@ -18,6 +18,8 @@ namespace GoNoGo.UI
     {
         public const int MaxCompare = 3;
         const string Current = "@current";
+        // 比較表列出的資源（照這個順序）
+        static readonly ResourceId[] CompareResources = { ResourceId.Mass, ResourceId.Power, ResourceId.Budget, ResourceId.Data, ResourceId.Comms };
 
         static readonly List<string> _picked = new List<string>();
         static string _name = "";
@@ -145,13 +147,11 @@ namespace GoNoGo.UI
             return DesignLibrary.Save(D, _name, CurrentDesign(), s.DifficultyId, result);
         }
 
-        /// <summary>報告頁的「儲存設計」：直接存，帶著這一局的成績。</summary>
-        public static SavedDesign SaveFlown(string name = "")
+        /// <summary>報告頁的「儲存設計」：直接存（用預設名稱），帶著這一局的成績。</summary>
+        public static SavedDesign SaveFlown()
         {
-            _name = name ?? "";
-            var saved = SaveCurrent();
             _name = "";
-            return saved;
+            return SaveCurrent();
         }
 
         static void Say(string text, bool bad)
@@ -207,7 +207,7 @@ namespace GoNoGo.UI
                 rebuild?.Invoke();
             }, "chip").AddTo(acts);
 
-            // 在沙盒打開：主選單直接開一局沙盒；已經在沙盒裡（設計階段）就放上整合台。一般任務不行（等於跳過採購）
+            // 在沙盒打開：主選單直接開一局沙盒；已經在沙盒裡（設計階段）就放上整合台。一般任務不行（等於跳過選零件和組裝）
             bool sandboxNow = InMission && M.Scenario != null && M.Scenario.Sandbox && M.S.Phase == SessionPhase.Design;
             if (design != null && (!InMission || sandboxNow))
                 Ui.Btn(Loc.T(sandboxNow ? "ui.designs.load" : "ui.designs.open_sandbox"), () =>
@@ -244,6 +244,8 @@ namespace GoNoGo.UI
             public Evaluation Ev;
             public ScenarioDef Scenario;
             public SavedDesign Saved;
+            /// <summary>發射前的科學預估（值和排名都要用，算一次）。</summary>
+            public double Science;
         }
 
         static void Compare(VisualElement parent)
@@ -257,14 +259,16 @@ namespace GoNoGo.UI
                 var sc = D.Scenario(design.ScenarioId);
                 string diff = saved != null && !string.IsNullOrEmpty(saved.difficultyId) ? saved.difficultyId
                     : id == Current ? M.S.DifficultyId : D.DifficultyFor(sc)?.Id;
-                cols.Add(new Col
+                var col = new Col
                 {
                     Name = id == Current ? Loc.T("ui.designs.current") : saved.name,
                     Design = design,
                     Ev = Evaluator.EvaluateDesign(design, D, diff, false),
                     Scenario = sc,
                     Saved = saved,
-                });
+                };
+                col.Science = ExpectedScience(col);
+                cols.Add(col);
             }
             if (cols.Count < 2)
             {
@@ -288,7 +292,7 @@ namespace GoNoGo.UI
                 Ui.Text(c.Scenario != null ? Loc.T(c.Scenario.Name) : "", "small", "dim").AddTo(cell);
             }
 
-            foreach (ResourceId id in new[] { ResourceId.Mass, ResourceId.Power, ResourceId.Budget, ResourceId.Data, ResourceId.Comms })
+            foreach (ResourceId id in CompareResources)
             {
                 var rid = id;
                 // 正常的寫餘裕幾成；吃緊、超出的和儀表板一樣寫「還差多少／只剩多少」
@@ -307,9 +311,9 @@ namespace GoNoGo.UI
                 c => c.Ev.Lifetime.Years,
                 c => c.Ev.Lifetime.Years < c.Design.MissionYears ? "over" : null);
             Row(table, Loc.T("ui.designs.science"), cols,
-                c => Fmt.N(ExpectedScience(c), 0),
+                c => Fmt.N(c.Science, 0),
                 c => Loc.T("ui.dash.instruments", ("n", c.Design.Instruments.Count)),
-                c => ExpectedScience(c),
+                c => c.Science,
                 c => null);
             Row(table, Loc.T("ui.designs.result"), cols,
                 c => c.Saved != null && c.Saved.Flown ? c.Saved.grade + "  " + Fmt.N(c.Saved.score, 1) : "—",
@@ -319,7 +323,7 @@ namespace GoNoGo.UI
             Ui.Text(Loc.T("ui.designs.best_note"), "small", "faint", "dsg-note").AddTo(scroll);
         }
 
-        /// <summary>發射前的科學預估（0–100）：和儀表板、處室需求用同一個算法。</summary>
+        /// <summary>發射前的科學預估（0–100）：和儀表板、任務需求用同一個算法。</summary>
         static double ExpectedScience(Col c)
         {
             if (c.Scenario != null && c.Scenario.FireAlert) return Scoring.ExpectedFireScience(c.Ev, c.Design);
@@ -332,11 +336,19 @@ namespace GoNoGo.UI
         {
             var row = Ui.Row("cmp-row").AddTo(table);
             Ui.Text(label, "cmp-k").AddTo(row);
-            // 這一列最好的那一格（數字最大）；全部一樣、或只有一份時不標
-            var ranks = cols.Select(rank).ToList();
-            var valid = ranks.Where(v => !double.IsNaN(v)).ToList();
-            double best = valid.Count > 0 ? valid.Max() : double.NaN;
-            bool mark = cols.Count > 1 && valid.Count > 1 && valid.Max() - valid.Min() > 1e-9;
+            // 這一列最好的那一格（數字最大）；全部一樣、或只有一份時不標。沒有數字（NaN）的格子不算
+            var ranks = new double[cols.Count];
+            int valid = 0;
+            double best = double.NaN, worst = double.NaN;
+            for (int i = 0; i < cols.Count; i++)
+            {
+                double v = ranks[i] = rank(cols[i]);
+                if (double.IsNaN(v)) continue;
+                if (valid == 0 || v > best) best = v;
+                if (valid == 0 || v < worst) worst = v;
+                valid++;
+            }
+            bool mark = cols.Count > 1 && valid > 1 && best - worst > 1e-9;
             for (int i = 0; i < cols.Count; i++)
             {
                 var cell = Ui.El("cmp-cell").AddTo(row);

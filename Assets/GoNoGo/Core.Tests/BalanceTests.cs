@@ -6,7 +6,7 @@ namespace GoNoGo.Core.Tests
 {
     /// <summary>
     /// 藍圖的平衡原則：每個情境有多組明顯不同的設計都能「任務成功」，而且各自在不同分項拿高分。
-    /// 科學分沒達處室門檻的設計（例如只帶一台可見光相機的便宜型）評等最高 C，不算成功。
+    /// 科學分沒達科學門檻的設計（例如只帶一台可見光相機的便宜型）評等最高 C，不算成功。
     /// </summary>
     public class BalanceTests
     {
@@ -15,7 +15,7 @@ namespace GoNoGo.Core.Tests
         [SetUp]
         public void SetUp() => _data = TestData.Load();
 
-        /// <summary>照真實流程跑：這個難度的處室需求、第一次就發射、營運事件照手冊處置。</summary>
+        /// <summary>照真實流程跑：這個難度的任務需求、第一次就發射、營運事件照手冊處置。</summary>
         List<MissionResult> Runs(Design d, int n = 30)
         {
             var list = new List<MissionResult>();
@@ -59,7 +59,7 @@ namespace GoNoGo.Core.Tests
             Assert.That(reached.Select(r => r.Score.Grade), Has.None.EqualTo("FAIL"), "入軌後不能失敗");
             if (which == "cheap")
             {
-                // 只帶一台可見光相機：資源都綠燈，但科學分沒達處室門檻 60，評等壓在 C
+                // 只帶一台可見光相機：資源都綠燈，但科學分沒達科學門檻 60，評等壓在 C
                 Assert.That(reached.All(r => r.Score.Grade == "C" && r.Score.GradeCapped && r.Score.Science < r.Score.ScienceThreshold),
                     "便宜型科學不夠，評等上限 C：" + string.Join(" ", reached.Select(r => r.Score.Grade)));
                 Assert.That(reached.All(r => r.Causes.Any(c => c.Code == "science_low")), "評等被壓要說明原因");
@@ -108,7 +108,7 @@ namespace GoNoGo.Core.Tests
         static Design LunarWith(Design d) { d.ScenarioId = "lunar_mapping"; return d; }
 
         /// <summary>
-        /// BUG-001：月球關卡每個難度都要有一組零件架上買得到、全部處室需求達成、至少拿 B 的設計。
+        /// BUG-001：月球關卡每個難度都要有一組零件架上選得到、全部任務需求達成、至少拿 B 的設計。
         /// 學員難度的零件架只到第 2 級，所以關卡另外開放 X 頻段高速天線（38 萬公里的下傳靠它）。
         /// </summary>
         [TestCase("cadet", "batt_medium")]

@@ -9,7 +9,6 @@ namespace GoNoGo.Game
     public interface ISessionLink
     {
         bool IsHost { get; }
-        bool IsOnline { get; }
         int LocalPlayer { get; }
         /// <summary>房間碼（個人模式為空）。</summary>
         string RoomCode { get; }
@@ -29,7 +28,6 @@ namespace GoNoGo.Game
         }
 
         public bool IsHost => true;
-        public bool IsOnline => false;
         public int LocalPlayer { get; }
         public string RoomCode => "";
 

@@ -6,7 +6,6 @@
   "mini.rewire.stat.stage": {"en": "Step", "zh-TW": "步驟"},
   "mini.rewire.stat.chances": {"en": "Chances", "zh-TW": "機會"},
   "mini.rewire.stat.progress": {"en": "Progress", "zh-TW": "進度"},
-  "mini.rewire.hint": {"en": "Click the faulty channel", "zh-TW": "點出故障的通道"},
   "mini.rewire.lbl.isolate": {"en": "Isolate", "zh-TW": "隔離"},
   "mini.rewire.lbl.step1": {"en": "Isolate", "zh-TW": "隔離"},
   "mini.rewire.lbl.step2": {"en": "Backup", "zh-TW": "備援"},

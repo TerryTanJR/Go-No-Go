@@ -23,6 +23,7 @@ namespace GoNoGo.Core
         // 圖例：每個頻道一條 300 px 寬的色階條（值 0~100 線性對應），位置全由這幾個常數算出來
         const float BarW = 300, BarH = 18, BarY = 331;
         const float RevealTime = 2.6f;
+        static readonly float[] GridX = { LX, RX };
 
         readonly float[] _m = new float[N], _l = new float[N];
         readonly bool[] _real = new bool[N], _special = new bool[N], _marked = new bool[N];
@@ -116,7 +117,7 @@ namespace GoNoGo.Core
 
         static int CellAt(float px, float py)
         {
-            foreach (float x0 in new[] { LX, RX })
+            foreach (float x0 in GridX)
             {
                 float fx = (px - x0) / CS, fy = (py - GY) / CS;
                 if (fx >= 0 && fx < Cols && fy >= 0 && fy < Rows) return (int)fy * Cols + (int)fx;
@@ -169,6 +170,16 @@ namespace GoNoGo.Core
         static readonly float[] StopV = { 0, 25, 40, 55, 75, 100 };
         static readonly uint[] StopC = { 0x1C4D2B, 0x4FA03A, 0xE6D030, 0xF29A20, 0xE84E1E, 0xC8102E };
 
+        // 圖例色階的 100 格顏色是固定的：只算一次
+        static readonly uint[] LegendColor = BuildLegend();
+
+        static uint[] BuildLegend()
+        {
+            var c = new uint[100];
+            for (int k = 0; k < 100; k++) c[k] = Ramp(k + 0.5f);
+            return c;
+        }
+
         static uint Ramp(float v)
         {
             v = Clamp(v, 0, 100);
@@ -194,7 +205,7 @@ namespace GoNoGo.Core
 
             // 選取框、標記圈
             if (_sel >= 0 && !_submitted)
-                foreach (float x0 in new[] { LX, RX })
+                foreach (float x0 in GridX)
                 {
                     float x = CellX(_sel, x0), y = CellY(_sel), h = CS / 2 - 1;
                     Line(s, x - h, y - h, x + h, y - h, 2, MiniColor.White, 0.9f);
@@ -241,7 +252,7 @@ namespace GoNoGo.Core
         {
             float step = BarW / 100f;
             for (int k = 0; k < 100; k++)
-                Rect(s, barL + (k + 0.5f) * step, BarY, step, BarH, Ramp(k + 0.5f));
+                Rect(s, barL + (k + 0.5f) * step, BarY, step, BarH, LegendColor[k]);
             float tx = barL + line * step, end = barL + BarW;
             Text(s, barL + 22, 301, 13, code, MiniColor.Text);
             // 「過線」括號：從門檻刻線到色階條右端

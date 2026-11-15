@@ -18,7 +18,7 @@ namespace GoNoGo.EditorTools
         [MenuItem("GoNoGo/Avatar/Render Motion Sheet")]
         public static void SheetMenu() => Sheet(Path.Combine(Application.dataPath, "../Screenshots/avatar_motion.png"));
 
-        /// <summary>列 = 5 種下半身；欄 = 待機、走路 0.0/0.15/0.3 s、跑、抱零件、安裝。</summary>
+        /// <summary>列 = 每一種下半身；欄 = 待機、走路 0.0/0.15/0.3 s、跑、抱零件、安裝，最後兩欄是抱零件、安裝的側面。</summary>
         public static string Sheet(string path)
         {
             string[] cols = { "idle", "walk a", "walk b", "walk c", "run", "hold", "install", "hold side", "install side" };

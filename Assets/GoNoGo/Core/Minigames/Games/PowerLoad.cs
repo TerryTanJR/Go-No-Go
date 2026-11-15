@@ -20,7 +20,7 @@ namespace GoNoGo.Core
         const int N = 1, E = 2, S = 4, W = 8;
         const int Straight = 0, Corner = 1, Dead = 2;
         static readonly int[] BaseMask = { N | S, N | E, 0 };
-        static readonly string[] WireSprite = { "wire_straight", "wire_corner", null };
+        static readonly string[] WireSprite = { "power_load/wire_straight", "power_load/wire_corner", null };
 
         static int RotMask(int m, int k)
         {
@@ -307,7 +307,7 @@ namespace GoNoGo.Core
                 uint tint = on ? Mix(MiniColor.Green, 0xE6F25C, 0.5f + 0.5f * (float)Math.Sin(Time * 5 - c * 0.9f)) : 0x6A7B8E;
                 float rot = (_rot[i] & 3) * 1.5707963f - _anim[i] * 1.5707963f;
                 float sz = _tile + 1;
-                Spr(s, "power_load/" + WireSprite[_type[i]], x, y, sz, sz, rot, 1, tint);
+                Spr(s, WireSprite[_type[i]], x, y, sz, sz, rot, 1, tint);
                 if (_flash[i] > 0) Rect(s, x, y, size, size, MiniColor.White, 0.35f * _flash[i]);
 
                 // 漏電的開口：紅點提示

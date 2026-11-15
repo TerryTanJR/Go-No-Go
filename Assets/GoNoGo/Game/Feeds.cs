@@ -52,8 +52,6 @@ namespace GoNoGo.Game
     public static class OpsClock
     {
         public static double Day;
-        public static double TotalDays;
-        public static bool Paused;
         public static Sample Current;
         public static event Action<MissionEvent> EventTriggered;
 
@@ -63,8 +61,6 @@ namespace GoNoGo.Game
         static void ResetStatics()
         {
             Day = 0;
-            TotalDays = 0;
-            Paused = false;
             Current = null;
             EventTriggered = null;
         }

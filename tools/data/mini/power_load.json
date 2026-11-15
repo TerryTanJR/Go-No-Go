@@ -2,7 +2,6 @@
 "mini.power_load.name": {"en": "Power Routing", "zh-TW": "電力繞線"},
 "mini.power_load.goal": {"en": "Connect the solar panel to the battery", "zh-TW": "把電線從太陽能板接到電池"},
 "mini.power_load.controls": {"en": "Click a tile to turn it", "zh-TW": "點方塊轉向"},
-"mini.power_load.hint": {"en": "Click tiles to turn them", "zh-TW": "點方塊轉向，接到電池"},
 "mini.power_load.link": {"en": "Solar output dropped, so power gets re-routed to the battery.", "zh-TW": "太陽能板發電變少，要重新配電，把電接到電池。"},
 "mini.power_load.lbl.moves": {"en": "Turns left", "zh-TW": "可轉次數"},
 "mini.power_load.lbl.source": {"en": "Solar panel", "zh-TW": "太陽能板"},

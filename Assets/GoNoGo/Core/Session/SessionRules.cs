@@ -13,7 +13,7 @@ namespace GoNoGo.Core
         Join = 0, Leave = 1, SetLook = 2, StartMission = 4, BeginDesign = 5,
         // 成品：從組裝台拿走組好的零件、裝上衛星（9 = 已刪除的回報 Report）
         Pick = 6, Drop = 7, Install = 8,
-        // 大屏幕的任務設定與發射（14 = 已刪除的電話 Call）
+        // 設計主螢幕的任務設定與發射（14 = 已刪除的電話 Call）
         SetOrbit = 10, SetLauncher = 11, SetGroundStation = 12, SetYears = 13, Launch = 15, FinishLaunch = 16,
         // 營運
         Judge = 17, Act = 18, EndTurn = 19, NextTurn = 20,
@@ -23,12 +23,12 @@ namespace GoNoGo.Core
         SetReady = 29,
         // 營運小遊戲：交出自己的成績（A = 遊戲 id，N = 分數 0 ~ 1000）
         MiniDone = 33,
-        // 沙盒：把一份存過（或別人分享）的設計直接放上大屏幕（A = 設計分享碼）。34 = 已刪除的舊組裝
+        // 沙盒：把一份存過（或別人分享）的設計直接放上設計主螢幕（A = 設計分享碼）。34 = 已刪除的舊組裝
         LoadDesign = 35,
         // 小零件：從架子拿一個（A = 小零件 id）；把手上的放回架子（A = 小零件 id，空白 = 全部）；
         // 把手上的小零件裝到組裝台右側（N = 第幾座組裝台）。36 = 已刪除的「把箱子放上工作台」
         CompPick = 37, CompDrop = 38, CompFit = 39,
-        // 流程改版：大屏幕選件（A = 零件 id，N = 1 勾選 / 0 取消）、填數值（A = 零件 id|欄位|數值）、
+        // 流程改版：設計主螢幕選件（A = 零件 id，N = 1 勾選 / 0 取消）、填數值（A = 零件 id|欄位|數值）、
         // 確定設計（N = 1 確定 / 0 改選）、把手上的小零件放到組裝台左側（N = 第幾座）、
         // 從組裝台左側拿一個小零件（N = 第幾座，A = 小零件 id）
         SelectPart = 40, Fill = 41, Confirm = 42, BenchPut = 43, BenchTake = 44,
@@ -53,7 +53,7 @@ namespace GoNoGo.Core
     /// 這一局的規則：操作能不能做、做了狀態怎麼變。純函式，房主和個人模式都呼叫這裡，所以兩邊行為一模一樣。
     /// 回傳空字串表示成功，否則是「為什麼不行」的字串鍵（畫面顯示成通知）。
     ///
-    /// 流程：選件（中控室大屏幕勾選零件、找線索把挖空的數值填回去）→ 確定設計 → 組裝（組裝區：架子拿小零件 →
+    /// 流程：選件（中控室的設計主螢幕勾選零件、找線索把挖空的數值填回去）→ 確定設計 → 組裝（組裝區：架子拿小零件 →
     /// 組裝台左側認配方、右側照順序組 → 裝上衛星）→ 回中控室按發射（多人先 Go/No-Go 點名）→ 入軌就營運，失敗回到選件重做。
     /// </summary>
     public static class SessionRules
@@ -86,7 +86,7 @@ namespace GoNoGo.Core
             return s;
         }
 
-        /// <summary>開局設計（大屏幕上一開始勾的）：關卡（或這個難度）的預設設計，再換上難度給的零件。歷史關卡用當年的設計。發射失敗重來也回到這裡。</summary>
+        /// <summary>開局設計（設計主螢幕上一開始勾的）：關卡（或這個難度）的預設設計，再換上難度給的零件。歷史關卡用當年的設計。發射失敗重來也回到這裡。</summary>
         public static Design StartDesign(ScenarioDef scenario, DifficultyDef diff)
         {
             var start = (scenario.Historical != null ? scenario.Historical.PresetDesign : GameData.DefaultDesign(scenario, diff.Id)).Clone();
@@ -147,7 +147,7 @@ namespace GoNoGo.Core
 
         public static bool IsSandbox(this SessionState s, GameData data) => s.Scenario(data)?.Sandbox == true;
 
-        /// <summary>歷史關卡：第一次發射（重演歷史）之前，大屏幕鎖在當年的選擇，不能改。</summary>
+        /// <summary>歷史關卡：第一次發射（重演歷史）之前，設計主螢幕鎖在當年的選擇，不能改。</summary>
         public static bool DesignLocked(this SessionState s, GameData data) =>
             s.Scenario(data)?.Historical != null && s.Launches.Count == 0;
 
@@ -160,14 +160,14 @@ namespace GoNoGo.Core
         public static double Budget(SessionState s, GameData data) => GameData.Budget(s.Scenario(data));
 
         /// <summary>
-        /// 營運經費撐得了幾年：用大屏幕上選的設計算（預算 − 開發費 − 火箭，再除以每年營運費）。
+        /// 營運經費撐得了幾年：用設計主螢幕上選的設計算（預算 − 開發費 − 火箭，再除以每年營運費）。
         /// 成本只算目前勾選的零件：拿過的小零件、換掉的零件都不扣錢。
         /// </summary>
         public static double FundedYears(SessionState s, GameData data) =>
             Simulator.FundedYears(Evaluator.EvaluateDesign(s.Bench, data, s.DifficultyId, false));
 
         /// <summary>
-        /// 這一關大屏幕上列得出來的零件（不含地面站）：這個難度開放的，加上目前設計和開局設計裡的。
+        /// 這一關設計主螢幕上列得出來的零件（不含地面站）：這個難度開放的，加上目前設計和開局設計裡的。
         /// </summary>
         public static List<PartDef> Catalog(GameData data, SessionState s)
         {
@@ -306,7 +306,7 @@ namespace GoNoGo.Core
                     if (s.Phase != SessionPhase.Launch) return "err.phase";
                     if (s.LastLaunch.Reached) { StartOps(s, data); return Ok; }
                     s.Phase = SessionPhase.Design;
-                    // 失敗重來（歷史關卡和沙盒不重來：保留設計和衛星，回大屏幕接著改）
+                    // 失敗重來（歷史關卡和沙盒不重來：保留設計和衛星，回設計主螢幕接著改）
                     if (s.Scenario(data)?.Historical == null && !s.IsSandbox(data)) ResetAfterFailure(s, data);
                     else
                     {
@@ -335,17 +335,16 @@ namespace GoNoGo.Core
                     if (!s.TurnResolved || c.N != s.OpsTurn) return Ok; // 重複送出（兩個人同時按）
                     s.OpsTurn++;
                     s.TurnResolved = false;
-                    if (CurrentEvent(s, data) == null) s.Phase = SessionPhase.Report;
-                    else Reveal(s, data);
+                    BeginTurn(s, data);
                     return Ok;
             }
             return "err.unknown";
         }
 
-        // ---------------------------------------------------------------- 選件（中控室大屏幕）
+        // ---------------------------------------------------------------- 選件（中控室的設計主螢幕）
         //
         // 所有人都可以操作；選擇狀態在房主那裡，所有人看到的畫面一致。
-        // 確定設計之後，大屏幕改成顯示每個零件要用哪些小零件；要改選先按「改選」（Confirm N = 0）。
+        // 確定設計之後，設計主螢幕改成顯示每個零件要用哪些小零件；要改選先按「改選」（Confirm N = 0）。
 
         /// <summary>設計還缺什麼（類別）：每個單選類別都要選一個，酬載儀器至少一台。空清單 = 選齊了，可以確定。</summary>
         public static List<string> DesignGaps(SessionState s, GameData data)
@@ -359,9 +358,9 @@ namespace GoNoGo.Core
 
         /// <summary>設計裡選的零件（不含地面站），照固定順序。</summary>
         public static List<string> SelectedParts(SessionState s, GameData data) =>
-            s.Bench.AllPartIds().Where(id => data.Part(id) != null && data.Part(id).Category != PartCategory.GroundStation).Distinct().ToList();
+            s.Bench.AllPartIds().Where(id => { var p = data.Part(id); return p != null && p.Category != PartCategory.GroundStation; }).Distinct().ToList();
 
-        /// <summary>現在能不能改大屏幕上的選擇。回傳 Ok 或原因。</summary>
+        /// <summary>現在能不能改設計主螢幕上的選擇。回傳 Ok 或原因。</summary>
         public static string CanEditDesign(SessionState s, GameData data)
         {
             if (!DesignPhase(s)) return "err.phase";
@@ -397,7 +396,7 @@ namespace GoNoGo.Core
             return Ok;
         }
 
-        /// <summary>軌道、火箭、地面站、年數（大屏幕的任務設定）。</summary>
+        /// <summary>軌道、火箭、地面站、年數（設計主螢幕的任務設定）。</summary>
         static string Control(SessionState s, GameData data, Action<Design> set, Func<bool> valid)
         {
             var why = CanEditDesign(s, data);
@@ -408,7 +407,7 @@ namespace GoNoGo.Core
         }
 
         /// <summary>
-        /// 填數值：玩家找到線索後，自己在大屏幕上對應的空格輸入數字。填錯不擋也不提示；
+        /// 填數值：玩家找到線索後，自己在設計主螢幕上對應的空格輸入數字。填錯不擋也不提示；
         /// 兩個人填同一格，後填的蓋掉先填的。數值空白 = 清掉這一格。
         /// </summary>
         static string Fill(SessionState s, GameData data, int player, string arg)
@@ -444,7 +443,7 @@ namespace GoNoGo.Core
         // ---------------------------------------------------------------- 沙盒：載入設計
 
         /// <summary>
-        /// 把分享碼裡的設計放上大屏幕（只有沙盒可以）。
+        /// 把分享碼裡的設計放上設計主螢幕（只有沙盒可以）。
         /// 設計可以來自別的關卡：零件、軌道、火箭照用，儀器超過上限的部分和超過上限的年數裁掉。
         /// </summary>
         static string LoadDesign(SessionState s, GameData data, string code)
@@ -487,10 +486,10 @@ namespace GoNoGo.Core
             SelectedParts(s, data).Where(id => !s.Installed.Contains(id)).ToList();
 
         /// <summary>
-        /// 衛星跟著大屏幕上的選擇對齊（每次選擇改變、有人離開之後呼叫）：
+        /// 衛星跟著設計主螢幕上的選擇對齊（每次選擇改變、有人離開之後呼叫）：
         /// 換掉的零件自動從衛星拆下（成品留著，改選回來就直接裝回去），沒換的留在衛星上；
         /// 不用組裝的零件（沙盒的全部、沒有小零件的封板）選了就在衛星上；
-        /// 手上拿的、組裝台上正在組的零件如果被換掉了，就放下、取消（已經拿的小零件不扣錢）。
+        /// 手上拿的、組裝台上正在組的零件如果被換掉了，就放下、取消。
         /// </summary>
         static void SyncAssembly(SessionState s, GameData data)
         {
@@ -583,10 +582,12 @@ namespace GoNoGo.Core
         /// </summary>
         public static string PendingPart(SessionState s, GameData data, AssemblyRecipe recipe)
         {
-            if (recipe == null) return null;
+            // 沙盒不用組裝，沒有零件在等配方
+            if (recipe == null || s.IsSandbox(data)) return null;
             foreach (var id in SelectedParts(s, data))
             {
-                if (s.Built.Contains(id) || !HasAssembly(s, data, id)) continue;
+                if (s.Built.Contains(id)) continue;
+                // 用的是這個配方（沒有配方的零件查到 null，也對不上）
                 if (data.Recipe(data.Part(id)) != recipe) continue;
                 if (s.Benches.Any(b => b.Job != null && b.Job.PartId == id)) continue;
                 return id;
@@ -795,7 +796,7 @@ namespace GoNoGo.Core
 
         // ---------------------------------------------------------------- 發射
 
-        /// <summary>真實價格算出來的總開銷有沒有超出預算（價格不挖空，所以大屏幕上看到的也是同一個數字）。</summary>
+        /// <summary>真實價格算出來的總開銷有沒有超出預算（價格不挖空，所以設計主螢幕上看到的也是同一個數字）。</summary>
         public static bool OverBudget(SessionState s, GameData data) =>
             Evaluator.EvaluateDesign(s.Bench, data, s.DifficultyId, false)[ResourceId.Budget].Margin < -1e-9;
 
@@ -875,7 +876,7 @@ namespace GoNoGo.Core
             // 失敗重來後照原樣組回同一個設計，才不會一直擲出同一個失敗
             int seed = design.StableHash();
             if (s.Launches.Count > 0) seed = unchecked(seed * 31 + s.Launches.Count);
-            // 發射、營運、失敗原因和分數一律用零件的真實數值（data），不看玩家在大屏幕上填的數字
+            // 發射、營運、失敗原因和分數一律用零件的真實數值（data），不看玩家在設計主螢幕上填的數字
             var r = Simulator.SimulateMission(design, data, seed, new NoDecisions(), Context(data, s, failed));
             s.Launches.Add(new LaunchRecord
             {
@@ -897,7 +898,7 @@ namespace GoNoGo.Core
         }
 
         /// <summary>
-        /// 發射失敗（沒入軌）：整局重來。衛星、零件和任務設定回到開局，回大屏幕重選、重新組裝；
+        /// 發射失敗（沒入軌）：整局重來。衛星、零件和任務設定回到開局，回設計主螢幕重選、重新組裝；
         /// 保留組過的構造（Learned）、發射紀錄、玩家填的數值。歷史關卡和沙盒另外處理，不重來。
         /// </summary>
         static void ResetAfterFailure(SessionState s, GameData data)
@@ -926,15 +927,18 @@ namespace GoNoGo.Core
             s.OpsTurn = 0;
             s.TurnResolved = false;
             s.Responses.Clear();
-            if (CurrentEvent(s, data) == null) s.Phase = SessionPhase.Report;
-            else Reveal(s, data);
+            BeginTurn(s, data);
         }
 
-        /// <summary>學員難度直接告訴玩家是什麼事件（自動判斷正確）。外星人彩蛋也一樣：不用查手冊，直接進遊戲。</summary>
-        static void Reveal(SessionState s, GameData data)
+        /// <summary>
+        /// 回合開始：沒有事件了就進報告。學員難度直接告訴玩家是什麼事件（自動判斷正確）；
+        /// 外星人彩蛋也一樣：不用查手冊，直接進遊戲。這回合的事件只算一次（要跑一次完整的任務模擬）。
+        /// </summary>
+        static void BeginTurn(SessionState s, GameData data)
         {
             var e = CurrentEvent(s, data);
-            if (e != null && (e.Kind == EventKind.Alien || s.Difficulty(data).EventReveal)) Response(s, e.Id).Judged = OpsEvents.Key(e.Kind);
+            if (e == null) { s.Phase = SessionPhase.Report; return; }
+            if (e.Kind == EventKind.Alien || s.Difficulty(data).EventReveal) Response(s, e.Id).Judged = OpsEvents.Key(e.Kind);
         }
 
         /// <summary>

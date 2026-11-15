@@ -21,9 +21,6 @@ namespace GoNoGo.Game
             }
         }
 
-        /// <summary>已經建立過（OnDisable/OnDestroy 裡用這個判斷，避免關閉遊戲時又建立新物件）。</summary>
-        public static bool Exists => _instance != null;
-
         public static GameData Data => GameDataProvider.Data;
         public static MissionSession Mission => Instance._mission;
         public static ISessionLink Link => Instance._link;
@@ -60,7 +57,7 @@ namespace GoNoGo.Game
         public static int NewClueSeed() => UnityEngine.Random.Range(1, int.MaxValue);
 
         /// <summary>
-        /// 沙盒模式：沒有預設限制的自由設計。designCode 有給就把那份設計（圖庫裡存的、或別人分享的）直接放上大屏幕。
+        /// 沙盒模式：沒有預設限制的自由設計。designCode 有給就把那份設計（圖庫裡存的、或別人分享的）直接放上設計主螢幕。
         /// </summary>
         public static void StartSandbox(string designCode = null, bool loadScene = true)
         {

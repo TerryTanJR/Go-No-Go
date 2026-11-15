@@ -4,17 +4,17 @@ using System.Globalization;
 using System.Linq;
 using GoNoGo.Core;
 using GoNoGo.Game;
-using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace GoNoGo.UI
 {
-    // ======================================================================== 大屏幕（中控室前方的影像牆）
+    // ======================================================================== 設計主螢幕（中控室前方的影像牆）
     //
     // 選件：依類別列出零件，勾選每類要用哪個（酬載儀器可以多選）；軌道、火箭、地面站、年數也在這裡選。
+    // 一般關卡開局一個零件都沒勾（軌道、火箭、地面站、年數有預設值）；新手訓練和歷史關卡照預設的設計。
     // 零件的六種數值開局有一部分是空的：玩家在兩個房間找到線索後，自己在空格輸入數字（系統不自動填，填錯不擋）。
     // 右邊的儀表板照「玩家看到的數值」算：沒填的不算，用到沒填數值的項目顯示「資料不足」。
-    // 任務需求直接列出來（不用打電話問），互相拉扯的需求標成「取捨」。
+    // 任務需求直接列出來，互相拉扯的需求標成「取捨」。
     // 確定設計之後，改成顯示每個零件要用哪些小零件（組裝區儀表板顯示同樣的內容）；要改選先按「改選」。
     // 所有人都可以看、都可以操作：選擇狀態在房主那裡，所有人看到的畫面一致。
 
@@ -79,9 +79,9 @@ namespace GoNoGo.UI
                 var sv = Scroll(left, "sel-scroll");
                 switch (_tab)
                 {
-                    case 1: MissionTab(sv, locked); break;
+                    case 1: MissionTab(sv); break;
                     case 2: SelectView.Requirements(sv, false, true); break;
-                    default: PartsTab(sv, locked); break;
+                    default: PartsTab(sv); break;
                 }
             }
 
@@ -91,7 +91,7 @@ namespace GoNoGo.UI
 
         // ---------------------------------------------------------------- 零件
 
-        void PartsTab(VisualElement parent, bool locked)
+        void PartsTab(VisualElement parent)
         {
             var s = M.S;
             var catalog = SessionRules.Catalog(D, s);
@@ -106,21 +106,21 @@ namespace GoNoGo.UI
                 var b = Ui.Btn(Loc.T("ui.cat." + c) + (has ? "  ✔" : ""), () => { _cat = cat; Refresh(); }, "chip", "sel-cat").Cls("chip--on", c == _cat).AddTo(chips);
                 b.focusable = false;
             }
-            int blanks = Blanks.Cells(D, s).Count, filled = Blanks.Cells(D, s).Count(c => Blanks.Filled(s, c.part, c.field) != null);
+            var cells = Blanks.Cells(D, s);
+            int blanks = cells.Count, filled = cells.Count(c => Blanks.Filled(s, c.part, c.field) != null);
             if (_cat == PartCategory.Instrument)
                 Ui.Text(Loc.T("ui.sel.instruments_n", ("n", s.Bench.Instruments.Count), ("max", M.Scenario?.MaxInstruments ?? 3)), "small", "dim").AddTo(parent);
             if (blanks > 0)
                 Ui.Text(Loc.T("ui.sel.blank_hint", ("n", filled), ("total", blanks)), "small", filled >= blanks ? "go" : "tight", "sel-blank-hint").AddTo(parent);
 
             bool canEdit = SessionRules.CanEditDesign(s, D) == SessionRules.Ok;
+            var picked = new HashSet<string>(s.Bench.AllPartIds());
             foreach (var p in catalog.Where(p => p.Category == _cat).OrderBy(p => SelectView.CodeNumber(p.Code)).ThenBy(p => p.Code, StringComparer.Ordinal))
-                PartRow(parent, p, canEdit);
+                PartRow(parent, p, canEdit, picked.Contains(p.Id));
         }
 
-        void PartRow(VisualElement list, PartDef p, bool canEdit)
+        void PartRow(VisualElement list, PartDef p, bool canEdit, bool on)
         {
-            var s = M.S;
-            bool on = s.Bench.AllPartIds().Contains(p.Id);
             bool multi = p.Category == PartCategory.Instrument;
             var row = Ui.El("sel-part").Cls("sel-part--on", on).AddTo(list);
             var top = Ui.Row("sel-part-top").AddTo(row);
@@ -230,7 +230,7 @@ namespace GoNoGo.UI
 
         // ---------------------------------------------------------------- 任務設定：軌道、火箭、地面站、年數
 
-        void MissionTab(VisualElement parent, bool locked)
+        void MissionTab(VisualElement parent)
         {
             var s = M.S;
             var d = s.Bench;
@@ -329,7 +329,7 @@ namespace GoNoGo.UI
     // ======================================================================== 組裝區儀表板
 
     /// <summary>
-    /// 組裝區牆上的儀表板：設計確定前顯示「等待中控室確定設計」，確定後顯示每個零件要用哪些小零件（和大屏幕相同）。
+    /// 組裝區牆上的儀表板：設計確定前顯示「等待中控室確定設計」，確定後顯示每個零件要用哪些小零件（和設計主螢幕相同）。
     /// </summary>
     public sealed class BayPanel : FacPanel
     {
@@ -339,7 +339,7 @@ namespace GoNoGo.UI
         protected override void Build(VisualElement body) => SelectView.Bay(Scroll(body), false);
     }
 
-    /// <summary>大屏幕、組裝區儀表板、牆上的螢幕、個人模式的平板共用的內容。</summary>
+    /// <summary>設計主螢幕、組裝區儀表板、牆上的螢幕、個人模式的平板共用的內容。</summary>
     public static class SelectView
     {
         static MissionSession M => GameSession.Mission;
@@ -408,7 +408,8 @@ namespace GoNoGo.UI
             bool orbit = s.Launches.Any(l => l.Reached);
             int total = SessionRules.SelectedParts(s, D).Count, left = SessionRules.NotInstalled(s, D).Count;
             int turns = M.Plan?.Turns ?? M.Difficulty.Turns;
-            int blanks = Blanks.Cells(D, s).Count, filled = Blanks.Cells(D, s).Count(c => Blanks.Filled(s, c.part, c.field) != null);
+            var cells = Blanks.Cells(D, s);
+            int blanks = cells.Count, filled = cells.Count(c => Blanks.Filled(s, c.part, c.field) != null);
             // 沙盒不用確定設計（選了就直接裝上衛星）：選件、組裝直接算完成
             bool confirmed = s.Confirmed || s.IsSandbox(D);
             var steps = new List<(string key, bool done, string sub)>
@@ -454,6 +455,7 @@ namespace GoNoGo.UI
             bool colors = m.Difficulty.DashboardColors;
             bool basic = m.Difficulty.DashboardBasic;
             int Miss(string item) => Blanks.Missing(D, s, d, Blanks.FieldsFor(item));
+            int missMass = Miss("mass"), missPower = Miss("power");
 
             var head = Ui.Row("dash-head").AddTo(parent);
             Ui.Text(Loc.T("ui.dash.title"), "eyebrow", "dash-sec").AddTo(head);
@@ -478,12 +480,12 @@ namespace GoNoGo.UI
 
             // 質量、耗電：可以直接加總，沒填的不算進去
             var mass = ev[ResourceId.Mass];
-            Bar(grid, Loc.T("res.mass"), Fmt.Resource(mass), mass.Fill, Lamp(mass.Status, colors, Miss("mass")), colors ? Gap(mass) : Fmt.Pct(mass.Margin), Miss("mass"));
+            Bar(grid, Loc.T("res.mass"), Fmt.Resource(mass), mass.Fill, Lamp(mass.Status, colors, missMass), colors ? Gap(mass) : Fmt.Pct(mass.Margin), missMass);
             var p = ev.Power;
             double pFill = p.ArrayEolW > 0 ? p.RequiredArrayW / p.ArrayEolW : (p.RequiredArrayW > 0 ? 2 : 0);
             var pStatus = p.ArrayMargin < 0 ? ResourceStatus.Over : p.ArrayMargin < Evaluator.TightMargin ? ResourceStatus.Tight : ResourceStatus.Ok;
-            Bar(grid, Loc.T("res.power"), Fmt.N(p.RequiredArrayW) + " / " + Fmt.N(p.ArrayEolW) + " W", pFill, Lamp(pStatus, colors, Miss("power")),
-                Fmt.Pct(p.ArrayMargin), Miss("power"));
+            Bar(grid, Loc.T("res.power"), Fmt.N(p.RequiredArrayW) + " / " + Fmt.N(p.ArrayEolW) + " W", pFill, Lamp(pStatus, colors, missPower),
+                Fmt.Pct(p.ArrayMargin), missPower);
 
             // 以下不能直接加總：用到的數值有一格沒填就是「資料不足」
             Derived(grid, Loc.T("ui.dash.battery"), Miss("battery"),
@@ -590,7 +592,7 @@ namespace GoNoGo.UI
         // ---------------------------------------------------------------- 任務需求
 
         /// <summary>
-        /// 任務需求：直接全部列出來（不用打電話問）。互相拉扯的需求標成「取捨」。
+        /// 任務需求：直接全部列出來。互相拉扯的需求標成「取捨」。
         /// 用到沒填數值的需求顯示「資料不足」；判定（✔／✘、紅綠）只有學員難度有，其他難度只列現在的數字和目標。
         /// notes：下面再列取捨說明（為什麼有這條需求、兩條需求怎麼互相拉扯）。
         /// </summary>
@@ -611,22 +613,33 @@ namespace GoNoGo.UI
             }
             else
             {
-                int judged = active.Count(a => Blanks.CanJudge(D, s, s.Bench, a.Requirement));
-                int met = active.Count(a => Blanks.CanJudge(D, s, s.Bench, a.Requirement) && Core.Requirements.IsMetPreLaunch(a.Requirement, m.Dashboard, s.Bench, m.PlayerData, diff));
+                // 每一條需求算不算得出來、有沒有達成：各算一次，標題的統計和下面每一列共用
+                var canJudge = new bool[active.Count];
+                var isMet = new bool[active.Count];
+                int judged = 0, met = 0;
+                for (int i = 0; i < active.Count; i++)
+                {
+                    var r = active[i].Requirement;
+                    canJudge[i] = Blanks.CanJudge(D, s, s.Bench, r);
+                    isMet[i] = canJudge[i] && Core.Requirements.IsMetPreLaunch(r, m.Dashboard, s.Bench, m.PlayerData, diff);
+                    if (canJudge[i]) judged++;
+                    if (isMet[i]) met++;
+                }
                 Ui.Text(verdict ? Loc.T("ui.req.met", ("met", met), ("n", active.Count)) : Loc.T("ui.req.judged", ("n", judged), ("total", active.Count)), "small", "dim").AddTo(head);
 
                 var list = Ui.El("prog-goals").AddTo(parent);
-                foreach (var a in active)
+                for (int i = 0; i < active.Count; i++)
                 {
+                    var a = active[i];
                     var req = a.Requirement;
-                    bool can = Blanks.CanJudge(D, s, s.Bench, req);
+                    bool can = canJudge[i];
                     var g = Measure(req, m, diff);
-                    bool ok = can && Core.Requirements.IsMetPreLaunch(req, m.Dashboard, s.Bench, m.PlayerData, diff);
+                    bool ok = isMet[i];
                     string state = !can ? "unknown" : verdict ? (ok ? "go" : "over") : "neutral";
 
                     var row = Ui.El("prog-goal", "prog-goal--" + state).AddTo(list);
                     var top = Ui.Row("prog-goal-top").AddTo(row);
-                    var dot = Ui.El("prog-dept", "req-dot--" + Departments.Key(a.Department)).AddTo(top);
+                    Ui.El("prog-dept", "req-dot--" + Departments.Key(a.Department)).AddTo(top);
                     Ui.Text(Loc.T("ui.prog.type." + req.Type), "prog-goal-name").AddTo(top);
                     if (req.ConflictGroup > 0) Ui.Text(Loc.T("ui.req.tradeoff"), "req-tag").AddTo(top);
                     // 目前值 / 目標：自成一組靠右；名稱太長、放不下同一行時整組換到下一行（不會和名稱疊在一起）
@@ -757,7 +770,7 @@ namespace GoNoGo.UI
 
         /// <summary>
         /// 設計裡每個零件要用哪些小零件（名稱照筆畫／字母排，不是組裝順序：順序要在組裝台上看提示自己判斷），
-        /// 還有現在組到哪裡。大屏幕和組裝區儀表板顯示同樣的內容。
+        /// 還有現在組到哪裡。設計主螢幕和組裝區儀表板顯示同樣的內容。
         /// </summary>
         public static void AssemblyList(VisualElement parent, bool compact)
         {
@@ -809,7 +822,7 @@ namespace GoNoGo.UI
 
         // ---------------------------------------------------------------- 牆上的螢幕
 
-        /// <summary>前方大屏（選件階段）：現在選了什麼、儀表板。細節和操作按 E 打開。</summary>
+        /// <summary>牆上的設計主螢幕（選件階段）：現在選了什麼、儀表板。細節和操作按 E 打開。</summary>
         public static void WallMain(VisualElement body)
         {
             var s = M.S;
@@ -853,7 +866,8 @@ namespace GoNoGo.UI
             var mis = Ui.Row("pick-row").AddTo(grid);
             Ui.Text(Loc.T("ui.sel.tab.mission"), "pick-k").AddTo(mis);
             Ui.Text(Loc.Orbit(d.OrbitId) + " · " + Loc.Launcher(d.LauncherId) + " · " + Loc.T(D.Part(d.Get(PartCategory.GroundStation))?.Name) + " · " + Fmt.Years(d.MissionYears), "pick-v").AddTo(mis);
-            int blanks = Blanks.Cells(D, s).Count, filled = Blanks.Cells(D, s).Count(c => Blanks.Filled(s, c.part, c.field) != null);
+            var cells = Blanks.Cells(D, s);
+            int blanks = cells.Count, filled = cells.Count(c => Blanks.Filled(s, c.part, c.field) != null);
             if (blanks > 0) Ui.Text(Loc.T("ui.sel.blank_hint", ("n", filled), ("total", blanks)), "small", filled >= blanks ? "go" : "tight").AddTo(parent);
         }
     }

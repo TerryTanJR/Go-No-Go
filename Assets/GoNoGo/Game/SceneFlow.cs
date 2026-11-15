@@ -15,8 +15,6 @@ namespace GoNoGo.Game
         public const string Launch = "Launch";
         public const string Report = "Report";
 
-        public static readonly string[] All = { Boot, MainMenu, Facility, Launch, Report };
-
         /// <summary>UI 層註冊：淡出到黑（參數：秒數、完成時回呼）。</summary>
         public static Action<float, Action> FadeOut;
         /// <summary>UI 層註冊：從黑淡入。</summary>

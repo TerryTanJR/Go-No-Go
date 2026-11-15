@@ -12,20 +12,28 @@ namespace GoNoGo.UI
     /// </summary>
     public sealed class OpsBar
     {
-        readonly VisualElement _bar;
-        readonly Label _turn, _timer, _event;
+        VisualElement _bar;
+        Label _turn, _timer, _event;
         int _turnShown = -1;
         bool _resolvedShown;
         float _left;
         int _lastSecond = -1;
+        /// <summary>計時器上現在寫的是什麼：剩幾秒，或下面兩個特殊值（空白、「不計時」）。一樣就不重組字串。</summary>
+        int _timerShown = TimerBlank;
+        const int TimerBlank = int.MinValue, TimerNone = int.MinValue + 1;
 
-        public OpsBar(VisualElement parent)
+        /// <summary>
+        /// 建立橫條的元素（畫面每次重建都要重新建，包括切語言）。回合的狀態——現在第幾回合、剩幾秒、警報響過沒——
+        /// 留在這個物件上，不跟著重建歸零。
+        /// </summary>
+        public void Attach(VisualElement parent)
         {
             _bar = Ui.Row("ops-bar").AddTo(parent);
             _bar.pickingMode = PickingMode.Ignore;
             _turn = Ui.Text("", "eyebrow").AddTo(_bar);
             _event = Ui.Text("", "ops-bar-event").AddTo(_bar);
             _timer = Ui.Text("", "mono", "ops-bar-timer").AddTo(_bar);
+            _timerShown = TimerBlank;
         }
 
         static MissionSession M => GameSession.Mission;
@@ -55,7 +63,6 @@ namespace GoNoGo.UI
                 // 外星人彩蛋：不用判斷，直接進遊戲
                 if (OpsMinigames.Enabled && e != null && e.Kind == EventKind.Alien) Hud.Open("minigame");
             }
-            var resp = M.ResponseTo(e?.Id);
             _event.text = s.TurnResolved ? Loc.T("ui.ops.resolved")
                 : (M.Difficulty.EventReveal || e?.Kind == EventKind.Alien) && e != null ? Loc.T("event.title." + OpsEvents.Key(e.Kind))
                 : Loc.T("ui.ops.unknown_event");
@@ -73,18 +80,20 @@ namespace GoNoGo.UI
         public void Tick(float dt)
         {
             if (M == null || M.S.Phase != SessionPhase.Ops) return;
-            var limit = M.Difficulty.TurnSeconds;
-            if (limit <= 0 || M.S.TurnResolved) { _timer.text = ""; return; }
+            var diff = M.Difficulty;
+            if (diff.TurnSeconds <= 0 || M.S.TurnResolved) { ShowTimer(TimerBlank); return; }
             // 判斷完、進入處置小遊戲之後不再倒數（小遊戲沒有計時）
             var cur = M.CurrentEvent;
-            if (OpsMinigames.Enabled && cur != null && !string.IsNullOrEmpty(M.ResponseTo(cur.Id).Judged) && !M.Difficulty.EventReveal)
-            { _timer.text = Loc.T("mini.no_timer"); _timer.EnableInClassList("over", false); return; }
+            if (OpsMinigames.Enabled && cur != null && cur.Id != null && M.S.Responses.TryGetValue(cur.Id, out var resp)
+                && !string.IsNullOrEmpty(resp.Judged) && !diff.EventReveal)
+            { ShowTimer(TimerNone); _timer.EnableInClassList("over", false); return; }
             // 個人模式打開選單（Tab / Esc）時回合計時暫停；多人時大家共用時間，不停
             if (!(Hud.Paused && !M.S.Multiplayer)) _left -= dt;
-            _timer.text = Fmt.Clock(_left);
+            // 畫面上的時間只到秒（Fmt.Clock 也是無條件進位到秒）：秒數變了才重組字串
+            int sec = Mathf.CeilToInt(_left);
+            ShowTimer(sec);
             _timer.EnableInClassList("over", _left < 20);
             // 最後 10 秒：每秒響一聲
-            int sec = Mathf.CeilToInt(_left);
             if (sec != _lastSecond)
             {
                 if (sec <= 10 && sec > 0 && _lastSecond > 0) Sfx.Countdown();
@@ -95,6 +104,13 @@ namespace GoNoGo.UI
                 _left = 9999;
                 GameSession.Send(CommandType.EndTurn);
             }
+        }
+
+        void ShowTimer(int key)
+        {
+            if (key == _timerShown) return;
+            _timerShown = key;
+            _timer.text = key == TimerBlank ? "" : key == TimerNone ? Loc.T("mini.no_timer") : Fmt.Clock(key);
         }
     }
 
@@ -107,7 +123,7 @@ namespace GoNoGo.UI
         public override string WideClass => "modal--wide";
 
         /// <summary>步驟 2：依判斷的事件打處置小遊戲；全隊都交成績（或房主強制結算）才算完。</summary>
-        void BuildTreat(VisualElement body, MissionEvent e, EventResponse resp)
+        void BuildTreat(VisualElement body, EventResponse resp)
         {
             Ui.Text(Loc.T("ui.ops.step_treat"), "h3").AddTo(body);
             var def = Minigames.For(resp.Judged);
@@ -182,7 +198,7 @@ namespace GoNoGo.UI
                         chip.SetEnabled(!locked);
                     }
                 }
-                if (OpsMinigames.Enabled) { BuildTreat(body, e, resp); return; }
+                if (OpsMinigames.Enabled) { BuildTreat(body, resp); return; }
                 // 2. 操作
                 Ui.Text(Loc.T("ui.ops.step_act"), "h3").AddTo(body);
                 if (resp.Actions.Count == 0) Ui.Text(Loc.T("ui.ops.no_actions"), "small", "dim").AddTo(body);
@@ -235,7 +251,10 @@ namespace GoNoGo.UI
         }
     }
 
-    /// <summary>四個營運控制台之一：讀數 + 這台能做的操作。</summary>
+    /// <summary>
+    /// 四個營運控制台之一：這個子系統的讀數。處置在飛行指揮台（小遊戲），這裡只留一顆「去飛行指揮台」的按鈕；
+    /// 這台能做的操作只有關掉 <see cref="OpsMinigames.Enabled"/>（舊流程，除錯用）時才列出來。
+    /// </summary>
     public sealed class OpsConsolePanel : FacPanel
     {
         readonly string _console;

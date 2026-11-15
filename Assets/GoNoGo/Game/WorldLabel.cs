@@ -5,7 +5,7 @@ namespace GoNoGo.Game
 {
     // 必須自己一個檔案、檔名和類別同名：Unity 才能把它存進場景（放在 Hud.cs 裡會變成 Missing Script）
     /// <summary>
-    /// 場景裡的文字標籤（名牌、零件編號、零件架名稱）。由 UI 層畫在畫面上，所以中英文、字型都和介面一致。
+    /// 場景裡的文字標籤（名牌、看板、小零件名稱）。由 UI 層畫在畫面上，所以中英文、字型都和介面一致。
     /// </summary>
     public sealed class WorldLabel : MonoBehaviour
     {
@@ -17,7 +17,7 @@ namespace GoNoGo.Game
         public string text = "";
         public Vector3 offset = Vector3.up;
         public float maxDistance = 8f;
-        [Tooltip("tag（名牌）、sign（看板）、team（大廳的組別名稱，比看板大）、code（零件編號）")]
+        [Tooltip("tag（名牌）、sign（看板）、team（大廳的大字標題，比看板大）、comp（架上、組裝台上小零件的名稱）")]
         public string style = "sign";
         public string color = "";
 

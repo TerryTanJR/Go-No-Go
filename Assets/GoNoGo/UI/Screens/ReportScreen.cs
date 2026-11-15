@@ -6,7 +6,7 @@ using UnityEngine.UIElements;
 namespace GoNoGo.UI
 {
     /// <summary>
-    /// 最後評價：評等印章、五項分數（科學、壽命、效率、處室需求、營運處置）、處室需求達成、
+    /// 最後評價：評等印章、五項分數（科學、壽命、效率、任務需求、營運處置）、任務需求達成、
     /// 每次發射的結果、營運每回合的判斷與處置、對照真實任務。歷史關卡加上揭曉與 NASA 的真實解法。
     /// </summary>
     public sealed class ReportScreen : GameScreen
@@ -28,14 +28,14 @@ namespace GoNoGo.UI
             // 用這一局的難度評估：預算倍率跟著難度（沒傳的話一律用預設難度的預算）
             var ev = Evaluator.EvaluateDesign(l.Design, D, M.S.DifficultyId, false);
 
-            TopBar(Loc.T(M.Scenario.Name), showLang: false); // 語言在 Tab 選單的基本設定
+            TopBar(Loc.T(M.Scenario.Name)); // 不放語言切換：語言在 Tab 選單的基本設定
             var wrap = Ui.El("report-wrap").AddTo(Root);
 
             // ---- 左欄：印章、分數、任務需求 ----
             var left = Ui.El("report-col", "report-col--score").AddTo(wrap);
             var leftScroll = new ScrollView(ScrollViewMode.Vertical).AddTo(left);
             leftScroll.AddToClassList("why-scroll");
-            var scorePanel = Ui.Panel(leftScroll.contentContainer, Loc.T("ui.report.title"), out _);
+            var scorePanel = Ui.Panel(leftScroll.contentContainer, Loc.T("ui.report.title"));
             var stampRow = Ui.Row("stamp-row").AddTo(scorePanel);
             string grade = r.Score.Grade;
             var stamp = Ui.Text(grade, "stamp", "stamp--hidden").AddTo(stampRow);
@@ -58,7 +58,7 @@ namespace GoNoGo.UI
             ScoreRow(scorePanel, "ui.report.needs", r.Score.Needs, Scoring.WNeeds, animate);
             ScoreRow(scorePanel, "ui.report.ops", r.Score.Ops, Scoring.WOps, animate);
 
-            var reqPanel = Ui.Panel(leftScroll.contentContainer, Loc.T("ui.report.requirements") + "  " + r.Score.Requirements.Count(x => x.Met) + " / " + r.Score.Requirements.Count, out _);
+            var reqPanel = Ui.Panel(leftScroll.contentContainer, Loc.T("ui.report.requirements") + "  " + r.Score.Requirements.Count(x => x.Met) + " / " + r.Score.Requirements.Count);
             foreach (var rr in r.Score.Requirements)
             {
                 var card = Ui.El("req-card").Cls("req-card--met", rr.Met).AddTo(reqPanel);
@@ -82,7 +82,7 @@ namespace GoNoGo.UI
 
             if (r.Events.Count > 0)
             {
-                var ops = Ui.Panel(mc, Loc.T("ui.report.ops_log"), out _);
+                var ops = Ui.Panel(mc, Loc.T("ui.report.ops_log"));
                 for (int i = 0; i < r.Events.Count; i++)
                 {
                     var o = r.Events[i];
@@ -95,7 +95,7 @@ namespace GoNoGo.UI
                 }
             }
 
-            var launches = Ui.Panel(mc, Loc.T("ui.report.launches"), out _);
+            var launches = Ui.Panel(mc, Loc.T("ui.report.launches"));
             FailureBoardView.Build(launches);
 
             // ---- 右欄：對照 ----
@@ -104,7 +104,7 @@ namespace GoNoGo.UI
             var rightScroll = new ScrollView(ScrollViewMode.Vertical).AddTo(rightCol);
             rightScroll.AddToClassList("why-scroll");
             var right = rightScroll.contentContainer;
-            var you = Ui.Panel(right, Loc.T("ui.report.your_mission"), out _);
+            var you = Ui.Panel(right, Loc.T("ui.report.your_mission"));
             Fact(you, "ui.report.f.launch", Loc.T(r.Launch.ReasonCode));
             Fact(you, "ui.report.f.years", Fmt.Years(r.ActualYears) + " / " + Fmt.Years(r.TargetYears));
             Fact(you, "ui.report.f.data", Fmt.N(r.DataReturnedGb / 1000, 1) + " TB (" + Fmt.Pct(r.ReturnFraction) + ")");
@@ -124,7 +124,7 @@ namespace GoNoGo.UI
 
             // 沒有對照任務的關卡（月球、野火）不放空的面板
             var missions = M.Scenario.ComparisonMissions.Select(id => D.Missions.FirstOrDefault(x => x.Id == id)).Where(x => x != null).ToList();
-            var cmp = missions.Count > 0 ? Ui.Panel(right, Loc.T("ui.report.real_missions"), out _) : null;
+            var cmp = missions.Count > 0 ? Ui.Panel(right, Loc.T("ui.report.real_missions")) : null;
             foreach (var m in missions)
             {
                 var card = Ui.El("mission-card").AddTo(cmp);
@@ -142,10 +142,11 @@ namespace GoNoGo.UI
 
             var actions = Ui.Row("report-actions").AddTo(Root);
             Ui.Btn(Loc.T("ui.report.to_menu"), () => GameSession.EndMission(), "btn-big").AddTo(actions);
+            // 這一份設計的分享碼（「分享」和沙盒的「再來一次」共用；新手訓練兩個按鈕都沒有，不用算）
+            string code = M.S.Tutorial ? null : DesignCode.Encode(l.Design, D, "");
             // 儲存、分享這一份設計（設計圖庫在主選單，可以拿來比較、在沙盒打開）
             if (!M.S.Tutorial)
             {
-                string code = DesignCode.Encode(l.Design, D, "");
                 bool saved = ReferenceEquals(_savedFor, r);
                 var save = Ui.Btn(Loc.T(saved ? "ui.report.saved" : "ui.report.save"), null, "btn-big", "report-save").AddTo(actions);
                 save.SetEnabled(!saved);
@@ -173,7 +174,7 @@ namespace GoNoGo.UI
                 var sid = M.S.ScenarioId;
                 var did = M.S.DifficultyId;
                 bool sandbox = M.Scenario != null && M.Scenario.Sandbox;
-                string again = sandbox ? DesignCode.Encode(l.Design, D, "") : null;
+                string again = sandbox ? code : null;
                 // 沙盒：帶著這一份設計回去接著改；一般任務：從頭再玩一次
                 Ui.Btn(Loc.T(sandbox ? "ui.report.again_sandbox" : "ui.report.again"), () =>
                 {
@@ -209,7 +210,7 @@ namespace GoNoGo.UI
         void HistoryPanel(VisualElement parent, MissionResult r)
         {
             var h = M.Scenario.Historical;
-            var body = Ui.Panel(parent, Loc.T("ui.history.reveal") + " · " + h.Year, out _, "history-card");
+            var body = Ui.Panel(parent, Loc.T("ui.history.reveal") + " · " + h.Year, "history-card");
             Ui.Text(Loc.T(h.Reveal), "body").AddTo(body);
             Ui.Text(Loc.T("ui.history.real_fix"), "eyebrow", "history-sub").AddTo(body);
             Ui.Text(Loc.T(h.RealFix), "body").AddTo(body);

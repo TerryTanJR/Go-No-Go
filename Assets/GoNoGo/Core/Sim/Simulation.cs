@@ -4,8 +4,9 @@ namespace GoNoGo.Core
 {
     /// <summary>
     /// DeadOnOrbit：入軌、部署都正常，但電池撐不過第一次地影就斷電失聯（算失敗）。
+    /// 編號跟著整包狀態傳給其他人，不能改（4 = 已刪除的 NotLaunched）。
     /// </summary>
-    public enum LaunchOutcome { Nominal, LowerOrbit, Failure, FairingFailure, NotLaunched, DeadOnOrbit }
+    public enum LaunchOutcome { Nominal = 0, LowerOrbit = 1, Failure = 2, FairingFailure = 3, DeadOnOrbit = 5 }
 
     public sealed class LaunchResult
     {
@@ -13,7 +14,6 @@ namespace GoNoGo.Core
         /// <summary>多語鍵，說明為什麼是這個結果。</summary>
         public string ReasonCode { get; set; } = "";
         public double MassMargin { get; set; }
-        public double Roll { get; set; }
         public bool Success => Outcome == LaunchOutcome.Nominal || Outcome == LaunchOutcome.LowerOrbit;
         /// <summary>太空船有被送進軌道並部署（發射演出要播到展開太陽能板）。</summary>
         public bool Deployed => Success || Outcome == LaunchOutcome.DeadOnOrbit;
@@ -107,7 +107,6 @@ namespace GoNoGo.Core
         public double PropellantKg { get; set; }
         public double Science { get; set; }
         public double ArrayW { get; set; }
-        public double Duty { get; set; }
         public bool SafeMode { get; set; }
     }
 
@@ -139,7 +138,7 @@ namespace GoNoGo.Core
         public bool MiniPassed { get; set; }
     }
 
-    /// <summary>任務結束的原因。Funding = 營運經費用完（採購機制 v2），加在最後，舊的編號不變。</summary>
+    /// <summary>任務結束的原因。Funding = 營運經費用完，加在最後，舊的編號不變。</summary>
     public enum EndReason { MissionComplete, Propellant, Battery, Radiation, LaunchFailure, Funding }
 
     public sealed class MissionResult

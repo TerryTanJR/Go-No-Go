@@ -10,8 +10,8 @@ namespace GoNoGo.UI
     // ======================================================================== 任務簡報
     //
     // 控制中心主任透過加密視訊交代任務：一句一句打字出來，左邊是視訊畫面（剪影、聲波）。
-    // 只講故事和目標；限制條件（預算、年限、儀器數量……）和任務需求都直接列在中控室的大屏幕上。
-    // 最後一句一定是提醒：零件的數值有一部分是空的，要在兩個房間找線索，自己填回大屏幕。
+    // 只講故事和目標；限制條件（預算、年限、儀器數量……）和任務需求都直接列在中控室的設計主螢幕上。
+    // 一般關卡最後一句是提醒：零件的數值有一部分是空的，要在兩個房間找線索，自己填回設計主螢幕（歷史關卡、沙盒另有結尾）。
     // 台詞在 strings.json 的 ui.brief.speech.<情境 id>（一行一句）。
 
     public sealed class BriefingPanel : FacPanel
@@ -34,6 +34,30 @@ namespace GoNoGo.UI
         Label _current;
         VisualElement _log, _bars, _dots, _foot, _live;
         Button _next, _skip;
+
+        /// <summary>
+        /// 版面只跟關卡、難度、是不是還在開場簡報、單人或多人有關。簡報開著的時候別人做了別的事（狀態變了）不用整個重建：
+        /// 講到哪一句、打到第幾個字都記在欄位裡，重建出來的也是同一個畫面。
+        /// </summary>
+        string _built;
+
+        public override void Refresh()
+        {
+            var s = M.S;
+            string sig = s.ScenarioId + "/" + s.DifficultyId + "/" + (s.Phase == SessionPhase.Briefing) + "/" + s.Multiplayer;
+            if (sig == _built && Body != null && Body.childCount > 0) return;
+            _built = sig;
+            base.Refresh();
+        }
+
+        /// <summary>切語言：台詞換成新語言的，講到第幾句留著（這一句從頭打）。</summary>
+        protected override void OnReattach()
+        {
+            _lines = Speech();
+            _typed = 0;
+            if (_shown >= _lines.Count) { _shown = _lines.Count; _done = true; }
+            base.OnReattach();
+        }
 
         protected override void Build(VisualElement body)
         {
@@ -215,12 +239,11 @@ namespace GoNoGo.UI
             }
             // 聲波：講話時跳動，停下來就平
             _wave += dt;
-            int k = 0;
-            foreach (var b in _bars.Children())
+            int bars = _bars.childCount;
+            for (int k = 0; k < bars; k++)
             {
                 float h = talking ? 0.25f + 0.75f * (float)Math.Abs(Math.Sin(_wave * (7 + k % 5) + k * 1.7) * Math.Sin(_wave * 3.1 + k)) : 0.08f;
-                b.style.height = Length.Percent(h * 100);
-                k++;
+                _bars[k].style.height = Length.Percent(h * 100);
             }
         }
     }

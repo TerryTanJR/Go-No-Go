@@ -20,8 +20,6 @@ namespace GoNoGo.Game
         public string Body = "";
         public string Color = "";
         public List<KeyHint> Keys = new List<KeyHint>();
-        /// <summary>第三人稱時提示框貼在這個世界座標旁邊（物件上方）；null = 放在準星旁。</summary>
-        public Vector3? Anchor;
     }
 
     /// <summary>
@@ -40,7 +38,7 @@ namespace GoNoGo.Game
         /// <summary>人站在哪一座組裝台旁邊（0 或 1；-1 = 不在旁邊）。畫面右上角顯示那一座的組裝單。</summary>
         public static int NearBench = -1;
 
-        /// <summary>開著面板（控制台、電話、平板…）：角色不能動、滑鼠游標放開。</summary>
+        /// <summary>開著面板（控制台、線索、平板…）：角色不能動、滑鼠游標放開。</summary>
         public static bool PanelOpen;
         /// <summary>剛關掉面板的那一幀（同一個 E 不要又打開控制台）。</summary>
         public static int ClosedFrame = -1;
@@ -71,6 +69,7 @@ namespace GoNoGo.Game
             PanelOpen = false;
             Paused = false;
             Covered = false;
+            ClosedFrame = -1;
             Area = "";
             NearBench = -1;
             PanelRequested = null;
@@ -87,7 +86,6 @@ namespace GoNoGo.Game
             public Vector3 Position;
             public float Yaw;
             public float Speed;
-            public string Held;
             public bool Installing;
         }
 

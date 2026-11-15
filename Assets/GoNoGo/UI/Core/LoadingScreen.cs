@@ -19,8 +19,10 @@ namespace GoNoGo.UI
         readonly Label _title, _stage, _pct;
         bool _active, _network, _sawLoad;
         float _t, _shown, _doneFor;
-
-        public bool Active => _active;
+        // 畫面上現在的值：沒變就不重設文字和樣式（進度條每一幀都在跑）
+        string _stageKey, _stageLang;
+        float _drawn = -1;
+        int _pctDrawn = -1;
 
         public LoadingScreen(VisualElement parent)
         {
@@ -94,7 +96,12 @@ namespace GoNoGo.UI
                 stage = _t < 2.5f ? "ui.load.connect" : "ui.load.sync";
             }
             _shown = Mathf.MoveTowards(_shown, Mathf.Max(_shown, target), dt * 0.8f);
-            _stage.text = Loc.T(stage);
+            if (stage != _stageKey || Loc.Lang != _stageLang)
+            {
+                _stageKey = stage;
+                _stageLang = Loc.Lang;
+                _stage.text = Loc.T(stage);
+            }
             Draw();
             _rocket.MarkDirtyRepaint();
 
@@ -109,9 +116,18 @@ namespace GoNoGo.UI
         void Draw()
         {
             float p = Mathf.Clamp01(_shown);
-            _fill.style.width = Length.Percent(p * 100);
-            _rocket.style.left = Length.Percent(p * 100);
-            _pct.text = Mathf.RoundToInt(p * 100) + "%";
+            if (p != _drawn)
+            {
+                _drawn = p;
+                _fill.style.width = Length.Percent(p * 100);
+                _rocket.style.left = Length.Percent(p * 100);
+            }
+            int pct = Mathf.RoundToInt(p * 100);
+            if (pct != _pctDrawn)
+            {
+                _pctDrawn = pct;
+                _pct.text = pct + "%";
+            }
         }
 
         /// <summary>往右飛的小火箭：機身、鼻錐、尾翼，尾巴一團會閃的火焰。</summary>

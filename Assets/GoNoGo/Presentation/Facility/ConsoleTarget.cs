@@ -5,11 +5,11 @@ using UnityEngine;
 namespace GoNoGo.Presentation
 {
     /// <summary>
-    /// 大屏幕、發射鈕、營運席、看板、書…：按 E 打開對應的面板。不分組，所有人都可以用。
+    /// 設計主螢幕、發射鈕、營運席、看板、書…：按 E 打開對應的面板。不分組，所有人都可以用。
     /// </summary>
     public sealed class ConsoleTarget : Interactable
     {
-        [Tooltip("面板 id：select（大屏幕）、bay（組裝區儀表板）、launch、failures、ops_desk、ops:power、manual:rules…")]
+        [Tooltip("面板 id：select（設計主螢幕）、bay（組裝區儀表板）、launch、failures、ops_desk、ops:power、manual:rules…")]
         public string panel = "";
         public string titleKey = "";
         public string bodyKey = "";
@@ -18,7 +18,7 @@ namespace GoNoGo.Presentation
         [Tooltip("哪些階段可以用（空 = 都可以）：design、ops、briefing、lobby")]
         public string phases = "";
         public Renderer glow;
-        [Tooltip("互動距離（公尺）；0 = 預設。前方大屏幕很大，站遠一點也要對得到")]
+        [Tooltip("互動距離（公尺）；0 = 預設。設計主螢幕很大，站遠一點也要對得到")]
         public float range;
 
         MaterialPropertyBlock _mpb;
@@ -30,9 +30,22 @@ namespace GoNoGo.Presentation
             get
             {
                 if (string.IsNullOrEmpty(phases) || !GameSession.HasMission) return true;
-                var p = GameSession.Mission.S.Phase.ToString().ToLowerInvariant();
-                return phases.Contains(p);
+                return phases.Contains(PhaseName(GameSession.Mission.S.Phase));
             }
+        }
+
+        static SessionPhase _namedPhase;
+        static string _phaseName;
+
+        /// <summary>階段名稱的小寫（"design"、"ops"…）。每座控制台每 0.3 秒就問一次，階段沒變就用上次產生的字串。</summary>
+        static string PhaseName(SessionPhase p)
+        {
+            if (_phaseName == null || p != _namedPhase)
+            {
+                _namedPhase = p;
+                _phaseName = p.ToString().ToLowerInvariant();
+            }
+            return _phaseName;
         }
 
         public bool AvailableNow => PhaseOk && Reveal.Lock(panel) == null;

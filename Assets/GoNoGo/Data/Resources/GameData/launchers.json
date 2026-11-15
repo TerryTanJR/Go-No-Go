@@ -11,7 +11,6 @@
     "cost_musd": 9.1,
     "fairing_diameter_m": 1.2,
     "flight_record": "95 / 99",
-    "model": "rocket_small",
     "source": {
       "title": "Rocket Lab Form 10-Q, quarter ended 2026-06-30 (SEC EDGAR); Wikipedia: Rocket Lab Electron; NASA SST-SoA Table 10-1; Spaceflight Now (CAPSTONE, 2020)",
       "url": "https://www.sec.gov/Archives/edgar/data/0001819994/000181999426000062/rklb-20260630.htm",
@@ -58,7 +57,6 @@
     "cost_musd": 69.85,
     "fairing_diameter_m": 5.2,
     "flight_record": "698 / 701",
-    "model": "rocket_medium",
     "source": {
       "title": "SpaceX Capabilities & Services (2025 snapshot); Wikipedia: List of Falcon 9 and Falcon Heavy launches",
       "url": "http://web.archive.org/web/20250629020031/https://www.spacex.com/media/Capabilities&Services.pdf",
@@ -128,7 +126,6 @@
     "cost_musd": 97,
     "fairing_diameter_m": 5.2,
     "flight_record": "14 / 14",
-    "model": "rocket_heavy",
     "source": {
       "title": "Wikipedia: Falcon Heavy (SpaceX list price, 2022); KeepTrack: Falcon Heavy launch history (2018-2026)",
       "url": "https://en.wikipedia.org/wiki/Falcon_Heavy",
@@ -191,7 +188,6 @@
     "fairing_diameter_m": 1.6,
     "historical": true,
     "flight_record": "6 / 7 (before OCO)",
-    "model": "rocket_medium",
     "source": {
       "title": "OCO launch press kit (NASA/JPL 2009); Spaceflight Now (2010, 2012); OCO Mishap Investigation summary",
       "url": "https://www.jpl.nasa.gov/news/press_kits/oco-launch.pdf",
@@ -240,7 +236,6 @@
     "fairing_diameter_m": 3.0,
     "historical": true,
     "flight_record": "149 successes (98%)",
-    "model": "rocket_medium",
     "source": {
       "title": "OCO-2 launch press kit (NASA/JPL 2014); NASA contract release C12-028 (2012)",
       "url": "https://www.jpl.nasa.gov/news/press_kits/oco2-launch-press-kit.pdf",
@@ -284,7 +279,6 @@
     "cost_musd": 1.4,
     "fairing_diameter_m": 5.2,
     "flight_record": "Transporter-1 – 18",
-    "model": "rocket_medium",
     "orbit_lock": "sso_dawn_dusk",
     "source": { "title": "New Space Economy: SpaceX rideshare pricing as of February 2026; NASASpaceFlight.com: Transporter-18 (October 2026)", "url": "https://newspaceeconomy.ca/2026/02/27/spacex-rideshare-pricing-as-of-february-2026-what-it-costs-whats-included-and-how-buyers-budget-a-mission/", "note": "sourced (secondary): Transporter rideshare to SSO, $350,000 for the first 50 kg and $7,000/kg after (2026 list); Transporter-18 flew on 2026-10-01 (https://www.nasaspaceflight.com/2026/10/transporter-18/). derived: a 200 kg slot = $1.4M. estimate: the destination is fixed by the mission (dawn-dusk SSO in this game), Falcon 9 timeline" },
     "flight": {

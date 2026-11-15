@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using GoNoGo.Core;
 using GoNoGo.Game;
 using UnityEngine;
@@ -21,6 +20,21 @@ namespace GoNoGo.UI
         bool _shownOutcome;
         float _selfTimer;
 
+        // 上一次寫到畫面上的值：每一幀都在更新，值沒變就不重組字串、不重設文字
+        int _clockS;
+        bool _clockNeg;
+        float _altShown, _velShown, _thrShown;
+        string _stageShown;
+        double _speedShown;
+        // 「下一步」：出事的時間點、目前的下一個事件（在哪個時間點找的）、上一次組好的文字
+        double _anomalyT;
+        TimelineEvent _nextEv, _nextTextEv;
+        float _nextAt;
+        int _nextLeft;
+        string _nextText;
+
+        static readonly char[] SentenceEnd = { '。', '.' };
+
         protected override void Build()
         {
             Sfx.SetAmbience(Sfx.Ambience.None);
@@ -40,6 +54,7 @@ namespace GoNoGo.UI
             _tl = last != null ? LaunchTimeline.Build(D, last.Design, last.Outcome, last.ReasonCode ?? "") : null;
             // 「下一步」照成功的飛行顯示，出事前不先爆雷
             _nominal = last != null ? LaunchTimeline.Build(D, last.Design, LaunchOutcome.Nominal, "launch.nominal") : null;
+            ResetShown();
 
             // 播報放在右下角（放在倒數下方會擋到火箭）
             _calls = Ui.El("launch-calls").AddTo(Root);
@@ -56,6 +71,28 @@ namespace GoNoGo.UI
 
             On(() => LaunchFeed.Callout += OnCallout, () => LaunchFeed.Callout -= OnCallout);
         }
+
+        /// <summary>畫面重建（換語言）後標籤都是新的：忘掉上一次寫了什麼，下一幀全部重寫。</summary>
+        void ResetShown()
+        {
+            _clockS = int.MinValue;
+            _clockNeg = false;
+            _altShown = _velShown = _thrShown = float.NaN;
+            _stageShown = null;
+            _speedShown = double.NaN;
+            _nextEv = _nextTextEv = null;
+            _nextAt = float.PositiveInfinity;
+            _nextLeft = 0;
+            _nextText = "";
+            // 出事的時間點（沒出事 = 無限大）：過了之後不再顯示「下一步」
+            _anomalyT = double.PositiveInfinity;
+            if (_tl == null) return;
+            foreach (var f in _tl.Events)
+                if ((f.Id == "anomaly" || f.Id == "underspeed" || f.Id == "fairing_fail") && f.T < _anomalyT) _anomalyT = f.T;
+        }
+
+        /// <summary>兩個數字寫出來會不會一樣（正零和負零分開算，NaN 一律當成不一樣）。</summary>
+        static bool Same(float a, float b) => a == b && (a != 0f || 1f / a == 1f / b);
 
         static Label Row(VisualElement parent, string key, string unit, out Label keyLabel)
         {
@@ -80,16 +117,26 @@ namespace GoNoGo.UI
         string NextText(float t)
         {
             if (_tl == null || _nominal == null || t < 0 || LaunchFeed.Finished) return "";
-            if (_tl.Events.Any(f => f.T <= t && (f.Id == "anomaly" || f.Id == "underspeed" || f.Id == "fairing_fail"))) return "";
-            var e = _nominal.Next(t);
+            if (t >= _anomalyT) return "";
+            // 下一個事件在時間走到它之前不會換：不用每一幀重找（時間倒退、或已經過了那個事件才重找）
+            if (!(t >= _nextAt && (_nextEv == null || _nextEv.T > t)))
+            {
+                _nextEv = _nominal.Next(t);
+                _nextAt = t;
+            }
+            var e = _nextEv;
             if (e == null) return "";
+            int left = Mathf.Max(0, Mathf.CeilToInt((float)e.T - t));
+            // 文字只跟「哪一個事件、還剩幾秒」有關：都沒變就用上一次組好的
+            if (ReferenceEquals(e, _nextTextEv) && left == _nextLeft) return _nextText;
+            _nextTextEv = e;
+            _nextLeft = left;
             string id = e.Id == "underspeed" ? "seco" : e.Id == "fairing_fail" ? "fairing" : e.Id;
-            if (id == "anomaly" || id == "eclipse" || id == "signal_lost") return "";
+            if (id == "anomaly" || id == "eclipse" || id == "signal_lost") return _nextText = "";
             // 有專屬播報的（踢昇級、Taurus 的第 n 節）直接用播報的說法
             bool own = e.Call.Contains(".kick_") || e.Call.Contains(".stage_n_") || e.Call.Contains(".stage0_");
-            string name = own ? CallText(e.N > 0 ? e.Call + "#" + e.N : e.Call).TrimEnd('。', '.') : Loc.T("ui.launch.ev." + id);
-            int left = Mathf.Max(0, Mathf.CeilToInt((float)e.T - t));
-            return Loc.T("ui.launch.next") + "  ·  " + name + "  ·  " + LaunchClock.Format(e.T) + "  (−" + left / 60 + ":" + (left % 60).ToString("00") + ")";
+            string name = own ? CallText(e.N > 0 ? e.Call + "#" + e.N : e.Call).TrimEnd(SentenceEnd) : Loc.T("ui.launch.ev." + id);
+            return _nextText = Loc.T("ui.launch.next") + "  ·  " + name + "  ·  " + LaunchClock.Format(e.T) + "  (−" + left / 60 + ":" + (left % 60).ToString("00") + ")";
         }
 
         const long CallHoldMs = 2600, CallFadeMs = 350; // 和 Theme.uss 的 .launch-call 淡入淡出時間一致
@@ -98,7 +145,7 @@ namespace GoNoGo.UI
         /// <summary>播報在右下角淡入、停一下再淡出；加速時一次來好幾句就往下排，最多同時三句。</summary>
         void OnCallout(string key)
         {
-            var l = Ui.Text(CallText(key).TrimEnd('。', '.'), "launch-call").AddTo(_calls); // 播報字幕不加句號
+            var l = Ui.Text(CallText(key).TrimEnd(SentenceEnd), "launch-call").AddTo(_calls); // 播報字幕不加句號
             Ui.AnimateIn(l, "launch-call--on");
             l.schedule.Execute(() => l.RemoveFromClassList("launch-call--on")).StartingIn(CallHoldMs);
             l.schedule.Execute(() => l.RemoveFromHierarchy()).StartingIn(CallHoldMs + CallFadeMs);
@@ -117,12 +164,26 @@ namespace GoNoGo.UI
             }
 
             float T = LaunchFeed.T;
-            // 倒數無條件進位：念「十」的那一刻畫面才跳到 10（截斷的話會早一秒）
-            _clock.text = LaunchClock.Format(T);
-            _alt.text = LaunchFeed.AltitudeKm.ToString("0.0");
-            _vel.text = LaunchFeed.VelocityKms.ToString("0.00");
-            _thr.text = (LaunchFeed.Throttle * 100).ToString("0");
-            _stage.text = string.IsNullOrEmpty(LaunchFeed.StageKey) ? "" : Loc.T(LaunchFeed.StageKey);
+            // 倒數無條件進位：念「十」的那一刻畫面才跳到 10（截斷的話會早一秒）。
+            // 時鐘的字只跟「顯示的秒數」和正負號有關，這兩個沒變就不用重組
+            int clockS = LaunchClock.DisplaySeconds(T);
+            bool clockNeg = T < 0;
+            if (clockS != _clockS || clockNeg != _clockNeg)
+            {
+                _clockS = clockS;
+                _clockNeg = clockNeg;
+                _clock.text = LaunchClock.Format(T);
+            }
+            float alt = LaunchFeed.AltitudeKm, vel = LaunchFeed.VelocityKms, thr = LaunchFeed.Throttle;
+            if (!Same(alt, _altShown)) { _altShown = alt; _alt.text = alt.ToString("0.0"); }
+            if (!Same(vel, _velShown)) { _velShown = vel; _vel.text = vel.ToString("0.00"); }
+            if (!Same(thr, _thrShown)) { _thrShown = thr; _thr.text = (thr * 100).ToString("0"); }
+            string stageKey = LaunchFeed.StageKey;
+            if (stageKey != _stageShown)
+            {
+                _stageShown = stageKey;
+                _stage.text = string.IsNullOrEmpty(stageKey) ? "" : Loc.T(stageKey);
+            }
             // 月球任務：抵達月球後高度改成離月面（縮時倍率和其他加速一樣顯示在時鐘旁邊）
             bool moon = _tl != null && _tl.MoonRelative(T);
             if (moon != _altMoon && _altKey != null)
@@ -153,7 +214,10 @@ namespace GoNoGo.UI
             _speed.EnableInClassList("launch-speed--on", on);
             if (!on) return;
             double mag = Math.Pow(10, Math.Max(0, Math.Floor(Math.Log10(x)) - 1));
-            _speed.text = Loc.T("ui.launch.timelapse", ("x", (Math.Round(x / mag) * mag).ToString("#,0")));
+            double shown = Math.Round(x / mag) * mag;
+            if (shown == _speedShown) return;
+            _speedShown = shown;
+            _speed.text = Loc.T("ui.launch.timelapse", ("x", shown.ToString("#,0")));
         }
 
         void ShowOutcome(bool sound)
@@ -170,7 +234,7 @@ namespace GoNoGo.UI
             Ui.Text(Loc.T("ui.launch.result.eyebrow"), "eyebrow").AddTo(card);
             Ui.Text(Loc.T(FailureBoardView.OutcomeKey(l?.Outcome ?? LaunchOutcome.Nominal)), "h2", ok ? "go" : "over").AddTo(card);
             if (l != null) Ui.Text(Loc.T(l.ReasonCode), "body").AddTo(card);
-            // 採購機制 v2：一般關卡失敗就整個任務重來；歷史關卡保留設計，回去重新設計
+            // 一般關卡失敗就整個任務重來；歷史關卡保留設計，回去重新設計
             bool restart = M.S.Scenario(D)?.Historical == null;
             if (!ok) Ui.Text(Loc.T(restart ? "ui.launch.restart_note" : "ui.launch.redesign_note"), "small", "dim").AddTo(card);
             var row = Ui.Row("outcome-actions").AddTo(card);

@@ -47,7 +47,7 @@ namespace GoNoGo.Game
 
         /// <summary>
         /// 奔跑方式。false（預設）= 按住：按住 Shift 跑，放開就走。
-        /// true = 切換：按一下 Shift 開始跑，再按一下改回走；停下來（沒有按方向鍵）時自動改回走。
+        /// true = 切換：按一下 Shift 開始跑，之後一直用跑的（停下來、開面板都不取消），再按一下才改回走。
         /// 存在本機，多人時各自設定。
         /// </summary>
         public static bool RunToggle

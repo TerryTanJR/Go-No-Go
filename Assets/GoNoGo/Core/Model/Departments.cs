@@ -5,7 +5,7 @@ using System.Linq;
 namespace GoNoGo.Core
 {
     /// <summary>
-    /// 任務需求的五個分類（原本是五個處室；現在需求直接列在大屏幕上，這只是分類，畫面上不用部門的名義）。
+    /// 任務需求的五個分類（原本是五個處室；現在需求直接列在設計主螢幕上，這只是分類，畫面上不用部門的名義）。
     /// 有些需求彼此拉扯（取捨）。
     /// </summary>
     public enum Department { MissionLead, BudgetOffice, Science, Engineering, Comms }

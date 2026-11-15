@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using GoNoGo.Core;
 using GoNoGo.Game;
@@ -33,7 +34,7 @@ namespace GoNoGo.UI
             public string Target = "";
         }
 
-        // 順序照新的流程：放大看一則線索 → 把數值輸入大屏幕 → 選件、確定設計 → 到架子拿小零件 →
+        // 順序照流程：放大看一則線索 → 把數值輸入設計主螢幕 → 選件、確定設計 → 到架子拿小零件 →
         // 放到組裝台左側 → 照提示在右側組裝 → 裝上衛星 → 回中控室發射 → 營運。玩家一開始就站在中控室。
         // 新手訓練只挖空一格、只留一個零件（展開式太陽能翼）要親手組，其他零件開局就在衛星上。
         static readonly Step[] Steps =
@@ -81,6 +82,14 @@ namespace GoNoGo.UI
         readonly bool _guide;
         MissionGuide.Step? _now;
         float _guideIn;
+
+        // 每幀都會碰到的幾樣東西：內容沒變就不重組字串、不重算
+        bool? _moreOpen;
+        int _distShown = int.MinValue;
+        /// <summary>上一次用哪一份狀態（哪個版本）、替哪一步、哪個玩家判斷過 <see cref="Step.State"/>：都一樣就不用再算。</summary>
+        SessionState _checkedState;
+        int _checkedRev, _checkedStep = -1, _checkedMe;
+        static readonly List<Renderer> Renderers = new List<Renderer>();
 
         /// <param name="parent">提示框放在這裡（左上角那一欄）。</param>
         /// <param name="markerLayer">標記畫在這層（整個畫面）。</param>
@@ -171,13 +180,27 @@ namespace GoNoGo.UI
             if (visible) _expandFor = Mathf.Max(0, _expandFor - dt);
             bool open = Expanded;
             _body.style.display = open ? DisplayStyle.Flex : DisplayStyle.None;
-            _more.text = Loc.T(open ? "ui.tut.less" : "ui.tut.more");
+            if (_moreOpen != open)
+            {
+                _moreOpen = open;
+                _more.text = Loc.T(open ? "ui.tut.less" : "ui.tut.more");
+            }
             DrawMarker(visible, dt);
 
-            // 看狀態就知道做完的步驟（見 Step.State）
-            if (!_guide && _advanceIn < 0 && _step < Steps.Length && Steps[_step].State != null && GameSession.HasMission
-                && GameSession.Mission.S.Phase == Steps[_step].Phase && Steps[_step].State(GameSession.Mission.S, GameSession.Data))
-                Complete();
+            // 看狀態就知道做完的步驟（見 Step.State）。判斷只看這一局的狀態和自己是誰：
+            // 狀態沒變（同一份、同一個版本）、還是同一步，結果就和上一幀一樣，不用重算
+            if (!_guide && _advanceIn < 0 && _step < Steps.Length && Steps[_step].State != null && GameSession.HasMission)
+            {
+                var s = GameSession.Mission.S;
+                if (!ReferenceEquals(s, _checkedState) || s.Revision != _checkedRev || _step != _checkedStep || Me != _checkedMe)
+                {
+                    _checkedState = s;
+                    _checkedRev = s.Revision;
+                    _checkedStep = _step;
+                    _checkedMe = Me;
+                    if (s.Phase == Steps[_step].Phase && Steps[_step].State(s, GameSession.Data)) Complete();
+                }
+            }
 
             if (_advanceIn < 0) return;
             _advanceIn -= dt;
@@ -253,7 +276,12 @@ namespace GoNoGo.UI
                 return;
             }
             _marker.style.display = DisplayStyle.Flex;
-            _dist.text = Mathf.RoundToInt(dist) + " m";
+            int metres = Mathf.RoundToInt(dist);
+            if (metres != _distShown)
+            {
+                _distShown = metres;
+                _dist.text = metres + " m";
+            }
 
             // 在背後或畫面外：貼在畫面邊緣，往目標的方向
             var size = _marker.parent.layout.size;
@@ -308,12 +336,15 @@ namespace GoNoGo.UI
         {
             Bounds b = default;
             bool any = false;
-            foreach (var r in t.GetComponentsInChildren<Renderer>())
+            // 每幀都要量一次（目標上面的東西會變）：用同一個清單接結果，不要每幀配一個新陣列
+            t.GetComponentsInChildren(false, Renderers);
+            foreach (var r in Renderers)
             {
                 if (!r.enabled) continue;
                 if (!any) { b = r.bounds; any = true; }
                 else b.Encapsulate(r.bounds);
             }
+            Renderers.Clear();
             return any ? new Vector3(b.center.x, b.max.y + 0.25f, b.center.z) : t.position + Vector3.up;
         }
     }

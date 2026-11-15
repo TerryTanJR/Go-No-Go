@@ -3,7 +3,7 @@ using System;
 namespace GoNoGo.Core
 {
     /// <summary>
-    /// 圓軌道的幾何計算。公式公開在 README 的「公式」一節。
+    /// 圓軌道的幾何計算。公式列在 docs/numbers_and_model.md。
     /// </summary>
     public static class OrbitMath
     {

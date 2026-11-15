@@ -18,6 +18,10 @@ namespace GoNoGo.Core
         static readonly uint[] PairColor = { MiniColor.Cyan, MiniColor.Amber, MiniColor.Violet };
         static readonly float[] SlotY = { 150, 250, 350 };
         const float PlugX = 220, SockX = 580;
+        // 每一格都要畫的固定文字（先備好，不用每格重新組字串）
+        static readonly string[] StepNo = { "1", "2", "3" };
+        static readonly string[] StepLabel = { "@mini.rewire.lbl.step1", "@mini.rewire.lbl.step2", "@mini.rewire.lbl.step3" };
+        static readonly string[] ChannelName = { "CH1", "CH2", "CH3", "CH4", "CH5", "CH6", "CH7", "CH8" };
 
         int _stage = 1, _lives, _maxLives;
         float _pause, _hurt, _pulse;
@@ -281,8 +285,8 @@ namespace GoNoGo.Core
                 float x = 300 + i * 100;
                 if (i > 0) Line(s, x - 70, 22, x - 30, 22, 2, MiniColor.Dim, 0.6f);
                 Ring(s, x, 22, 14, 2.5f, c);
-                Text(s, x, 22, 11, (i + 1).ToString(), c);
-                Text(s, x, 46, 11, "@mini.rewire.lbl.step" + (i + 1), c);
+                Text(s, x, 22, 11, StepNo[i], c);
+                Text(s, x, 46, 11, StepLabel[i], c);
             }
             // 機會
             for (int i = 0; i < _maxLives; i++)
@@ -317,7 +321,7 @@ namespace GoNoGo.Core
                 // 另外兩角：rot 為正 = 順時針（畫布 y 軸向下），左上角順轉 90° 是右上角
                 Spr(s, "rewire/corner", cx + cw / 2 - 14, cy - 61, 22, 22, 1.5708f, 1, sel ? MiniColor.Cyan : MiniColor.Dim);
                 Spr(s, "rewire/corner", cx - cw / 2 + 14, cy + 61, 22, 22, -1.5708f, 1, sel ? MiniColor.Cyan : MiniColor.Dim);
-                Text(s, cx - cw / 2 + 38, cy - 62, 12, "CH" + (i + 1), _elim[i] ? MiniColor.Dim : MiniColor.Text);
+                Text(s, cx - cw / 2 + 38, cy - 62, 12, ChannelName[i], _elim[i] ? MiniColor.Dim : MiniColor.Text);
                 Line(s, cx - cw / 2 + 12, cy + 8, cx + cw / 2 - 12, cy + 8, 1, MiniColor.Grid);
                 uint lc = _elim[i] ? MiniColor.Dim : MiniColor.Green;
                 float x0 = cx - cw / 2 + 12, x1 = cx + cw / 2 - 12;

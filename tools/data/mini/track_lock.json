@@ -2,7 +2,6 @@
   "mini.track_lock.name": { "en": "Track & Lock", "zh-TW": "追蹤鎖定" },
   "mini.track_lock.goal": { "en": "Keep the crosshair on the target for 60% of 20 seconds", "zh-TW": "20 秒內讓準星停在目標上，達 60%" },
   "mini.track_lock.controls": { "en": "Move the mouse", "zh-TW": "移動滑鼠" },
-  "mini.track_lock.hint": { "en": "Keep the crosshair inside the ring", "zh-TW": "準星別離開圈圈" },
   "mini.track_lock.link": { "en": "A fleeting science opportunity is only caught if attitude control points the instrument right at the target. The steadier the pointing, the better the shot, and only a captured event earns bonus science.", "zh-TW": "短暫的科學機會得靠姿態控制，把儀器準準對著目標才拍得到。指向越穩越容易拍到，拍到了才有額外的科學分。" },
   "mini.track_lock.cap.aim": { "en": "Aim at the target", "zh-TW": "對準目標" },
   "mini.track_lock.cap.locking": { "en": "Locked", "zh-TW": "鎖定中" },

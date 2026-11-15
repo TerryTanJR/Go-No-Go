@@ -1,6 +1,5 @@
 using GoNoGo.Core;
 using GoNoGo.Game;
-using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace GoNoGo.UI

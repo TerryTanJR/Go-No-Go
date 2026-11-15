@@ -4,7 +4,7 @@ using Newtonsoft.Json;
 
 namespace GoNoGo.Core
 {
-    /// <summary>玩家的太空船設計（大屏幕上勾選的）。只存選擇的 id，數值一律從 GameData 查。</summary>
+    /// <summary>玩家的太空船設計（設計主螢幕上勾選的）。只存選擇的 id，數值一律從 GameData 查。</summary>
     public sealed class Design
     {
         public string ScenarioId { get; set; } = "";
@@ -51,7 +51,10 @@ namespace GoNoGo.Core
                     h = h * 31 + 7;
                 }
                 Mix(ScenarioId);
-                foreach (var i in (Instruments ?? new List<string>()).OrderBy(x => x, System.StringComparer.Ordinal)) Mix(i);
+                // 儀器照 id 排序再混入（勾選順序不影響雜湊）。只有一台不用排；畫面每次更新都會算這個
+                if (Instruments != null && Instruments.Count == 1) Mix(Instruments[0]);
+                else if (Instruments != null)
+                    foreach (var i in Instruments.OrderBy(x => x, System.StringComparer.Ordinal)) Mix(i);
                 foreach (var c in PartCategory.Single) Mix(Get(c));
                 Mix(OrbitId);
                 Mix(LauncherId);

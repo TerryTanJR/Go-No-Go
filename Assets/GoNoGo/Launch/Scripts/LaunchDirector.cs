@@ -69,11 +69,11 @@ namespace GoNoGo.Launch
         const float RoarGain = 0.4f;     // 引擎聲和隆隆聲照場景設定的音量再壓低（原本的音量蓋過倒數）
         const float LongFrameK = 2.3f;   // 長焦鏡頭的取景高度 = 火箭高度 × 這個倍數（上方留給倒數字幕、下方留給尾焰）
         const float WideFrameK = 2f;     // 升空後遠景跟著火箭推近：取景高度至少是火箭高度 × 這個倍數
-        const float TiltFrameK = 0.42f;
+        const float TiltFrameK = 0.42f;  // 箭體水平時，長焦取景再縮成直立時的幾倍（水平的火箭約占畫面寬度六成）
         const float LeadRoom = 0.14f;    // 構圖的前方留白：箭體越水平，瞄準點越往畫面左邊放（火箭往右飛，前方留空間）
         const float StarsLevel = 0.35f, StarsBurnK = 0.45f; // 星空亮度（相對材質設定）；引擎在燒時再暗一點，像相機跟著尾焰調曝光
-        const float EndHold = 1.8f;
-        const float ShakeRefFov = 45f;   // 地面鏡頭在這個視角時晃動照原本的幅度，視角越窄晃得越小      // 播完之後先停在衛星上幾秒，再出結果卡片  // 箭體水平時，長焦取景再縮成直立時的幾倍（水平的火箭約占畫面寬度六成）
+        const float EndHold = 1.8f;      // 播完之後先停在衛星上幾秒，再出結果卡片
+        const float ShakeRefFov = 45f;   // 地面鏡頭在這個視角時晃動照原本的幅度，視角越窄晃得越小
 
         /// <summary>開發用：在自動倍率上再乘幾倍（Editor 選單 GoNoGo/Dev 設定，正式遊戲一直是 1）。</summary>
         public static float DevSpeed = 1f;
@@ -102,9 +102,9 @@ namespace GoNoGo.Launch
         LaunchPacing _pace;
         // 任務時間的正本用 double：月球任務會走到 T+5 天（約 43 萬秒），float 在那裡的精度只剩 0.03 秒，每幀 1/60 秒會被捨入成 0 或 2 倍
         double _Td;
-        float _pathAlt;    // 發射台段飛過的距離（公尺）
         float _sceneVel;    // 發射台段畫面上的速度（m/s）
         float _accel;       // 目前畫面上的加速度：分離出去的物體依它算相對運動
+        float _smokeRate = -1f; // 上一次設給發射台煙霧的噴發量（-1 = 還沒設過；值沒變就不重設）
         bool _inSpace, _exploded, _fairingOpen, _deployed, _falling, _skipping, _done;
         float _deployT, _fairingT, _fallT;
         Vector3 _fallPivotLocal;      // 上節中心（root 的區域座標）：翻滾繞這一點，不繞火箭底部
@@ -114,6 +114,9 @@ namespace GoNoGo.Launch
         Transform _fallFocus;         // 不跟著翻滾的追蹤點
         Vector3 _sideOffset0;
         float _shake;
+        // 地面四台鏡頭和它們的晃動元件：Start 取一次（Animate 每一小步都要設幅度）
+        CinemachineCamera[] _shakeCams = Array.Empty<CinemachineCamera>();
+        CinemachineBasicMultiChannelPerlin[] _shakeNoise = Array.Empty<CinemachineBasicMultiChannelPerlin>();
         float _camK;                  // 太空鏡頭距離倍率（小火箭鏡頭靠近一點）
         float _deployK;               // 展開鏡頭距離倍率：看衛星展開後多寬，不是看火箭多大
         float _payloadSpan;           // 衛星展開後的寬度（公尺，已含縮放）
@@ -142,13 +145,16 @@ namespace GoNoGo.Launch
         float _spaceScreenY;
         const float DollySecs = 3f;
         Vector3 _transferDir;
-        float _transferFar, _transferNear, _frameSide, _transferK, _transferEase;
+        float _transferFar, _transferNear, _transferK, _transferEase;
         Vector2 _sideScreen;
         /// <summary>換場後長焦鏡頭還在推軌：這時不換鏡頭（取景還沒對齊，混合會先拉遠再拉近）。</summary>
         bool Dollying => _cam == camLong && _inSpace && _transferK < 1f;
         const float TrailFadeSecs = 1.5f;
         float _trailFade = -1f;       // 主引擎關機後經過的真實秒數（-1 = 還沒關機）
-        Gradient _trailGrad0;
+        // 尾跡原本的顏色與透明度；淡出時每幀重複用同一個 Gradient 和陣列（不每幀配置新的）
+        GradientColorKey[] _trailColor0;
+        GradientAlphaKey[] _trailAlpha0, _trailAlpha;
+        Gradient _trailFadeGrad;
         Vector3 _sepFocusOffset;      // 節間分離那一刻長焦鏡頭的瞄準點，相對上節底部
         // 節間分離後長焦鏡頭的瞄準點和取景從整枝火箭移到上節：分離那一刻就開始，照真實時間推（加速時照任務時間推，一秒內就縮放好幾倍）
         const float ReframeSecs = 2.5f;
@@ -234,6 +240,7 @@ namespace GoNoGo.Launch
         float _sky0Exposure, _sky0Thickness, _fog0, _starsBright, _starsT;
         const float DarkRate = 0.2f;  // 天色每秒最多變多少（0 = 地面、1 = 全黑）
         float _darkWant, _darkShown;  // 照高度該有的天色、畫面上的天色
+        float _darkApplied = -1f;     // 上一次套用到天空、霧、環境光、太陽的天色（-1 = 還沒套用過）
         Color _amb0Sky, _amb0Eq, _amb0Ground, _sun0Color;
         Quaternion _sun0Rot;
         float _sun0Intensity;
@@ -334,6 +341,10 @@ namespace GoNoGo.Launch
             if (towerAim != null) towerAim.TargetOffset = new Vector3(0, _rocket.height * 0.35f, 0);
             ScaleCamOffset(camTower, k);
             ScaleCamOffset(camEngine, k);
+            _shakeCams = new[] { camWide, camEngine, camTower, camLong };
+            _shakeNoise = new CinemachineBasicMultiChannelPerlin[_shakeCams.Length];
+            for (int i = 0; i < _shakeCams.Length; i++)
+                if (_shakeCams[i] != null) _shakeNoise[i] = _shakeCams[i].GetComponent<CinemachineBasicMultiChannelPerlin>();
             ScaleCamFollow(camSpace, Mathf.Max(0.35f, k) * 1.7f);
             ScaleCamFollow(camSide, Mathf.Max(0.35f, k) * 1.7f);
             _camK = Mathf.Max(0.35f, k);
@@ -478,7 +489,7 @@ namespace GoNoGo.Launch
 
         void BuildPayload(GameData data)
         {
-            _payload = SatelliteBuilder.Build(_design, data, Evaluator.EvaluateDesign(_design, data), _rocket.payloadMount);
+            _payload = SatelliteBuilder.Build(_design, data, Evaluator.EvaluateDesign(_design, data, null, false), _rocket.payloadMount);
             // 展開式太陽能翼發射時收起來，分離後才展開；機身貼片本來就貼在機身上，不動
             var solarDef = data.Part(_design.Get(PartCategory.Solar));
             bool wings = solarDef != null && solarDef.Mount == "wing";
@@ -569,10 +580,6 @@ namespace GoNoGo.Launch
         }
 
         /// <summary>
-        /// 太空鏡頭：距離倍率乘上很慢的漂移（左右約 6°、上下約 3°，週期一兩分鐘），畫面才有生命感。
-        /// 失效翻滾時側面鏡頭由翻滾的程式控制，不加漂移。
-        /// </summary>
-        /// <summary>
         /// 進入停泊軌道（第一次滑行）後，上節慢慢轉成和地平線平行（真實時間 LevelSecs 秒）。
         /// 上升段機頭比水平高 10° 是對的（還在爬高）；入軌後真實的上節是順著飛行方向，之後的點火（圓軌化）也是水平的。
         /// </summary>
@@ -591,6 +598,10 @@ namespace GoNoGo.Launch
         const float LevelSecs = 4f, LevelDeg = 10f; // 太空段的俯仰是 80°（FlightRotation），轉 10° 到水平
         float _levelT = float.MaxValue, _levelK;
 
+        /// <summary>
+        /// 太空鏡頭：距離倍率乘上很慢的漂移（左右約 6°、上下約 3°，週期一兩分鐘），畫面才有生命感。
+        /// 失效翻滾時側面鏡頭由翻滾的程式控制，不加漂移。
+        /// </summary>
         void UpdateSpaceCams(float real)
         {
             if (!_inSpace || _falling) return;
@@ -760,7 +771,10 @@ namespace GoNoGo.Launch
                 new[] { new GradientColorKey(new Color(1f, 0.86f, 0.62f), 0f), new GradientColorKey(new Color(0.95f, 0.93f, 0.9f), 0.08f), new GradientColorKey(new Color(0.82f, 0.82f, 0.86f), 1f) },
                 new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(0.9f, 0.04f), new GradientAlphaKey(0.55f, 0.5f), new GradientAlphaKey(0f, 1f) });
             _trail.colorGradient = g;
-            _trailGrad0 = g;
+            _trailColor0 = g.colorKeys;
+            _trailAlpha0 = g.alphaKeys;
+            _trailAlpha = new GradientAlphaKey[_trailAlpha0.Length];
+            _trailFadeGrad = new Gradient();
             _trail.emitting = true;
         }
 
@@ -833,11 +847,13 @@ namespace GoNoGo.Launch
             _trailFade += real;
             float k = 1f - Mathf.SmoothStep(0f, 1f, _trailFade / TrailFadeSecs);
             _trail.widthMultiplier = _rocket.diameter * Mathf.Lerp(0.3f, 1f, k);
-            var g = new Gradient();
-            var a0 = _trailGrad0.alphaKeys;
-            for (int i = 0; i < a0.Length; i++) a0[i].alpha *= k;
-            g.SetKeys(_trailGrad0.colorKeys, a0);
-            _trail.colorGradient = g;
+            for (int i = 0; i < _trailAlpha0.Length; i++)
+            {
+                _trailAlpha[i] = _trailAlpha0[i];
+                _trailAlpha[i].alpha *= k;
+            }
+            _trailFadeGrad.SetKeys(_trailColor0, _trailAlpha);
+            _trail.colorGradient = _trailFadeGrad;
             if (k <= 0f) { _trail.Clear(); _trail.enabled = false; }
         }
 
@@ -893,9 +909,7 @@ namespace GoNoGo.Launch
             _transferK = _transferEase = 0f;
             // 推軌的終點是側面鏡頭的位置：側面鏡頭沒在用時也要每一格更新，終點才不會落後
             if (camSide != null) camSide.StandbyUpdate = CinemachineVirtualCameraBase.StandbyUpdateMode.Always;
-            float sideFov = camSide != null ? camSide.Lens.FieldOfView : 36f;
             _transferNear = Mathf.Max(1f, _sideOff0.magnitude * _sideM);
-            _frameSide = 2f * _transferNear * Mathf.Tan(sideFov * 0.5f * Mathf.Deg2Rad);
 
             // 火箭等一下會瞬間移動上萬公尺：尾跡要先清掉，否則會畫出一條橫跨天空的直線
             if (_trail != null) { _trail.emitting = false; _trail.Clear(); _trail.enabled = false; }
@@ -1038,13 +1052,21 @@ namespace GoNoGo.Launch
             if (_rocket == null) return;
             _upperIgnite += real;
             float k = Mathf.SmoothStep(0f, 1f, _upperIgnite / IgniteSecs);
-            foreach (var pr in _rocket.segmentPlumes.Concat(_rocket.upperPlumes))
-            {
-                if (pr == null) continue;
-                if (!_plumeScale0.TryGetValue(pr, out var s0)) _plumeScale0[pr] = s0 = pr.transform.localScale;
-                float w = Mathf.Lerp(0.4f, 1f, k);
-                pr.transform.localScale = new Vector3(s0.x * w, s0.y * Mathf.Max(0.02f, k), s0.z * w);
-            }
+            // 尺寸只由 k 決定，也只有這裡會改上節尾焰的大小：k 沒變（還沒點火、已經長到全尺寸）就不必重設
+            if (k == _plumeGrow) return;
+            _plumeGrow = k;
+            foreach (var pr in _rocket.segmentPlumes) GrowPlume(pr, k);
+            foreach (var pr in _rocket.upperPlumes) GrowPlume(pr, k);
+        }
+
+        float _plumeGrow = -1f;       // 上一次套用到上節尾焰的 k（-1 = 還沒套用過）
+
+        void GrowPlume(Renderer pr, float k)
+        {
+            if (pr == null) return;
+            if (!_plumeScale0.TryGetValue(pr, out var s0)) _plumeScale0[pr] = s0 = pr.transform.localScale;
+            float w = Mathf.Lerp(0.4f, 1f, k);
+            pr.transform.localScale = new Vector3(s0.x * w, s0.y * Mathf.Max(0.02f, k), s0.z * w);
         }
 
         bool UpperOn
@@ -1120,7 +1142,7 @@ namespace GoNoGo.Launch
             }
             foreach (var d in _drift) if (d.t != null) d.t.gameObject.SetActive(false);
             _drift.Clear();
-            // 不換鏡頭：側面鏡頭的焦點慢慢移到衛星、稍微拉遠（UpdatePayloadZoom），上節自己往後退出畫面（Animate）
+            // 留在側面鏡頭（不切到展開鏡頭）：焦點慢慢移到衛星並推近（UpdatePayloadZoom），上節自己往後退出畫面（Animate）
             _deployZoomFrom = _sideM;
             // 推近到衛星約占畫面高度的 40%；展開式太陽能板展開後也要放得下：衛星會慢慢自轉，翼板轉成直的也要在畫面裡（約占畫面高度的 75%）
             if (camSide != null && _sideOff0.sqrMagnitude > 0)
@@ -1290,7 +1312,7 @@ namespace GoNoGo.Launch
         static float Ease(float a, float b, float x) => Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(a, b, x));
 
         /// <summary>
-        /// 整段飛行的姿態：塔邊鏡頭之後先滾轉到飛行方位，再逐漸俯仰（重力轉向），換場那一刻剛好 80°，
+        /// 整段飛行的姿態：離塔後先滾轉到飛行方位，再逐漸俯仰（重力轉向），換場那一刻剛好 80°，
         /// 等於「太空場景的方位 × Euler(80, 0, 0)」。換場之後不再轉（轉動中的長焦和跟拍鏡頭會晃）。
         /// </summary>
         Quaternion FlightRotation(float t)
@@ -1323,7 +1345,6 @@ namespace GoNoGo.Launch
                 float v = (float)_tl.Velocity(t) * 1000f * SceneScale(t);
                 _accel = dt > 1e-5f ? Mathf.Max(0f, (v - _sceneVel) / dt) : 0f;
                 _sceneVel = v;
-                _pathAlt += v * dt;
                 _rocket.root.rotation = FlightRotation(t);
                 _rocket.root.position += _rocket.root.up * v * dt;
                 // 分離出去的物體：只保留一部分火箭的加速度，所以慢慢落後
@@ -1360,15 +1381,22 @@ namespace GoNoGo.Launch
             }
             if (flashLight != null && flashLight.intensity > 0) flashLight.intensity = Mathf.Max(0, flashLight.intensity - dt * 300f);
 
-            // 發射台的煙：升空後幾秒漸弱
-            foreach (var ps in padSmoke)
+            if (!_inSpace)
             {
-                if (ps == null || _inSpace) continue;
-                var em = ps.emission;
-                em.rateOverTimeMultiplier = throttle * Mathf.Clamp01(1f - (t - 6f) / 8f) * 70f;
+                // 發射台的煙：升空後幾秒漸弱
+                float smokeRate = throttle * Mathf.Clamp01(1f - (t - 6f) / 8f) * 70f;
+                if (smokeRate != _smokeRate)
+                {
+                    _smokeRate = smokeRate;
+                    foreach (var ps in padSmoke)
+                    {
+                        if (ps == null) continue;
+                        var em = ps.emission;
+                        em.rateOverTimeMultiplier = smokeRate;
+                    }
+                }
+                UpdateSky();
             }
-
-            if (!_inSpace) UpdateSky();
 
             // ---- 太空段：上節在畫面裡不動，分離出去的東西往後飄、地球在下面轉 ----
             if (_inSpace)
@@ -1450,13 +1478,12 @@ namespace GoNoGo.Launch
             float want = 0f;
             if (!_inSpace && t > -3f && t < 20f) want = throttle * Mathf.Lerp(1.6f, 0.5f, Mathf.Clamp01(t / 10f)) * Mathf.Clamp01((20f - t) / 6f);
             _shake = Mathf.Max(want, _shake - dt * 1.2f);
-            foreach (var cam in new[] { camWide, camEngine, camTower, camLong })
+            for (int i = 0; i < _shakeCams.Length; i++)
             {
-                if (cam == null) continue;
-                var n = cam.GetComponent<CinemachineBasicMultiChannelPerlin>();
-                if (n == null) continue;
-                // 長焦的視角很窄，同樣的晃動角度在畫面上會被放大：依視角比例縮小
-                // 晃動的角度和視角成正比：視角越窄（推近、長焦），同樣的角度在畫面上越大，火箭會被晃出畫面
+                var cam = _shakeCams[i];
+                var n = _shakeNoise[i];
+                if (cam == null || n == null) continue;
+                // 晃動的幅度照視角比例縮小：視角越窄（推近、長焦），同樣的角度在畫面上越大，火箭會被晃出畫面
                 float k = cam == camLong ? 0.35f * Mathf.Clamp01(cam.Lens.FieldOfView / Mathf.Max(0.01f, _longFov0))
                         : Mathf.Clamp01(cam.Lens.FieldOfView / ShakeRefFov);
                 n.AmplitudeGain = _inSpace ? 0f : _shake * k;
@@ -1551,8 +1578,8 @@ namespace GoNoGo.Launch
                 var far = focus + _transferDir * _transferFar;
                 var near = camSide != null ? camSide.State.GetFinalPosition() : focus + _transferDir * _transferNear;
                 float sideFov = camSide != null ? camSide.State.Lens.FieldOfView : 36f;
-                _frameSide = 2f * Vector3.Distance(near, focus) * Mathf.Tan(sideFov * 0.5f * Mathf.Deg2Rad);
-                frame = Mathf.Exp(Mathf.Lerp(Mathf.Log(_frameUpper), Mathf.Log(Mathf.Max(0.01f, _frameSide)), _transferEase));
+                float frameSide = 2f * Vector3.Distance(near, focus) * Mathf.Tan(sideFov * 0.5f * Mathf.Deg2Rad);
+                frame = Mathf.Exp(Mathf.Lerp(Mathf.Log(_frameUpper), Mathf.Log(Mathf.Max(0.01f, frameSide)), _transferEase));
                 camLong.transform.position = Vector3.Lerp(far, near, _transferEase);
                 if (camSide != null) _sideScreen = SideScreen(focus, near);
             }
@@ -1620,8 +1647,7 @@ namespace GoNoGo.Launch
             return new Vector2(yaw / hfov, -pitch / vfov);
         }
 
-        /// <summary>箭體偏離垂直的程度：0 = 直立、1 = 水平。</summary>
-        float _leadX;
+        float _leadX;                 // 長焦構圖的前方留白（畫面寬度的比例）：換場後維持換場前的值再補正
 
         /// <summary>某一點在長焦鏡頭畫面上的位置（0–1，左下是 0）：直接用鏡頭的位置、方向、視角算，不必等這一幀算圖。</summary>
         Vector2 LongViewport(Vector3 p)
@@ -1635,6 +1661,7 @@ namespace GoNoGo.Launch
             return new Vector2(0.5f + local.x / (z * 2f * th * aspect), 0.5f + local.y / (z * 2f * th));
         }
 
+        /// <summary>箭體偏離垂直的程度：0 = 直立、1 = 水平。</summary>
         float Tilt() => Mathf.Clamp01(Vector3.Angle(_rocket.root.up, Vector3.up) / 90f);
 
         /// <summary>
@@ -1680,14 +1707,14 @@ namespace GoNoGo.Launch
             _earthMpb.SetVector(TexRotZ, tex.GetRow(2));
             _earthFade = Mathf.MoveTowards(_earthFade, 1f, Time.deltaTime / EarthFadeSecs);
             float fade = Mathf.SmoothStep(0f, 1f, _earthFade);
-            _earthMpb.SetFloat("_Exposure", _earthExp0 * fade);
+            _earthMpb.SetFloat(ExposureId, _earthExp0 * fade);
             // 地表邊緣的藍光調淡（材質的值是給設施窗外那顆小地球用的），光暈才不會一大片
-            _earthMpb.SetFloat("_AtmoStrength", EarthRimInSpace);
+            _earthMpb.SetFloat(AtmoStrengthId, EarthRimInSpace);
             _earth.SetPropertyBlock(_earthMpb);
             if (_atmo != null)
             {
                 _atmo.GetPropertyBlock(_atmoMpb);
-                _atmoMpb.SetFloat("_Strength", _atmoStr0 * fade);
+                _atmoMpb.SetFloat(StrengthId, _atmoStr0 * fade);
                 _atmo.SetPropertyBlock(_atmoMpb);
             }
             if (_earthshine != null) _earthshine.intensity = _earthshine0 * fade;
@@ -1736,7 +1763,12 @@ namespace GoNoGo.Launch
                 step = Mathf.Max(step, (1f - _darkShown) * real / left);
             }
             _darkShown = Mathf.MoveTowards(_darkShown, Mathf.Max(_darkWant, _darkShown), step);
-            ApplyDarkness(_darkShown);
+            // 天色沒變就不重設（倒數那十幾秒一直是 0）：ApplyDarkness 設的值只由天色決定，發射台段也沒有別人會改它們
+            if (_darkShown != _darkApplied)
+            {
+                ApplyDarkness(_darkShown);
+                _darkApplied = _darkShown;
+            }
             // 天空幾乎全黑時換成星空，但亮度先保持 0：長焦下星點會被放大成光斑，換到太空、鏡頭拉開之後才亮
             if (_darkShown > 0.97f && _starsShared != null && _starsInst == null)
             {
@@ -1758,7 +1790,7 @@ namespace GoNoGo.Launch
             _starsT += real;
             float want = UpperOn ? StarsBurnK : 1f;
             _starsExp = Mathf.MoveTowards(_starsExp == 0f ? want : _starsExp, want, real * 0.3f);
-            _starsInst.SetFloat("_Brightness", _starsBright * StarsLevel * _starsExp * Mathf.SmoothStep(0f, 1f, (_starsT - 1f) / 6f));
+            _starsInst.SetFloat(BrightnessId, _starsBright * StarsLevel * _starsExp * Mathf.SmoothStep(0f, 1f, (_starsT - 1f) / 6f));
         }
 
         void ApplyDarkness(float dark)
@@ -1766,8 +1798,8 @@ namespace GoNoGo.Launch
             float lit = (1f - dark) * (1f - dark);
             if (_skyInst != null)
             {
-                _skyInst.SetFloat("_Exposure", _sky0Exposure * lit);
-                _skyInst.SetFloat("_AtmosphereThickness", Mathf.Lerp(_sky0Thickness, 0.3f, dark));
+                _skyInst.SetFloat(ExposureId, _sky0Exposure * lit);
+                _skyInst.SetFloat(AtmosphereThicknessId, Mathf.Lerp(_sky0Thickness, 0.3f, dark));
             }
             RenderSettings.fogDensity = _fog0 * lit;
             if (_spaceEnv != null)
@@ -1786,6 +1818,12 @@ namespace GoNoGo.Launch
         }
 
         static readonly int ThrottleId = Shader.PropertyToID("_Throttle");
+        // 每幀都要設的材質屬性：名稱先換成 id，不必每幀查字串
+        static readonly int ExposureId = Shader.PropertyToID("_Exposure");
+        static readonly int AtmosphereThicknessId = Shader.PropertyToID("_AtmosphereThickness");
+        static readonly int AtmoStrengthId = Shader.PropertyToID("_AtmoStrength");
+        static readonly int StrengthId = Shader.PropertyToID("_Strength");
+        static readonly int BrightnessId = Shader.PropertyToID("_Brightness");
         // MaterialPropertyBlock 不能在欄位初始化時建立（Unity 不允許在建構子裡建立引擎物件），在 Awake 建
         MaterialPropertyBlock _mpb;
 

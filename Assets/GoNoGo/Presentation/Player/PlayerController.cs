@@ -35,8 +35,6 @@ namespace GoNoGo.Presentation
         float _baseFov = -1;
 
         public float Speed { get; private set; }
-        public bool FirstPerson => _firstPerson;
-        public float Yaw => _yaw;
         /// <summary>第一人稱鏡頭的位置。</summary>
         public Vector3 Eye => transform.position + Vector3.up * eyeHeight;
         /// <summary>角色的胸口高度：互動距離從這裡量。</summary>
@@ -152,8 +150,9 @@ namespace GoNoGo.Presentation
             // 切換模式：按一下之後一直用跑的（停下來、開面板都不取消），再按一下才改回走
             if (GameSettings.RunToggle) run = _running;
             if (input.sqrMagnitude > 1) input.Normalize();
-            var fwd = Quaternion.Euler(0, _yaw, 0) * Vector3.forward;
-            var right = Quaternion.Euler(0, _yaw, 0) * Vector3.right;
+            var facing = Quaternion.Euler(0, _yaw, 0);
+            var fwd = facing * Vector3.forward;
+            var right = facing * Vector3.right;
             var move = (fwd * input.y + right * input.x) * (run ? runSpeed : walkSpeed);
 
             _vy = _cc.isGrounded ? -1f : _vy - 18f * Time.deltaTime;

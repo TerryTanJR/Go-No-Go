@@ -35,6 +35,8 @@ namespace GoNoGo.UI
         public static string NoOrphan(string text)
         {
             if (string.IsNullOrEmpty(text)) return text ?? "";
+            // 只有一段（絕大多數）：不用拆開再接回去
+            if (text.IndexOf('\n') < 0) return NoOrphanLine(text);
             var paras = text.Split('\n');
             for (int i = 0; i < paras.Length; i++) paras[i] = NoOrphanLine(paras[i]);
             return string.Join("\n", paras);
@@ -44,6 +46,7 @@ namespace GoNoGo.UI
         public static int VisibleLength(string rich)
         {
             if (string.IsNullOrEmpty(rich)) return 0;
+            if (rich.IndexOf('<') < 0) return rich.Length;
             int n = 0;
             bool tag = false;
             foreach (char c in rich)
@@ -61,7 +64,10 @@ namespace GoNoGo.UI
         public static string RichPrefix(string rich, int visible)
         {
             if (string.IsNullOrEmpty(rich) || visible <= 0) return "";
-            var sb = new System.Text.StringBuilder(rich.Length);
+            // 沒有標籤：直接切
+            if (rich.IndexOf('<') < 0) return visible >= rich.Length ? rich : rich.Substring(0, visible);
+            var sb = PrefixSb;
+            sb.Clear();
             int n = 0, open = 0;
             for (int i = 0; i < rich.Length; i++)
             {
@@ -71,10 +77,9 @@ namespace GoNoGo.UI
                     int close = rich.IndexOf('>', i);
                     if (close > i)
                     {
-                        string tag = rich.Substring(i, close - i + 1);
-                        if (tag.StartsWith("</")) open = System.Math.Max(0, open - 1);
+                        if (rich[i + 1] == '/') open = Math.Max(0, open - 1);
                         else open++;
-                        sb.Append(tag);
+                        sb.Append(rich, i, close - i + 1);
                         i = close;
                         continue;
                     }
@@ -87,6 +92,9 @@ namespace GoNoGo.UI
             return sb.ToString();
         }
 
+        // 打字機效果每多一個字就呼叫一次 RichPrefix：共用一個 StringBuilder（UI 只在主執行緒跑）
+        static readonly System.Text.StringBuilder PrefixSb = new System.Text.StringBuilder(256);
+
         static string NoOrphanLine(string s)
         {
             s = s.TrimEnd();
@@ -96,26 +104,35 @@ namespace GoNoGo.UI
             int sp = s.LastIndexOf(' ');
             // 英文：最後一個單字和前一個連在一起（太長的不黏，免得整行被推下去）
             if (sp > 0 && s.Length - sp <= 16 && !IsCjk(s[s.Length - 1]) && !IsCjk(s[s.Length - 2]))
-                return s.Substring(0, sp) + ' ' + s.Substring(sp + 1);
+                return s.Substring(0, sp) + '\u00A0' + s.Substring(sp + 1);
             if (!IsCjk(s[s.Length - 1]) && !IsCjk(s[s.Length - 2])) return s;
-            var sb = new System.Text.StringBuilder(s.Length + 2);
-            sb.Append(s, 0, s.Length - 3);
-            for (int k = s.Length - 3; k < s.Length; k++)
-            {
-                if (k > s.Length - 3) sb.Append('⁠');
-                sb.Append(s[k]);
-            }
-            return sb.ToString();
+            // 最後三個字之間各插一個 U+2060
+            int len = s.Length;
+            var a = new char[len + 2];
+            s.CopyTo(0, a, 0, len - 2);
+            a[len - 2] = '\u2060';
+            a[len - 1] = s[len - 2];
+            a[len] = '\u2060';
+            a[len + 1] = s[len - 1];
+            return new string(a);
         }
 
         static bool IsCjk(char c) => c >= 0x2E80 && c <= 0x9FFF || c >= 0xF900 && c <= 0xFAFF || c >= 0xFF00 && c <= 0xFFEF;
+
+        // 所有按鈕共用同一組回呼（不用每顆按鈕各配一個閉包）。PointerEnter 不冒泡、逐一送給每個元素，
+        // 所以事件的 currentTarget 就是那顆按鈕
+        static readonly EventCallback<ClickEvent> BtnClick = _ => Sfx.Click();
+        static readonly EventCallback<PointerEnterEvent> BtnHover = e =>
+        {
+            if ((e.currentTarget ?? e.target) is VisualElement b && b.enabledInHierarchy) Sfx.Hover();
+        };
 
         public static Button Btn(string text, Action onClick, params string[] classes)
         {
             var b = new Button(onClick) { text = text ?? "" };
             foreach (var c in classes) if (!string.IsNullOrEmpty(c)) b.AddToClassList(c);
-            b.RegisterCallback<ClickEvent>(_ => Sfx.Click());
-            b.RegisterCallback<PointerEnterEvent>(_ => { if (b.enabledInHierarchy) Sfx.Hover(); });
+            b.RegisterCallback<ClickEvent>(BtnClick);
+            b.RegisterCallback<PointerEnterEvent>(BtnHover);
             return b;
         }
 
@@ -140,9 +157,9 @@ namespace GoNoGo.UI
         }
 
         /// <summary>面板（含標題列）。回傳內容區。</summary>
-        public static VisualElement Panel(VisualElement parent, string title, out VisualElement panel, string extraClass = null)
+        public static VisualElement Panel(VisualElement parent, string title, string extraClass = null)
         {
-            panel = El("panel", extraClass).AddTo(parent);
+            var panel = El("panel", extraClass).AddTo(parent);
             if (!string.IsNullOrEmpty(title))
             {
                 var head = El("panel-title").AddTo(panel);

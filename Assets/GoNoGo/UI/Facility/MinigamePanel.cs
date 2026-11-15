@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using GoNoGo.Core;
 using GoNoGo.Game;
 using UnityEngine;
@@ -16,6 +15,8 @@ namespace GoNoGo.UI
     {
         readonly List<MiniShape> _shapes = new List<MiniShape>();
         readonly List<Label> _labels = new List<Label>();
+        /// <summary>每個文字標籤上一格的內容（<see cref="MiniShape.Str"/>）：一樣就不用再查字串表。</summary>
+        readonly List<string> _labelSrc = new List<string>();
         readonly Label _banner;
         bool _pressed;
 
@@ -92,6 +93,8 @@ namespace GoNoGo.UI
             return t;
         }
 
+        static readonly ushort[] QuadIndices = { 0, 1, 2, 2, 3, 0 };
+
         static Color Col(uint rgb, float alpha) =>
             new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f, Mathf.Clamp01(alpha));
 
@@ -112,11 +115,17 @@ namespace GoNoGo.UI
                     l.style.translate = new Translate(Length.Percent(-50), Length.Percent(-50));
                     Insert(0, l); // 文字放在畫布底下的圖層上方即可；Banner 在最上面
                     _labels.Add(l);
+                    _labelSrc.Add(null);
                 }
-                var lab = _labels[n++];
+                var lab = _labels[n];
                 lab.style.display = DisplayStyle.Flex;
                 var str = sh.Str ?? "";
-                lab.text = str.Length > 1 && str[0] == '@' ? Loc.T(str.Substring(1)) : str; // "@鍵" = 字串鍵
+                if (str != _labelSrc[n])
+                {
+                    _labelSrc[n] = str;
+                    lab.text = str.Length > 1 && str[0] == '@' ? Loc.T(str.Substring(1)) : str; // "@鍵" = 字串鍵
+                }
+                n++;
                 lab.style.left = o.x + sh.X * s;
                 lab.style.top = o.y + sh.Y * s;
                 lab.style.fontSize = Mathf.Max(6f, sh.A * s);
@@ -207,20 +216,7 @@ namespace GoNoGo.UI
                             md.SetNextVertex(new Vertex { position = new Vector3(tr.x, tr.y, Vertex.nearZ), uv = new Vector2(1, 1), tint = tint });
                             md.SetNextVertex(new Vertex { position = new Vector3(br.x, br.y, Vertex.nearZ), uv = new Vector2(1, 0), tint = tint });
                             md.SetNextVertex(new Vertex { position = new Vector3(bl.x, bl.y, Vertex.nearZ), uv = new Vector2(0, 0), tint = tint });
-                            md.SetAllIndices(new ushort[] { 0, 1, 2, 2, 3, 0 });
-                            break;
-                        }
-                    case MiniShapeKind.Tri:
-                        {
-                            float cos = Mathf.Cos(sh.Rot), sin = Mathf.Sin(sh.Rot);
-                            Vector2 V(float dx, float dy) => P(sh.X + dx * cos - dy * sin, sh.Y + dx * sin + dy * cos);
-                            p.fillColor = c;
-                            p.BeginPath();
-                            p.MoveTo(V(0, -sh.A));
-                            p.LineTo(V(sh.A * 0.866f, sh.A * 0.5f));
-                            p.LineTo(V(-sh.A * 0.866f, sh.A * 0.5f));
-                            p.ClosePath();
-                            p.Fill();
+                            md.SetAllIndices(QuadIndices);
                             break;
                         }
                 }
@@ -276,7 +272,6 @@ namespace GoNoGo.UI
 
         readonly MinigameDef _def;
         readonly bool _debug;
-        readonly string _eventId;
         MinigameContext _ctx;
         int _severity;
         int _seed;
@@ -288,11 +283,16 @@ namespace GoNoGo.UI
         int _startFrame;
         readonly List<MiniShape> _shapes = new List<MiniShape>();
         readonly List<Label> _statLabels = new List<Label>();
+        /// <summary>每個數值標籤上一格的名稱和數值：都沒變就不重組字串。</summary>
+        readonly List<string> _statKeys = new List<string>(), _statValues = new List<string>();
+        int _statShown;
         VisualElement _statRow;
         Label _caption;
-        string _captionKey = "";
+        // 畫面上方的說明現在顯示的是哪一句、什麼語氣（null = 還沒畫過）
+        string _captionKey;
+        int _captionTone;
         // 音效：上一格的訊號數、說明的語氣、各種聲音的冷卻
-        int _goodSeen, _badSeen, _shotSeen, _toneSeen;
+        int _goodSeen, _badSeen, _toneSeen;
         float _tapCd, _gainCd, _badCd, _shotCd;
 
         /// <summary>事件模式。</summary>
@@ -300,7 +300,6 @@ namespace GoNoGo.UI
         {
             var e = M.CurrentEvent;
             if (e != null) _def = Minigames.For(M.ResponseTo(e.Id).Judged);
-            _eventId = e?.Id;
             if (e != null && _def != null)
             {
                 _severity = e.Severity;
@@ -348,6 +347,9 @@ namespace GoNoGo.UI
             if (_stage == Stage.Playing) return;
             base.Refresh();
         }
+
+        /// <summary>切語言後接到新的容器：玩到一半也要重畫（同一局接著玩，不是重來）。</summary>
+        protected override void OnReattach() => Refresh2();
 
         protected override void Build(VisualElement body)
         {
@@ -400,7 +402,7 @@ namespace GoNoGo.UI
             _stage = Stage.Playing;
             _startFrame = Time.frameCount;
             _submitted = false;
-            _goodSeen = _badSeen = _shotSeen = _toneSeen = 0;
+            _goodSeen = _badSeen = _toneSeen = 0;
             _tapCd = _gainCd = _badCd = _shotCd = 0;
             Sfx.Go();
             Refresh2();
@@ -422,7 +424,12 @@ namespace GoNoGo.UI
             OpsGoal.Line(body, _def);
             _statRow = Ui.Row("mini-stats").AddTo(body);
             _statLabels.Clear();
+            _statKeys.Clear();
+            _statValues.Clear();
+            _statShown = 0;
             _caption = Ui.Text("", "mini-caption").AddTo(body);
+            // 新的說明列是空的：清掉快取，第一句才會寫上去（就算和上一局最後一句一樣）
+            _captionKey = null;
             _canvas = new MiniCanvas().AddTo(body);
             var foot = Ui.Row("mini-foot").AddTo(body);
             Ui.Text(Loc.T("mini." + _def.Id + ".controls"), "small", "dim").AddTo(foot);
@@ -496,8 +503,8 @@ namespace GoNoGo.UI
         void PlayCues(float dt, MiniInput inp)
         {
             _tapCd -= dt; _gainCd -= dt; _badCd -= dt; _shotCd -= dt;
-            bool good = _game.GoodCues != _goodSeen, bad = _game.BadCues != _badSeen, shot = _game.ShotCues != _shotSeen;
-            _goodSeen = _game.GoodCues; _badSeen = _game.BadCues; _shotSeen = _game.ShotCues;
+            bool good = _game.GoodCues != _goodSeen, bad = _game.BadCues != _badSeen;
+            _goodSeen = _game.GoodCues; _badSeen = _game.BadCues;
             int tone = _game.Caption.Tone;
             if (tone != _toneSeen)
             {
@@ -507,7 +514,7 @@ namespace GoNoGo.UI
             float progress = Mathf.Clamp01(_game.Score / 1000f);
             if (bad && _badCd <= 0) { Sfx.MiniBad(); _badCd = 0.22f; }
             else if (good && _gainCd <= 0) { Sfx.MiniGain(progress); _gainCd = 0.09f; }
-            else if ((shot || inp.Fire) && _def.Kind == EventKind.Alien && _shotCd <= 0) { Sfx.MiniShot(); _shotCd = 0.2f; }
+            else if (inp.Fire && _def.Kind == EventKind.Alien && _shotCd <= 0) { Sfx.MiniShot(); _shotCd = 0.2f; }
             else if ((inp.Pressed || inp.Action || inp.Number != 0) && _tapCd <= 0) { Sfx.MiniTap(); _tapCd = 0.07f; }
         }
 
@@ -530,9 +537,9 @@ namespace GoNoGo.UI
             if (_caption == null) return;
             var c = _game.Caption;
             string key = c.Key ?? "";
-            string sig = key + "|" + c.Tone;
-            if (sig == _captionKey) return;
-            _captionKey = sig;
+            if (key == _captionKey && c.Tone == _captionTone) return;
+            _captionKey = key;
+            _captionTone = c.Tone;
             _caption.text = key == "" ? "" : Loc.T(key);
             _caption.style.display = key == "" ? DisplayStyle.None : DisplayStyle.Flex;
             _caption.EnableInClassList("mini-caption--good", c.Tone == 1);
@@ -550,12 +557,21 @@ namespace GoNoGo.UI
                 {
                     var l = Ui.Text("", "mini-stat", "mono").AddTo(_statRow);
                     _statLabels.Add(l);
+                    _statKeys.Add(null);
+                    _statValues.Add(null);
                 }
-                string text = Loc.T(st.Key) + "  " + st.Value;
-                if (_statLabels[i].text != text) _statLabels[i].text = text;
+                if (st.Key != _statKeys[i] || st.Value != _statValues[i])
+                {
+                    _statKeys[i] = st.Key;
+                    _statValues[i] = st.Value;
+                    _statLabels[i].text = Loc.T(st.Key) + "  " + st.Value;
+                }
                 i++;
             }
-            for (; i < _statLabels.Count; i++) _statLabels[i].style.display = DisplayStyle.None;
+            // 數值的個數會變：變少時把多的藏起來，之後又變多要再顯示出來
+            if (i == _statShown) return;
+            for (int k = 0; k < _statLabels.Count; k++) _statLabels[k].style.display = k < i ? DisplayStyle.Flex : DisplayStyle.None;
+            _statShown = i;
         }
 
         // ---------------------------------------------------------------- 結果

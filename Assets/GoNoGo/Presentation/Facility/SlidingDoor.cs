@@ -1,4 +1,3 @@
-using GoNoGo.Core;
 using GoNoGo.Game;
 using UnityEngine;
 
@@ -23,12 +22,18 @@ namespace GoNoGo.Presentation
 
         void Update()
         {
-            bool someone = Near(PoseFeed.Local.Position);
-            foreach (var kv in PoseFeed.Remote) someone |= Near(kv.Value.Position);
-            _open = Mathf.MoveTowards(_open, someone ? 1f : 0f, Time.deltaTime * 2.8f);
-            float e = _open * _open * (3 - 2 * _open);
-            if (left != null) left.localPosition = _l0 + Vector3.left * openDistance * e;
-            if (right != null) right.localPosition = _r0 + Vector3.right * openDistance * e;
+            var door = transform.position;
+            bool someone = Near(PoseFeed.Local.Position, door);
+            foreach (var kv in PoseFeed.Remote) someone |= Near(kv.Value.Position, door);
+            float open = Mathf.MoveTowards(_open, someone ? 1f : 0f, Time.deltaTime * 2.8f);
+            if (open != _open)
+            {
+                // 門在動的時候才更新位置（關好、開到底之後門板不用每幀重設）
+                _open = open;
+                float e = _open * _open * (3 - 2 * _open);
+                if (left != null) left.localPosition = _l0 + Vector3.left * openDistance * e;
+                if (right != null) right.localPosition = _r0 + Vector3.right * openDistance * e;
+            }
             if (someone != _wasOpen)
             {
                 _wasOpen = someone;
@@ -36,6 +41,6 @@ namespace GoNoGo.Presentation
             }
         }
 
-        bool Near(Vector3 p) => p != Vector3.zero && Vector3.Distance(new Vector3(p.x, 0, p.z), new Vector3(transform.position.x, 0, transform.position.z)) < triggerRange;
+        bool Near(Vector3 p, Vector3 door) => p != Vector3.zero && Vector3.Distance(new Vector3(p.x, 0, p.z), new Vector3(door.x, 0, door.z)) < triggerRange;
     }
 }

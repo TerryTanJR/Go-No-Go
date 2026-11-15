@@ -11,16 +11,16 @@ namespace GoNoGo.EditorTools
 {
     /// <summary>
     /// MainMenu 與 Facility 場景。
-    /// Facility 是一個場景裡的三個區域：組裝區（小零件架、兩座組裝台、整合台）、中控室（前方的大屏幕、線索區、
+    /// Facility 是一個場景裡的三個區域：組裝區（小零件架、兩座組裝台、整合台）、中控室（前方的設計主螢幕、線索區、
     /// 發射鈕、營運席；和組裝區之間一道永遠開著的自動門）、大廳（z 34…58，多人才用，開始任務時傳送到中控室）。
-    /// 營運時中控室的大屏幕顯示遠處（y -400）的地球縮景。
+    /// 營運時中控室的設計主螢幕顯示遠處（y -400）的地球縮景。
     /// </summary>
     public static partial class SceneBuilder
     {
         const float RoomH = 8.5f;
-        const float BayX0 = -15f, BayX1 = 15f, CtrlX0 = 16f, CtrlX1 = 34f, RoomZ = 9f;
-        /// <summary>組裝區南北牆（中控室和隔牆還是 ±RoomZ）。</summary>
-        const float BayZ = 13.5f;   // 整合台在大廳正中央；中控室比它淺，隔牆補到這個深度
+        const float BayX0 = -15f, BayX1 = 15f, CtrlX0 = 16f, RoomZ = 9f;
+        /// <summary>組裝區南北牆的 z（整合台在組裝區正中央）。中控室是 ±RoomZ × CtrlS，比它淺，隔牆補到這個深度。</summary>
+        const float BayZ = 13.5f;
         /// <summary>中控室模型整體放大的倍數（以靠隔牆的西邊為基準）：房間、控制台、影像牆一起變大，功能位置照比例跟著動。</summary>
         const float CtrlS = 1.3f;
         /// <summary>南牆正中間的落地大窗，左右各 WinHalf。</summary>
@@ -108,18 +108,18 @@ namespace GoNoGo.EditorTools
             var ctrl = BuildUtil.Group("ControlRoom", root);
             var lobby = BuildUtil.Group("Lobby", root);
 
-            BuildShell(art, fm, root, bay, ctrl);
+            BuildShell(art, fm, root, bay);
             var stand = BuildStand(art, fm, bay);
             BuildShelves(art, fm, bay);
             BuildBayDecor(art, fm, bay);
             BuildBayConsoles(art, fm, bay);
             BuildBayClues(art, fm, bay);
-            BuildBayRing(art, fm, BuildUtil.Group("AssemblyRing", root), sphere);
+            BuildBayRing(art, fm, BuildUtil.Group("AssemblyRing", root));
             BuildControlRoom(art, fm, ctrl);
             BuildControlClues(art, fm, ctrl);
-            BuildControlDecor(art, fm, ctrl);
+            BuildControlDecor(art, ctrl);
             BuildLobby(art, fm, lobby, sphere);
-            var opsView = BuildDiorama(art, sphere, sun, rt);
+            BuildDiorama(art, sphere, sun, rt);
 
             // ---- 出生點 ----
             var spawns = BuildUtil.Group("Spawns", root);
@@ -137,7 +137,7 @@ namespace GoNoGo.EditorTools
             cam.backgroundColor = new Color(0.02f, 0.025f, 0.03f);
 
             var dir = new GameObject("FacilityDirector").AddComponent<FacilityDirector>();
-            // 不分組：所有人開局都生成在中控室（面向前方的大屏幕）；營運開始時也回到這裡
+            // 不分組：所有人開局都生成在中控室（面向前方的設計主螢幕）；營運開始時也回到這裡
             dir.controlSpawn = Spawn("ControlSpawn", new Vector3(CtrlX0 + 3f, 0.05f, 0), 90);
             dir.opsSpawn = Spawn("OpsSpawn", new Vector3(CtrlX0 + 4.5f, 0.05f, 0), 90);
             dir.lobbySpawn = Spawn("LobbySpawn", new Vector3(0, 0.05f, 38f), 0);
@@ -177,7 +177,7 @@ namespace GoNoGo.EditorTools
             return go;
         }
 
-        static void BuildShell(ArtBuilder.Art art, FacMats fm, Transform root, Transform bay, Transform ctrl)
+        static void BuildShell(ArtBuilder.Art art, FacMats fm, Transform root, Transform bay)
         {
             float bayW = BayX1 - BayX0, depth = BayZ * 2;
             float bayCx = (BayX0 + BayX1) / 2;
@@ -188,12 +188,11 @@ namespace GoNoGo.EditorTools
             var bayWall = BuildUtil.Lit("M_BayWall", new Color(0.13f, 0.15f, 0.19f), 0.25f, 0.5f);
             Solid("Ceiling", bay, new Vector3(bayCx, RoomH + 0.1f, 0), new Vector3(bayW + 2, 0.2f, depth + 2), bayWall);
 
-            // 組裝區：白色無塵室
             Solid("WallW", bay, new Vector3(BayX0 - 0.15f, RoomH / 2, 0), new Vector3(0.3f, RoomH, depth), bayWall);
             Solid("WallN", bay, new Vector3(bayCx, RoomH / 2, BayZ + 0.15f), new Vector3(bayW + 0.6f, RoomH, 0.3f), bayWall);
             // 南牆（含大窗）在 BuildBayRing
 
-            // 中間的隔牆（x 11…12），門洞 z -1.3…1.3、高 2.7
+            // 中間的隔牆（x 15…16），門洞 z -1.3…1.3、高 2.7
             const float doorHalf = 1.3f, doorH = 2.7f;
             // 隔牆要接上放大後的中控室牆（z ±9×倍數、模型西牆從 6×倍數 以上補起）
             float divZ = Mathf.Max(RoomZ * CtrlS, BayZ), divH = RoomH * CtrlS;
@@ -361,7 +360,7 @@ namespace GoNoGo.EditorTools
         /// <summary>
         /// 小零件架：北牆一排五座，每座上下兩層、每層五格（共 50 格，一格一種小零件）。所有配方會用到的小零件都在架上，
         /// 包括這次設計用不到的；哪一格放什麼由 GameData.ShelfComponents 決定，執行時 <see cref="CompBin"/> 擺上模型和名稱。
-        /// 架子不提示該拿什麼，不限數量，拿走會補。取代原本的收貨口和輸送帶。局部 -Z 是拿零件的人那一面（朝南）。
+        /// 架子不提示該拿什麼，不限數量，拿走會補。局部 -Z 是拿零件的人那一面（朝南）。
         /// </summary>
         static void BuildShelves(ArtBuilder.Art art, FacMats fm, Transform bay)
         {
@@ -428,7 +427,7 @@ namespace GoNoGo.EditorTools
             Quad("FloorStripe", root, new Vector3(0, 0.004f, z - 0.8f), Quaternion.Euler(90, 0, 0), new Vector2(total + 0.4f, 0.12f), floorStripe);
         }
 
-        /// <summary>小零件架每一座的中心 x（組裝區的線索擺在架子之間的牆上）。</summary>
+        /// <summary>相鄰兩座小零件架之間第 gapIndex 個空隙的中心 x（組裝區的便條夾在空隙的面板上）。</summary>
         static float ShelfGapX(int gapIndex)
         {
             const float pitch = 0.64f, gap = 0.6f;
@@ -542,7 +541,6 @@ namespace GoNoGo.EditorTools
         static void BuildBayClues(ArtBuilder.Art art, FacMats fm, Transform bay)
         {
             var g = BuildUtil.Group("BayClues", bay);
-            var print = ClueMat("blueprint");
             var paper = ClueMat("paper");
             void Print(string id, Vector3 pos, float yaw) => CluePrint(art, fm, g, id, pos, yaw);
             // 西牆（朝東）：徽章北邊
@@ -575,8 +573,8 @@ namespace GoNoGo.EditorTools
             // 東牆：門的北邊貼著一張便條
             ClueNote(art, g, "doornote", new Vector3(BayX1 - 0.07f, 1.62f, 2.15f), 90f, 2f);
             // 兩座組裝台旁邊、整合台北邊：立著的夾板
-            ClueStand(art, g, "benchnote_1", new Vector3(-8.25f, 0, -2.9f), 52f);
-            ClueStand(art, g, "benchnote_2", new Vector3(8.25f, 0, -2.9f), -52f);
+            ClueStand(art, g, "benchnote_1", new Vector3(-8.6f, 0, -2.45f), 52f);
+            ClueStand(art, g, "benchnote_2", new Vector3(8.6f, 0, -2.45f), -52f);
             ClueStand(art, g, "standnote", new Vector3(-2.6f, 0, 7.3f), 180f);
             // 掉在地上的兩張紙：整合台西北邊、東南角的組裝台後面
             ClueLoose(g, "floor_b1", new Vector3(-5.6f, 0.012f, 5.9f), 24f);
@@ -905,7 +903,7 @@ namespace GoNoGo.EditorTools
             Label(t, "ui.area.assembly", new Vector3(BayX0 + 0.3f, ey - 2.0f, ez), "sign", 16f);
 
             // ---- 天花板：燈板、橋式吊車（停在整合台西邊，不擋衛星） ----
-            // 橫樑（大廳那種）：每 3.6 公尺一根，燈板只放在橫樑之間（原本 15 片太亮，改 10 片）
+            // 橫樑（大廳那種）：每 3.6 公尺一根，燈板只放在橫樑之間、交錯著放（每一格都放太亮）
             for (int i = 0; i < 9; i++)
                 Box("CeilingBeam", t, new Vector3(BayX0 + 1.9f + i * 3.6f, RoomH - 0.2f, 0), new Vector3(0.5f, 0.4f, depth), art.trim, shadows: false);
             for (int x = 0; x < 8; x++)
@@ -1073,51 +1071,7 @@ namespace GoNoGo.EditorTools
             return m;
         }
 
-        // ---------------- 控制台 ----------------
-
-        /// <summary>
-        /// 一張控制台桌子：桌面、螢幕、發光邊條（ConsoleTarget 的 glow）。yaw = 操作員面對的方向。
-        /// </summary>
-        static ConsoleTarget Console(ArtBuilder.Art art, FacMats fm, Transform parent, string name, Vector3 pos, float yaw,
-            string panel, string titleKey, string bodyKey, string phases, Material screen, float width = 1.6f)
-        {
-            var go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = pos;
-            go.transform.localRotation = Quaternion.Euler(0, yaw, 0);
-            var t = go.transform;
-            go.transform.localScale = Vector3.one * 1.3f;   // 整台放大
-            // 操作員站在 -Z 那一側，看向 +Z。桌體、斜面桌板、發光前緣、兩側翼板、雙層螢幕、鍵盤與按鍵列
-            Solid("Body", t, new Vector3(0, 0.4f, 0.1f), new Vector3(width, 0.8f, 0.7f), art.consoleBody, true);
-            Box("Plinth", t, new Vector3(0, 0.04f, 0.02f), new Vector3(width + 0.12f, 0.08f, 0.82f), art.trim, shadows: false);
-            Box("Desk", t, new Vector3(0, 0.82f, 0), new Vector3(width + 0.14f, 0.05f, 0.92f), art.trim);
-            var glow = Box("Glow", t, new Vector3(0, 0.85f, -0.43f), new Vector3(width + 0.14f, 0.03f, 0.04f), fm.glow, shadows: false);
-            Box("FrontStripe", t, new Vector3(0, 0.55f, -0.255f), new Vector3(width - 0.1f, 0.03f, 0.01f), art.accentGlow, shadows: false);
-            Box("Keyboard", t, new Vector3(0, 0.865f, -0.18f), new Vector3(width * 0.6f, 0.02f, 0.26f), art.wallDark, shadows: false);
-            for (int i = 0; i < 5; i++)
-                Box("Key", t, new Vector3(-width * 0.25f + i * width * 0.125f, 0.88f, -0.05f), new Vector3(0.07f, 0.02f, 0.05f), i % 2 == 0 ? art.accentGlow : fm.redGlow, shadows: false);
-            foreach (float sx in new[] { -1f, 1f })
-            {
-                Box("Wing", t, new Vector3(sx * (width / 2 + 0.07f), 0.55f, 0.1f), new Vector3(0.06f, 1.1f, 0.78f), art.trim);
-                Box("WingGlow", t, new Vector3(sx * (width / 2 + 0.105f), 0.96f, 0.1f), new Vector3(0.01f, 0.03f, 0.7f), art.accentGlow, shadows: false);
-            }
-            Box("Riser", t, new Vector3(0, 1.28f, 0.34f), new Vector3(width, 0.95f, 0.08f), art.consoleBody);
-            // Quad 正面朝 -Z（朝操作員），上緣往後仰 10°；上下兩層螢幕，下層是原本的畫面
-            if (screen != null)
-            {
-                Quad("Screen", t, new Vector3(0, 1.1f, 0.285f), Quaternion.Euler(10f, 0, 0), new Vector2(width - 0.15f, 0.5f), screen);
-                Quad("ScreenTop", t, new Vector3(0, 1.62f, 0.3f), Quaternion.Euler(6f, 0, 0), new Vector2(width - 0.15f, 0.42f), art.consoleScreens[(System.Array.IndexOf(art.consoleScreens, screen) + 1) % art.consoleScreens.Length]);
-            }
-            Box("TopBar", t, new Vector3(0, 1.79f, 0.34f), new Vector3(width + 0.04f, 0.04f, 0.1f), art.accentGlow, shadows: false);
-            var ct = go.AddComponent<ConsoleTarget>();
-            ct.panel = panel;
-            ct.titleKey = titleKey;
-            ct.bodyKey = bodyKey;
-            ct.phases = phases;
-            ct.glow = glow.GetComponent<Renderer>();
-            Label(t, titleKey, new Vector3(0, 2.05f, 0.2f), "tag", 9f);
-            return ct;
-        }
+        // ---------------- 組裝台、牆上的螢幕 ----------------
 
         /// <summary>
         /// 組裝台（共兩座）：一張厚實的工作桌（操作員站在 -Z 那一側看向 +Z）。桌面分左右兩側：
@@ -1314,13 +1268,12 @@ namespace GoNoGo.EditorTools
             ds.AddComponent<BoxCollider>().size = new Vector3(6.8f, 4.3f, 0.12f);
         }
 
-        // ---------------- 組裝大廳（組裝區南側的擴建） ----------------
+        // ---------------- 組裝區南半邊的裝飾（BuildBayRing） ----------------
         //
-        // 組裝區南牆中間開了一個出入口，通往這間大廳：中央是升高的衛星組裝平台（大型衛星展示、桁架吊架、工作燈），
-        // 西邊是工作台與零件架，東邊是熱真空艙、振動台、貨架與堆高機，南牆是落地大窗，窗外是地球。
-        // 全部只是裝潢，沒有任何互動功能；原本組裝區的控制台、傳送帶、整合台位置完全不動。
+        // 南牆中間是落地大窗，窗外是發射場；窗前兩座展覽台，西牆南段是零件架，東牆南段是熱真空艙，兩側牆上各一面看板。
+        // 全部只是裝潢，沒有任何互動功能。
 
-        /// <summary>展覽台：圓台、四根立柱框成展櫃、頂環、聚光燈、自轉的展品（0 立方衛星、1 大型衛星、2 火箭模型）。</summary>
+        /// <summary>展覽台：圓台、四根立柱框成展櫃、頂環、聚光燈、自轉的展品（1 大型衛星、2 火箭模型）。</summary>
         static void Exhibit(Transform parent, Vector3 localPos, int variant, LobbyMats lm, ArtBuilder.Art art, FacMats fm)
         {
             var g = BuildUtil.Group("Exhibit" + variant, parent);
@@ -1332,7 +1285,7 @@ namespace GoNoGo.EditorTools
             for (int i = 0; i < 4; i++)
             {
                 float a = i * Mathf.PI / 2f + Mathf.PI / 4f;
-                var post = Box("Post", g, new Vector3(Mathf.Cos(a) * 1.2f, 2.0f, Mathf.Sin(a) * 1.2f), new Vector3(0.1f, 3.0f, 0.1f), art.trim, shadows: false);
+                Box("Post", g, new Vector3(Mathf.Cos(a) * 1.2f, 2.0f, Mathf.Sin(a) * 1.2f), new Vector3(0.1f, 3.0f, 0.1f), art.trim, shadows: false);
                 Box("PostGlow", g, new Vector3(Mathf.Cos(a) * 1.2f, 2.0f, Mathf.Sin(a) * 1.2f), new Vector3(0.03f, 2.8f, 0.03f), lm.asmGlow, shadows: false).transform.localPosition += new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * 0.06f;
             }
             MeshObj("TopRing", g, Annulus("ExRing_1.15_1.3", 1.15f, 1.3f), art.trim, new Vector3(0, 3.5f, 0), 1f);
@@ -1345,19 +1298,7 @@ namespace GoNoGo.EditorTools
             m.localPosition = new Vector3(0, 1.85f, 0);
             m.localScale = Vector3.one * 0.62f;
             m.gameObject.AddComponent<Spinner>().degreesPerSecond = 22f;
-            if (variant == 0)
-            {
-                // 立方衛星
-                Box("Body", m, Vector3.zero, new Vector3(0.55f, 0.55f, 0.9f), art.mli);
-                Box("Frame", m, Vector3.zero, new Vector3(0.57f, 0.57f, 0.12f), art.mliSilver);
-                foreach (float s in new[] { -1f, 1f })
-                {
-                    Box("Wing", m, new Vector3(s * 0.8f, 0, 0), new Vector3(1.0f, 0.03f, 0.6f), lm.solar, shadows: false);
-                    Box("Spar", m, new Vector3(s * 0.4f, 0, 0), new Vector3(0.3f, 0.03f, 0.03f), lm.steel, shadows: false);
-                }
-                BuildUtil.Prim(PrimitiveType.Cylinder, "Antenna", m, new Vector3(0, 0.55f, 0.2f), new Vector3(0.03f, 0.3f, 0.03f), lm.steel);
-            }
-            else if (variant == 1)
+            if (variant == 1)
             {
                 // 大型衛星：金色車身、碟形天線、兩側長太陽能板
                 Box("Body", m, Vector3.zero, new Vector3(0.9f, 0.9f, 1.1f), art.mli);
@@ -1380,19 +1321,6 @@ namespace GoNoGo.EditorTools
                 for (int i = 0; i < 3; i++)
                     Box("Fin", m, new Vector3(Mathf.Cos(i * 2.094f) * 0.32f, -0.65f, Mathf.Sin(i * 2.094f) * 0.32f), new Vector3(0.05f, 0.5f, 0.32f), fm.hazard, Quaternion.Euler(0, -i * 120f, 0), false);
             }
-        }
-
-        static void RobotArm(Transform parent, Vector3 pos, float yaw, Material body, Material joint, Material dark)
-        {
-            var arm = BuildUtil.Group("RobotArm", parent);
-            arm.position = pos;
-            arm.rotation = Quaternion.Euler(0, yaw, 0);
-            BuildUtil.Prim(PrimitiveType.Cylinder, "Base", arm, new Vector3(0, 0.25f, 0), new Vector3(0.9f, 0.25f, 0.9f), joint, collider: true);
-            Box("Shoulder", arm, new Vector3(0, 0.65f, 0), new Vector3(0.5f, 0.5f, 0.5f), body);
-            Box("Arm1", arm, new Vector3(0.3f, 1.35f, 0), new Vector3(0.22f, 1.4f, 0.22f), body, Quaternion.Euler(0, 0, -25f));
-            Box("Elbow", arm, new Vector3(0.6f, 1.95f, 0), new Vector3(0.34f, 0.34f, 0.34f), joint);
-            Box("Arm2", arm, new Vector3(1.1f, 1.75f, 0), new Vector3(0.18f, 1.1f, 0.18f), body, Quaternion.Euler(0, 0, 70f));
-            Box("Claw", arm, new Vector3(1.7f, 1.55f, 0), new Vector3(0.12f, 0.3f, 0.3f), dark);
         }
 
         static Material _dayDomeMat;
@@ -1459,7 +1387,7 @@ namespace GoNoGo.EditorTools
         /// 灰白大廠房、發射塔與火箭、避雷針塔、燃料球槽、路燈、柏油地面與履帶車道。沒有樹和草（總部和發射台一帶本來就很空曠）。
         /// pos = 窗戶外側的位置，yaw 讓局部 +Z 指向窗外。全部是遠景裝飾，沒有碰撞。
         /// </summary>
-        static void LaunchComplexView(Transform parent, Vector3 pos, float yaw, ArtBuilder.Art art)
+        static void LaunchComplexView(Transform parent, Vector3 pos, float yaw)
         {
             var g = BuildUtil.Group("OutsideView", parent);
             g.position = pos;
@@ -1509,21 +1437,21 @@ namespace GoNoGo.EditorTools
                 r.shadowCastingMode = ShadowCastingMode.Off;
                 r.receiveShadows = false;
             }
-            // 隊伍徽章貼在大廠房主樓正面的壁板上（位置對應 Blender 腳本裡的 vab()）
+            // 遊戲徽章貼在大廠房主樓正面的壁板上（位置對應 Blender 腳本裡的 vab()）
             Quad("VabLogo", g, new Vector3(-26f, 54f, 84.4f), Quaternion.identity, new Vector2(12f, 12f), BannerLogo());
         }
 
         /// <summary>
-        /// 組裝大廳四周的「沒有功能的裝飾」：南牆的落地大窗、南側的展示平台（太陽能板架、貨箱、工具車）、
-        /// 西牆的零件架與工作台、東牆的堆高機與熱真空艙、兩支機械手臂。整合台、傳送帶、控制台在正中央，這些全部沿著牆放。
+        /// 組裝區南半邊「沒有功能的裝飾」：南牆（含落地大窗和窗外的發射場）、窗前兩座展覽台、
+        /// 西牆南段的零件架、東牆南段的熱真空艙、兩側牆上的看板。整合台和組裝台在中間，這些全部沿著牆放。
         /// </summary>
-        static void BuildBayRing(ArtBuilder.Art art, FacMats fm, Transform ring, Mesh sphere)
+        static void BuildBayRing(ArtBuilder.Art art, FacMats fm, Transform ring)
         {
             var lm = MakeLobbyMats(art);
             var wall = BuildUtil.Lit("M_BayWall", new Color(0.13f, 0.15f, 0.19f), 0.25f, 0.5f);
             const float W = BayX0, E = BayX1, Z1 = -BayZ, H = RoomH;
 
-            // ---- 南牆：中間落地大窗，窗外是地球和月亮 ----
+            // ---- 南牆：中間落地大窗，窗外是發射場（LaunchComplexView） ----
             float segL = (-WinHalf - (W - 0.3f)), segR = (E + 0.3f - WinHalf);
             Solid("WallS_L", ring, new Vector3((W - 0.3f - WinHalf) / 2, H / 2, Z1 - 0.15f), new Vector3(segL, H, 0.3f), wall);
             Solid("WallS_R", ring, new Vector3((WinHalf + E + 0.3f) / 2, H / 2, Z1 - 0.15f), new Vector3(segR, H, 0.3f), wall);
@@ -1534,7 +1462,7 @@ namespace GoNoGo.EditorTools
             Object.DestroyImmediate(glass.GetComponent<MeshFilter>());
             for (int k = 0; k <= 4; k++)
                 Box("Mullion", ring, new Vector3(-WinHalf + k * WinHalf / 2, 3.4f, Z1 + 0.02f), new Vector3(0.14f, 4.4f, 0.16f), art.trim, shadows: false);
-            LaunchComplexView(ring, new Vector3(0, 0, Z1 - 0.3f), 180f, art);
+            LaunchComplexView(ring, new Vector3(0, 0, Z1 - 0.3f), 180f);
             Box("WindowSill", ring, new Vector3(0, 1.25f, Z1 + 0.1f), new Vector3(WinHalf * 2, 0.06f, 0.3f), art.trim, shadows: false);
             Box("SillGlow", ring, new Vector3(0, 1.29f, Z1 + 0.2f), new Vector3(WinHalf * 2 - 0.4f, 0.03f, 0.04f), lm.asmGlow, shadows: false);
             foreach (float sx in new[] { -WinHalf - 0.35f, WinHalf + 0.35f })
@@ -1548,7 +1476,7 @@ namespace GoNoGo.EditorTools
             Exhibit(ring, new Vector3(-3.4f, 0, -9.0f), 1, lm, art, fm);
             Exhibit(ring, new Vector3(3.4f, 0, -9.0f), 2, lm, art, fm);
 
-            // ---- 西牆（南段）：零件架、牆上螢幕 ----
+            // ---- 西牆（南段）：零件架 ----
             for (int i = 0; i < 2; i++) LobbyShelf(ring, new Vector3(W + 0.2f, 0, -7.6f - i * 2.9f), lm, art, fm);
 
             // ---- 東牆（南段）：熱真空艙 ----
@@ -1593,7 +1521,7 @@ namespace GoNoGo.EditorTools
         /// 中控室的家具（世界座標）。西半邊的牆面留給線索區（BuildControlClues：肋條之間第二、三格），
         /// 機櫃、資料櫃、休息區、置物櫃排在第四、五格（中控台的兩側），再往東的一格掛旗子。
         /// </summary>
-        static void BuildControlDecor(ArtBuilder.Art art, FacMats fm, Transform ctrl)
+        static void BuildControlDecor(ArtBuilder.Art art, Transform ctrl)
         {
             var lm = MakeLobbyMats(art);
             var g = BuildUtil.Group("ControlDecor", ctrl);
@@ -1654,8 +1582,8 @@ namespace GoNoGo.EditorTools
             Box("DividerGlowS", g, new Vector3(CtrlX0 + 0.04f, 4.2f, -7f), new Vector3(0.03f, 0.04f, 8.6f), lm.ctlGlow, shadows: false);
 
             // 第六格（中控台前方兩側）：南北牆各一面旗
-            Banner(g, "BannerN1", new Vector3(bayF, 5.0f, wallZ - 0.06f), CtlColor, null, lm.ctlGlow, 0f);
-            Banner(g, "BannerS1", new Vector3(bayF, 5.0f, -wallZ + 0.06f), CtlColor, null, lm.ctlGlow, 180f);
+            Banner(g, "BannerN1", new Vector3(bayF, 5.0f, wallZ - 0.06f), CtlColor, lm.ctlGlow, 0f);
+            Banner(g, "BannerS1", new Vector3(bayF, 5.0f, -wallZ + 0.06f), CtlColor, lm.ctlGlow, 180f);
         }
 
         const string ControlRoomModel = "Assets/GoNoGo/Art/Models/Room/FacilityControlRoom.glb";
@@ -1671,9 +1599,9 @@ namespace GoNoGo.EditorTools
         /// （tools/room/build_facility_control_room.py → Art/Models/Room/FacilityControlRoom.glb）。
         /// 這裡換上專案材質、加碰撞體，並依物件名稱掛元件：
         /// Screen_&lt;panel&gt; = 中控台上的一台螢幕（ConsoleTarget，準星對到按 E 打開該面板；只剩四台營運席和飛行總監台），
-        /// Wall_Main = 前方的大屏幕（WorldScreen "bigscreen"：選件、組裝時畫選件的畫面，營運時換成地球縮景；
-        /// 準星對到按 E 打開選件面板），Wall_reqs / Wall_asm = 大屏幕兩側（WorldScreen "wall_reqs"、"wall_asm"）。
-        /// 大屏幕前面另外放一座選件台（物件名稱 BigScreen，引導標記指的是它）。
+        /// Wall_Main = 前方的設計主螢幕（WorldScreen "bigscreen"：選件、組裝時畫選件的畫面，營運時換成地球縮景；
+        /// 準星對到按 E 打開選件面板），Wall_reqs / Wall_asm = 設計主螢幕兩側（WorldScreen "wall_reqs"、"wall_asm"）。
+        /// 設計主螢幕前面另外放一座選件台（物件名稱 BigScreen，引導標記指的是它）。
         /// </summary>
         static void BuildControlRoom(ArtBuilder.Art art, FacMats fm, Transform ctrl)
         {
@@ -1732,7 +1660,7 @@ namespace GoNoGo.EditorTools
                 }
                 else if (n == "Wall_Main")
                 {
-                    // 前方的大屏幕（16:9）：選件、組裝時畫選件的畫面；營運、報告時換成地球縮景的畫面
+                    // 前方的設計主螢幕（16:9）：選件、組裝時畫選件的畫面；營運、報告時換成地球縮景的畫面
                     m = fm.screenOff;
                     var ws = r.gameObject.AddComponent<WorldScreen>();
                     ws.id = "bigscreen";
@@ -1743,7 +1671,7 @@ namespace GoNoGo.EditorTools
                 }
                 else if (n.StartsWith("Wall_"))
                 {
-                    // 大屏幕兩側（比例接近 9:10 的直式螢幕）：Wall_reqs → "wall_reqs"、Wall_asm → "wall_asm"
+                    // 設計主螢幕兩側（比例接近 9:10 的直式螢幕）：Wall_reqs → "wall_reqs"、Wall_asm → "wall_asm"
                     m = fm.screenOff;
                     var ws = r.gameObject.AddComponent<WorldScreen>();
                     ws.id = "wall_" + n.Substring(5);
@@ -1807,7 +1735,7 @@ namespace GoNoGo.EditorTools
                 Label(ctrl, ct.titleKey, top - ctrl.position, "tag", 7f).name = "Label_" + key;
             }
 
-            // 前方的大屏幕：準星對到就能按 E 打開選件面板（螢幕很大，站在中控台後面也對得到）。
+            // 前方的設計主螢幕：準星對到就能按 E 打開選件面板（螢幕很大，站在中控台後面也對得到）。
             // ConsoleTarget 掛在子物件上：掛在螢幕本身的話，營運時「現在用不到」的調暗會把地球畫面一起調暗
             if (mainWall != null)
             {
@@ -1823,7 +1751,7 @@ namespace GoNoGo.EditorTools
                 wt.range = 16f;
             }
 
-            // 選件台：大屏幕正前方的一座立式操作台（局部 -Z 是操作的人那一面，朝西；人站在西邊、面向大屏幕）
+            // 選件台：設計主螢幕正前方的一座立式操作台（局部 -Z 是操作的人那一面，朝西；人站在西邊、面向設計主螢幕）
             {
                 var kiosk = BuildUtil.Group("BigScreen", ctrl);
                 kiosk.position = new Vector3(39.2f, 0, 0);
@@ -1933,7 +1861,7 @@ namespace GoNoGo.EditorTools
             Solid("WallS", lobby, new Vector3(0, LH / 2, LZ0 - 0.15f), new Vector3(LX * 2, LH, 0.3f), art.wallPanel);
             Solid("WallW", lobby, new Vector3(-LX - 0.15f, LH / 2, cz), new Vector3(0.3f, LH, len), art.wallDark);
             Solid("WallE", lobby, new Vector3(LX + 0.15f, LH / 2, cz), new Vector3(0.3f, LH, len), art.wallDark);
-            // 北牆：中間整塊放大螢幕，兩側是落地大窗，窗外是地球和月亮
+            // 北牆：中間整塊放大螢幕，兩側是落地大窗，窗外是發射場（LaunchComplexView）
             Solid("WallN_Mid", lobby, new Vector3(0, LH / 2, LZ1 + 0.15f), new Vector3(12f, LH, 0.3f), art.wallDark);
             foreach (float sx in new[] { -1f, 1f })
             {
@@ -1946,7 +1874,7 @@ namespace GoNoGo.EditorTools
                 for (int k = 0; k <= 3; k++)
                     Box("Mullion", lobby, new Vector3(sx * (6f + k * w / 3), 3f, LZ1 - 0.02f), new Vector3(0.14f, 3.8f, 0.16f), art.trim, shadows: false);
             }
-            LaunchComplexView(lobby, new Vector3(0, 0, LZ1 + 0.3f), 0f, art);
+            LaunchComplexView(lobby, new Vector3(0, 0, LZ1 + 0.3f), 0f);
 
             // ---- 天花板：橫樑、燈條、燈板 ----
             for (int i = 0; i < 5; i++)
@@ -1966,7 +1894,7 @@ namespace GoNoGo.EditorTools
             Box("RunwayEdgeE", lobby, new Vector3(2.2f, 0.03f, 41.5f), new Vector3(0.08f, 0.02f, 15f), lm.ctlGlow, shadows: false);
             foreach (float sx in new[] { -1f, 1f })
             {
-                // 兩邊牆的下半截護牆與直立燈柱
+                // 兩邊牆的下半截護牆
                 Box("Wainscot", lobby, new Vector3(sx * (LX - 0.1f), 0.5f, cz), new Vector3(0.2f, 1f, len - 1f), art.trim, shadows: false);
             }
 
@@ -1983,8 +1911,8 @@ namespace GoNoGo.EditorTools
                 if (Mathf.Abs(i) >= 3 && Mathf.Abs(i) <= 5) continue;
                 Box("Slat", lobby, new Vector3(i * 1.1f, 3.2f, LZ0 + 0.03f), new Vector3(0.5f, 5.6f, 0.08f), art.wallDark, shadows: false);
             }
-            Banner(lobby, "BannerA", new Vector3(-4.4f, 3.2f, LZ0 + 0.05f), AsmColor, null, lm.asmGlow);
-            Banner(lobby, "BannerC", new Vector3(4.4f, 3.2f, LZ0 + 0.05f), CtlColor, null, lm.ctlGlow);
+            Banner(lobby, "BannerA", new Vector3(-4.4f, 3.2f, LZ0 + 0.05f), AsmColor, lm.asmGlow);
+            Banner(lobby, "BannerC", new Vector3(4.4f, 3.2f, LZ0 + 0.05f), CtlColor, lm.ctlGlow);
             Label(lobby, "ui.lobby.window", new Vector3(0, 5.6f, LZ0 + 0.3f), "sign", 16f);
         }
 
@@ -2220,7 +2148,7 @@ namespace GoNoGo.EditorTools
         }
 
         static Material _bannerLogo;
-        /// <summary>隊伍徽章（和組裝區西牆同一張圖，圓外透明）。</summary>
+        /// <summary>遊戲徽章（和組裝區西牆同一張圖，圓外透明）。</summary>
         static Material BannerLogo()
         {
             if (_bannerLogo != null) return _bannerLogo;
@@ -2234,8 +2162,8 @@ namespace GoNoGo.EditorTools
             return _bannerLogo = m;
         }
 
-        /// <summary>牆上的旗子：深藍旗面、兩側隊色邊條、上緣發光、隊伍徽章；nameKey 為空就不掛字。yaw 180 = 朝北（掛在南牆），0 = 朝南（掛在北牆）。</summary>
-        static void Banner(Transform parent, string name, Vector3 pos, Color col, string nameKey, Material glow, float yaw = 180f)
+        /// <summary>牆上的旗子：深藍旗面、兩側區域色邊條、上緣發光、遊戲徽章。yaw 180 = 朝北（掛在南牆），0 = 朝南（掛在北牆）。</summary>
+        static void Banner(Transform parent, string name, Vector3 pos, Color col, Material glow, float yaw = 180f)
         {
             var mat = BuildUtil.Lit("M_Banner_" + name, new Color(0.04f, 0.07f, 0.17f), 0f, 0.3f, emission: col * 0.05f);
             var edge = BuildUtil.Lit("M_BannerEdge_" + name, col * 0.7f, 0f, 0.3f, emission: col * 0.4f);
@@ -2248,10 +2176,9 @@ namespace GoNoGo.EditorTools
             Box("Top", g, new Vector3(0, 2.25f, 0), new Vector3(2.3f, 0.1f, 0.09f), glow, shadows: false);
             Box("Bottom", g, new Vector3(0, -2.2f, 0), new Vector3(2.2f, 0.06f, 0.07f), edge, shadows: false);
             Quad("Logo", g, new Vector3(0, 0.75f, f * 0.04f), Quaternion.Euler(0, yaw, 0), new Vector2(1.9f, 1.9f), BannerLogo());
-            if (!string.IsNullOrEmpty(nameKey)) Label(g, nameKey, new Vector3(0, -1.2f, f * 0.2f), "sign", 16f);
         }
 
-        // ---------------- 營運縮景（給大螢幕） ----------------
+        // ---------------- 營運縮景（給設計主螢幕） ----------------
 
         static OpsView BuildDiorama(ArtBuilder.Art art, Mesh sphere, Light sun, RenderTexture rt)
         {
@@ -2338,7 +2265,6 @@ namespace GoNoGo.EditorTools
             view.stationRoot = stationRoot;
             view.stationMarkerPrefab = marker;
             view.stormParticles = ps;
-            view.sun = sun;
             view.cameraPivot = pivot;
             view.cam = cam;
             return view;

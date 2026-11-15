@@ -9,7 +9,7 @@ namespace GoNoGo.UI
     /// <summary>
     /// 主選單：左邊選單（新手訓練、個人任務、建立多人房間、加入房間、設定），右邊是自己的 avatar（3D，在 MainMenu 場景裡）。
     /// 右上角是自己的名字，點名字或直接點右邊的太空人就能改造型。第一次進遊戲先捏 avatar。
-    /// 個人任務和建房：選任務（一般任務／歷史關卡）→ 選難度 → 開始。
+    /// 個人任務和建房：選任務（一般任務／歷史關卡），點了就開始（難度跟著關卡走）。
     /// 選項的說明只在滑鼠指到時顯示在選單下方同一個位置，平常只列名稱。
     /// </summary>
     public sealed class MainMenuScreen : GameScreen
@@ -184,33 +184,36 @@ namespace GoNoGo.UI
                 Ui.Text(Fmt.Money(GameData.Budget(sc)), "mono", "small").AddTo(stats);
                 Ui.Text("·", "faint", "small", "scn-dot").AddTo(stats);
                 Ui.Text(Fmt.Years(sc.TargetYears), "mono", "small").AddTo(stats);
-                // 一關一個難度（採購機制 v2 §7）：卡片上直接標出來，點了就開始。歷史關卡不分難度，不標
+                // 一關一個難度：卡片上直接標出來，點了就開始。歷史關卡不分難度，不標
                 if (sc.Historical == null)
                 {
                     Ui.Text("·", "faint", "small", "scn-dot").AddTo(stats);
                     Ui.Text(Loc.T(D.DifficultyFor(sc).Name), "small", "accent").AddTo(stats);
                 }
-                card.RegisterCallback<ClickEvent>(_ => { _scenario = sc.Id; Start(null); });
+                card.RegisterCallback<ClickEvent>(_ => { _scenario = sc.Id; Start(); });
                 card.RegisterCallback<PointerEnterEvent>(_ => Sfx.Hover());
             }
         }
 
+        static readonly char[] SentenceEnd = { '.', '。' };
+
+        /// <summary>簡報的第一句（太長就截斷）。</summary>
         static string Summary(string text)
         {
             if (string.IsNullOrEmpty(text)) return "";
-            int cut = text.IndexOfAny(new[] { '.', '。' });
+            int cut = text.IndexOfAny(SentenceEnd);
             string s = cut > 0 ? text.Substring(0, cut + 1) : text;
             return s.Length > 140 ? s.Substring(0, 137) + "…" : s;
         }
 
-        /// <summary>開始任務。難度跟著關卡走：difficulty 傳 null 就用關卡的難度。</summary>
-        void Start(string difficulty)
+        /// <summary>開始任務。難度跟著關卡走（難度傳 null = 用關卡的難度）。</summary>
+        void Start()
         {
             if (_busy) return;
             Sfx.Confirm();
-            if (!_multi) { UIRoot.BeginLoading(false); GameSession.StartSolo(_scenario, difficulty); return; }
+            if (!_multi) { UIRoot.BeginLoading(false); GameSession.StartSolo(_scenario, null); return; }
             if (!Multiplayer.Available) { _error = "ui.menu.no_net"; Rebuild(); return; }
-            Connect(() => Multiplayer.Host(_scenario, difficulty, Done));
+            Connect(() => Multiplayer.Host(_scenario, null, Done));
         }
 
         /// <summary>開始連線：蓋上過場（期間不能再點介面），成功時場景換掉、過場自己收起來。</summary>

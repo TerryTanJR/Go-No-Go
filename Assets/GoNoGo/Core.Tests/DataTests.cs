@@ -246,7 +246,7 @@ namespace GoNoGo.Core.Tests
                 Assert.That(cadet.Count, Is.LessThan(eng.Count), s.Id + "：工程師難度要多一條需求");
                 Assert.That(eng.Count, Is.LessThan(dir.Count), s.Id + "：任務主管難度要再多一條");
                 Assert.That(cadet.All(a => a.Requirement.ConflictGroup == 0));
-                // 每個處室在每個難度都至少有一條需求，打電話才有內容
+                // 五個分類在每個難度都至少有一條需求
                 foreach (var dep in Departments.All)
                     Assert.That(cadet.Any(a => a.Department == dep), s.Id + " " + Departments.Key(dep));
                 Assert.That(dir.Select(a => a.Requirement.Id).Distinct().Count(), Is.EqualTo(dir.Count), "需求 id 不能重複");
@@ -330,7 +330,7 @@ namespace GoNoGo.Core.Tests
                 Assert.That(data.PartByCode(p.Code), Is.SameAs(p));
                 Assert.That(p.Function.En.Length * p.Function.ZhTW.Length, Is.GreaterThan(0), p.Id);
                 Assert.That(p.Function.ZhTW, Does.Not.Match("[0-9]"), p.Id + "：功能說明不放數字");
-                // 採購終端的科普說明：組裝區看不到數字
+                // 知識卡的科普說明：不放數字
                 Assert.That(p.Explainer.En.Length * p.Explainer.ZhTW.Length, Is.GreaterThan(0), p.Id + "：缺科普說明");
                 Assert.That(p.Explainer.ZhTW, Does.Not.Match("[0-9]"), p.Id + "：科普說明不放數字");
             }

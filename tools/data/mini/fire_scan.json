@@ -3,7 +3,6 @@
   "mini.fire_scan.goal": {"en": "Send the fire data to the ground station", "zh-TW": "把火點資料送進下傳站"},
   "mini.fire_scan.controls": {"en": "Click the fire cards", "zh-TW": "點火點資料卡"},
   "mini.fire_scan.link": {"en": "A satellite sees far more data than it can send down. Fire detections go first so crews can be alerted early; clouds and noise can wait.", "zh-TW": "衛星拍到的資料遠比能下傳的多，所以火點資料要先送，消防單位才來得及出動；雲和雜訊可以晚點再說。"},
-  "mini.fire_scan.hint": {"en": "Red flame cards only, leave the grey ones", "zh-TW": "只點紅色火焰卡，灰色的別碰"},
   "mini.fire_scan.cap.main": {"en": "Fire data first", "zh-TW": "火點資料優先送出"},
   "mini.fire_scan.cap.noise": {"en": "That was noise", "zh-TW": "點到雜訊了"},
   "mini.fire_scan.cap.missed": {"en": "A fire card got through", "zh-TW": "漏掉一筆火點資料"},

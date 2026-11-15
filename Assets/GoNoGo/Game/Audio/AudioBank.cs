@@ -15,8 +15,6 @@ namespace GoNoGo.Game
         [Tooltip("IM-2 發射台麥克風，點火大約在 8–10 秒")] public AudioClip padRoar;
         public float padIgnitionAt = 8f;
         [Tooltip("IM-2 海灘遠方隆隆聲")] public AudioClip distantRumble;
-        [Tooltip("Artemis I 升空評論")] public AudioClip liftoffCommentary;
-        [Tooltip("Artemis I \"We rise together\"")] public AudioClip weRiseTogether;
         [Tooltip("Juno 木衛三飛掠的電波聲（營運畫面背景）")] public AudioClip spaceAmbience;
 
         static AudioBank _cached;

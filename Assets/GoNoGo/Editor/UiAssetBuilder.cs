@@ -76,6 +76,9 @@ namespace GoNoGo.EditorTools
             return $"UI assets OK: fonts={latin.name},{latinBold.name},{cjk.name},{mono.name}; theme={(theme != null)}";
         }
 
+        /// <summary>原本 Theme.uss 的字級 × 1.2 × 1.15：試玩後覺得舊的 115% 才剛好，就把它當成新的 100%。</summary>
+        public const float UiBaseScale = 1.38f;
+
         /// <summary>
         /// 產生 FontScale.uss：Theme.uss 裡的字級寫成 var(--fs-N)（N = 100% 時的像素），
         /// 這裡依 <see cref="GameSettings.TextScales"/> 為每個 N 算出各檔大小。
@@ -84,9 +87,6 @@ namespace GoNoGo.EditorTools
         /// 介面（.fs-*）整體再乘 <see cref="UiBaseScale"/>：Theme.uss 的字級是照 1080p 大螢幕排的，太小；
         /// :root（牆上螢幕用）維持原本大小，那些畫面是照 RenderTexture 的尺寸排的。
         /// </summary>
-        /// <summary>原本 Theme.uss 的字級 × 1.2 × 1.15：試玩後覺得舊的 115% 才剛好，就把它當成新的 100%。</summary>
-        public const float UiBaseScale = 1.38f;
-
         [MenuItem("GoNoGo/Build/UI Font Scale")]
         public static string BuildFontScale()
         {

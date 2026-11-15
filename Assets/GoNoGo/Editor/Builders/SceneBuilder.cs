@@ -31,7 +31,7 @@ namespace GoNoGo.EditorTools
                 Boot(art, sphere),
                 MainMenu(art, sphere),
                 Facility(art, sphere),
-                Launch(art, sphere),
+                Launch(art),
                 Report(art, sphere),
             };
             EditorBuildSettings.scenes = paths.Select(p => new EditorBuildSettingsScene(p, true)).ToArray();
@@ -389,7 +389,7 @@ namespace GoNoGo.EditorTools
 
         // ================= Launch：發射 =================
 
-        static string Launch(ArtBuilder.Art art, Mesh sphere)
+        static string Launch(ArtBuilder.Art art)
         {
             var scene = NewScene();
             var kit = LaunchKit.Load();
@@ -519,7 +519,7 @@ namespace GoNoGo.EditorTools
             // 側後方要拉開一點：第一節有 44 m 長，鏡頭太靠近軸線會被箭身擋住
             var camSpace = VCam("CM_Space", cams, new Vector3(0, 20000f, -22f), 42f, 0.3f, 30000f, new Vector2(0f, -0.05f), 0.3f, null, new Vector3(15f, 6f, -20f));
             var camSide = VCam("CM_Side", cams, new Vector3(28f, 20000f, 6f), 36f, 0.3f, 30000f, new Vector2(0.1f, 0f), 0.4f, null, new Vector3(30f, 4.5f, 8f));
-            // 衛星後側方。上節在切換鏡頭的同時往後退到鏡頭後面（導演處理），否則前三秒畫面一半是白色箭體
+            // 衛星後側方：月球任務抵達月球的近景用（一般的衛星分離留在側面鏡頭，不切到這一台）
             var camDeploy = VCam("CM_Deploy", cams, new Vector3(4f, 20000f, -6f), 38f, 0.1f, 30000f, new Vector2(0f, 0f), 0.5f, null, new Vector3(3.8f, 1.6f, -5.5f));
 
             var dirGo = new GameObject("LaunchDirector");

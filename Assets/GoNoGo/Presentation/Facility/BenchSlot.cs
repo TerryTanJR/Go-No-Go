@@ -21,20 +21,23 @@ namespace GoNoGo.Presentation
         public override float Range => 2.6f;
 
         string _compId;
+        AssemblyComponent _comp;
         GameObject _model;
         SatPart _glowPart;
         WorldLabel _label;
-        string _lang;
         MaterialPropertyBlock _mpb;
 
         void Awake()
         {
+            Loc.Changed += OnLanguage;
             _label = gameObject.AddComponent<WorldLabel>();
             _label.style = "comp";
             _label.maxDistance = 6f;
             _label.offset = new Vector3(0, 0.34f, 0);
             _label.enabled = false;
         }
+
+        void OnDestroy() => Loc.Changed -= OnLanguage;
 
         static MissionSession M => GameSession.Mission;
 
@@ -49,23 +52,19 @@ namespace GoNoGo.Presentation
             _glowPart = null;
             _compId = id;
             var comp = m.Data.Component(id);
+            _comp = comp;
             _label.enabled = comp != null;
             if (comp == null) { InvalidateColliders(); return; }
             _model = SatelliteBuilder.BuildComponent(id, slot != null ? slot : transform, 0.2f);
             _glowPart = _model.GetComponent<SatPart>();
             _label.text = Loc.T(comp.Name);
-            _lang = Loc.Lang;
             InvalidateColliders();
         }
 
-        void Update()
+        /// <summary>換語言：標籤跟著換（聽 <see cref="Loc.Changed"/>，不必每一格每幀檢查）。</summary>
+        void OnLanguage()
         {
-            if (_compId != null && _lang != Loc.Lang && GameSession.HasMission)
-            {
-                _lang = Loc.Lang;
-                var comp = M.Data.Component(_compId);
-                if (comp != null) _label.text = Loc.T(comp.Name);
-            }
+            if (_comp != null) _label.text = Loc.T(_comp.Name);
         }
 
         public override HudTarget Describe(Interactor who)

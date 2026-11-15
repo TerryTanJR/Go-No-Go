@@ -11,10 +11,6 @@
   "en": "WASD / arrow keys to move",
   "zh-TW": "WASD／方向鍵移動"
  },
- "mini.solar_dodge.hint": {
-  "en": "Green orbs block one hit",
-  "zh-TW": "綠球可以擋一次傷害"
- },
  "mini.solar_dodge.link": {
   "en": "Solar storm protons can fry electronics. Safe mode, instruments off and facing the Sun are the real fixes; better shielding helps too.",
   "zh-TW": "太陽風暴的高能粒子會打壞電子零件。進安全模式、關儀器、對日是真的處置，護盾越好也越耐打。"

@@ -35,7 +35,7 @@ namespace GoNoGo.Presentation
             var solarDef = data.Part(design.Get(PartCategory.Solar));
             _skin = solarDef != null && (solarDef.Id == "solar_body" || solarDef.AreaM2 < 0.6) ? 0.03f : 0.012f;
             BuildBus(root.transform, mats, s, h, shield);
-            BuildSolar(root.transform, mats, s, h, data.Part(design.Get(PartCategory.Solar)));
+            BuildSolar(root.transform, mats, s, h, solarDef);
             BuildAntenna(root.transform, mats, s, h, design.Get(PartCategory.Antenna));
             BuildInstruments(root.transform, mats, s, h, design, data);
             BuildAdcs(root.transform, mats, s, h, design.Get(PartCategory.Adcs));

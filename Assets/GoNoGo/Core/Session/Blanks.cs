@@ -61,7 +61,7 @@ namespace GoNoGo.Core
         }
     }
 
-    /// <summary>玩家在大屏幕上填的一個數值，和是誰填的（格子旁邊顯示）。</summary>
+    /// <summary>玩家在設計主螢幕上填的一個數值，和是誰填的（格子旁邊顯示）。</summary>
     public sealed class FilledValue
     {
         public double V { get; set; }
@@ -69,8 +69,8 @@ namespace GoNoGo.Core
     }
 
     /// <summary>
-    /// 數值挖空：開局時大屏幕上一部分零件數值是空的，玩家找到線索後自己填回去。
-    /// 大屏幕的儀表板只用「看得到的數值」算（沒挖空的真實數值 + 玩家填的數值）：填錯不擋、不提示，照玩家填的算；
+    /// 數值挖空：開局時設計主螢幕上一部分零件數值是空的，玩家找到線索後自己填回去。
+    /// 設計主螢幕的儀表板只用「看得到的數值」算（沒挖空的真實數值 + 玩家填的數值）：填錯不擋、不提示，照玩家填的算；
     /// 發射、營運、失敗原因和分數永遠用 parts.json 的真實數值，不受玩家輸入影響。
     /// 歷史關卡（第一次發射前設計鎖住）和沙盒（沒有需求）不挖空。
     /// </summary>
@@ -114,11 +114,17 @@ namespace GoNoGo.Core
         {
             if (!Enabled(data, s)) return false;
             var p = data.Part(partId);
+            // 真實數值大於 0 的一定是六個欄位之一（PartFields.Get 對其他欄位名回傳 0）
             if (p == null || p.Category == PartCategory.GroundStation || PartFields.Get(p, field) <= 0) return false;
-            if (Array.IndexOf(PartFields.All, field) < 0) return false;
-            var diff = s.Difficulty(data);
-            if (diff.BlankCells.Count > 0) return diff.BlankCells.Contains(Key(partId, field));
-            return Hash01(Key(partId, field)) < Ratio(data, s);
+            return Picked(s.Difficulty(data), s.Solo, partId, field);
+        }
+
+        /// <summary>難度的設定有沒有挑中這一格：有指定格子就照指定，否則雜湊值小於挖空比例的就挖空。</summary>
+        static bool Picked(DifficultyDef diff, bool solo, string partId, string field)
+        {
+            string key = Key(partId, field);
+            if (diff.BlankCells.Count > 0) return diff.BlankCells.Contains(key);
+            return Hash01(key) < (solo ? diff.BlankRatioSolo : diff.BlankRatio);
         }
 
         /// <summary>這一局所有挖空的格子（零件 id、欄位），照零件資料和欄位的順序。</summary>
@@ -126,9 +132,14 @@ namespace GoNoGo.Core
         {
             var list = new List<(string, string)>();
             if (!Enabled(data, s)) return list;
+            // 和 IsBlank 同一套判斷；清單裡的零件都查得到、也沒有地面站，難度只查一次
+            DifficultyDef diff = null;
             foreach (var p in SessionRules.Catalog(data, s))
                 foreach (var f in PartFields.All)
-                    if (IsBlank(data, s, p.Id, f)) list.Add((p.Id, f));
+                {
+                    if (PartFields.Get(p, f) <= 0) continue;
+                    if (Picked(diff ??= s.Difficulty(data), s.Solo, p.Id, f)) list.Add((p.Id, f));
+                }
             return list;
         }
 
@@ -140,7 +151,7 @@ namespace GoNoGo.Core
         public static bool Known(GameData data, SessionState s, string partId, string field) =>
             !IsBlank(data, s, partId, field) || Filled(s, partId, field) != null;
 
-        /// <summary>大屏幕上這一格顯示的數值：沒挖空 = 真實數值；挖空已填 = 玩家填的；挖空沒填 = null。</summary>
+        /// <summary>設計主螢幕上這一格顯示的數值：沒挖空 = 真實數值；挖空已填 = 玩家填的；挖空沒填 = null。</summary>
         public static double? Shown(GameData data, SessionState s, string partId, string field)
         {
             if (!IsBlank(data, s, partId, field)) return PartFields.Get(data.Part(partId), field);
@@ -149,7 +160,7 @@ namespace GoNoGo.Core
 
         /// <summary>
         /// 「玩家看到的」資料：挖空的格子換成玩家填的數值（沒填的當 0，不算進加總）。沒有挖空的局直接回傳原本的資料。
-        /// 只給大屏幕的儀表板用；發射和評分一律用原本的資料。
+        /// 只給設計主螢幕的儀表板用；發射和評分一律用原本的資料。
         /// </summary>
         public static GameData PlayerData(GameData data, SessionState s)
         {
@@ -169,15 +180,28 @@ namespace GoNoGo.Core
         {
             if (design == null || !Enabled(data, s)) return 0;
             int n = 0;
-            foreach (var id in design.AllPartIds())
-                foreach (var f in fields)
-                    if (!Known(data, s, id, f)) n++;
+            foreach (var id in design.AllPartIds()) n += Unfilled(data, s, id, fields);
             return n;
         }
 
         /// <summary>這個零件還有幾格沒填。</summary>
         public static int MissingOf(GameData data, SessionState s, string partId) =>
-            PartFields.All.Count(f => !Known(data, s, partId, f));
+            Enabled(data, s) ? Unfilled(data, s, partId, PartFields.All) : 0;
+
+        /// <summary>這個零件的這幾種欄位裡，挖空了還沒填的格數（有挖空的局才呼叫）。零件只查一次。</summary>
+        static int Unfilled(GameData data, SessionState s, string partId, string[] fields)
+        {
+            var p = data.Part(partId);
+            if (p == null || p.Category == PartCategory.GroundStation) return 0;
+            int n = 0;
+            DifficultyDef diff = null;
+            foreach (var f in fields)
+            {
+                if (PartFields.Get(p, f) <= 0) continue;
+                if (Picked(diff ??= s.Difficulty(data), s.Solo, partId, f) && Filled(s, partId, f) == null) n++;
+            }
+            return n;
+        }
 
         // ---- 儀表板的每一項用到哪些欄位（用到的欄位只要有一格沒填，這一項就是「資料不足」；可以直接加總的另外標示）----
 
@@ -238,14 +262,15 @@ namespace GoNoGo.Core
         // ---- 零件名稱 ----
 
         /// <summary>
-        /// 大屏幕上的零件名稱。名稱後面括號裡寫的容量、速率（「小型鋰電池（80 Wh）」、「X 波段發射機（150 Mbps）」）
+        /// 設計主螢幕上的零件名稱。名稱後面括號裡寫的容量、速率（「小型鋰電池（80 Wh）」、「X 波段發射機（150 Mbps）」）
         /// 就是被挖空的數值：那一格還沒填時把括號拿掉，不然等於直接把答案寫在名字上。
         /// </summary>
         public static string MaskedName(GameData data, SessionState s, PartDef p, string lang)
         {
             string name = p.Name.Get(lang);
-            bool hide = (!Known(data, s, p.Id, PartFields.CapacityWh) && name.Contains("Wh"))
-                        || (!Known(data, s, p.Id, PartFields.DownlinkMbps) && name.Contains("bps"));
+            // 先看名稱（大部分零件的名稱裡沒有這兩個單位），有才去查那一格填了沒
+            bool hide = (name.Contains("Wh") && !Known(data, s, p.Id, PartFields.CapacityWh))
+                        || (name.Contains("bps") && !Known(data, s, p.Id, PartFields.DownlinkMbps));
             return hide ? StripParen(name) : name;
         }
 

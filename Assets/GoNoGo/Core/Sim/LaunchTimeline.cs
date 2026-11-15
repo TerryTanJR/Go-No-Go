@@ -38,7 +38,6 @@ namespace GoNoGo.Core
         /// <summary>演出換到太空場景的時間：天空已經夠黑、第二節已經點火、還沒拋整流罩。</summary>
         public double SwapT { get; private set; }
         public int Stages { get; private set; } = 2;
-        public bool HasBoosters { get; private set; }
         public string OrbitId { get; private set; } = "";
 
         readonly List<double> _kt = new List<double>();
@@ -90,7 +89,6 @@ namespace GoNoGo.Core
             var tl = new LaunchTimeline { Stages = Math.Max(2, prof.Stages), OrbitId = orbitId ?? "" };
             var asc = prof.Ascent.OrderBy(e => e.T).Select(Ev).ToList();
             var orb = post.OrderBy(e => e.T).Select(Ev).ToList();
-            tl.HasBoosters = asc.Any(e => e.Id == "booster_sep");
             double seco = asc.LastOrDefault(e => e.Id == "seco")?.T ?? asc.Max(e => e.T);
             bool reaches = outcome == LaunchOutcome.Nominal || outcome == LaunchOutcome.LowerOrbit || outcome == LaunchOutcome.DeadOnOrbit;
             bool anomaly = outcome == LaunchOutcome.Failure && reasonCode == "launch.anomaly";

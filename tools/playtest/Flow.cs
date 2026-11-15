@@ -16,8 +16,8 @@ using UnityEngine.UIElements;
 //   Flow.Click "文字"   按畫面上第一個看得到、文字包含它的按鈕或卡片
 //   Flow.Key "space"   按一下鍵盤（Input System 的 Key 名稱）
 //   Flow.AimAt "Screen_ops-power"   走到控制台前、準星對準它，回傳資訊框內容
-//   Flow.AimFrom "Clue_wall_1" 1.6   從玩家目前那一側走近、對準（線索、大屏幕前的選件台 BigScreen、發射鈕…）
-//   Flow.Fill "solar_deployable" "mass_kg" 7.2   在大屏幕填一格數值；Flow.FillAll = 把挖空的都填上真實數值
+//   Flow.AimFrom "Clue_wall_1" 1.6   從玩家目前那一側走近、對準（線索、設計主螢幕前的選件台 BigScreen、發射鈕…）
+//   Flow.Fill "solar_deployable" "mass_kg" 7.2   在設計主螢幕填一格數值；Flow.FillAll = 把挖空的都填上真實數值
 //   Flow.BuildPart "solar_deployable"   照玩家的規則組一個零件並裝上衛星（架上拿、放左側、依序裝、拿去整合台）
 //   Flow.Panel         目前開著的面板文字
 public static class Flow
@@ -307,16 +307,8 @@ public static class Flow
         return sb.ToString();
     }
 
-    static Bounds BoundsOf(SatPart p)
-    {
-        var rs = p.GetComponentsInChildren<Renderer>();
-        var b = rs.Length > 0 ? rs[0].bounds : new Bounds(p.transform.position, Vector3.zero);
-        foreach (var r in rs) b.Encapsulate(r.bounds);
-        return b;
-    }
-
     /// <summary>
-    /// 站在整合台旁（零件那一側）、看向船上的某個零件，回傳資訊框內容。firstPerson = false 測第三人稱（預設視角）。
+    /// 站在整合台旁（零件那一側）、看向船上的某個零件，回傳資訊框內容。firstPerson = false 測第三人稱。
     /// 第三人稱只轉向零件的水平方向，俯仰用預設值（玩家平常就是這樣走過去的，不會特地低頭對準）。
     /// </summary>
     public static async Task<string> AimPart(string partId, bool firstPerson)
@@ -354,7 +346,7 @@ public static class Flow
         var h = Hud.Target;
         var def = GameSession.Data.Part(partId);
         if (h == null) return partId + ": FAIL nothing targeted";
-        // 整合台上的零件不能手動拆（要換零件是回大屏幕重新開啟設計）：對得到、名稱對就算過
+        // 整合台上的零件不能手動拆（要換零件是回設計主螢幕重新開啟設計）：對得到、名稱對就算過
         bool right = def != null && h.Title.StartsWith(def.Code + "｜");
         return partId + ": " + (right ? "OK" : "FAIL") + " [" + h.Title + (string.IsNullOrEmpty(h.Subtitle) ? "" : " / " + h.Subtitle) + "] keys=" + string.Join(",", h.Keys.Select(k => k.Key));
     }
@@ -479,7 +471,7 @@ public static class Flow
         }));
     }
 
-    /// <summary>在大屏幕填一格數值（和面板送的是同一個指令）。</summary>
+    /// <summary>在設計主螢幕填一格數值（和面板送的是同一個指令）。</summary>
     public static string Fill(string partId, string field, double value)
     {
         GameSession.Send(GoNoGo.Core.CommandType.Fill, GoNoGo.Core.Blanks.FillArg(partId, field, value));
@@ -649,5 +641,108 @@ public static class Flow
             t.GetField("_pitch", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(pc, -Mathf.Atan2(dir.y, new Vector2(dir.x, dir.z).magnitude) * Mathf.Rad2Deg);
         await Frames(8);
         return "aim " + name + (firstPerson ? " (1st)" : " (3rd)") + ": " + Target();
+    }
+
+    /// <summary>把玩家移到 (x, z)，視角轉到 yaw／pitch（度），第一或第三人稱。量效能、截圖用。</summary>
+    public static async Task<string> Goto(float x, float z, float yaw, float pitch, bool firstPerson)
+    {
+        var pc = FacilityDirector.Instance.Player;
+        float y = Physics.Raycast(new Vector3(x, 3f, z), Vector3.down, out var gh, 6f) ? gh.point.y : 0f;
+        Hud.FirstPerson = firstPerson;
+        pc.Teleport(new Vector3(x, y + 0.05f, z), yaw);
+        await Frames(3);
+        var t = typeof(PlayerController);
+        t.GetField("_yaw", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(pc, yaw);
+        t.GetField("_pitch", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(pc, pitch);
+        await Frames(6);
+        var h = Hud.Target;
+        return "at " + pc.transform.position + " target=" + (h == null ? "-" : h.Title);
+    }
+
+    /// <summary>
+    /// 量 frames 幀的效能：PlayerLoop（遊戲本身，不含編輯器介面）和所有 Update 的平均／最大毫秒、
+    /// 每幀 GC 配置（位元組，含編輯器的雜訊，前後比較要在同一個畫面量）。
+    /// </summary>
+    public static async Task<string> Perf(int frames)
+    {
+        var loop = new Unity.Profiling.ProfilerRecorder("PlayerLoop", frames + 16);
+        var upd = new Unity.Profiling.ProfilerRecorder("Update.ScriptRunBehaviourUpdate", frames + 16);
+        var late = new Unity.Profiling.ProfilerRecorder("PreLateUpdate.ScriptRunBehaviourLateUpdate", frames + 16);
+        var gc = new Unity.Profiling.ProfilerRecorder(Unity.Profiling.ProfilerCategory.Memory, "GC Allocated In Frame", frames + 16);
+        loop.Start(); upd.Start(); late.Start(); gc.Start();
+        int end = Time.frameCount + frames;
+        var stop = Time.realtimeSinceStartup + 60f;
+        while (Time.frameCount < end && Time.realtimeSinceStartup < stop) await Task.Yield();
+        string Stat(Unity.Profiling.ProfilerRecorder r, double scale, string unit)
+        {
+            int n = r.Count;
+            if (n == 0) return "n/a";
+            var v = new List<double>();
+            for (int i = 0; i < n; i++) v.Add(r.GetSample(i).Value * scale);
+            v.Sort();
+            return "avg " + v.Average().ToString("0.###") + " med " + v[n / 2].ToString("0.###") + " p95 " + v[(int)(n * 0.95)].ToString("0.###") + " max " + v[n - 1].ToString("0.###") + unit + " (n=" + n + ")";
+        }
+        string res = "PlayerLoop: " + Stat(loop, 1e-6, " ms") + " | Update: " + Stat(upd, 1e-6, " ms")
+            + " | LateUpdate: " + Stat(late, 1e-6, " ms") + " | GC/frame: " + Stat(gc, 1, " B");
+        loop.Dispose(); upd.Dispose(); late.Dispose(); gc.Dispose();
+        return res;
+    }
+
+    /// <summary>
+    /// 哪裡在配置記憶體、哪裡花時間：開 Profiler 錄 frames 幀，把 PlayerLoop 底下每個取樣名稱的 GC 配置和時間加總，
+    /// 列出前 top 名（每幀平均）。不是 deep profile，只看得到 MonoBehaviour 的 Update 這一層和引擎的標記。
+    /// </summary>
+    public static async Task<string> GcTop(int frames, int top)
+    {
+        UnityEditorInternal.ProfilerDriver.profileEditor = false;
+        UnityEditorInternal.ProfilerDriver.ClearAllFrames();
+        UnityEngine.Profiling.Profiler.enabled = true;
+        UnityEditorInternal.ProfilerDriver.enabled = true;
+        await Frames(frames + 4);
+        UnityEditorInternal.ProfilerDriver.enabled = false;
+        UnityEngine.Profiling.Profiler.enabled = false;
+        int first = UnityEditorInternal.ProfilerDriver.firstFrameIndex, last = UnityEditorInternal.ProfilerDriver.lastFrameIndex;
+        var gc = new Dictionary<string, double>();
+        var ms = new Dictionary<string, double>();
+        int n = 0;
+        var kids = new List<int>();
+        for (int f = first + 1; f <= last; f++)
+        {
+            using (var v = UnityEditorInternal.ProfilerDriver.GetHierarchyFrameDataView(f, 0,
+                UnityEditor.Profiling.HierarchyFrameDataView.ViewModes.MergeSamplesWithTheSameName,
+                UnityEditor.Profiling.HierarchyFrameDataView.columnGcMemory, false))
+            {
+                if (v == null || !v.valid) continue;
+                n++;
+                var stack = new Stack<(int id, int depth, bool inLoop)>();
+                stack.Push((v.GetRootItemID(), 0, false));
+                while (stack.Count > 0)
+                {
+                    var (id, depth, inLoop) = stack.Pop();
+                    string name = v.GetItemName(id);
+                    bool here = inLoop || name == "PlayerLoop";
+                    if (here && depth <= 7)
+                    {
+                        float g = v.GetItemColumnDataAsFloat(id, UnityEditor.Profiling.HierarchyFrameDataView.columnGcMemory);
+                        float t = v.GetItemColumnDataAsFloat(id, UnityEditor.Profiling.HierarchyFrameDataView.columnTotalTime);
+                        string key = new string(' ', System.Math.Min(depth, 7)) + name;
+                        gc[key] = (gc.TryGetValue(key, out var a) ? a : 0) + g;
+                        ms[key] = (ms.TryGetValue(key, out var b) ? b : 0) + t;
+                    }
+                    if (depth >= 7) continue;
+                    kids.Clear();
+                    v.GetItemChildren(id, kids);
+                    foreach (var k in kids) stack.Push((k, depth + 1, here));
+                }
+            }
+        }
+        if (n == 0) return "no frames";
+        var sb = new StringBuilder("frames=" + n + " | BY GC (B/frame, ms/frame): ");
+        foreach (var kv in gc.Where(x => x.Value > 0).OrderByDescending(x => x.Value).Take(top))
+            sb.Append(kv.Key.Trim() + "[d" + (kv.Key.Length - kv.Key.TrimStart().Length) + "]=" + (kv.Value / n).ToString("0") + "B," + (ms[kv.Key] / n).ToString("0.000") + "ms; ");
+        sb.Append(" | BY TIME: ");
+        foreach (var kv in ms.OrderByDescending(x => x.Value).Take(top))
+            sb.Append(kv.Key.Trim() + "[d" + (kv.Key.Length - kv.Key.TrimStart().Length) + "]=" + (kv.Value / n).ToString("0.000") + "ms; ");
+        return sb.ToString();
     }
 }

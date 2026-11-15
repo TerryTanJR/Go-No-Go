@@ -41,7 +41,7 @@ namespace GoNoGo.Game
             set { _ambienceVol = Mathf.Clamp01(value); PlayerPrefs.SetFloat("gonogo.volume.ambience", _ambienceVol.Value); }
         }
 
-        /// <summary>介面與動作音效（按鈕、拿取、安裝、電話…）的倍率 0–1。</summary>
+        /// <summary>介面與動作音效（按鈕、拿取、安裝…）的倍率 0–1。</summary>
         public static float EffectsVolume
         {
             get => _effectsVol ??= Mathf.Clamp01(PlayerPrefs.GetFloat("gonogo.volume.effects", 1f));
@@ -119,8 +119,6 @@ namespace GoNoGo.Game
         public static void Install() => I.Play("install", 0.55f);
         /// <summary>長按安裝時的充能聲（每 0.1 秒一下，音高跟著進度升高）。</summary>
         public static void Charge(float progress) => I.Play("charge" + Mathf.Clamp(Mathf.RoundToInt(progress * 10), 0, 10), 0.12f);
-        /// <summary>電話撥號鈴聲。</summary>
-        public static void Ring() => I.Play("ring", 0.35f);
         public static void Door() => I.Play("door", 0.3f);
         /// <summary>翻書頁：一陣紙張摩擦的沙沙聲。</summary>
         public static void Page() => I.Play("page", 0.4f);
@@ -150,7 +148,7 @@ namespace GoNoGo.Game
 
         // ---------------- 背景音樂 ----------------
 
-        /// <summary>Menu：標題、主選單、報告；Facility：設施裡小聲一點，不蓋過電話和音效；None：發射（有自己的聲音）。</summary>
+        /// <summary>Menu：標題、主選單、報告；Facility：設施裡小聲一點，不蓋過音效；None：發射（有自己的聲音）。</summary>
         public enum Music { None, Menu, Facility }
 
         public static void SetMusic(Music m)
@@ -205,12 +203,6 @@ namespace GoNoGo.Game
             target = vol;
         }
 
-        AudioClip GetSynth(string id)
-        {
-            if (!_synth.TryGetValue(id, out var c)) { c = Synthesize(id); _synth[id] = c; }
-            return c;
-        }
-
         // ---------------- 合成 ----------------
 
         const int Rate = 44100;
@@ -243,7 +235,6 @@ namespace GoNoGo.Game
                         return clunk + rise;
                     });
                 }
-                case "ring": return Tone(id, 1.2f, t => (t % 0.6f < 0.4f ? (Sine(440, t) + Sine(480, t)) * 0.35f : 0f) * Env(t, 0.01f, 1.15f));
                 case "door":
                 {
                     var rnd = new System.Random(5);

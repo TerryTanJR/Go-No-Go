@@ -17,7 +17,7 @@ namespace GoNoGo.Core.Tests
 
         Evaluation Ev(Design d, string diff = "engineer") => Evaluator.EvaluateDesign(d, _data, diff, false);
 
-        // 以前的環境測試（採購機制 v2 拿掉了）抓的兩件事，改成直接看評估結果：
+        // 發射前要顧的兩件事，直接看評估結果：
         // 火箭載不載得動（質量餘裕 5% 以上）、電池撐不撐得過地影（fail = 撐不過、warn = 撐得過但放電太深或太陽能板不夠）
         bool Liftable(Design d) => Ev(d).Mass.OrbitReachable && Ev(d)[ResourceId.Mass].Margin >= 0.05;
 

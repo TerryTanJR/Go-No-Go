@@ -111,7 +111,21 @@ namespace GoNoGo.Core
             new ClueSpotDef("floor_b2", "bay", "paper", "floor_b2"),
         };
 
-        public static ClueSpotDef Spot(string id) => Array.Find(Spots, x => x.Id == id);
+        static Dictionary<string, ClueSpotDef> _spotById;
+
+        public static ClueSpotDef Spot(string id)
+        {
+            if (id == null) return null;
+            if (_spotById == null)
+            {
+                // 表是固定的，查表只建一次；id 重複時留第一個（和照順序找一樣）
+                var map = new Dictionary<string, ClueSpotDef>(Spots.Length);
+                foreach (var x in Spots)
+                    if (!map.ContainsKey(x.Id)) map[x.Id] = x;
+                _spotById = map;
+            }
+            return _spotById.TryGetValue(id, out var spot) ? spot : null;
+        }
 
         /// <summary>這種位置放不放得下這種呈現方式（設計圖只畫圖和表，書不會是設計圖…）。</summary>
         public static bool Accepts(string medium, ClueKind kind)
@@ -156,7 +170,7 @@ namespace GoNoGo.Core
                     {
                         Id = "c" + n,
                         PartId = part,
-                        Fields = fs.Skip(i).Take(per).ToList(),
+                        Fields = fs.GetRange(i, Math.Min(per, fs.Count - i)),
                         Kind = Kinds[n % Kinds.Length],
                         Variant = (n / Kinds.Length) % NoteVariants,
                     });

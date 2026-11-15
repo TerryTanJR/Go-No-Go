@@ -24,7 +24,6 @@ namespace GoNoGo.Launch
         public Transform firstStageNozzles;
         public float height;
         public float diameter;
-        public float fairingBase;
         public float fairingRadius;
         /// <summary>共乘（Transporter）：整流罩裡除了玩家的衛星，還有一整疊別人的衛星。</summary>
         public bool rideshare;
@@ -146,7 +145,6 @@ namespace GoNoGo.Launch
             p.fairingRadius = fr;
             float fBase = upperLen;
             p.segmentBase.Add(fBase);
-            p.fairingBase = firstLen + fBase;
             p.payloadMount = new GameObject("PayloadMount").transform;
             p.payloadMount.SetParent(p.upperStage, false);
             p.payloadMount.localPosition = new Vector3(0, fBase + 0.3f, 0);

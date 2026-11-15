@@ -34,7 +34,13 @@ namespace GoNoGo.Game
 
         // 編輯器關掉 Domain Reload 時靜態欄位會留到下一次 Play：每次開始都回到預設語言
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => _lang = null;
+        static void ResetStatics()
+        {
+            _lang = null;
+            _cache.Clear();
+            _cacheData = null;
+            _cacheLang = null;
+        }
 
         public static bool IsZh => Lang == Core.Lang.ZhTW;
 
@@ -42,7 +48,32 @@ namespace GoNoGo.Game
 
         static GameData D => GameDataProvider.Data;
 
-        public static string T(string key) => Mark(D.Text(key, Lang));
+        // T(key) 的結果（已經換好重點字的顏色）：介面每幀都在問同樣的鍵，查過一次就記住，不必每次重新掃字串。
+        // 字串資料載入後不會改，所以只有換語言、重新載入資料時才清掉。
+        static readonly Dictionary<string, string> _cache = new Dictionary<string, string>();
+        static GameData _cacheData;
+        static string _cacheLang;
+        /// <summary>快取的上限：正常只會有字串表那一千多個鍵，超過代表有人拿會變的字串當鍵，清掉重來。</summary>
+        const int MaxCache = 8192;
+
+        public static string T(string key)
+        {
+            var d = D;
+            string lang = Lang;
+            if (!ReferenceEquals(d, _cacheData) || lang != _cacheLang)
+            {
+                _cache.Clear();
+                _cacheData = d;
+                _cacheLang = lang;
+            }
+            if (!_cache.TryGetValue(key, out var s))
+            {
+                s = Mark(d.Text(key, lang));
+                if (_cache.Count >= MaxCache) _cache.Clear();
+                _cache[key] = s;
+            }
+            return s;
+        }
 
         public static string T(LocalizedText t) => Mark(t?.Get(Lang) ?? "");
 
@@ -59,20 +90,17 @@ namespace GoNoGo.Game
             return s.Replace("[[", "<color=" + MarkColor + ">").Replace("]]", "</color>");
         }
 
-        /// <summary>拿掉 [[…]] 記號（不支援 rich text 的地方用，例如寫進記錄檔）。</summary>
-        public static string Plain(string s) =>
-            string.IsNullOrEmpty(s) ? s ?? "" : s.Replace("[[", "").Replace("]]", "");
-
         public static string T(string key, IDictionary<string, string> args) => Format(T(key), k => args != null && args.TryGetValue(k, out var v) ? v : null);
-
-        public static string T(string key, IDictionary<string, double> values) =>
-            Format(T(key), k => null, values);
 
         public static string T(string key, params (string k, object v)[] args)
         {
-            var map = new Dictionary<string, object>();
-            foreach (var (k, v) in args) map[k] = v;
-            return Format(T(key), k => map.TryGetValue(k, out var v) ? v : null);
+            // 參數只有幾個：直接從後面找（同名的以最後一個為準），不必每次另外建一個字典
+            return Format(T(key), name =>
+            {
+                for (int i = args.Length - 1; i >= 0; i--)
+                    if (args[i].k == name) return args[i].v;
+                return null;
+            });
         }
 
         public static string Part(string id) => T(D.Part(id)?.Name) is var s && s.Length > 0 ? s : id;
@@ -102,11 +130,12 @@ namespace GoNoGo.Game
         public static string Resolve(string v)
         {
             if (string.IsNullOrEmpty(v)) return v ?? "";
-            if (v.StartsWith("part:")) return Part(v.Substring(5));
-            if (v.StartsWith("launcher:")) return Launcher(v.Substring(9));
-            if (v.StartsWith("orbit:")) return Orbit(v.Substring(6));
-            if (v.StartsWith("sw:")) return SpaceWeather(v.Substring(3));
-            if (v.StartsWith("site:")) return T("site." + v.Substring(5));
+            // Ordinal：前綴都是 ASCII，照字元比就好（預設的文化比對慢很多，而且每個參數都會經過這裡）
+            if (v.StartsWith("part:", StringComparison.Ordinal)) return Part(v.Substring(5));
+            if (v.StartsWith("launcher:", StringComparison.Ordinal)) return Launcher(v.Substring(9));
+            if (v.StartsWith("orbit:", StringComparison.Ordinal)) return Orbit(v.Substring(6));
+            if (v.StartsWith("sw:", StringComparison.Ordinal)) return SpaceWeather(v.Substring(3));
+            if (v.StartsWith("site:", StringComparison.Ordinal)) return T("site." + v.Substring(5));
             return v;
         }
 
@@ -117,7 +146,7 @@ namespace GoNoGo.Game
             return T(s.Key, args);
         }
 
-        public static string Format(string template, Func<string, object> lookup, IDictionary<string, double> values = null)
+        public static string Format(string template, Func<string, object> lookup)
         {
             if (string.IsNullOrEmpty(template) || template.IndexOf('{') < 0) return template ?? "";
             var sb = new StringBuilder(template.Length + 16);
@@ -132,7 +161,6 @@ namespace GoNoGo.Game
                 int colon = inner.IndexOf(':');
                 if (colon >= 0) { name = inner.Substring(0, colon); fmt = inner.Substring(colon + 1); }
                 object v = lookup(name);
-                if (v == null && values != null && values.TryGetValue(name, out var dv)) v = dv;
                 if (v == null) sb.Append('{').Append(inner).Append('}');
                 else if (v is double d) sb.Append(d.ToString(fmt ?? "0.##", CultureInfo.InvariantCulture));
                 else if (v is float f) sb.Append(f.ToString(fmt ?? "0.##", CultureInfo.InvariantCulture));

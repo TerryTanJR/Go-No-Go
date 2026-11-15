@@ -26,15 +26,17 @@ namespace GoNoGo.UI
             var foot = Ui.El("title-foot").AddTo(Root);
             Ui.Text(Loc.T("ui.title.credits"), "small", "faint").AddTo(foot);
 
-            // 點畫面任何地方（按鈕以外）進主選單
+            // 點畫面任何地方（按鈕以外）進主選單。畫面層是所有畫面共用的：同一個回呼只掛一次（換語言重建不會重複），離開時拿掉
             Root.pickingMode = PickingMode.Position;
-            Root.RegisterCallback<ClickEvent>(e =>
+            _onClick ??= e =>
             {
                 if (e.target is Button) return;
                 Go();
-            });
+            };
+            Root.RegisterCallback<ClickEvent>(_onClick);
         }
 
+        EventCallback<ClickEvent> _onClick;
         bool _going;
 
         void Go()
@@ -51,6 +53,10 @@ namespace GoNoGo.UI
             if (kb != null && (kb.enterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame)) Go();
         }
 
-        protected override void OnClose() => Root.pickingMode = PickingMode.Ignore;
+        protected override void OnClose()
+        {
+            Root.pickingMode = PickingMode.Ignore;
+            if (_onClick != null) Root.UnregisterCallback<ClickEvent>(_onClick);
+        }
     }
 }

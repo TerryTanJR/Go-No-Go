@@ -792,7 +792,6 @@
       ],
       "scripted_launcher_id": "taurus_xl",
       "budget_cap": 1.1,
-      "cinematic": "fairing_stuck",
       "background": {
         "en": "The Orbiting Carbon Observatory carried three spectrometers to map where carbon dioxide enters and leaves the atmosphere. To save money it was booked on a Taurus XL, a smaller solid-fuel rocket with six successes in seven flights.",
         "zh-TW": "軌道碳觀測衛星（OCO）帶著三台光譜儀，要畫出二氧化碳在哪裡進出大氣。為了省錢，它訂了金牛座 XL，一款較小的固體燃料火箭，七次飛行成功六次。"

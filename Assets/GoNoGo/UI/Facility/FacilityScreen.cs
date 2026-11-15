@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using GoNoGo.Core;
 using GoNoGo.Game;
@@ -10,7 +9,7 @@ namespace GoNoGo.UI
 {
     /// <summary>
     /// Facility 場景（大廳、組裝區、中控室）的介面：準星、資訊框與按鍵提示、安裝進度環、場景標籤，
-    /// 以及按 E 打開的各種面板（大屏幕選件、線索、組裝區儀表板、發射、營運席…）。面板開著時角色不能動、滑鼠放開。
+    /// 以及按 E 打開的各種面板（設計主螢幕選件、線索、組裝區儀表板、發射、營運席…）。面板開著時角色不能動、滑鼠放開。
     /// Esc 先關面板；Tab／Esc 的遊戲選單在 <see cref="UIRoot"/>。個人模式按 T 叫出平板。
     /// </summary>
     public sealed class FacilityScreen : GameScreen
@@ -23,7 +22,7 @@ namespace GoNoGo.UI
         VisualElement _crosshair;
         FacPanel _panel;
         string _panelId;
-        readonly Dictionary<WorldLabel, Label> _labelEls = new Dictionary<WorldLabel, Label>();
+        readonly Dictionary<WorldLabel, LabelView> _labelEls = new Dictionary<WorldLabel, LabelView>();
         SessionPhase _lastPhase;
         OpsBar _opsBar;
         TutorialCoach _coach;
@@ -32,7 +31,9 @@ namespace GoNoGo.UI
         VisualElement _briefHint;
         /// <summary>組裝單（右上）：人走到某一座組裝台旁邊時顯示那一座的。</summary>
         VisualElement _order;
-        string _orderSig;
+        /// <summary>組裝單要重畫：這一局的狀態或語言變了。走到另一座組裝台旁邊（<see cref="_orderBench"/> 不同）也會重畫。</summary>
+        bool _orderDirty;
+        int _orderBench = -1;
         /// <summary>這一局本機已經自動打開過簡報（多人）；回到場景不再重開，要看按 B。</summary>
         static object _briefedFor;
         /// <summary>房主把「全員就緒」的開始視窗關掉了：準備狀態改變前不再自動跳出來。</summary>
@@ -41,7 +42,13 @@ namespace GoNoGo.UI
         protected override void Build()
         {
             _labelEls.Clear();
+            _labelsHidden = false;
             _shownArea = null;
+            // 整個畫面重建（切語言）：每幀比對用的快取全部作廢
+            _keysShown.Clear();
+            _infoColor = null;
+            _micShown = null;
+            _heldDirty = true;
             GameSession.EnsureMission();
             _labels = Ui.El("world-labels").AddTo(Root);
             _labels.pickingMode = PickingMode.Ignore;
@@ -72,7 +79,7 @@ namespace GoNoGo.UI
             _order = Ui.El("ord-hud").AddTo(_hud);
             _order.pickingMode = PickingMode.Ignore;
             _order.style.display = DisplayStyle.None;
-            _orderSig = null;
+            _orderDirty = true;
 
             // 中央：準星與進度環
             _crosshair = Ui.El("crosshair").AddTo(_hud);
@@ -88,7 +95,9 @@ namespace GoNoGo.UI
             _infoBody = Ui.Text("", "info-body").AddTo(_info);
             _infoKeys = Ui.Row("info-keys").AddTo(_info);
 
-            _opsBar = new OpsBar(_hud);
+            // 營運橫條的狀態（這回合剩幾秒、警報響過沒）留在同一個物件裡：切語言重建畫面時倒數不會重來
+            _opsBar ??= new OpsBar();
+            _opsBar.Attach(_hud);
 
             _modal = Ui.El("modal-layer").AddTo(Root);
             _modal.style.display = DisplayStyle.None;
@@ -96,6 +105,9 @@ namespace GoNoGo.UI
             // 點名橫幅放在面板層上面：開著面板也看得到、按得到
             _poll = new PollBanner(Root);
 
+            // 切語言重建畫面：先放掉舊的引導（不然它還訂著事件，步驟完成的音效會響兩次）
+            _coach?.Dispose();
+            _coach = null;
             if (M.S.Tutorial) _coach = new TutorialCoach(_tl, _labels);
             else if (M.Difficulty.NextStepGuide) _coach = new TutorialCoach(_tl, _labels, guide: true);
 
@@ -112,7 +124,7 @@ namespace GoNoGo.UI
             _lastPhase = M.S.Phase;
             OnChanged();
             if (MinigameDev.PickerOnStart) { MinigameDev.PickerOnStart = false; OpenPanel("minigame_debug", ""); }
-            else if (_panelId != null) { var id = _panelId; _panelId = null; OpenPanel(id, ""); }
+            else if (_panel != null) Mount(_panel, _panelId, true);   // 切語言：開著的面板留著（玩到一半的小遊戲不會重來）
             else ShowPhasePanel();
         }
 
@@ -264,7 +276,8 @@ namespace GoNoGo.UI
             Notices();
             CollectCards();
             BenchNotices();
-            _orderSig = null;
+            _orderDirty = true;
+            _heldDirty = true;
         }
 
         // 發射失敗重來的提示要跨場景（失敗後從發射場景回來才看得到），所以記在靜態欄位，換一局就重算
@@ -272,7 +285,7 @@ namespace GoNoGo.UI
         static int _restartsShown;
         int _confirmsSeen = -1;
 
-        /// <summary>狀態變化的提示：任務重來；有人在大屏幕上確定了設計（該去組裝了）。</summary>
+        /// <summary>狀態變化的提示：任務重來；有人在設計主螢幕上確定了設計（該去組裝了）。</summary>
         void Notices()
         {
             var s = M.S;
@@ -344,8 +357,16 @@ namespace GoNoGo.UI
         void OpenPanel(string id, string arg)
         {
             ClosePanel();
-            _panel = FacPanel.Create(id);
-            if (_panel == null) return;
+            var panel = FacPanel.Create(id);
+            if (panel == null) return;
+            Mount(panel, id, false);
+            _openedFrame = Time.frameCount;
+        }
+
+        /// <summary>把面板放進面板層。reattach = 切語言後把原本開著的那一個接回來（不是新開）。</summary>
+        void Mount(FacPanel panel, string id, bool reattach)
+        {
+            _panel = panel;
             _panelId = id;
             _modal.Clear();
             _modal.style.display = DisplayStyle.Flex;
@@ -355,8 +376,8 @@ namespace GoNoGo.UI
             Ui.Spacer().AddTo(head);
             if (_panel.Closable) Ui.Btn("Esc  ✕", ClosePanel, "modal-close").AddTo(head);
             var body = Ui.El("modal-body").AddTo(card);
-            _panel.Attach(body, ClosePanel);
-            _openedFrame = Time.frameCount;
+            if (reattach) _panel.Reattach(body, ClosePanel);
+            else _panel.Attach(body, ClosePanel);
             Hud.PanelOpen = true;
             PlayerControllerCursor(false);
         }
@@ -411,8 +432,8 @@ namespace GoNoGo.UI
             if (keys && _poll != null && _poll.CanVote && (kb.gKey.wasPressedThisFrame || kb.nKey.wasPressedThisFrame))
                 _poll.Vote(kb.gKey.wasPressedThisFrame);
             // 大廳：全員準備好之後，房主按 Enter 直接開始
-            else if (keys && _panel == null && M.S.Phase == SessionPhase.Lobby && GameSession.IsHost && LobbyView.AllReady(M.S)
-                     && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame))
+            else if (keys && _panel == null && M.S.Phase == SessionPhase.Lobby && GameSession.IsHost
+                     && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) && LobbyView.AllReady(M.S))
             {
                 Sfx.Go();
                 GameSession.Send(CommandType.StartMission);
@@ -459,17 +480,13 @@ namespace GoNoGo.UI
             var nb = M.S.BenchAt(near);
             bool showOrder = playing && nb != null && M.S.Phase == SessionPhase.Design && !M.S.IsSandbox(D);
             _order.style.display = showOrder ? DisplayStyle.Flex : DisplayStyle.None;
-            if (showOrder)
+            // 內容只跟「哪一座」、這一局的狀態和語言有關：狀態一變 OnChanged 就標記重畫，不用每幀組字串比對
+            if (showOrder && (_orderDirty || near != _orderBench))
             {
-                var job = nb.Job;
-                string sig = near + "/" + string.Join(",", nb.Left) + "/" + (job == null ? "" : job.PartId + "/" + job.Step + "/" + job.Done + "/" + job.Mistakes)
-                             + "/" + M.S.Confirmed + "/" + M.S.Revision + "/" + Loc.Lang;
-                if (sig != _orderSig)
-                {
-                    _orderSig = sig;
-                    _order.Clear();
-                    BenchOrderView.Build(_order, near, false);
-                }
+                _orderDirty = false;
+                _orderBench = near;
+                _order.Clear();
+                BenchOrderView.Build(_order, near, false);
             }
             // 兩種視角都靠準星選目標（第三人稱的鏡頭比頭頂高，準星不會被角色擋住）
             _crosshair.style.display = playing ? DisplayStyle.Flex : DisplayStyle.None;
@@ -487,13 +504,18 @@ namespace GoNoGo.UI
                 _infoSub.style.display = string.IsNullOrEmpty(t.Subtitle) ? DisplayStyle.None : DisplayStyle.Flex;
                 _infoBody.text = t.Body ?? "";
                 _infoBody.style.display = string.IsNullOrEmpty(t.Body) ? DisplayStyle.None : DisplayStyle.Flex;
-                if (!string.IsNullOrEmpty(t.Color) && ColorUtility.TryParseHtmlString(t.Color, out var c)) _info.style.borderLeftColor = c;
-                else _info.style.borderLeftColor = new Color(0.22f, 0.78f, 0.96f);
-                PlaceInfo(t.Anchor);
-                string sig = string.Join("|", t.Keys.ConvertAll(k => k.Key + k.Label));
-                if (sig != _keysSig)
+                // 邊框顏色：顏色字串和上一幀一樣就不重新解析
+                string color = t.Color ?? "";
+                if (color != _infoColor)
                 {
-                    _keysSig = sig;
+                    _infoColor = color;
+                    if (color.Length > 0 && ColorUtility.TryParseHtmlString(color, out var c)) _info.style.borderLeftColor = c;
+                    else _info.style.borderLeftColor = new Color(0.22f, 0.78f, 0.96f);
+                }
+                if (!SameKeys(t.Keys))
+                {
+                    _keysShown.Clear();
+                    _keysShown.AddRange(t.Keys);
                     _infoKeys.Clear();
                     foreach (var k in t.Keys)
                     {
@@ -507,9 +529,15 @@ namespace GoNoGo.UI
             _ring.style.display = Hud.Progress > 0 ? DisplayStyle.Flex : DisplayStyle.None;
 
             _mic.style.display = Multiplayer.VoiceConnected ? DisplayStyle.Flex : DisplayStyle.None;
-            _mic.text = Loc.T(Multiplayer.MicMuted ? "ui.voice.muted" : "ui.voice.on") + "  [M]";
-            _mic.EnableInClassList("btn-danger", Multiplayer.MicMuted);
-            _mic.EnableInClassList("btn-ghost", !Multiplayer.MicMuted);
+            // 文字和顏色只跟有沒有靜音有關：變了才重組
+            bool muted = Multiplayer.MicMuted;
+            if (_micShown != muted)
+            {
+                _micShown = muted;
+                _mic.text = Loc.T(muted ? "ui.voice.muted" : "ui.voice.on") + "  [M]";
+                _mic.EnableInClassList("btn-danger", muted);
+                _mic.EnableInClassList("btn-ghost", !muted);
+            }
 
             // 區域名：換區域時顯示 2.5 秒再淡出（像開放世界遊戲進入新地區）
             if (Hud.Area != _shownArea)
@@ -520,60 +548,74 @@ namespace GoNoGo.UI
             }
             _areaTime = Mathf.Max(0, _areaTime - dt);
             _area.style.opacity = Mathf.Clamp01(_areaTime / 0.5f);
-            var held = M.S.HeldBy(GameSession.LocalPlayer);
-            // 手上是小零件：列出名稱（單人的籃子最多四個，寫幾個／幾個）
-            var comps = held == null ? M.S.CompsOf(GameSession.LocalPlayer) : null;
-            bool lobby = M.S.Phase == SessionPhase.Lobby;
-            string compNames = comps != null && comps.Count > 0 ? string.Join(Loc.IsZh ? "、" : ", ", comps.ConvertAll(id => Loc.T(D.Component(id)?.Name))) : null;
-            _held.text = held != null ? Loc.T("ui.hud.holding", ("code", D.Part(held)?.Code ?? ""))
-                : compNames != null ? (M.S.Alone() ? Loc.T("ui.hud.basket", ("list", compNames), ("n", comps.Count), ("max", GameData.BasketSize))
-                    : Loc.T("ui.hud.holding", ("code", compNames)))
-                : lobby ? LobbyHint() : "";
-            _held.style.display = (held != null || compNames != null || lobby) && playing ? DisplayStyle.Flex : DisplayStyle.None;
+            // 下方中央那一行（手上的東西、大廳的提示）只跟這一局的狀態、自己是誰、是不是房主有關：變了才重組文字
+            int me = GameSession.LocalPlayer;
+            bool host = GameSession.IsHost;
+            if (_heldDirty || me != _heldPlayer || host != _heldHost)
+            {
+                _heldDirty = false;
+                _heldPlayer = me;
+                _heldHost = host;
+                var held = M.S.HeldBy(me);
+                // 手上是小零件：列出名稱（單人的籃子有容量上限 GameData.BasketSize，寫幾個／幾個）
+                var comps = held == null ? M.S.CompsOf(me) : null;
+                bool lobby = M.S.Phase == SessionPhase.Lobby;
+                string compNames = comps != null && comps.Count > 0 ? string.Join(Loc.IsZh ? "、" : ", ", comps.ConvertAll(id => Loc.T(D.Component(id)?.Name))) : null;
+                _held.text = held != null ? Loc.T("ui.hud.holding", ("code", D.Part(held)?.Code ?? ""))
+                    : compNames != null ? (M.S.Alone() ? Loc.T("ui.hud.basket", ("list", compNames), ("n", comps.Count), ("max", GameData.BasketSize))
+                        : Loc.T("ui.hud.holding", ("code", compNames)))
+                    : lobby ? LobbyHint() : "";
+                _heldAny = held != null || compNames != null || lobby;
+            }
+            _held.style.display = _heldAny && playing ? DisplayStyle.Flex : DisplayStyle.None;
 
             DrawLabels();
         }
 
         int _openedFrame;
-        string _keysSig;
         string _shownArea;
         float _areaTime;
+        /// <summary>資訊框上現在畫著的按鍵提示、邊框顏色字串：和準星對到的一樣就不重畫。</summary>
+        readonly List<KeyHint> _keysShown = new List<KeyHint>();
+        string _infoColor;
+        /// <summary>麥克風按鈕現在畫的是哪個狀態（null = 還沒畫過）。</summary>
+        bool? _micShown;
+        /// <summary>下方中央那一行要重組（狀態或語言變了）；另外記著上次是替哪個玩家、是不是房主時組的（換了也重組）。</summary>
+        bool _heldDirty = true, _heldAny, _heldHost;
+        int _heldPlayer;
 
-        /// <summary>
-        /// 資訊框位置：有錨點（第三人稱）就置中放在物件上方，不蓋住物件、不會跑出畫面；沒有就用 USS 的位置（準星右下）。
-        /// </summary>
-        const float InfoTop = 64f;
-
-        void PlaceInfo(Vector3? anchor)
+        bool SameKeys(List<KeyHint> keys)
         {
-            var cam = Camera.main;
-            var panel = Root.panel;
-            if (anchor == null || cam == null || panel == null || cam.WorldToViewportPoint(anchor.Value).z <= 0.1f)
-            {
-                _info.style.left = StyleKeyword.Null;
-                _info.style.top = StyleKeyword.Null;
-                _info.style.translate = StyleKeyword.Null;
-                return;
-            }
-            var sp = RuntimePanelUtils.CameraTransformWorldToPanel(panel, anchor.Value, cam);
-            var size = Root.layout.size;
-            var box = _info.layout.size;
-            if (float.IsNaN(box.x)) box = Vector2.zero;
-            _info.style.left = Mathf.Clamp(sp.x - box.x / 2f, 16f, Mathf.Max(16f, size.x - box.x - 16f));
-            // 上緣留給左上的階段、右上的「B 任務說明」鍵帽：俯視鏡頭時目標在畫面頂端，資訊框不要蓋上去
-            _info.style.top = Mathf.Clamp(sp.y - box.y - 8f, InfoTop, Mathf.Max(InfoTop, size.y - box.y - 16f));
-            _info.style.translate = new Translate(0, 0);
+            if (keys.Count != _keysShown.Count) return false;
+            for (int i = 0; i < keys.Count; i++)
+                if (keys[i].Key != _keysShown[i].Key || keys[i].Label != _keysShown[i].Label) return false;
+            return true;
         }
 
         static void ToggleMic() => Multiplayer.SetMicMuted?.Invoke(!Multiplayer.MicMuted);
 
-        /// <summary>控制台名稱（tag）只在角色走到這麼近時才顯示；看板（sign）、零件編號照各自的 maxDistance。</summary>
+        /// <summary>控制台、玩家的名牌（tag）：角色走到這麼近才顯示。零件編號這類其他樣式照各自的 maxDistance。</summary>
         const float TagNear = 3f;
         /// <summary>看板（整合台、小零件架、發射台這些機台的名稱）：走到這麼近才出現，不會隔著半個房間一直掛在畫面上。</summary>
         const float SignNear = 5f;
         /// <summary>架上、組裝台上小零件的名稱：離鏡頭這麼近才出現；<see cref="CompFull"/> 公尺內是原本的大小，再遠就縮小。</summary>
         const float CompNear = 3.4f;
         const float CompFull = 1.7f;
+
+        /// <summary>一個場景標籤在畫面上的元素。</summary>
+        sealed class LabelView
+        {
+            public Label El;
+            /// <summary>上一次套用的顏色字串（沒變就不重新解析）。</summary>
+            public string ColorKey;
+            /// <summary>最後一次在 <see cref="WorldLabel.All"/> 裡看到它是第幾輪；沒跟上最新一輪的就是已經不在場景裡的。</summary>
+            public int Pass;
+        }
+
+        readonly List<WorldLabel> _staleLabels = new List<WorldLabel>();
+        int _labelPass;
+        /// <summary>面板開著、標籤已經全部收起來了（不用每幀再收一次）。</summary>
+        bool _labelsHidden;
 
         /// <summary>
         /// 場景裡的文字標籤：投影到畫面上（太遠、在背後、被牆擋住的不畫）。
@@ -586,50 +628,72 @@ namespace GoNoGo.UI
             var cam = Camera.main;
             var panel = Root.panel;
             if (cam == null || panel == null) return;
-            var seen = new HashSet<WorldLabel>();
+            // 面板開著時標籤一律不顯示：收起來一次就好，位置和遮擋等面板關掉的那一幀再算
+            if (_panel != null)
+            {
+                if (_labelsHidden) return;
+                _labelsHidden = true;
+                foreach (var shown in _labelEls.Values) shown.El.style.display = DisplayStyle.None;
+                return;
+            }
+            _labelsHidden = false;
+            var camPos = cam.transform.position;
+            var me = PoseFeed.Local.Position;
+            var target = Hud.Target;
+            int pass = ++_labelPass, live = 0;
             foreach (var wl in WorldLabel.All)
             {
                 if (wl == null || !wl.isActiveAndEnabled) continue;
                 var wp = wl.WorldPos;
                 var v = cam.WorldToViewportPoint(wp);
-                float dist = Vector3.Distance(cam.transform.position, wp);
+                float dist = Vector3.Distance(camPos, wp);
                 bool visible = v.z > 0.1f && v.x > -0.05f && v.x < 1.05f && v.y > -0.05f && v.y < 1.05f && dist < wl.maxDistance;
                 float k = 1f;
+                string text = null;
                 if (visible && (wl.style == "tag" || wl.style == "sign"))
                 {
-                    var me = PoseFeed.Local.Position;
                     float near = Vector2.Distance(new Vector2(me.x, me.z), new Vector2(wp.x, wp.z));
-                    visible = near < (wl.style == "tag" ? TagNear : SignNear) && (Hud.Target == null || Hud.Target.Title != wl.Resolve());
+                    visible = near < (wl.style == "tag" ? TagNear : SignNear);
+                    if (visible && target != null) { text = wl.Resolve(); visible = target.Title != text; }
                 }
                 else if (visible && wl.style == "comp")
                 {
                     // 小零件的名稱：近的才顯示，越遠字越小；準星對到的那一格看提示框就好
-                    visible = dist < CompNear && (Hud.Target == null || Hud.Target.Title != wl.Resolve());
+                    visible = dist < CompNear;
+                    if (visible && target != null) { text = wl.Resolve(); visible = target.Title != text; }
                     k = Mathf.Clamp(CompFull / Mathf.Max(0.1f, dist), 0.62f, 1f);
                 }
-                if (visible && Physics.Linecast(cam.transform.position, wp, out var hit, ~(1 << 2), QueryTriggerInteraction.Ignore)
+                if (visible && Physics.Linecast(camPos, wp, out var hit, ~(1 << 2), QueryTriggerInteraction.Ignore)
                     && hit.distance < dist - 0.4f && hit.collider.GetComponentInParent<WorldLabel>() != wl)
                     visible = false;
-                if (!_labelEls.TryGetValue(wl, out var el))
+                if (!_labelEls.TryGetValue(wl, out var view))
                 {
-                    el = Ui.Text("", "world-label", "world-label--" + wl.style).AddTo(_labels);
-                    el.pickingMode = PickingMode.Ignore;
-                    _labelEls[wl] = el;
+                    view = new LabelView { El = Ui.Text("", "world-label", "world-label--" + wl.style).AddTo(_labels) };
+                    view.El.pickingMode = PickingMode.Ignore;
+                    _labelEls[wl] = view;
                 }
-                seen.Add(wl);
-                el.style.display = visible && _panel == null ? DisplayStyle.Flex : DisplayStyle.None;
+                if (view.Pass != pass) { view.Pass = pass; live++; }
+                var el = view.El;
+                el.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
                 if (!visible) continue;
-                el.text = wl.Resolve();
-                if (!string.IsNullOrEmpty(wl.color) && ColorUtility.TryParseHtmlString(wl.color, out var c)) el.style.borderBottomColor = c;
+                el.text = text ?? wl.Resolve();
+                if (wl.color != view.ColorKey)
+                {
+                    view.ColorKey = wl.color;
+                    if (!string.IsNullOrEmpty(wl.color) && ColorUtility.TryParseHtmlString(wl.color, out var c)) el.style.borderBottomColor = c;
+                }
                 var sp = RuntimePanelUtils.CameraTransformWorldToPanel(panel, wp, cam);
                 el.style.left = sp.x;
                 el.style.top = sp.y;
                 el.style.scale = new Scale(new Vector3(k, k, 1f));
                 el.style.opacity = wl.style == "comp" ? Mathf.Clamp01((CompNear - dist) / 0.6f) : Mathf.Clamp01((wl.maxDistance - dist) / 2f);
             }
-            var stale = new List<WorldLabel>();
-            foreach (var kv in _labelEls) if (!seen.Contains(kv.Key)) stale.Add(kv.Key);
-            foreach (var k in stale) { _labelEls[k].RemoveFromHierarchy(); _labelEls.Remove(k); }
+            // 每個元素這一輪都看到了 = 沒有標籤從場景裡消失，不用清
+            if (live == _labelEls.Count) return;
+            _staleLabels.Clear();
+            foreach (var kv in _labelEls) if (kv.Value.Pass != pass) _staleLabels.Add(kv.Key);
+            foreach (var gone in _staleLabels) { _labelEls[gone].El.RemoveFromHierarchy(); _labelEls.Remove(gone); }
+            _staleLabels.Clear();
         }
     }
 

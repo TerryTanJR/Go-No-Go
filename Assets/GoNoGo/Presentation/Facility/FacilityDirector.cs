@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using GoNoGo.Core;
 using GoNoGo.Game;
 using UnityEngine;
@@ -34,11 +33,11 @@ namespace GoNoGo.Presentation
         Interactor _interactor;
         AvatarRig _localRig;
         readonly Dictionary<int, RemoteAvatar> _remotes = new Dictionary<int, RemoteAvatar>();
+        readonly List<int> _gone = new List<int>();
         Transform _localHeld;
         string _localHeldId;
 
         public PlayerController Player => _player;
-        public AvatarRig LocalRig => _localRig;
 
         void Awake() => Instance = this;
 
@@ -58,7 +57,6 @@ namespace GoNoGo.Presentation
         {
             GameSession.EnsureMission();
             var m = GameSession.Mission;
-            PartPreviewStage.Create(transform);
             SpawnLocal(m);
             m.Changed += OnChanged;
             m.PhaseChanged += OnPhase;
@@ -133,11 +131,6 @@ namespace GoNoGo.Presentation
             FadeTeleport(SpawnPos(spawn, m.S, GameSession.LocalPlayer), spawn.eulerAngles.y);
         }
 
-        public void FadeTeleport(Transform spawn)
-        {
-            if (spawn != null) FadeTeleport(spawn.position, spawn.eulerAngles.y);
-        }
-
         void FadeTeleport(Vector3 pos, float yaw)
         {
             if (SceneFlow.FadeOut == null) { _player.Teleport(pos, yaw); return; }
@@ -170,22 +163,29 @@ namespace GoNoGo.Presentation
                     : comps.Count > 0 ? HeldComponents(comps, _localRig.hold, m.S.Alone()) : null;
             }
             _localRig.holding = mine != null || comps.Count > 0;
-            PoseFeed.Local.Held = mine;
 
             SyncRemotes(m);
         }
 
+        /// <summary>其他玩家的 avatar：離開房間的拿掉，新來的建立，外型和手上的東西照狀態更新。</summary>
         void SyncRemotes(MissionSession m)
         {
-            var others = m.S.Players.Where(p => p.Id != GameSession.LocalPlayer).ToList();
-            foreach (var id in _remotes.Keys.ToList())
-                if (others.All(p => p.Id != id))
+            var players = m.S.Players;
+            int me = GameSession.LocalPlayer;
+            if (_remotes.Count > 0)
+            {
+                _gone.Clear();
+                foreach (var id in _remotes.Keys)
+                    if (id == me || !InRoom(players, id)) _gone.Add(id);
+                foreach (var id in _gone)
                 {
                     Destroy(_remotes[id].gameObject);
                     _remotes.Remove(id);
                 }
-            foreach (var p in others)
+            }
+            foreach (var p in players)
             {
+                if (p.Id == me) continue;
                 if (!_remotes.TryGetValue(p.Id, out var ra))
                 {
                     var go = new GameObject("Remote_" + p.Id);
@@ -196,6 +196,13 @@ namespace GoNoGo.Presentation
                 }
                 ra.Apply(p.Look, m.S.HeldBy(p.Id), m.Data, m.S.CompsOf(p.Id));
             }
+        }
+
+        static bool InRoom(List<PlayerInfo> players, int id)
+        {
+            foreach (var p in players)
+                if (p.Id == id) return true;
+            return false;
         }
 
         /// <summary>

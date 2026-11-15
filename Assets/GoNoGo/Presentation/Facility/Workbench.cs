@@ -32,10 +32,11 @@ namespace GoNoGo.Presentation
         int _fitsSeen = -1, _errorsSeen = -1;
         string _fitsPart;
 
+        static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+
         void Awake() => All.Add(this);
         void OnDestroy() => All.Remove(this);
-
-        public static Workbench At(int index) => All.Find(b => b != null && b.index == index);
 
         /// <summary>依狀態更新台上的東西（FacilityDirector 在狀態改變時呼叫）；有人裝了一個小零件、或左側放錯組合就播效果。</summary>
         public void Sync(MissionSession m)
@@ -161,8 +162,8 @@ namespace GoNoGo.Presentation
             _pulse += Time.deltaTime * 4f;
             _mpb ??= new MaterialPropertyBlock();
             float k = 0.5f + 0.5f * Mathf.Sin(_pulse);
-            _mpb.SetColor("_BaseColor", Color.Lerp(new Color(0.1f, 0.35f, 0.45f), new Color(0.3f, 0.9f, 1f), k));
-            _mpb.SetColor("_EmissionColor", new Color(0.22f, 0.78f, 0.96f) * (0.4f + 1.6f * k));
+            _mpb.SetColor(BaseColorId, Color.Lerp(new Color(0.1f, 0.35f, 0.45f), new Color(0.3f, 0.9f, 1f), k));
+            _mpb.SetColor(EmissionColorId, new Color(0.22f, 0.78f, 0.96f) * (0.4f + 1.6f * k));
             _nowPad.SetPropertyBlock(_mpb);
         }
     }

@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace GoNoGo.Presentation
 {
-    /// <summary>標記太空船上一組零件屬於哪個類別、哪個零件（滑鼠移到 UI 上的零件時用來發光提示）。</summary>
+    /// <summary>標記太空船上一組零件屬於哪個類別、哪個零件（準星對到時用來發光提示）。</summary>
     public sealed class SatPart : MonoBehaviour
     {
         public string category;

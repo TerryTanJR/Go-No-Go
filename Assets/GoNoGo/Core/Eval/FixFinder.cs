@@ -42,11 +42,7 @@ namespace GoNoGo.Core
                     int newOver = cev.Resources.Values.Count(r => r.Status == ResourceStatus.Over);
                     double costDelta = cev.Cost.TotalMusd - ev.Cost.TotalMusd;
                     double sciDelta = cev.SciencePerYear - ev.SciencePerYear;
-                    var f = new Fix
-                    {
-                        Kind = fix.Kind, Category = fix.Category, FromId = fix.FromId, ToId = fix.ToId, Years = fix.Years,
-                        NewMargin = newMargin, CostDeltaMusd = costDelta, ScienceDelta = sciDelta,
-                    };
+                    var f = new Fix { Kind = fix.Kind, Category = fix.Category, FromId = fix.FromId, ToId = fix.ToId, Years = fix.Years };
                     // 分數越低越好：先避免製造新的超標，再少犧牲科學、少花錢
                     double score = 100.0 * Math.Max(0, newOver - (baseOver - 1))
                                    + 3.0 * Math.Max(0, -sciDelta)

@@ -18,16 +18,16 @@ namespace GoNoGo.Game
         public bool IsHistorical => Scenario?.Historical != null;
 
         /// <summary>
-        /// 「玩家看到的」資料：挖空的數值換成玩家填的（沒填的不算）。大屏幕的儀表板只用這一份；
+        /// 「玩家看到的」資料：挖空的數值換成玩家填的（沒填的不算）。設計主螢幕的儀表板只用這一份；
         /// 發射、營運、失敗原因和分數永遠用 <see cref="Data"/> 的真實數值。沒有挖空的局就是 <see cref="Data"/> 本身。
         /// </summary>
         public GameData PlayerData { get; private set; }
 
-        /// <summary>大屏幕儀表板看的評估：大屏幕上選的設計，用玩家填的數值算（填錯就照錯的算）。</summary>
+        /// <summary>設計主螢幕儀表板看的評估：設計主螢幕上選的設計，用玩家填的數值算（填錯就照錯的算）。</summary>
         public Evaluation Dashboard { get; private set; }
         /// <summary>同一個設計用真實數值算的評估（發射之後、報告用；設計階段不要拿它顯示被挖空的數值）。</summary>
         public Evaluation BenchEval { get; private set; }
-        /// <summary>整合台上的衛星：大屏幕選的設計裡，已經組好裝上去的那些零件（3D 模型畫的是它）。</summary>
+        /// <summary>整合台上的衛星：設計主螢幕選的設計裡，已經組好裝上去的那些零件（3D 模型畫的是它）。</summary>
         public Design Satellite { get; private set; }
         /// <summary>整合台上那艘衛星的評估（真實數值；只給 3D 模型決定船身大小用）。</summary>
         public Evaluation SatelliteEval { get; private set; }
@@ -88,7 +88,7 @@ namespace GoNoGo.Game
             _cacheRev = -1;
         }
 
-        /// <summary>大屏幕選的設計裡，已經裝上衛星的零件（軌道、火箭、地面站照設計）。</summary>
+        /// <summary>設計主螢幕選的設計裡，已經裝上衛星的零件（軌道、火箭、地面站照設計）。</summary>
         static Design InstalledDesign(SessionState s, GameData data)
         {
             var d = s.Bench.Clone();

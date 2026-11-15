@@ -8,7 +8,7 @@ namespace GoNoGo.Core
     public sealed class MissionContext
     {
         public string DifficultyId { get; set; }
-        /// <summary>這一局有效的處室需求。</summary>
+        /// <summary>這一局有效的任務需求。</summary>
         public List<ActiveRequirement> Requirements { get; set; } = new List<ActiveRequirement>();
         /// <summary>這次發射之前已經失敗過幾次（重新設計的次數）。</summary>
         public int FailedLaunchesBefore { get; set; }
@@ -155,19 +155,15 @@ namespace GoNoGo.Core
         public static LaunchResult ResolveLaunch(Design design, GameData data, Evaluation ev, MissionPlan plan)
         {
             var scenario = data.Scenario(design.ScenarioId);
-            var r = new LaunchResult
-            {
-                MassMargin = ev[ResourceId.Mass].Margin,
-                Roll = plan.LaunchRoll,
-            };
+            var r = new LaunchResult { MassMargin = ev[ResourceId.Mass].Margin };
             var hist = scenario?.Historical;
             if (!ev.Mass.OrbitReachable) { r.Outcome = LaunchOutcome.Failure; r.ReasonCode = "launch.unreachable"; }
             else if (r.MassMargin < 0) { r.Outcome = LaunchOutcome.Failure; r.ReasonCode = "launch.overweight"; }
             else if (hist != null && hist.ScriptedLauncherId == design.LauncherId && hist.ScriptedEvents.Contains("fairing_stuck"))
             { r.Outcome = LaunchOutcome.FairingFailure; r.ReasonCode = "launch.fairing"; }
             // 火箭不會隨機爆炸，也沒有可靠度：火箭不是玩家做的，失敗只來自玩家的設計和選擇。
-            // 發射骰照擲（記在 Roll），亂數順序不變，其他結果才不會跟著變。
-            // 電池撐不過一次地影：部署後第一次進地影就斷電（原本由 Go/No-Go 點名擋下，點名拿掉後改成發射後果）
+            // 發射骰照擲（MissionPlan.LaunchRoll），亂數順序不變，其他結果才不會跟著變。
+            // 電池撐不過一次地影：部署後第一次進地影就斷電（發射前不擋，後果在入軌後才出現）
             else if (ev.Power.ActualDod > 1.0) { r.Outcome = LaunchOutcome.DeadOnOrbit; r.ReasonCode = "launch.dead_on_orbit"; }
             else if (r.MassMargin < 0.05 && plan.LaunchRoll2 < 0.5) { r.Outcome = LaunchOutcome.LowerOrbit; r.ReasonCode = "launch.lower_orbit"; }
             else { r.Outcome = LaunchOutcome.Nominal; r.ReasonCode = "launch.nominal"; }
@@ -197,6 +193,8 @@ namespace GoNoGo.Core
             double orbitMatch = Evaluator.OrbitMatch(orbit, objective);
             var inst = design.Instruments.Select(data.Part).Where(p => p != null).ToList();
             var health = inst.Select(_ => 1.0).ToList();
+            // 儀器和任務目標的吻合度整趟任務不變：先查好，逐日迴圈裡不用每天每台重查
+            var match = inst.Select(i => Evaluator.Match(i, objective)).ToList();
             var propulsion = data.Part(design.Get(PartCategory.Propulsion));
             var computer = data.Part(design.Get(PartCategory.Computer));
             var shielding = data.Part(design.Get(PartCategory.Shielding));
@@ -205,7 +203,7 @@ namespace GoNoGo.Core
 
             // 無條件進位：Math.Round(730.5) 是 730（銀行家捨入），2 年任務只跑 1.9986 年，「撐滿年數」永遠判定沒達成
             int targetDays = (int)Math.Ceiling(result.TargetYears * 365.25);
-            // 營運經費（採購機制 v2）：發射後剩下的錢付每年的營運費，錢用完的那一天任務結束
+            // 營運經費：發射後剩下的錢付每年的營運費，錢用完的那一天任務結束
             result.FundedYears = FundedYears(ev);
             int fundedDays = result.FundedYears >= targetDays / 365.25 ? int.MaxValue : (int)Math.Floor(result.FundedYears * 365.25);
             double storageCap = ev.Data.StorageGb;
@@ -256,7 +254,7 @@ namespace GoNoGo.Core
                 for (int i = 0; i < inst.Count; i++)
                 {
                     gen += inst[i].DataGbPerDay * health[i] * on;
-                    sci += inst[i].ScienceValue * Evaluator.Match(inst[i], objective) * orbitMatch * health[i] * on / 365.25 * c.ScienceYearScale;
+                    sci += inst[i].ScienceValue * match[i] * orbitMatch * health[i] * on / 365.25 * c.ScienceYearScale;
                 }
                 result.DataGeneratedGb += gen;
                 backlog += gen; backlogSci += sci;
@@ -290,11 +288,11 @@ namespace GoNoGo.Core
                 if (tolerance > 0 && dose > tolerance) { result.EndReason = EndReason.Radiation; day++; break; }
 
                 if (day % step == 0)
-                    result.Samples.Add(MakeSample(day, ev, cycles, cycleLimit, backlog, storageCap, result, prop, arrayW, on, safe));
+                    result.Samples.Add(MakeSample(day, ev, cycles, cycleLimit, backlog, storageCap, result, prop, arrayW, safe));
                 day++;
             }
             result.Samples.Add(MakeSample(day, ev, cycles, cycleLimit, backlog, storageCap, result, prop,
-                ev.Power.ArrayBolW * Math.Pow(1 - c.SolarDegradationPerYear, day / 365.25), 0, false));
+                ev.Power.ArrayBolW * Math.Pow(1 - c.SolarDegradationPerYear, day / 365.25), false));
 
             // 營運結束前還沒傳回的資料算遺失
             result.DataLostGb += backlog;
@@ -306,7 +304,7 @@ namespace GoNoGo.Core
         }
 
         static Sample MakeSample(int day, Evaluation ev, double cycles, double cycleLimit, double backlog, double storageCap,
-            MissionResult r, double prop, double arrayW, double duty, bool safe) => new Sample
+            MissionResult r, double prop, double arrayW, bool safe) => new Sample
         {
             Day = day,
             BatterySoc = Math.Max(0, 1 - Math.Min(1, ev.Power.ActualDod * (1 + 0.25 * Math.Min(1, cycles / Math.Max(1, cycleLimit))))),
@@ -315,7 +313,6 @@ namespace GoNoGo.Core
             PropellantKg = prop,
             Science = r.ScienceTotal,
             ArrayW = arrayW,
-            Duty = duty,
             SafeMode = safe,
         };
 

@@ -7,7 +7,7 @@ namespace GoNoGo.Presentation
     /// <summary>
     /// 放線索的一個位置：研究牆上的草稿紙、白板、黑板、書堆裡的一本書（中控室），牆上的設計圖、架子旁的便條（組裝區）。
     /// 遠看只是一張紙、一本書；靠近按 E 放大才看得出內容是不是有用的訊息。放大的內容只有自己看得到，
-    /// 不能投到大屏幕，要靠口頭告訴隊友。哪一則線索擺在這裡每局不同（<see cref="Clues.Place"/>），
+    /// 不能投到設計主螢幕，要靠口頭告訴隊友。哪一則線索擺在這裡每局不同（<see cref="Clues.Place"/>），
     /// 位置的 id 要和 <see cref="Clues.Spots"/> 對得上。
     /// </summary>
     public sealed class ClueSpot : Interactable

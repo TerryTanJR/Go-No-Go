@@ -35,7 +35,6 @@ namespace GoNoGo.UI
             IsOpen = true;
             _page = Page.Main;
             Hud.Paused = true;
-            UIRoot.HideTip();
             SetCursor(false);
             Render();
             _layer.style.display = DisplayStyle.Flex;
@@ -117,27 +116,23 @@ namespace GoNoGo.UI
             _ => Loc.T("ui.gmenu.title"),
         };
 
-        static bool Multiplayer => GameSession.HasMission && GameSession.Mission.S.Multiplayer;
-
         void BuildMain(VisualElement body)
         {
+            bool has = GameSession.HasMission;
+            var m = has ? GameSession.Mission : null;
             // 這一局的任務和難度（HUD 上不再常駐顯示）
-            if (GameSession.HasMission)
-            {
-                var m = GameSession.Mission;
-                Ui.Text(Loc.T(m.Scenario.Name) + (m.IsHistorical ? "" : " · " + Loc.T(m.Difficulty.Name)), "h3", "gm-mission").AddTo(body);
-            }
-            if (Multiplayer) Ui.Text(Loc.T("ui.gmenu.hint_mp"), "small", "dim").AddTo(body);
+            if (has) Ui.Text(Loc.T(m.Scenario.Name) + (m.IsHistorical ? "" : " · " + Loc.T(m.Difficulty.Name)), "h3", "gm-mission").AddTo(body);
+            if (has && m.S.Multiplayer) Ui.Text(Loc.T("ui.gmenu.hint_mp"), "small", "dim").AddTo(body);
             Ui.Btn(Loc.T("ui.gmenu.resume"), () => Close(), "btn-primary", "gm-btn").AddTo(body);
             // 任務說明：設計、營運階段（人在設施裡）隨時可以再看一次
-            if (GameSession.HasMission && (GameSession.Mission.S.Phase == Core.SessionPhase.Design || GameSession.Mission.S.Phase == Core.SessionPhase.Ops))
+            if (has && (m.S.Phase == Core.SessionPhase.Design || m.S.Phase == Core.SessionPhase.Ops))
                 Ui.Btn(Loc.T("ui.menu.briefing") + "  [B]", () =>
                 {
                     Close(false);
                     Hud.Open("briefing");
                 }, "gm-btn").AddTo(body);
-            // 知識卡圖鑑：組裝、安裝零件收集到的科普卡片（原本在採購終端翻，現在從這裡看）
-            if (GameSession.HasMission && GameSession.Mission.S.Phase != Core.SessionPhase.Launch)
+            // 知識卡圖鑑：組裝、安裝零件收集到的科普卡片
+            if (has && m.S.Phase != Core.SessionPhase.Launch)
                 Ui.Btn(Loc.T("ui.gmenu.codex") + "  [K]", () =>
                 {
                     Close(false);
@@ -145,7 +140,7 @@ namespace GoNoGo.UI
                 }, "gm-btn").AddTo(body);
             Ui.Btn(Loc.T("ui.gmenu.sound"), () => Show(Page.Sound), "gm-btn").AddTo(body);
             Ui.Btn(Loc.T("ui.gmenu.settings"), () => Show(Page.Settings), "gm-btn").AddTo(body);
-            if (GameSession.HasMission) Ui.Btn(Loc.T("ui.gmenu.controls"), () => Show(Page.Controls), "gm-btn").AddTo(body);
+            if (has) Ui.Btn(Loc.T("ui.gmenu.controls"), () => Show(Page.Controls), "gm-btn").AddTo(body);
             Ui.Btn(Loc.T("ui.gmenu.quit"), () => Show(Page.Quit), "btn-danger", "gm-btn").AddTo(body);
         }
 
@@ -240,7 +235,7 @@ namespace GoNoGo.UI
             BackButton(body);
         }
 
-        /// <summary>按鍵說明（原本常駐在畫面左下角，改放這裡）。只列這一局用得到的鍵。</summary>
+        /// <summary>按鍵說明：只列這一局用得到的鍵。</summary>
         void BuildControls(VisualElement body)
         {
             var s = GameSession.HasMission ? GameSession.Mission.S : null;

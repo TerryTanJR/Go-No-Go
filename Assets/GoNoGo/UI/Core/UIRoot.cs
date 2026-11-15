@@ -9,20 +9,21 @@ using UnityEngine.UIElements;
 namespace GoNoGo.UI
 {
     /// <summary>
-    /// 唯一的 UI 根物件（跨場景存在）：一個 UIDocument，分五層——畫面、遊戲選單、浮動層（提示、通知）、黑幕、進場過場（<see cref="LoadingScreen"/>）。
+    /// 唯一的 UI 根物件（跨場景存在）：一個 UIDocument，分五層——畫面、遊戲選單、浮動層（通知）、黑幕、進場過場（<see cref="LoadingScreen"/>）。
     /// 場景載入時依場景名稱換上對應畫面；黑幕跨場景保留，所以轉場不會閃白。
     /// 遊戲中（設施、發射、報告）按 Tab 或 Esc 打開 <see cref="GameMenu"/>。
     /// </summary>
     public sealed class UIRoot : MonoBehaviour
     {
         static UIRoot _i;
-        public static UIRoot Instance => _i;
 
         UIDocument _doc;
-        VisualElement _screenLayer, _menuLayer, _overlay, _fader, _toast, _tip;
-        Label _toastText, _tipText;
+        VisualElement _screenLayer, _menuLayer, _overlay, _fader, _toast;
+        Label _toastText;
         GameScreen _current;
         string _scene;
+        // 現在的場景可不可以開遊戲選單（換場景時查一次，不用每一幀查表）
+        bool _menuScene;
         GameMenu _menu;
         LoadingScreen _loading;
         bool _wasLocked;
@@ -77,12 +78,6 @@ namespace GoNoGo.UI
             _toast.pickingMode = PickingMode.Ignore;
             _toastText = Ui.Text("", "small").AddTo(_toast);
 
-            _tip = Ui.El("tooltip").AddTo(_overlay);
-            _tip.pickingMode = PickingMode.Ignore;
-            _tipText = Ui.Text("", "body").AddTo(_tip);
-            _tip.style.display = DisplayStyle.None;
-            _tip.RegisterCallback<GeometryChangedEvent>(_ => PlaceTip());
-
             _fader = Ui.El("fader").AddTo(root).Named("fader");
             _fader.pickingMode = PickingMode.Ignore;
             // 過場在黑幕之上：換場景淡出成黑的時候進度條還看得到
@@ -102,7 +97,7 @@ namespace GoNoGo.UI
         }
 
         /// <summary>
-        /// 字體大小：根元素掛 fs-{百分比}，FontScale.uss 依此換掉所有 --fs-N 變數，整個 UI（含選單、提示、場景標籤）一起變。
+        /// 字體大小：根元素掛 fs-{百分比}，FontScale.uss 依此換掉所有 --fs-N 變數，整個 UI（含選單、通知、場景標籤）一起變。
         /// 不必重建畫面：樣式重算後版面自動重排。
         /// </summary>
         void ApplyTextScale()
@@ -110,7 +105,6 @@ namespace GoNoGo.UI
             var root = _doc.rootVisualElement;
             foreach (int pct in GameSettings.TextScales)
                 root.EnableInClassList(GameSettings.TextScaleClass(pct), pct == GameSettings.TextScale);
-            HideTip();
         }
 
         void OnDestroy()
@@ -147,11 +141,11 @@ namespace GoNoGo.UI
 
         void ShowFor(string sceneName)
         {
-            HideTip();
             _menu.Close(relock: false);
             _current?.Close();
             _current = null;
             _scene = sceneName;
+            _menuScene = MenuScenes.Contains(sceneName);
             _wasLocked = false;
             _screenLayer.Clear();
             // 只有設施裡會鎖游標；其他畫面都要用滑鼠點（例如多人時別人按發射，自己還在走路）
@@ -163,14 +157,15 @@ namespace GoNoGo.UI
             if (!Screens.TryGetValue(sceneName, out var make)) return;
             if (sceneName != SceneFlow.Boot && sceneName != SceneFlow.MainMenu) GameSession.EnsureMission();
             _current = make();
-            _current.Attach(this, _screenLayer);
+            _current.Attach(_screenLayer);
         }
 
         void Update()
         {
-            UpdateMenu();
-            _current?.Tick(Time.unscaledDeltaTime);
-            _loading.Tick(Time.unscaledDeltaTime);
+            float dt = Time.unscaledDeltaTime;
+            UpdateMenu(dt);
+            _current?.Tick(dt);
+            _loading.Tick(dt);
         }
 
         /// <summary>開始進場過場（開房、加入房間、開始任務）。場景載入完會自己收起來。</summary>
@@ -181,9 +176,9 @@ namespace GoNoGo.UI
 
         // ---------------- 遊戲選單（Tab / Esc） ----------------
 
-        bool MenuAllowed => _current != null && MenuScenes.Contains(_scene) && GameSession.HasMission && !SceneFlow.Loading;
+        bool MenuAllowed => _current != null && _menuScene && GameSession.HasMission && !SceneFlow.Loading;
 
-        void UpdateMenu()
+        void UpdateMenu(float dt)
         {
             if (!MenuAllowed)
             {
@@ -212,7 +207,7 @@ namespace GoNoGo.UI
                 _seenClosedFrame = Hud.ClosedFrame;
                 _lockGrace = 0.6f;
             }
-            _lockGrace -= Time.unscaledDeltaTime;
+            _lockGrace -= dt;
             bool locked = UnityEngine.Cursor.lockState == CursorLockMode.Locked;
             if (_wasLocked && !locked && !_menu.IsOpen && !Hud.PanelOpen && _lockGrace <= 0 && Application.isFocused)
             {
@@ -252,7 +247,7 @@ namespace GoNoGo.UI
             }).StartingIn(60);
         }
 
-        // ---------------- 通知與提示 ----------------
+        // ---------------- 通知 ----------------
 
         public static void Toast(string text, float seconds = 2.6f)
         {
@@ -261,47 +256,6 @@ namespace GoNoGo.UI
             _i._toast.AddToClassList("toast--on");
             _i._toastHide?.Pause();
             _i._toastHide = _i._toast.schedule.Execute(() => _i._toast.RemoveFromClassList("toast--on")).StartingIn((long)(seconds * 1000));
-        }
-
-        /// <summary>在元素旁邊顯示說明（執行時的 UI Toolkit 不會顯示 tooltip 屬性，所以自己畫）。</summary>
-        public static void ShowTip(VisualElement anchor, string text)
-        {
-            if (_i == null || anchor?.panel == null) return;
-            _i._tipText.text = text;
-            _i._tip.style.display = DisplayStyle.Flex;
-            _i._tipAnchor = anchor;
-            _i.PlaceTip();
-        }
-
-        VisualElement _tipAnchor;
-
-        /// <summary>放在元素右邊，超出畫面就移到左邊／往上。用提示框實際的大小（字體放大後會變大），排版完成後會再算一次。</summary>
-        void PlaceTip()
-        {
-            if (_tipAnchor?.panel == null || _tip.style.display == DisplayStyle.None) return;
-            var b = _tipAnchor.worldBound;
-            var root = _overlay.worldBound;
-            float w = _tip.layout.width > 0 && !float.IsNaN(_tip.layout.width) ? _tip.layout.width : 360;
-            float h = _tip.layout.height > 0 && !float.IsNaN(_tip.layout.height) ? _tip.layout.height : 160;
-            float x = b.xMax + 12, y = b.yMin;
-            if (x + w > root.width) x = Mathf.Max(8, b.xMin - w - 12);
-            if (y + h > root.height - 8) y = Mathf.Max(8, root.height - h - 8);
-            _tip.style.left = x;
-            _tip.style.top = y;
-        }
-
-        public static void HideTip()
-        {
-            if (_i == null) return;
-            _i._tip.style.display = DisplayStyle.None;
-        }
-
-        /// <summary>讓元素在滑鼠移上去時顯示說明。</summary>
-        public static void AttachTip(VisualElement e, Func<string> text)
-        {
-            e.RegisterCallback<PointerEnterEvent>(_ => ShowTip(e, text()));
-            e.RegisterCallback<PointerLeaveEvent>(_ => HideTip());
-            e.RegisterCallback<DetachFromPanelEvent>(_ => HideTip());
         }
     }
 }

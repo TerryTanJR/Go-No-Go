@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using GoNoGo.Core;
 using GoNoGo.Game;
@@ -10,8 +9,8 @@ namespace GoNoGo.UI
 {
     // ======================================================================== 線索（放大看）
     //
-    // 中控室的研究牆（草稿紙）、白板、黑板、書堆，組裝區牆上的設計圖和架子旁的便條：靠近按 E 放大，才看得出內容。
-    // 放大的內容只有自己看得到，不能投到大屏幕，要靠口頭告訴隊友，再由人把數字填回大屏幕。
+    // 線索散在兩個房間（紙條、白板、黑板、書、設計圖；貼在牆上、放在桌面和架子旁、掉在地上）：靠近按 E 放大，才看得出內容。
+    // 放大的內容只有自己看得到，不能投到設計主螢幕，要靠口頭告訴隊友，再由人把數字填回設計主螢幕。
     // 一則線索揭露一個零件的幾個欄位。內容用模板從 parts.json 自動產生（不是一則一則手寫），
     // 呈現方式有四種：規格表、一段敘述、長條圖、設計圖上標註的數字。每局位置不同（Clues.Place）。
 
@@ -30,6 +29,21 @@ namespace GoNoGo.UI
         public override string Title => Loc.T("ui.clue.medium." + _medium);
         public override string WideClass => "modal--clue";
 
+        /// <summary>
+        /// 畫面上的內容只跟這一局線索的擺法（<see cref="MissionSession.CluesAt"/> 用的那幾項）和翻到第幾張有關：
+        /// 別人做了別的事（狀態變了）不用整張重畫。
+        /// </summary>
+        string _drawn;
+
+        public override void Refresh()
+        {
+            var s = M.S;
+            string sig = s.ScenarioId + "/" + s.DifficultyId + "/" + s.Solo + "/" + s.ClueSeed + "/" + _page;
+            if (sig == _drawn && Body != null && Body.childCount > 0) return;
+            _drawn = sig;
+            base.Refresh();
+        }
+
         protected override void Build(VisualElement body)
         {
             var clues = M.CluesAt(_spot);
@@ -42,7 +56,7 @@ namespace GoNoGo.UI
                 return;
             }
             _page = Math.Max(0, Math.Min(clues.Count - 1, _page));
-            ClueView.Build(sheet, clues[_page], _medium);
+            ClueView.Build(sheet, clues[_page]);
 
             var foot = Ui.Row("clue-nav").AddTo(body);
             if (clues.Count > 1)
@@ -92,7 +106,7 @@ namespace GoNoGo.UI
 
         static string Value(PartDef p, string field) => SelectView.Num(PartFields.Get(p, field));
 
-        public static void Build(VisualElement sheet, Clue clue, string medium)
+        public static void Build(VisualElement sheet, Clue clue)
         {
             var p = D.Part(clue.PartId);
             if (p == null) return;

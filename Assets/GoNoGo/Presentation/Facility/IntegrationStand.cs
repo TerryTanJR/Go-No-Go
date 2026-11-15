@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using GoNoGo.Core;
 using GoNoGo.Game;
 using UnityEngine;
@@ -8,7 +7,7 @@ namespace GoNoGo.Presentation
     /// <summary>
     /// 組裝區中央的整合台：台上的衛星只有已經組好裝上去的零件（<see cref="SessionState.Installed"/>），裝上的零件即時出現。
     /// 拿著組好的零件靠近時，衛星上對應位置出現半透明預覽，長按 V 裝上去。
-    /// 零件不用手拆：在中控室大屏幕改選，換掉的零件會自動從衛星拆下。
+    /// 零件不用手拆：在中控室的設計主螢幕改選，換掉的零件會自動從衛星拆下。
     /// </summary>
     public sealed class IntegrationStand : Interactable
     {
@@ -27,8 +26,8 @@ namespace GoNoGo.Presentation
         float _ringT = -1;
         Renderer _ringRenderer;
         SatPart _aimed;
-        float _shakeT = -1;
-        Vector3 _rigPos;
+
+        static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
         void Awake() => Instance = this;
         void OnDestroy() { if (Instance == this) Instance = null; }
@@ -41,15 +40,15 @@ namespace GoNoGo.Presentation
                 ringFx.gameObject.SetActive(false);
             }
             rig.PartAdded += OnPartAdded;
-            _rigPos = rig.transform.localPosition;
         }
 
         /// <summary>依狀態更新台上的船（FacilityDirector 在狀態改變時呼叫）。</summary>
         public void Refresh(MissionSession m, bool animate)
         {
-            rig.Show(m.Satellite, m.Data, m.SatelliteEval, animate);
+            // 船上的零件沒變（改的是別的狀態）：船沒有重組，預覽和碰撞體清單都還能用
+            if (!rig.Show(m.Satellite, m.Data, m.SatelliteEval, animate)) return;
             _ghostFor = null; // 船變了，預覽重算
-            // 船整艘重組了：舊零件的碰撞體都換掉了，第三人稱挑零件用的清單要重新收集
+            // 船整艘重組了：舊零件的碰撞體都換掉了，準星吸附（Interactor.Assist）用的清單要重新收集
             InvalidateColliders();
         }
 
@@ -79,7 +78,7 @@ namespace GoNoGo.Presentation
 
             // 組出裝上之後的整艘船，用和台上同一套縮放與對位（FitModel），只留這個零件那一組：
             // 預覽就是零件裝上去之後會在的位置與大小（船身會依質量變大、整艘再縮進展示範圍，不能沿用台上現在的縮放）
-            var tmp = SatelliteBuilder.Build(d, m.Data, Evaluator.EvaluateDesign(d, m.Data), rig.transform);
+            var tmp = SatelliteBuilder.Build(d, m.Data, Evaluator.EvaluateDesign(d, m.Data, null, false), rig.transform);
             rig.FitModel(tmp);
             Transform keep = null;
             foreach (var sp in tmp.GetComponentsInChildren<SatPart>())
@@ -140,34 +139,25 @@ namespace GoNoGo.Presentation
 
         void Update()
         {
-            if (_shakeT >= 0)
-            {
-                _shakeT += Time.deltaTime;
-                const float shake = 2.2f;
-                float k = _shakeT < shake ? Mathf.Sin(_shakeT / shake * Mathf.PI) : 0;
-                rig.transform.localPosition = _rigPos + new Vector3(Mathf.Sin(_shakeT * 71f), Mathf.Sin(_shakeT * 53f + 1.3f) * 0.6f, Mathf.Sin(_shakeT * 61f + 2.1f)) * 0.02f * k;
-                if (_shakeT >= shake && _shakeT - Time.deltaTime < shake && ringFx != null)
-                {
-                    ringFx.gameObject.SetActive(true);
-                    _ringT = 0;
-                }
-                if (_shakeT >= shake) { rig.transform.localPosition = _rigPos; _shakeT = -1; }
-            }
             if (_ghost != null)
             {
                 float a = 0.25f + 0.15f * Mathf.Sin(Time.time * 6f);
-                if (_ghostMat != null && _ghostMat.HasProperty("_BaseColor")) _ghostMat.SetColor("_BaseColor", new Color(0.3f, 0.85f, 1f, a));
+                if (_ghostMat != null && _ghostMat.HasProperty(BaseColorId)) _ghostMat.SetColor(BaseColorId, new Color(0.3f, 0.85f, 1f, a));
             }
             if (_ringT >= 0 && ringFx != null)
             {
                 _ringT += Time.deltaTime;
                 float x = Mathf.Clamp01(_ringT / 0.9f);
                 ringFx.localScale = Vector3.one * Mathf.Lerp(0.6f, 3.4f, 1 - (1 - x) * (1 - x));
-                if (_ringRenderer != null && _ringRenderer.material.HasProperty("_BaseColor"))
+                if (_ringRenderer != null)
                 {
-                    var c = _ringRenderer.material.GetColor("_BaseColor");
-                    c.a = 1 - x;
-                    _ringRenderer.material.SetColor("_BaseColor", c);
+                    var ringMat = _ringRenderer.material;
+                    if (ringMat.HasProperty(BaseColorId))
+                    {
+                        var c = ringMat.GetColor(BaseColorId);
+                        c.a = 1 - x;
+                        ringMat.SetColor(BaseColorId, c);
+                    }
                 }
                 if (x >= 1) { ringFx.gameObject.SetActive(false); _ringT = -1; }
             }
@@ -175,36 +165,7 @@ namespace GoNoGo.Presentation
 
         // ---------------- 準星對著船上的零件 ----------------
 
-        public SatPart Aimed => _aimed;
-
-        /// <summary>
-        /// 離準星最近的「拆得下來」的零件（船身結構不算）。
-        /// byCenter：比零件碰撞體中心和準星的夾角（第三人稱：船在角色前方偏下，鏡頭中央的射線常常從船上方穿過）；
-        /// 否則比碰撞框上離準星射線最近的點（第一人稱：準星打在船身上、旁邊就是小零件時吸過去）。
-        /// </summary>
-        public Collider NearestPart(Ray aim, float maxDeg, bool byCenter)
-        {
-            Collider best = null;
-            float nearest = maxDeg;
-            foreach (var c in Colliders)
-            {
-                if (c == null || !c.enabled || !c.gameObject.activeInHierarchy) continue;
-                var part = c.GetComponentInParent<SatPart>();
-                if (part == null || string.IsNullOrEmpty(part.partId)) continue;
-                var b = c.bounds;
-                Vector3 p = b.center;
-                if (!byCenter)
-                    p = b.ClosestPoint(aim.origin + aim.direction * Mathf.Max(0, Vector3.Dot(b.center - aim.origin, aim.direction)));
-                float a = Vector3.Angle(aim.direction, p - aim.origin);
-                if (a < nearest)
-                {
-                    nearest = a;
-                    best = c;
-                }
-            }
-            return best;
-        }
-
+        /// <summary>準星對到船上的哪個碰撞體（null = 沒對到）：那個零件發光，資訊框顯示它。</summary>
         public void Aim(Collider c)
         {
             var p = rig.PartOf(c);

@@ -9,7 +9,7 @@ namespace GoNoGo.Presentation
     /// <summary>
     /// 互動：兩種視角都從畫面中央的準星打射線（第三人稱從角色的位置開始算，見 <see cref="PlayerController.PickRay"/>），
     /// 差一點沒對到會吸附（<see cref="Assist"/>）。送出資訊框內容給 HUD；
-    /// E 使用（大屏幕、線索、發射鈕…；手上有小零件時對著組裝台 = 放到左側），C 拿取／放回，
+    /// E 使用（設計主螢幕、線索、發射鈕…；手上有小零件時對著組裝台 = 放到左側），C 拿取／放回，
     /// V 長按：拿著小零件對著組裝台右側裝上去（0.6 秒）、拿著組好的零件在整合台旁邊裝上衛星（1.2 秒）。
     /// </summary>
     [RequireComponent(typeof(PlayerController))]
@@ -32,7 +32,6 @@ namespace GoNoGo.Presentation
         /// <summary>本機玩家手上的小零件（單人的籃子最多 4 個，多人一次一個；沒有 = 空清單）。</summary>
         public List<string> Comps => GameSession.HasMission ? GameSession.Mission.S.CompsOf(GameSession.LocalPlayer) : NoComps;
         public bool Installing => _hold > 0;
-        public PlayerController Controller => _pc;
 
         void Awake() => _pc = GetComponent<PlayerController>();
 
@@ -58,16 +57,17 @@ namespace GoNoGo.Presentation
             if (active)
             {
                 var ray = _pc.PickRay;
+                var pivot = _pc.Pivot;
                 if (Physics.Raycast(ray, out var hit, 16f, ~(1 << 2), QueryTriggerInteraction.Collide))
                 {
                     var it = hit.collider.GetComponentInParent<Interactable>();
-                    if (it != null && it.isActiveAndEnabled && Vector3.Distance(_pc.Pivot, hit.point) <= it.Range)
+                    if (it != null && it.isActiveAndEnabled && Vector3.Distance(pivot, hit.point) <= it.Range)
                     {
                         found = it;
                         hitCol = hit.collider;
                     }
                 }
-                if (found == null) found = Assist(out hitCol);
+                if (found == null) found = Assist(ray, pivot, out hitCol);
             }
             if (found is IntegrationStand st) st.Aim(hitCol);
             SetCurrent(found);
@@ -174,24 +174,37 @@ namespace GoNoGo.Presentation
         /// <summary>
         /// 吸附：準星差一點沒對到（偏 8° 以內）也算，架上的小零件、牆上的草稿紙不用對得剛剛好。
         /// </summary>
-        Interactable Assist(out Collider col)
+        /// <param name="aim">準星射線（<see cref="PlayerController.PickRay"/>）。</param>
+        /// <param name="pivot">互動距離從這裡量（<see cref="PlayerController.Pivot"/>）。</param>
+        Interactable Assist(Ray aim, Vector3 pivot, out Collider col)
         {
             col = null;
-            var aim = _pc.PickRay;
+            var origin = aim.origin;
+            var dir = aim.direction;
             float best = 8f;
             Interactable pick = null;
             foreach (var it in Interactable.All)
             {
                 if (it == null || !it.isActiveAndEnabled) continue;
+                float range = it.Range;
+                // 多留 1 cm：下面的預檢只是提早跳過，留一點餘裕就不會因為浮點誤差改變結果
+                float far = range + 0.01f;
                 foreach (var c in it.Colliders)
                 {
                     if (c == null || !c.enabled || !c.gameObject.activeInHierarchy) continue;
                     var b = c.bounds;
+                    // 便宜的預檢：整個碰撞框都在互動距離之外（場景裡大部分的東西），框上任何一點也一定太遠，不用再算
+                    var bc = b.center;
+                    var be = b.extents;
+                    float dx = Mathf.Max(0f, Mathf.Abs(pivot.x - bc.x) - be.x);
+                    float dy = Mathf.Max(0f, Mathf.Abs(pivot.y - bc.y) - be.y);
+                    float dz = Mathf.Max(0f, Mathf.Abs(pivot.z - bc.z) - be.z);
+                    if (dx * dx + dy * dy + dz * dz > far * far) continue;
                     // 碰撞框上離準星射線最近的點
-                    var p = b.ClosestPoint(aim.origin + aim.direction * Mathf.Max(0, Vector3.Dot(b.center - aim.origin, aim.direction)));
-                    if (Vector3.Distance(_pc.Pivot, p) > it.Range) continue;
-                    float a = Vector3.Angle(aim.direction, p - aim.origin);
-                    if (a >= best || Blocked(it, aim.origin, p)) continue;
+                    var p = b.ClosestPoint(origin + dir * Mathf.Max(0, Vector3.Dot(bc - origin, dir)));
+                    if (Vector3.Distance(pivot, p) > range) continue;
+                    float a = Vector3.Angle(dir, p - origin);
+                    if (a >= best || Blocked(it, origin, p)) continue;
                     best = a;
                     pick = it;
                     col = c;

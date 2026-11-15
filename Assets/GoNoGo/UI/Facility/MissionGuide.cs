@@ -7,7 +7,7 @@ namespace GoNoGo.UI
 {
     /// <summary>
     /// 學員難度的一般局（不是新手訓練）：左上角的「下一步」。不照固定順序打勾，而是看遊戲現在的狀態判斷該做什麼：
-    /// 找線索填數值 → 選齊零件 → 儀表板有問題就改 → 確定設計 → 到架子拿小零件 → 組裝台組好 → 裝上衛星 → 發射；
+    /// 每一類選齊零件 → 找線索把選的零件的數值填齊 → 儀表板、任務需求有問題就改 → 確定設計 → 到架子拿小零件 → 組裝台組好 → 裝上衛星 → 發射；
     /// 營運時是看營運席 → 結束回合。不分組，每個人看到的下一步依自己手上的東西而定。
     /// 字串在 strings.json 的 ui.guide.*。
     /// </summary>
@@ -28,14 +28,14 @@ namespace GoNoGo.UI
             var data = GameSession.Data;
             int me = GameSession.LocalPlayer;
 
-            if (s.Phase == SessionPhase.Ops) return Ops(s, data);
+            if (s.Phase == SessionPhase.Ops) return Ops(m);
             if (s.Phase != SessionPhase.Design) return null;
             if (s.Poll != null) return Make("vote");
             if (s.DesignLocked(data)) return null;
 
             if (!s.Confirmed && !s.IsSandbox(data))
             {
-                // 選件：先把選的零件的數值找齊（儀表板才判斷得出來），再看有沒有紅字，最後確定
+                // 選件：開局一個零件都沒勾，先每一類選齊；再把選的零件的數值找齊（儀表板才判斷得出來），看有沒有紅字、需求有沒有達成，最後確定
                 int missing = Blanks.Missing(data, s, s.Bench, PartFields.All);
                 var gaps = SessionRules.DesignGaps(s, data);
                 if (gaps.Count > 0) return Make("pick", "BigScreen", ("list", List(gaps.Select(c => Loc.T("ui.cat." + c)).ToList())));
@@ -62,7 +62,8 @@ namespace GoNoGo.UI
                 var comps = data.Recipe(p).Components.OrderBy(c => c.Id, System.StringComparer.Ordinal).Select(c => Loc.T(c.Name)).ToList();
                 return Make("fetch", "CompShelf", ("code", p.Code), ("list", string.Join(Loc.IsZh ? "、" : ", ", comps)), ("n", todo.Count));
             }
-            if (SessionRules.OverBudget(s, data)) return Make("budget", "BigScreen");
+            // 和 SessionRules.OverBudget 同一個判斷，用 MissionSession 這一輪已經算好的評估
+            if (m.BenchEval[ResourceId.Budget].Margin < -1e-9) return Make("budget", "BigScreen");
             return Make("launch", "LaunchButton");
         }
 
@@ -75,10 +76,11 @@ namespace GoNoGo.UI
             return best;
         }
 
-        static Step Ops(SessionState s, GameData data)
+        static Step Ops(MissionSession m)
         {
+            var s = m.S;
             if (s.TurnResolved) return Make("ops_next", "Screen_ops_desk");
-            var e = SessionRules.CurrentEvent(s, data);
+            var e = m.CurrentEvent;   // 有快取（SessionRules.CurrentEvent 每次都重跑整趟任務模擬）
             bool acted = e != null && s.Responses.TryGetValue(e.Id, out var r) && r.Actions.Count > 0;
             return acted ? Make("ops_end", "Screen_ops_desk") : Make("ops_act", "Screen_ops-power");
         }

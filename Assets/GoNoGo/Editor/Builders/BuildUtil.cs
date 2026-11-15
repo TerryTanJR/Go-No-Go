@@ -86,7 +86,7 @@ namespace GoNoGo.EditorTools
             m.SetColor("_BaseColor", color);
             m.SetFloat("_Surface", 1f);
             m.SetFloat("_Blend", additive ? 2f : 0f);
-            m.SetFloat("_SrcBlend", (float)(additive ? BlendMode.SrcAlpha : BlendMode.SrcAlpha));
+            m.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
             m.SetFloat("_DstBlend", (float)(additive ? BlendMode.One : BlendMode.OneMinusSrcAlpha));
             m.SetFloat("_ZWrite", 0f);
             m.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
@@ -99,9 +99,9 @@ namespace GoNoGo.EditorTools
         // ---------------- 貼圖 ----------------
 
         /// <summary>程式產生貼圖並存成 PNG（存在就覆寫），回傳匯入後的貼圖。</summary>
-        public static Texture2D SavePng(string name, int w, int h, System.Func<int, int, Color> f, bool normalMap = false, bool linear = false, TextureWrapMode wrap = TextureWrapMode.Repeat)
+        public static Texture2D SavePng(string name, int w, int h, System.Func<int, int, Color> f, bool normalMap = false, TextureWrapMode wrap = TextureWrapMode.Repeat)
         {
-            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false, linear || normalMap);
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false, normalMap);
             var px = new Color[w * h];
             for (int y = 0; y < h; y++)
                 for (int x = 0; x < w; x++)
@@ -114,7 +114,7 @@ namespace GoNoGo.EditorTools
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
             var ti = (TextureImporter)AssetImporter.GetAtPath(path);
             ti.textureType = normalMap ? TextureImporterType.NormalMap : TextureImporterType.Default;
-            ti.sRGBTexture = !linear && !normalMap;
+            ti.sRGBTexture = !normalMap;
             ti.wrapMode = wrap;
             ti.mipmapEnabled = true;
             ti.alphaIsTransparency = !normalMap;
@@ -199,14 +199,12 @@ namespace GoNoGo.EditorTools
         {
             public float bloom, bloomThreshold, exposure, contrast, saturation, vignette, grain;
             public Color tint;
-            public bool dof;
-            public float dofStart, dofEnd;
         }
 
         public static PostSettings DefaultPost => new PostSettings
         {
             bloom = 0.9f, bloomThreshold = 0.95f, exposure = 0f, contrast = 12f, saturation = 4f,
-            vignette = 0.28f, grain = 0.12f, tint = Color.white, dof = false,
+            vignette = 0.28f, grain = 0.12f, tint = Color.white,
         };
 
         public static Volume PostVolume(string sceneName, PostSettings s)
@@ -240,14 +238,6 @@ namespace GoNoGo.EditorTools
                 var fg = profile.Add<FilmGrain>(true);
                 fg.type.Override(FilmGrainLookup.Thin1);
                 fg.intensity.Override(s.grain);
-            }
-            if (s.dof)
-            {
-                var dof = profile.Add<DepthOfField>(true);
-                dof.mode.Override(DepthOfFieldMode.Gaussian);
-                dof.gaussianStart.Override(s.dofStart);
-                dof.gaussianEnd.Override(s.dofEnd);
-                dof.gaussianMaxRadius.Override(1.2f);
             }
             foreach (var c in profile.components) AssetDatabase.AddObjectToAsset(c, profile);
             EditorUtility.SetDirty(profile);

@@ -49,13 +49,20 @@ namespace GoNoGo.Core
         public const string Payload = "payload", Power = "power", Attitude = "attitude", Comms = "comms";
         public static readonly string[] All = { Payload, Power, Attitude, Comms };
 
+        // 固定的清單只建一次（每次查都回傳同一份，不要改內容）
+        static readonly string[] PayloadActions = { OpsActions.InstrumentsOff, OpsActions.HighResMode, OpsActions.Reschedule, OpsActions.FirePriority, OpsActions.MarkFalseAlarm };
+        static readonly string[] PowerActions = { OpsActions.IsolatePart, OpsActions.BatteryProtect };
+        static readonly string[] AttitudeActions = { OpsActions.SafeMode, OpsActions.SunPoint, OpsActions.PointTarget };
+        static readonly string[] CommsActions = { OpsActions.PriorityDownlink, OpsActions.SwitchBackup };
+        static readonly string[] NoActions = new string[0];
+
         public static IReadOnlyList<string> Actions(string console) => console switch
         {
-            Payload => new[] { OpsActions.InstrumentsOff, OpsActions.HighResMode, OpsActions.Reschedule, OpsActions.FirePriority, OpsActions.MarkFalseAlarm },
-            Power => new[] { OpsActions.IsolatePart, OpsActions.BatteryProtect },
-            Attitude => new[] { OpsActions.SafeMode, OpsActions.SunPoint, OpsActions.PointTarget },
-            Comms => new[] { OpsActions.PriorityDownlink, OpsActions.SwitchBackup },
-            _ => new string[0],
+            Payload => PayloadActions,
+            Power => PowerActions,
+            Attitude => AttitudeActions,
+            Comms => CommsActions,
+            _ => NoActions,
         };
 
         public static string ConsoleOf(string action) => All.FirstOrDefault(c => Actions(c).Contains(action)) ?? "";
@@ -94,16 +101,26 @@ namespace GoNoGo.Core
     /// <summary>處置手冊：每種事件要做的操作（順序就是手冊上的步驟順序）。</summary>
     public static class Procedures
     {
+        // 固定的清單只建一次（每次查都回傳同一份，不要改內容）
+        static readonly string[] StormSteps = { OpsActions.InstrumentsOff, OpsActions.SafeMode, OpsActions.SunPoint };
+        static readonly string[] PowerSteps = { OpsActions.InstrumentsOff, OpsActions.SunPoint, OpsActions.BatteryProtect };
+        static readonly string[] FailureSteps = { OpsActions.IsolatePart, OpsActions.SwitchBackup, OpsActions.Reschedule };
+        static readonly string[] OpportunitySteps = { OpsActions.PointTarget, OpsActions.HighResMode, OpsActions.PriorityDownlink };
+        static readonly string[] BigFireSteps = { OpsActions.FirePriority, OpsActions.PriorityDownlink };
+        static readonly string[] FalseFireSteps = { OpsActions.MarkFalseAlarm };
+        static readonly string[] AlienSteps = { OpsActions.RepelAlien };
+        static readonly string[] NoSteps = new string[0];
+
         public static IReadOnlyList<string> Required(EventKind k) => k switch
         {
-            EventKind.SolarStorm => new[] { OpsActions.InstrumentsOff, OpsActions.SafeMode, OpsActions.SunPoint },
-            EventKind.PowerAnomaly => new[] { OpsActions.InstrumentsOff, OpsActions.SunPoint, OpsActions.BatteryProtect },
-            EventKind.PartFailure => new[] { OpsActions.IsolatePart, OpsActions.SwitchBackup, OpsActions.Reschedule },
-            EventKind.ScienceOpportunity => new[] { OpsActions.PointTarget, OpsActions.HighResMode, OpsActions.PriorityDownlink },
-            EventKind.BigFire => new[] { OpsActions.FirePriority, OpsActions.PriorityDownlink },
-            EventKind.FalseFire => new[] { OpsActions.MarkFalseAlarm },
-            EventKind.Alien => new[] { OpsActions.RepelAlien },
-            _ => new string[0],
+            EventKind.SolarStorm => StormSteps,
+            EventKind.PowerAnomaly => PowerSteps,
+            EventKind.PartFailure => FailureSteps,
+            EventKind.ScienceOpportunity => OpportunitySteps,
+            EventKind.BigFire => BigFireSteps,
+            EventKind.FalseFire => FalseFireSteps,
+            EventKind.Alien => AlienSteps,
+            _ => NoSteps,
         };
 
         /// <summary>

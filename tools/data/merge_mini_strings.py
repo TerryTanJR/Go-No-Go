@@ -2,7 +2,6 @@
 """把 tools/data/mini/*.json（各小遊戲的字串）合併進 strings.json。
 
 只動 mini.* 的那幾行：已存在的 key 就地換成新內容，沒有的 key 加在檔案最後；其他行逐字不動。
-（不要跑 ui_strings.py：它會把 strings.json 約 400 行洗掉。）
 用法：python3 tools/data/merge_mini_strings.py
 """
 import glob

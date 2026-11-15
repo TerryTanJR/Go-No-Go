@@ -20,7 +20,7 @@ namespace GoNoGo.Core
         readonly List<Cloud> _clouds = new List<Cloud>();
         float _tx, _ty, _heading, _turn, _turnT, _phase, _speed, _vx, _vy;
         float _mx = MiniField.W / 2, _my = MiniField.H / 2, _rx = MiniField.W / 2, _ry = MiniField.H / 2;
-                float _lock, _clear, _radius, _cloudAmt, _flash;
+        float _lock, _clear, _radius, _cloudAmt;
         bool _inside, _cloudy;
 
         public override int Score => _clear <= 0.001f ? 0 : (int)Math.Max(0, Math.Min(1000, 1000.0 * _lock / _clear));
@@ -101,7 +101,6 @@ namespace GoNoGo.Core
             // 鎖定
             float dx = AimX - _tx, dy = AimY - _ty;
             _inside = dx * dx + dy * dy <= _radius * _radius;
-            _flash = Math.Max(0, _flash - dt);
             if (!_cloudy)
             {
                 _clear += dt;
@@ -182,7 +181,7 @@ namespace GoNoGo.Core
             Rect(s, MiniField.W / 2, MiniField.H - 12, 400, 8, MiniColor.Panel, 0.9f);
             Rect(s, MiniField.W / 2 - 200 + 200 * frac, MiniField.H - 12, 400 * frac, 8, frac * 1000 >= Def.PassScore ? MiniColor.Green : MiniColor.Cyan);
             Rect(s, MiniField.W / 2 - 200 + 400 * Def.PassScore / 1000f, MiniField.H - 12, 2, 14, MiniColor.Amber);
-            Rect(s, MiniField.W / 2 - 200 + 400 * Clamp(Time / Duration, 0, 1) / 1, MiniField.H - 24, 2, 5, MiniColor.Dim);
+            Rect(s, MiniField.W / 2 - 200 + 400 * Clamp(Time / Duration, 0, 1), MiniField.H - 24, 2, 5, MiniColor.Dim);
         }
 
         void DrawTarget(List<MiniShape> s)

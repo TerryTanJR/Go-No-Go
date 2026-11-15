@@ -40,9 +40,7 @@ namespace GoNoGo.Core
         Ring,
         /// <summary>線段：(X, Y) 到 (A, B)，W = 線寬。</summary>
         Line,
-        /// <summary>三角形（尖端朝上，Rot = 旋轉弧度）：X, Y = 中心，A = 大小（外接圓半徑）。</summary>
-        Tri,
-        /// <summary>文字：X, Y = 中心，A = 字級（畫布像素），Str = 內容。Str 以 "@" 開頭 = 字串鍵，UI 會翻譯（例如 "@mini.power_load.lbl.battery"）。</summary>
+        /// <summary>文字：X, Y = 中心，A = 字級（畫布像素），Str = 內容。Str 以 "@" 開頭 = 字串鍵，UI 會翻譯（例如 "@mini.power_load.lbl.moves"）。</summary>
         Text,
         /// <summary>
         /// 貼圖（Blender 畫的 2D 圖）：X, Y = 中心，A = 寬，B = 高，Rot = 旋轉（弧度，圖是尖端朝上畫的），
@@ -190,15 +188,13 @@ namespace GoNoGo.Core
         public bool Passed => State == MiniState.Won;
 
         /// <summary>
-        /// 音效訊號：好事（命中、送出、接對）、壞事（被打中、失誤）、開火各發生了幾次。只會增加；
+        /// 音效訊號：好事（命中、送出、接對）、壞事（被打中、失誤）各發生了幾次。只會增加；
         /// 介面層每一格比較前後的數字來播音效（核心不碰聲音）。
         /// </summary>
         public int GoodCues { get; private set; }
         public int BadCues { get; private set; }
-        public int ShotCues { get; private set; }
         protected void CueGood() => GoodCues++;
         protected void CueBad() => BadCues++;
-        protected void CueShot() => ShotCues++;
 
         /// <summary>測試用的時間上限（秒）。超過就視為壞掉。</summary>
         public virtual float MaxSeconds => 120;
@@ -229,13 +225,13 @@ namespace GoNoGo.Core
         /// </summary>
         public virtual MiniInput Autopilot(float skill) => default;
 
-        /// <summary>推進時間（任何 dt 都行，內部切成固定步長）。</summary>
         // 「剛按下」的訊號要先存起來，等到真的有跑一步的時候才給遊戲。
         // 螢幕刷新率高於 60Hz 時，有些影格一步都不會跑，沒有這個暫存，那一格的點擊就會被吞掉（有時有反應、有時沒反應）。
         bool _pendingPressed, _pendingAction;
         int _pendingNumber;
         float _pendingX, _pendingY; // 按下去那一刻的滑鼠位置（點擊要落在你按的地方，不是下一步時滑鼠移到的地方）
 
+        /// <summary>推進時間（任何 dt 都行，內部切成固定步長）。</summary>
         public void Step(float dt, MiniInput input)
         {
             if (State != MiniState.Running) return;
@@ -273,8 +269,6 @@ namespace GoNoGo.Core
             s.Add(new MiniShape { Kind = MiniShapeKind.Ring, X = x, Y = y, A = r, W = width, Color = color, Alpha = alpha });
         protected static void Line(List<MiniShape> s, float x1, float y1, float x2, float y2, float width, uint color, float alpha = 1) =>
             s.Add(new MiniShape { Kind = MiniShapeKind.Line, X = x1, Y = y1, A = x2, B = y2, W = width, Color = color, Alpha = alpha });
-        protected static void Tri(List<MiniShape> s, float x, float y, float size, float rot, uint color, float alpha = 1) =>
-            s.Add(new MiniShape { Kind = MiniShapeKind.Tri, X = x, Y = y, A = size, Rot = rot, Color = color, Alpha = alpha });
         /// <summary>畫一張貼圖。key = "遊戲/名字"；tint 預設白色 = 不改色。</summary>
         protected static void Spr(List<MiniShape> s, string key, float x, float y, float w, float h, float rot = 0, float alpha = 1, uint tint = 0xFFFFFF) =>
             s.Add(new MiniShape { Kind = MiniShapeKind.Sprite, X = x, Y = y, A = w, B = h, Rot = rot, Str = key, Color = tint, Alpha = alpha });

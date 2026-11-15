@@ -23,7 +23,19 @@ namespace GoNoGo.Presentation
 
         public override float Range => 3.2f;
 
-        PlayerInfo Me => GameSession.HasMission ? GameSession.Mission.S.Player(GameSession.LocalPlayer) : null;
+        /// <summary>本機玩家在名單裡的那一筆。每幀都會問，所以直接掃名單（SessionState.Player 用 LINQ，每次呼叫都會配置記憶體）。</summary>
+        PlayerInfo Me
+        {
+            get
+            {
+                if (!GameSession.HasMission) return null;
+                var players = GameSession.Mission.S.Players;
+                int me = GameSession.LocalPlayer;
+                for (int i = 0; i < players.Count; i++)
+                    if (players[i].Id == me) return players[i];
+                return null;
+            }
+        }
         bool InLobby => GameSession.HasMission && GameSession.Mission.S.Phase == SessionPhase.Lobby;
 
         public override HudTarget Describe(Interactor who)

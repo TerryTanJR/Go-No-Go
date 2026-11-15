@@ -10,7 +10,10 @@ namespace GoNoGo.UI
     {
         static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
-        public static string N(double v, int dec = 0) => v.ToString("N" + dec, Inv);
+        // 常用的小數位數先備好格式字串，不用每次接一個新的
+        static readonly string[] NFormats = { "N0", "N1", "N2", "N3" };
+
+        public static string N(double v, int dec = 0) => v.ToString(dec >= 0 && dec < NFormats.Length ? NFormats[dec] : "N" + dec, Inv);
 
         /// <summary>沙盒的預算「沒有上限」：資料裡是一個很大的數字，畫面一律寫 ∞。</summary>
         public static bool Unlimited(double v) => v >= ScenarioDef.NoLimit / 2;
@@ -31,7 +34,7 @@ namespace GoNoGo.UI
             }
         }
 
-        /// <summary>資源條右邊的「已用 / 上限」。</summary>
+        /// <summary>一項資源的「已用 / 上限」。</summary>
         public static string Resource(ResourceReport r)
         {
             switch (r.Id)
@@ -43,37 +46,25 @@ namespace GoNoGo.UI
             }
         }
 
-        public static string Amount(ResourceId id, double v, string unit)
-        {
-            switch (id)
-            {
-                case ResourceId.Budget: return Money(v);
-                case ResourceId.Comms:
-                case ResourceId.Data: return $"{N(v, 1)} {Unit(unit)}";
-                default: return $"{N(v)} {Unit(unit)}";
-            }
-        }
-
-        /// <summary>貢獻項目的名稱：零件、火箭、或固定項目（bus、structure…）。</summary>
-        public static string ContributionName(string key)
-        {
-            var d = GameSession.Data;
-            if (d.Part(key) != null) return Loc.Part(key);
-            if (d.Launcher(key) != null) return Loc.Launcher(key);
-            return Loc.T("ui.contrib." + key);
-        }
-
         public static string Years(double y) => Loc.IsZh ? $"{y.ToString("0.0", Inv)} 年" : $"{y.ToString("0.0", Inv)} yr";
 
         /// <summary>倒數計時 m:ss。</summary>
         public static string Clock(float seconds)
         {
             int t = Math.Max(0, (int)Math.Ceiling(seconds));
-            return $"{t / 60}:{(t % 60).ToString("00", Inv)}";
+            // 每一幀都會被呼叫，但一秒才變一次：記住上一次的結果
+            if (t != _clockT)
+            {
+                _clockT = t;
+                _clockText = $"{t / 60}:{(t % 60).ToString("00", Inv)}";
+            }
+            return _clockText;
         }
+
+        static int _clockT = -1;
+        static string _clockText = "";
 
         /// <summary>任務需求的分類名稱（任務、預算、科學、工程、通訊）：只是分類，不用部門的名義。</summary>
         public static string ReqGroup(Department d) => Loc.T("ui.req.group." + Departments.Key(d));
-        public static string ReqGroup(string key) => Loc.T("ui.req.group." + key);
     }
 }

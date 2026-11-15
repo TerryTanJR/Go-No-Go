@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using GoNoGo.Core;
 using GoNoGo.Game;
 using UnityEngine;
 
@@ -8,7 +7,7 @@ namespace GoNoGo.Presentation
     /// <summary>準星對得到的東西。碰撞體在這個物件或子物件上。</summary>
     public abstract class Interactable : MonoBehaviour
     {
-        /// <summary>場景裡啟用中的互動物件（第三人稱找身邊的目標用）。</summary>
+        /// <summary>場景裡啟用中的互動物件（準星差一點沒對到時，<see cref="Interactor"/> 從這裡找最接近的來吸附）。</summary>
         public static readonly List<Interactable> All = new List<Interactable>();
 
         Collider[] _cols;

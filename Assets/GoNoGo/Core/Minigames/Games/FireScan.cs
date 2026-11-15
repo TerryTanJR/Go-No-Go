@@ -30,7 +30,7 @@ namespace GoNoGo.Core
         readonly List<Card> _cards = new List<Card>();
         readonly List<Spawn> _spawns = new List<Spawn>();
         readonly List<Fx> _fx = new List<Fx>();
-        int _next, _flames, _sent, _strikes, _limit, _missed;
+        int _next, _flames, _sent, _strikes, _limit;
         float _v0, _half, _lastStrike = -99, _lastMiss = -99, _dishGood, _dishBad;
         float _cx = MiniField.W / 2, _cy = MiniField.H / 2;
         float _apCd;
@@ -105,7 +105,7 @@ namespace GoNoGo.Core
                     c.X = StartX - (b - c.S0);
                     if (c.X <= EndX)
                     {
-                        if (c.Kind == 0) { c.State = 3; _missed++; _lastMiss = Time; _dishBad = 0.5f; }
+                        if (c.Kind == 0) { c.State = 3; _lastMiss = Time; _dishBad = 0.5f; }
                         else c.State = 4;
                         c.T = 0;
                     }

@@ -5,7 +5,7 @@ namespace GoNoGo.Game
 {
     /// <summary>
     /// 只揭露現在用得到的資訊（docs/info_reveal.md）：營運才用的手冊章節到營運階段才開放，失敗原因看板第一次發射失敗才出現。
-    /// 控制台（ConsoleTarget）、手冊的章節書籤、個人模式的平板共用這些規則。
+    /// 控制台（ConsoleTarget）、牆上書架的參考手冊、個人模式的平板共用這些規則。
     /// </summary>
     public static class Reveal
     {
@@ -16,8 +16,6 @@ namespace GoNoGo.Game
 
         /// <summary>失敗原因看板：有過失敗的發射才有東西可看。</summary>
         public static bool Failures => !GameSession.HasMission || GameSession.Mission.S.FailedLaunches > 0;
-
-        public static bool Chapter(string ch) => ChapterLock(ch) == null;
 
         /// <summary>這一章還沒開放的原因（字串鍵）；已經開放 = null。</summary>
         public static string ChapterLock(string ch)
@@ -31,7 +29,7 @@ namespace GoNoGo.Game
         {
             if (string.IsNullOrEmpty(panel) || !GameSession.HasMission) return null;
             if (panel == "failures") return Failures ? null : "ui.hint.locked_failures";
-            if (panel.StartsWith("manual:")) return ChapterLock(panel.Substring(7));
+            if (panel.StartsWith("manual:", System.StringComparison.Ordinal)) return ChapterLock(panel.Substring(7));
             return null;
         }
     }

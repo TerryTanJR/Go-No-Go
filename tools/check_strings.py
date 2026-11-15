@@ -37,7 +37,6 @@ def main():
     families = {
         "ui.cat.": ["instrument", "solar", "battery", "antenna", "groundstation", "computer", "adcs",
                     "propulsion", "shielding", "orbit", "launcher", "years"],
-        "ui.contrib.": ["bus", "structure", "propellant", "operations"],
         "ui.difficulty.": [d["id"] for d in diffs],
         "ui.objective.": sorted({s["objective"] for s in scen}),
         "ui.ops.end.": ["missioncomplete", "propellant", "battery", "radiation", "launchfailure"],
