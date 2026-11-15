@@ -25,6 +25,7 @@ namespace GoNoGo.UI
         readonly Dictionary<WorldLabel, LabelView> _labelEls = new Dictionary<WorldLabel, LabelView>();
         SessionPhase _lastPhase;
         OpsBar _opsBar;
+        readonly EmoteWheel _emotes = new EmoteWheel();
         TutorialCoach _coach;
         WorldScreens _screens;
         PollBanner _poll;
@@ -98,6 +99,7 @@ namespace GoNoGo.UI
             // 營運橫條的狀態（這回合剩幾秒、警報響過沒）留在同一個物件裡：切語言重建畫面時倒數不會重來
             _opsBar ??= new OpsBar();
             _opsBar.Attach(_hud);
+            _emotes.Attach(_hud);
 
             _modal = Ui.El("modal-layer").AddTo(Root);
             _modal.style.display = DisplayStyle.None;
@@ -473,6 +475,7 @@ namespace GoNoGo.UI
                 ? DisplayStyle.Flex : DisplayStyle.None;
             _panel?.Tick(dt);
             _opsBar.Tick(dt);
+            _emotes.Tick(keys && _panel == null && !Hud.InputBlocked && M.S.Phase != SessionPhase.Launch);
             _poll?.Tick(dt);
             _coach?.Tick(dt, _panel == null && !Hud.Paused);
 

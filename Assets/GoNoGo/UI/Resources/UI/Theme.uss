@@ -653,6 +653,7 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
     border-color: var(--c-accent);
 }
 .world-label--tag { font-size: var(--fs-11); letter-spacing: 2px; color: var(--c-accent); background-color: rgba(6, 12, 22, 0.6); }
+.world-label--emote { font-size: var(--fs-18); -unity-font-style: bold; color: #1E2433; background-color: rgba(255, 255, 255, 0.92); border-radius: 12px; padding: 4px 12px; }
 
 /* 小零件的名稱（零件架、組裝台）：中文字，要看得清楚（code 那種是等寬字型，只有英數字） */
 .world-label--comp {
@@ -2016,3 +2017,13 @@ ScrollView, .unity-scroll-view { flex-grow: 1; }
 .turn-goal-steps { flex-direction: row; flex-wrap: wrap; align-items: center; }
 .turn-goal-step { font-size: var(--fs-18); -unity-font-style: bold; color: var(--c-text); margin-right: 26px; white-space: normal; }
 .turn-goal-step--done { color: var(--c-go); }
+
+/* 表情輪盤（按住 X）：畫面中央四格 */
+.emote-wheel { position: absolute; left: 50%; top: 50%; width: 0; height: 0; align-items: center; justify-content: center; }
+.emote-wheel-hub { position: absolute; width: 380px; height: 380px; left: -190px; top: -190px; border-radius: 190px; border-width: 2px; border-color: rgba(255, 255, 255, 0.2); background-color: rgba(6, 12, 22, 0.6); }
+.emote-slot {
+    position: absolute; width: 110px; left: -55px; top: -22px; padding: 8px 0; border-radius: 8px;
+    -unity-text-align: middle-center; font-size: var(--fs-18); -unity-font-style: bold;
+    color: var(--c-text); background-color: rgba(10, 22, 40, 0.9); border-width: 1px; border-color: var(--c-line-hi);
+}
+.emote-slot--on { background-color: var(--c-accent); border-color: #FFFFFF; color: #06101C; scale: 1.15 1.15; }

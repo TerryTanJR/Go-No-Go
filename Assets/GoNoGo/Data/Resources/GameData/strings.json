@@ -1053,6 +1053,7 @@
   "ui.brief.close_team": { "en": "The requirements are listed on the [[design board]]. A clue is [[visible only to whoever zooms in]]: say what you find. Good luck.", "zh-TW": "需求都列在[[設計主螢幕]]上。線索[[只有放大的人看得到]]：找到就說出來。祝順利。" },
   "ui.report.needs": { "en": "Requirements", "zh-TW": "任務需求" },
   "ui.keys.run_toggle": { "en": "Run / walk (press once to keep running, again to walk)", "zh-TW": "跑／走（按一下一直跑，再按一下改回走）" },
+  "ui.keys.emote": { "en": "Hold: emote wheel", "zh-TW": "按住：表情動作" },
   "ui.gmenu.codex": { "en": "Knowledge cards", "zh-TW": "知識卡圖鑑" },
   "ui.gmenu.vol.voice": { "en": "Voice chat", "zh-TW": "語音聊天" },
   "ui.gmenu.vol.voice_off": { "en": "Voice chat not connected. It only works in co-op rooms joined with a room code.", "zh-TW": "語音沒連上。用房間碼加入的多人房間才有語音。" },
@@ -1288,5 +1289,13 @@
   "ui.clue.trivia.60": { "en": "Before launch the flight director polls every console. A single \"No-Go\" stops the count.", "zh-TW": "發射前，飛行主任會逐一問每個席位能不能發射，只要有一席喊 No-Go 就停。" },
   "ui.clue.trivia.61": { "en": "The 1986 Challenger disaster was traced to O-rings in a solid rocket booster that had stiffened in the cold.", "zh-TW": "1986 年挑戰者號失事，原因追到固體火箭推進器的 O 型環：天氣太冷，O 型環變硬，密封不住。" },
   "ui.clue.trivia.62": { "en": "Mars Climate Orbiter was lost in 1999 because one team used imperial units while another expected metric.", "zh-TW": "1999 年火星氣候探測者號失敗，因為一組人用英制單位，另一組當成公制在算。" },
-  "ui.clue.trivia.63": { "en": "After an oxygen tank exploded on Apollo 13, the crew used the lunar module as a lifeboat, looped around the Moon and came home.", "zh-TW": "阿波羅 13 號的氧氣槽爆炸後，太空人把登月艙當救生艇，繞過月球平安回到地球。" }
+  "ui.clue.trivia.63": { "en": "After an oxygen tank exploded on Apollo 13, the crew used the lunar module as a lifeboat, looped around the Moon and came home.", "zh-TW": "阿波羅 13 號的氧氣槽爆炸後，太空人把登月艙當救生艇，繞過月球平安回到地球。" },
+  "ui.emote.wave": { "en": "Wave", "zh-TW": "揮手" },
+  "ui.emote.wave.say": { "en": "Hi!", "zh-TW": "嗨！" },
+  "ui.emote.cheer": { "en": "Cheer", "zh-TW": "歡呼" },
+  "ui.emote.cheer.say": { "en": "Woohoo!", "zh-TW": "耶！" },
+  "ui.emote.laugh": { "en": "Laugh", "zh-TW": "大笑" },
+  "ui.emote.laugh.say": { "en": "Haha!", "zh-TW": "哈哈哈" },
+  "ui.emote.nod": { "en": "Nod", "zh-TW": "點頭" },
+  "ui.emote.nod.say": { "en": "Got it", "zh-TW": "了解" }
 }

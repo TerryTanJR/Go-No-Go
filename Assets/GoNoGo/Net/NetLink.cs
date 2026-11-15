@@ -259,6 +259,8 @@ namespace GoNoGo.Net
             w.WriteValueSafe(p.Yaw);
             w.WriteValueSafe(p.Speed);
             w.WriteValueSafe(p.Installing);
+            w.WriteValueSafe((byte)p.Emote);
+            w.WriteValueSafe(p.EmoteSeq);
         }
 
         static bool ReadPose(FastBufferReader r, out PoseFeed.Pose p)
@@ -270,7 +272,9 @@ namespace GoNoGo.Net
                 r.ReadValueSafe(out float yaw);
                 r.ReadValueSafe(out float speed);
                 r.ReadValueSafe(out bool installing);
-                p = new PoseFeed.Pose { Position = pos, Yaw = yaw, Speed = speed, Installing = installing };
+                r.ReadValueSafe(out byte emote);
+                r.ReadValueSafe(out byte emoteSeq);
+                p = new PoseFeed.Pose { Position = pos, Yaw = yaw, Speed = speed, Installing = installing, Emote = (Emote)emote, EmoteSeq = emoteSeq };
                 return true;
             }
             catch (Exception)

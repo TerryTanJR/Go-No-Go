@@ -62,6 +62,17 @@ namespace GoNoGo.Presentation
             _lastPos = transform.position;
         }
 
+        void OnEnable() => Hud.EmoteRequested += PlayEmote;
+        void OnDisable() => Hud.EmoteRequested -= PlayEmote;
+
+        /// <summary>自己做表情動作；序號加一，其他玩家收到位置時就知道要播一次。</summary>
+        void PlayEmote(Emote e)
+        {
+            if (rig != null) rig.Play(e);
+            PoseFeed.Local.Emote = e;
+            PoseFeed.Local.EmoteSeq++;
+        }
+
         public void SetRig(AvatarRig r)
         {
             rig = r;
@@ -112,7 +123,7 @@ namespace GoNoGo.Presentation
             // 點一下畫面就鎖住游標（瀏覽器規定要使用者動作才能鎖）
             if (active && !CursorLocked && mouse != null && mouse.leftButton.wasPressedThisFrame && !PointerHooks.IsOverUI(mouse.position.ReadValue()))
                 LockCursor(true);
-            bool look = active && CursorLocked;
+            bool look = active && CursorLocked && !Hud.EmoteWheelOpen;   // 表情輪盤開著時滑鼠拿來選動作
 
             if (look && mouse != null)
             {

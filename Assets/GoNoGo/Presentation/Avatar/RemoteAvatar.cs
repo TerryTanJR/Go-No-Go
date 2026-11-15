@@ -13,6 +13,8 @@ namespace GoNoGo.Presentation
         WorldLabel _tag;
         string _lookKey, _heldId;
         Transform _held;
+        /// <summary>看過的表情序號（-1 = 還沒收到過：中途加入時不補播別人之前做的動作）。</summary>
+        int _emoteSeq = -1;
 
         /// <param name="held">手上組好的零件（沒有 = null）。</param>
         /// <param name="comps">手上的小零件（單人的籃子最多 4 個，多人一次一個；沒有 = 空清單）。</param>
@@ -59,6 +61,11 @@ namespace GoNoGo.Presentation
             transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.Euler(0, pose.Yaw, 0), k);
             _rig.speed = pose.Speed;
             _rig.installing = pose.Installing;
+            if (pose.EmoteSeq != _emoteSeq)
+            {
+                if (_emoteSeq >= 0) _rig.Play(pose.Emote);
+                _emoteSeq = pose.EmoteSeq;
+            }
         }
     }
 }
