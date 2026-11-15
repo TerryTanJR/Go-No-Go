@@ -71,12 +71,13 @@ namespace GoNoGo.Core.Tests
                 Assert.That(engSet.Contains(c), c.part + "/" + c.field);
             foreach (var c in eng) Assert.That(dirSet.Contains(c), c.part + "/" + c.field);
 
-            // 單人：比照學員減少（其他照所選難度）
+            // 單人：比多人少，但還是照難度越高越多（學員 < 工程師 < 任務主管）
             foreach (var diff in new[] { "engineer", "director" })
-            {
                 Assert.That(Count(diff, false), Is.LessThan(Count(diff, true)), diff);
-                Assert.That(Blanks.Ratio(_data, New("earth_observation", diff)), Is.EqualTo(_data.Difficulty("cadet").BlankRatio), diff);
-            }
+            Assert.That(_data.Difficulty("engineer").BlankRatioSolo, Is.GreaterThan(_data.Difficulty("cadet").BlankRatioSolo));
+            Assert.That(_data.Difficulty("director").BlankRatioSolo, Is.GreaterThan(_data.Difficulty("engineer").BlankRatioSolo));
+            // 單人最難的野火關，要填的格子比單人工程師的月球關多
+            Assert.That(Blanks.Cells(_data, New("wildfire", "director")).Count, Is.GreaterThan(Blanks.Cells(_data, New("lunar_mapping", "engineer")).Count));
             Assert.That(Blanks.Ratio(_data, New("earth_observation", "director", true)), Is.EqualTo(1.0));
         }
 

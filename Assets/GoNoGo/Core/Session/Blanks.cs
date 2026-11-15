@@ -88,7 +88,7 @@ namespace GoNoGo.Core
             return sc != null && !sc.Sandbox && sc.Historical == null;
         }
 
-        /// <summary>這一局的挖空比例：單人比照學員減少。</summary>
+        /// <summary>這一局的挖空比例：單人比多人少，但仍照難度越高越多。</summary>
         public static double Ratio(GameData data, SessionState s)
         {
             var diff = s.Difficulty(data);

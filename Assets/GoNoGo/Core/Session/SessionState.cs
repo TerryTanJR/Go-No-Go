@@ -185,7 +185,7 @@ namespace GoNoGo.Core
         public List<PlayerInfo> Players { get; set; } = new List<PlayerInfo>();
 
         /// <summary>
-        /// 單人模式（個人任務，或多人房開始時只有一個人）：挖空的數值比照學員減少。開始任務時定下來，之後有人離開也不變
+        /// 單人模式（個人任務，或多人房開始時只有一個人）：挖空的數值比多人少。開始任務時定下來，之後有人離開也不變
         /// （挖空的格子中途不會換一批）。
         /// </summary>
         public bool Solo { get; set; } = true;
