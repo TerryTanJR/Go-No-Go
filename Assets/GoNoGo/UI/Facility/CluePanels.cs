@@ -125,7 +125,6 @@ namespace GoNoGo.UI
                 Ui.Text(Value(p, f), "clue-td", "clue-td--v", "mono").AddTo(row);
                 Ui.Text(Fmt.Unit(PartFields.Unit(f)), "clue-td", "clue-td--u").AddTo(row);
             }
-            Ui.Text(Loc.T("ui.clue.table.foot"), "clue-small").AddTo(sheet);
         }
 
         /// <summary>一段敘述：測試紀錄、工程師筆記裡提到的數字。每個欄位一句，接在一起。</summary>
@@ -166,7 +165,6 @@ namespace GoNoGo.UI
                 mark.style.left = Length.Percent(pct);
                 Ui.Text(SelectView.Num(v), "clue-bar-value", "mono").AddTo(mark);
             }
-            Ui.Text(Loc.T("ui.clue.chart.foot"), "clue-small").AddTo(sheet);
         }
 
         /// <summary>比數值大的「整數」上限（1、2、2.5、5 × 10ⁿ），而且數值不會剛好貼在最右邊。</summary>
@@ -197,7 +195,6 @@ namespace GoNoGo.UI
                 Ui.Text(Loc.T("ui.field." + f), "clue-call-k").AddTo(call);
                 Ui.Text(Value(p, f) + " " + Fmt.Unit(PartFields.Unit(f)), "clue-call-v", "mono").AddTo(call);
             }
-            Ui.Text(Loc.T("ui.clue.drawing.foot", ("cat", Loc.T("ui.cat." + p.Category))), "clue-small").AddTo(sheet);
         }
     }
 }
