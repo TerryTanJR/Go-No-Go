@@ -179,9 +179,9 @@ namespace GoNoGo.UI
                     bool known = diff.EventReveal || e.Kind == EventKind.Alien;
                     bool judged = known || !string.IsNullOrEmpty(resp.Judged);
                     var steps = Ui.Row("turn-goal-steps").AddTo(goal);
-                    if (!known) Ui.Text((judged ? "✔ " : "① ") + Loc.T("ui.ops.turn_goal_judge"), "turn-goal-step").Cls("turn-goal-step--done", judged).AddTo(steps);
+                    if (!known) Ui.Text((judged ? "✓ " : "① ") + Loc.T("ui.ops.turn_goal_judge"), "turn-goal-step").Cls("turn-goal-step--done", judged).AddTo(steps);
                     bool played = resp.Mini.ContainsKey(GameSession.LocalPlayer);
-                    Ui.Text((played ? "✔ " : known ? "① " : "② ") + Loc.T("ui.ops.turn_goal_treat"), "turn-goal-step").Cls("turn-goal-step--done", played).AddTo(steps);
+                    Ui.Text((played ? "✓ " : known ? "① " : "② ") + Loc.T("ui.ops.turn_goal_treat"), "turn-goal-step").Cls("turn-goal-step--done", played).AddTo(steps);
                 }
                 // 1. 判斷
                 Ui.Text(Loc.T("ui.ops.step_judge"), "h3").AddTo(body);
@@ -307,7 +307,7 @@ namespace GoNoGo.UI
                 if (OpsActions.FireOnly(a) && !fire) continue; // 火點操作只在野火關卡出現
                 var act = a;
                 bool done = resp.Actions.Contains(a);
-                var b = Ui.Btn(Loc.T("ops.action." + a) + (done ? "  ✔" : ""), () =>
+                var b = Ui.Btn(Loc.T("ops.action." + a) + (done ? "  ✓" : ""), () =>
                 {
                     GameSession.Send(CommandType.Act, act);
                     Sfx.Confirm();
@@ -349,7 +349,7 @@ namespace GoNoGo.UI
                 var r = Ui.Row("lobby-player").Cls("lobby-player--me", me).AddTo(col);
                 Ui.Text((me ? "▶ " : "") + SelectView.PlayerName(p.Id), "lobby-pname").AddTo(r);
                 Ui.Spacer().AddTo(r);
-                Ui.Text(p.Ready ? "✔ " + Loc.T("ui.lobby.ready") : "…", "lobby-pstate", p.Ready ? "go" : "dim").AddTo(r);
+                Ui.Text(p.Ready ? "✓ " + Loc.T("ui.lobby.ready") : "…", "lobby-pstate", p.Ready ? "go" : "dim").AddTo(r);
             }
             if (s.Players.Count == 0) Ui.Text("—", "lobby-pname", "faint").AddTo(col);
         }
@@ -412,7 +412,7 @@ namespace GoNoGo.UI
                 var r = Ui.Row("team-board-name").Cls("team-board-name--me", me).AddTo(body);
                 Ui.Text((me ? "▶ " : "") + SelectView.PlayerName(p.Id), "team-board-pn").AddTo(r);
                 Ui.Spacer().AddTo(r);
-                Ui.Text(p.Ready ? "✔ " + Loc.T("ui.lobby.ready") : "…", "team-board-pn", p.Ready ? "go" : "dim").AddTo(r);
+                Ui.Text(p.Ready ? "✓ " + Loc.T("ui.lobby.ready") : "…", "team-board-pn", p.Ready ? "go" : "dim").AddTo(r);
             }
         }
     }

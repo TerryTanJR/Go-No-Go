@@ -188,7 +188,7 @@ namespace GoNoGo.UI
             }
 
             var acts = Ui.Row("dsg-acts").AddTo(card);
-            var cb = Ui.Btn((picked ? "☑  " : "☐  ") + Loc.T("ui.designs.pick"), () =>
+            var cb = Ui.Btn((picked ? "■  " : "□  ") + Loc.T("ui.designs.pick"), () =>
             {
                 if (!_picked.Remove(id))
                 {
@@ -232,7 +232,7 @@ namespace GoNoGo.UI
                 Ui.Btn(Loc.T("ui.designs.delete_yes"), () => { DesignLibrary.Delete(s.id); _confirmDelete = null; rebuild?.Invoke(); }, "chip", "chip--danger").AddTo(acts);
                 Ui.Btn(Loc.T("ui.gmenu.cancel"), () => { _confirmDelete = null; rebuild?.Invoke(); }, "chip").AddTo(acts);
             }
-            else Ui.Btn("✕", () => { _confirmDelete = s.id; rebuild?.Invoke(); }, "chip", "dsg-del").AddTo(acts);
+            else Ui.Btn("×", () => { _confirmDelete = s.id; rebuild?.Invoke(); }, "chip", "dsg-del").AddTo(acts);
         }
 
         // ---------------- 比較表

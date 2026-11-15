@@ -157,7 +157,7 @@ namespace GoNoGo.UI
         {
             Sfx.Confirm();
             _box.AddToClassList("coach--done");
-            _title.text = "✔ " + _title.text;
+            _title.text = "✓ " + _title.text;
             _advanceIn = 0.9f;
         }
 

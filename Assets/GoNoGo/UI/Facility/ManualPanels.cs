@@ -448,7 +448,7 @@ namespace GoNoGo.UI
             Ui.Text(Loc.T("ui.manual.conflicts"), "h3").AddTo(conf);
             Ui.Text(Loc.T("ui.manual.conflicts_body"), "small", "dim").AddTo(conf);
             foreach (var (a, b) in Procedures.Conflicts)
-                Ui.Text(Loc.T("ops.action." + a) + "  ✕  " + Loc.T("ops.action." + b), "body").AddTo(conf);
+                Ui.Text(Loc.T("ops.action." + a) + "  ×  " + Loc.T("ops.action." + b), "body").AddTo(conf);
         }
 
         // ---------------------------------------------------------------- 太空天氣（DONKI）

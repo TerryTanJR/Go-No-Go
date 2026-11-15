@@ -65,7 +65,7 @@ namespace GoNoGo.UI
                 {
                     // 裝好的：打勾 + 名稱（答案揭曉，順便記住它叫什麼）
                     var row = Ui.Row("ord-step", "ord-step--done").AddTo(root);
-                    Ui.Text("✔", "ord-n").AddTo(row);
+                    Ui.Text("✓", "ord-n").AddTo(row);
                     Ui.Text(Loc.T(c.Name), "ord-step-text").AddTo(row);
                 }
                 else if (i == job.Step)

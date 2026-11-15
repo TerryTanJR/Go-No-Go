@@ -103,7 +103,7 @@ namespace GoNoGo.UI
             {
                 var cat = c;
                 bool has = c == PartCategory.Instrument ? s.Bench.Instruments.Count > 0 : !string.IsNullOrEmpty(s.Bench.Get(c));
-                var b = Ui.Btn(Loc.T("ui.cat." + c) + (has ? "  ✔" : ""), () => { _cat = cat; Refresh(); }, "chip", "sel-cat").Cls("chip--on", c == _cat).AddTo(chips);
+                var b = Ui.Btn(Loc.T("ui.cat." + c) + (has ? "  ✓" : ""), () => { _cat = cat; Refresh(); }, "chip", "sel-cat").Cls("chip--on", c == _cat).AddTo(chips);
                 b.focusable = false;
             }
             var cells = Blanks.Cells(D, s);
@@ -123,7 +123,7 @@ namespace GoNoGo.UI
         {
             var row = Ui.El("sel-part").Cls("sel-part--on", on).AddTo(list);
             var top = Ui.Row("sel-part-top").AddTo(row);
-            var tick = Ui.Btn(on ? "✔" : "", () =>
+            var tick = Ui.Btn(on ? "✓" : "", () =>
             {
                 Sfx.Click();
                 GameSession.Send(CommandType.SelectPart, p.Id, on ? 0 : 1);
@@ -136,7 +136,7 @@ namespace GoNoGo.UI
             Ui.Spacer().AddTo(top);
             Ui.Text(Fmt.PartMoney(p.CostMusd), "sel-price", "mono").AddTo(top);
             bool open = _open == p.Id;
-            var more = Ui.Btn(open ? "▾" : "▸", () => { _open = open ? null : p.Id; Refresh(); }, "sel-more").AddTo(top);
+            var more = Ui.Btn(open ? "▼" : "▶", () => { _open = open ? null : p.Id; Refresh(); }, "sel-more").AddTo(top);
             more.focusable = false;
 
             var cells = Ui.Row("sel-cells").AddTo(row);
@@ -432,7 +432,7 @@ namespace GoNoGo.UI
                 if (i > 0) Ui.El("prog-link").Cls("prog-link--done", i <= current).AddTo(row);
                 var st = Ui.El("prog-stage").Cls("prog-stage--done", done && i != current).Cls("prog-stage--now", i == current).AddTo(row);
                 var top = Ui.Row("prog-stage-top").AddTo(st);
-                Ui.Text(done && i != current ? "✔" : (i + 1).ToString(), "prog-dot", "mono").AddTo(top);
+                Ui.Text(done && i != current ? "✓" : (i + 1).ToString(), "prog-dot", "mono").AddTo(top);
                 Ui.Text(Loc.T("ui.prog.stage." + key), "prog-stage-name").AddTo(top);
                 if (!compact && !string.IsNullOrEmpty(sub)) Ui.Text(sub, "prog-stage-sub").AddTo(st);
             }
@@ -592,7 +592,7 @@ namespace GoNoGo.UI
 
         /// <summary>
         /// 任務需求：直接全部列出來。互相拉扯的需求標成「取捨」。
-        /// 用到沒填數值的需求顯示「資料不足」；判定（✔／✘、紅綠）只有學員難度有，其他難度只列現在的數字和目標。
+        /// 用到沒填數值的需求顯示「資料不足」；判定（✓／×、紅綠）只有學員難度有，其他難度只列現在的數字和目標。
         /// notes：下面再列取捨說明（為什麼有這條需求、兩條需求怎麼互相拉扯）。
         /// </summary>
         public static void Requirements(VisualElement parent, bool compact, bool notes)
@@ -652,7 +652,7 @@ namespace GoNoGo.UI
                     {
                         Ui.Text(g.Now, "prog-goal-now", "mono").AddTo(val);
                         Ui.Text(" / " + g.Target, "prog-goal-target", "mono").AddTo(val);
-                        if (verdict) Ui.Text(ok ? "✔" : "✘", "prog-goal-mark", ok ? "go" : "over").AddTo(val);
+                        if (verdict) Ui.Text(ok ? "✓" : "×", "prog-goal-mark", ok ? "go" : "over").AddTo(val);
                     }
                     if (can && verdict)
                     {

@@ -226,7 +226,7 @@ namespace GoNoGo.UI
             for (int i = 0; i < 6; i++)
             {
                 var row = Ui.Row("howto-row").Cls("howto-row--now", i == now).Cls("howto-row--done", i < now).AddTo(body);
-                Ui.Text(i < now ? "✔" : (i + 1).ToString(), "howto-n", "mono").AddTo(row);
+                Ui.Text(i < now ? "✓" : (i + 1).ToString(), "howto-n", "mono").AddTo(row);
                 Ui.Text(Loc.T("ui.wall.howto." + i), "howto-text").AddTo(row);
             }
         }

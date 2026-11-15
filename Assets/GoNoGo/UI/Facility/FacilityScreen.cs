@@ -378,7 +378,7 @@ namespace GoNoGo.UI
             var head = Ui.Row("modal-head").AddTo(card);
             Ui.Text(_panel.Title, "eyebrow").AddTo(head);
             Ui.Spacer().AddTo(head);
-            if (_panel.Closable) Ui.Btn("Esc  ✕", ClosePanel, "modal-close").AddTo(head);
+            if (_panel.Closable) Ui.Btn("Esc  ×", ClosePanel, "modal-close").AddTo(head);
             var body = Ui.El("modal-body").AddTo(card);
             if (reattach) _panel.Reattach(body, ClosePanel);
             else _panel.Attach(body, ClosePanel);

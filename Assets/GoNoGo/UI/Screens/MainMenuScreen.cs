@@ -68,7 +68,7 @@ namespace GoNoGo.UI
         {
             var hit = Ui.El("menu-avatar-hit").AddTo(Root);
             hit.RegisterCallback<ClickEvent>(_ => { Sfx.Click(); OpenAvatar(); });
-            var btn = Ui.Btn("✎  " + Loc.T("ui.menu.edit_avatar"), OpenAvatar, "menu-avatar-btn").AddTo(Root);
+            var btn = Ui.Btn("" + Loc.T("ui.menu.edit_avatar"), OpenAvatar, "menu-avatar-btn").AddTo(Root);
             hit.RegisterCallback<PointerEnterEvent>(_ => btn.AddToClassList("menu-avatar-btn--hot"));
             hit.RegisterCallback<PointerLeaveEvent>(_ => btn.RemoveFromClassList("menu-avatar-btn--hot"));
         }
