@@ -207,7 +207,7 @@ namespace GoNoGo.Core.Tests
             "event.false_fire.reported", "event.false_fire.flagged", "event.false_fire.ignored",
             // 選件、填數值、確定設計、組裝台的規則會回傳的錯誤碼
             "err.confirmed", "err.fill_format", "err.not_blank", "err.fill_range", "err.design_incomplete",
-            "err.not_confirmed", "err.not_installed", "err.over_budget", "err.sandbox_no_assembly", "err.comp_dup", "err.bench_take_first",
+            "err.not_confirmed", "err.not_installed", "err.over_budget", "err.sandbox_no_assembly", "err.comp_dup", "err.bench_take_first", "err.slot_taken",
             "err.bench_full", "err.bench_busy", "err.carry_part", "err.no_job", "err.comp_gone", "err.hands_full", "err.nothing_held", "err.minigame",
             "cause.funding_left", "cause.funding_out", "ui.restart.toast", "cause.success_latency", "suggest.fire_tradeoff",
         };

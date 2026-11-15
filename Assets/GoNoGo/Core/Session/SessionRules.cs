@@ -29,7 +29,7 @@ namespace GoNoGo.Core
         // 把手上的小零件裝到組裝台右側（N = 第幾座組裝台）。36 = 已刪除的「把箱子放上工作台」
         CompPick = 37, CompDrop = 38, CompFit = 39,
         // 流程改版：設計主螢幕選件（A = 零件 id，N = 1 勾選 / 0 取消）、填數值（A = 零件 id|欄位|數值）、
-        // 確定設計（N = 1 確定 / 0 改選）、把手上的小零件放到組裝台左側（N = 第幾座）、
+        // 確定設計（N = 1 確定 / 0 改選）、把手上的小零件放到組裝台左側（N = 第幾座，A = 第幾格，空白 = 依序放進空格）、
         // 從組裝台左側拿一個小零件（N = 第幾座，A = 小零件 id）
         SelectPart = 40, Fill = 41, Confirm = 42, BenchPut = 43, BenchTake = 44,
     }
@@ -291,7 +291,7 @@ namespace GoNoGo.Core
 
                 case CommandType.CompPick: return CompPick(s, data, c.Player, c.A);
                 case CommandType.CompDrop: return CompDrop(s, c.Player, c.A);
-                case CommandType.BenchPut: return BenchPut(s, data, c.Player, c.N);
+                case CommandType.BenchPut: return BenchPut(s, data, c.Player, c.N, c.A);
                 case CommandType.BenchTake: return BenchTake(s, data, c.Player, c.N, c.A);
                 case CommandType.CompFit: return CompFit(s, data, c.Player, c.N);
                 case CommandType.Pick: return Pick(s, data, c.Player, c.A);
@@ -501,7 +501,7 @@ namespace GoNoGo.Core
                     var recipe = data.Recipe(data.Part(b.Job.PartId));
                     if (recipe != null)
                         foreach (var c in recipe.Components.Take(b.Job.Step))
-                            if (!b.Left.Contains(c.Id)) b.Left.Add(c.Id);
+                            if (!b.Holds(c.Id)) b.PlaceInFirstFree(c.Id);
                 }
                 b.Job = null;
             }
@@ -642,7 +642,7 @@ namespace GoNoGo.Core
                 if (b.Job.Done) return "err.bench_take_first";
                 return mine.Any(id => Returnable(s, data, index, id)) ? Ok : "err.bench_busy";
             }
-            if (mine.All(b.Left.Contains)) return "err.comp_dup";
+            if (mine.All(b.Holds)) return "err.comp_dup";
             if (b.Left.Count >= GameData.BenchSlots) return "err.bench_full";
             return Ok;
         }
@@ -652,22 +652,33 @@ namespace GoNoGo.Core
         {
             var b = s.BenchAt(index);
             var recipe = BenchRecipe(s, data, index);
-            if (b == null || recipe == null || b.Left.Contains(compId)) return false;
+            if (b == null || recipe == null || b.Holds(compId)) return false;
             return recipe.Components.FindIndex(c => c.Id == compId) >= b.Job.Step;
         }
 
-        static string BenchPut(SessionState s, GameData data, int player, int index)
+        /// <summary>
+        /// 把手上的小零件放到組裝台左側。<paramref name="slotArg"/> 是第幾格（準星對著的那一格）：只放手上第一個放得上去的；
+        /// 空白 = 不指定，手上的（籃子裡的）一次全部放進空格。台上已經有的、放不下的留在手上。
+        /// </summary>
+        static string BenchPut(SessionState s, GameData data, int player, int index, string slotArg)
         {
             var why = CanPut(s, data, player, index);
             if (why != Ok) return why;
             var b = s.Benches[index];
-            // 手上的（籃子裡的）一次全部放上去；台上已經有的、放不下的留在手上
+            int slot = -1;
+            if (!string.IsNullOrEmpty(slotArg))
+            {
+                if (!int.TryParse(slotArg, out slot) || slot < 0 || slot >= GameData.BenchSlots) return "err.unknown";
+                if (b.At(slot) != null) return "err.slot_taken";
+            }
             foreach (var id in s.CompsOf(player).ToList())
             {
-                if (b.Left.Contains(id) || b.Left.Count >= GameData.BenchSlots) continue;
+                if (b.Holds(id)) continue;
                 if (b.Job != null && !Returnable(s, data, index, id)) continue;
-                b.Left.Add(id);
+                if (slot >= 0) b.Place(id, slot);
+                else if (!b.PlaceInFirstFree(id)) break;
                 RemoveComp(s, player, id);
+                if (slot >= 0) break;
             }
             Recheck(s, data, index, player, true);
             return Ok;
@@ -680,12 +691,12 @@ namespace GoNoGo.Core
             if (why != Ok) return why;
             var b = s.BenchAt(index);
             if (b == null) return "err.unknown";
-            if (!b.Left.Contains(compId)) return "err.comp_gone";
+            if (!b.Holds(compId)) return "err.comp_gone";
             // 右側正在組：一次拿一個去裝（手上有別的小零件時，裝上去的會是哪一個就說不清了）
             if (b.Job != null && s.CompsOf(player).Count > 0) return "err.hands_full";
             why = CanCarry(s, player, compId);
             if (why != Ok) return why;
-            b.Left.Remove(compId);
+            b.Take(compId);
             AddComp(s, player, compId);
             // 拿走多放的那一個之後剛好是一整組：認得出來了（拿東西不算一次新的錯誤）
             Recheck(s, data, index, player, false);
@@ -734,15 +745,15 @@ namespace GoNoGo.Core
                 s.Mistakes++;
                 int at = recipe.Components.FindIndex(c => c.Id == id);
                 if (at < 0) job.Scrapped.Add(id);
-                else if (at >= job.Step && !b.Left.Contains(id)) b.Left.Add(id);
+                else if (at >= job.Step && !b.Holds(id)) b.PlaceInFirstFree(id);
                 return Ok;
             }
-            b.Left.Remove(id);
+            b.Take(id);
             job.Step++;
             if (job.Step < recipe.Components.Count) return Ok;
             // 組好了：成品留在右側，等人拿去裝上衛星
             job.Done = true;
-            b.Left.Clear();
+            b.ClearSlots();
             if (!s.Built.Contains(job.PartId)) s.Built.Add(job.PartId);
             if (job.Mistakes == 0 && !s.Flawless.Contains(recipe.Key)) s.Flawless.Add(recipe.Key);
             if (!s.Learned.Contains(recipe.Key)) s.Learned.Add(recipe.Key);

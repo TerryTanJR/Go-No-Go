@@ -167,6 +167,28 @@ namespace GoNoGo.Core.Tests
         // ---------------------------------------------------------------- 組裝台左側：認配方
 
         [Test]
+        public void PlayersChooseWhichSlotAComponentGoesIn()
+        {
+            var s = Solo();
+            Flow.Confirm(s, _data);
+            Ok(s, Command.Of(CommandType.CompPick, 1, "cells"));
+            Ok(s, Command.Of(CommandType.BenchPut, 1, "4", 0));
+            Assert.That(s.Benches[0].At(4), Is.EqualTo("cells"), "放在準星對著的那一格");
+            Assert.That(s.Benches[0].At(0), Is.Null);
+
+            Ok(s, Command.Of(CommandType.CompPick, 1, "bms"));
+            Assert.That(Try(s, CommandType.BenchPut, 1, "4", 0), Is.EqualTo("err.slot_taken"), "有東西的格子不能再放");
+            Ok(s, Command.Of(CommandType.BenchPut, 1, "1", 0));
+            Ok(s, Command.Of(CommandType.BenchTake, 1, "bms", 0));
+            Assert.That(s.Benches[0].At(4), Is.EqualTo("cells"), "拿走別格的東西，這一格不會移動");
+            Assert.That(s.Benches[0].At(1), Is.Null);
+
+            var copy = SessionState.FromJson(s.ToJson());
+            Assert.That(copy.Benches[0].At(4), Is.EqualTo("cells"), "多人時整包傳過去，格子不變");
+            Assert.That(copy.Benches[0].Slots.Count, Is.EqualTo(GameData.BenchSlots), "傳過去不會多出格子");
+        }
+
+        [Test]
         public void TheLeftSideRecognisesARecipeOnlyWhenTheDesignNeedsIt()
         {
             var s = Solo();

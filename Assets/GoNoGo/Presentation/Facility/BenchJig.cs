@@ -35,12 +35,13 @@ namespace GoNoGo.Presentation
         }
 
         /// <summary>把手上的小零件放到這座組裝台的左側（左側的格子和右側按 E 都會到這裡）。</summary>
-        public static void Put(int bench)
+        /// <summary>把手上的小零件放到左側：<paramref name="slot"/> 指定第幾格（-1 = 依序放進空格）。</summary>
+        public static void Put(int bench, int slot = -1)
         {
             if (!GameSession.HasMission) return;
             string why = SessionRules.CanPut(M.S, M.Data, GameSession.LocalPlayer, bench);
             if (why != SessionRules.Ok) { Sfx.NoGo(); Hud.Toast(Loc.T(why)); return; }
-            GameSession.Send(CommandType.BenchPut, "", bench);
+            GameSession.Send(CommandType.BenchPut, slot >= 0 ? slot.ToString() : "", bench);
             Sfx.Drop();
             Hud.Signal("bench_put");
         }
